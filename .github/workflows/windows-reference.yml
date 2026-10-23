@@ -23,6 +23,12 @@ jobs:
           update: true
       - name: Install dependencies and check RGB565 presentation
         run: ./scripts/setup-sdl2.sh
+      - name: Reuse installed dependencies without invoking a package manager
+        run: |
+          pacman() { echo 'Unexpected package-manager invocation' >&2; return 99; }
+          export -f pacman
+          ./scripts/setup-sdl2.sh
+          ./scripts/setup-sdl2.sh --check
       - name: Build SDL and headless applications and run conformance tests
         run: make -j4 all headless test
       - name: Verify all demo traversals

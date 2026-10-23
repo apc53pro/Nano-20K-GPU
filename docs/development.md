@@ -36,8 +36,18 @@ make -j4 headless test
 ## Windows with MSYS2
 
 Install [MSYS2](https://www.msys2.org/) and open **MSYS2 UCRT64** from the Start
-menu. Its prompt should contain `UCRT64`. Git Bash is a separate environment;
-installing Bash alone does not provide the compiler or MSYS2 packages used here.
+menu. Check the installation before running setup:
+
+```bash
+cygpath -w /
+command -v pacman
+```
+
+The root normally resolves to `C:\msys64` (or your chosen MSYS2 directory), and
+`pacman` should be available. Git Bash is a separate environment: its root is
+typically `C:\Program Files\Git`, and it does not include pacman. Git Bash can
+also display `UCRT64`, so the prompt alone does not identify the installation.
+Installing Bash alone does not provide the compiler or MSYS2 packages used here.
 The recommended toolchain is 64-bit GCC under UCRT64. MINGW64 and CLANG64 shells
 are also recognized by the installer, which selects packages for that shell.
 Visual Studio/MSVC is not supported because the setup code requires `__int128`.
@@ -54,10 +64,18 @@ run `pacman -Syu` again. Then change to your checkout, for example
 
 ```bash
 ./scripts/setup-sdl2.sh
+make clean
 make -j4
 make test
 ./build/nano-gpu-ref.exe
 ```
+
+Keep your existing checkout; for example, `C:\w\Nano-20K-GPU` is accessible as
+`/c/w/Nano-20K-GPU` from either environment. The clean rebuild discards objects
+from other compilers such as TDM-GCC. After setup, `command -v g++` in UCRT64
+should resolve to `/ucrt64/bin/g++`, rather than a Windows compiler elsewhere on
+PATH. If you also want to run Git inside MSYS2, install it with
+`pacman -S --needed git`.
 
 The equivalent manual dependency installation for **UCRT64** is:
 
@@ -70,6 +88,11 @@ The Makefile uses MSYS2's `python` command on Windows. This avoids the Windows
 build and executable in the same MSYS2 shell so the selected toolchain's `bin`
 directory supplies SDL2 and compiler runtime DLLs. Launching the executable from
 Explorer or a different terminal may require those DLLs to be packaged separately.
+
+If all build dependencies are already available, setup reuses them without
+requiring pacman. `--check` only verifies the SDL SDK and never invokes a package
+manager. When installation is needed but pacman is missing, setup reports the
+current shell root to distinguish installation problems from PATH problems.
 
 For a headless run in UCRT64:
 

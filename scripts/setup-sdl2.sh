@@ -43,11 +43,18 @@ while (($#)); do
     shift
 done
 
+sdk_available() {
+    local default_cxx=c++
+    if [[ "${MSYSTEM:-}" == CLANG64 ]]; then default_cxx=clang++; fi
+    command -v "${CXX:-$default_cxx}" >/dev/null 2>&1 &&
+        command -v pkg-config >/dev/null 2>&1 &&
+        pkg-config --exists sdl2 &&
+        [[ "$(pkg-config --modversion sdl2)" == 2.* ]]
+}
+
 system="$(uname -s)"
 case "$system" in
     MINGW*|MSYS*|CYGWIN*)
-        command -v pacman >/dev/null 2>&1 ||
-            die 'use an MSYS2 UCRT64 terminal, not Git Bash; see docs/development.md'
         case "${MSYSTEM:-}" in
             UCRT64) package_prefix=mingw-w64-ucrt-x86_64; compiler_package=gcc ;;
             MINGW64) package_prefix=mingw-w64-x86_64; compiler_package=gcc ;;
@@ -55,13 +62,36 @@ case "$system" in
             *) die 'open MSYS2 UCRT64 (recommended), MINGW64, or CLANG64; see docs/development.md' ;;
         esac
         ! $local_install || die '--local/--prefix/--rebuild are Linux-only; MSYS2 uses pacman packages'
-        if ! $check_only; then
-            # Install all build/test tools even if an SDL2 SDK is already present.
-            printf 'Installing native dependencies for MSYS2 %s.\n' "$MSYSTEM"
-            pacman -S --needed --noconfirm make \
-                "$package_prefix-$compiler_package" "$package_prefix-pkgconf" \
-                "$package_prefix-SDL2" "$package_prefix-python"
+        if $check_only; then
+            exec bash "$project_dir/scripts/check-sdl2.sh"
         fi
+        if sdk_available && command -v make >/dev/null 2>&1 &&
+                command -v python >/dev/null 2>&1 &&
+                python -c 'import sys; sys.exit(sys.version_info.major != 3)' >/dev/null 2>&1; then
+            printf 'Reusing the existing native Windows build dependencies.\n'
+            exec bash "$project_dir/scripts/check-sdl2.sh"
+        fi
+        package_manager="$(command -v pacman || true)"
+        if [[ -z "$package_manager" && -x /usr/bin/pacman.exe ]]; then
+            package_manager=/usr/bin/pacman.exe
+        fi
+        if [[ -z "$package_manager" ]]; then
+            printf 'setup-sdl2: Windows dependency setup is incomplete and pacman was not found.\n' >&2
+            if command -v cygpath >/dev/null 2>&1; then
+                printf 'Current shell installation root: %s\n' "$(cygpath -w /)" >&2
+            fi
+            printf '%s\n' \
+                'A UCRT64 prompt alone does not identify a full MSYS2 installation.' \
+                'Install MSYS2 from https://www.msys2.org/ and launch MSYS2 UCRT64 from the Start menu.' \
+                'Git for Windows does not include the pacman package manager.' \
+                'Then return to this checkout and rerun setup; see docs/development.md.' >&2
+            exit 1
+        fi
+        # Install all tools when any build/test dependency is missing.
+        printf 'Installing native dependencies for MSYS2 %s.\n' "$MSYSTEM"
+        "$package_manager" -S --needed --noconfirm make \
+            "$package_prefix-$compiler_package" "$package_prefix-pkgconf" \
+            "$package_prefix-SDL2" "$package_prefix-python"
         exec bash "$project_dir/scripts/check-sdl2.sh"
         ;;
 esac
@@ -72,13 +102,6 @@ use_local_sdk() {
     export PKG_CONFIG_PATH="$prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
     export LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     export CMAKE_PREFIX_PATH="$prefix${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
-}
-
-sdk_available() {
-    command -v "${CXX:-c++}" >/dev/null 2>&1 &&
-        command -v pkg-config >/dev/null 2>&1 &&
-        pkg-config --exists sdl2 &&
-        [[ "$(pkg-config --modversion sdl2)" == 2.* ]]
 }
 
 # Reuse this checkout's local SDK without requiring a prior activation command.

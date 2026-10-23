@@ -24,6 +24,8 @@ for the tests. See the [setup guide](docs/development.md) for platform details.
 On Windows, use **MSYS2 UCRT64**, update it with `pacman -Syu`, and then run the
 commands below. The installer provides the native compiler, SDL2, pkg-config,
 Python, and make. [Full Windows setup](docs/development.md#windows-with-msys2).
+MSYS2 is a separate installation from Git Bash; both can display `UCRT64`, but
+Git Bash does not include MSYS2's package manager.
 
 ```bash
 ./scripts/setup-sdl2.sh
