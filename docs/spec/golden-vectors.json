@@ -1,0 +1,85 @@
+{
+  "profile": "N20K-M0-0.1",
+  "description": "Specification vectors consumed by the software conformance suite; hardware validation remains pending.",
+  "tile_width": 32,
+  "tile_height": 32,
+  "coverage": [
+    {
+      "id": "COVER-01",
+      "vertices_pixels": [[0, 0], [2, 0], [0, 2]],
+      "expected_pixels": [[0, 0]]
+    },
+    {
+      "id": "COVER-02",
+      "vertices_pixels": [[2, 0], [2, 2], [0, 2]],
+      "expected_pixels": [[1, 0], [0, 1], [1, 1]]
+    }
+  ],
+  "tile_crossing": {
+    "id": "TILE-01",
+    "triangles_pixels": [
+      [[31, 31], [33, 31], [31, 33]],
+      [[33, 31], [33, 33], [31, 33]]
+    ],
+    "expected_pixels": [[31, 31], [32, 31], [31, 32], [32, 32]],
+    "expected_tile_ids": [0, 1, 20, 21]
+  },
+  "depth": [
+    {
+      "id": "DEPTH-01",
+      "clear": 16777215,
+      "compare": "LESS",
+      "incoming": [8388609, 8388608, 8388608],
+      "expected_pass": [true, true, false],
+      "expected_final": 8388608
+    },
+    {
+      "id": "DEPTH-02",
+      "clear": 16777215,
+      "compare": "LESS",
+      "incoming": [16777215, 16777214, 16777214],
+      "expected_pass": [false, true, false],
+      "expected_final": 16777214
+    }
+  ],
+  "color_key": {
+    "id": "KEY-01",
+    "clear_depth": 16777215,
+    "clear_color_rgb565": 0,
+    "fragments": [
+      {"depth": 2097152, "texel_rgb565": 63519, "key_enabled": true, "key_rgb565": 63519},
+      {"depth": 8388608, "texel_rgb565": 2016, "key_enabled": false, "key_rgb565": 0}
+    ],
+    "expected_final_depth": 8388608,
+    "expected_final_color_rgb565": 2016
+  },
+  "perspective": {
+    "id": "UV-01",
+    "vertices_pixels": [[0, 0], [4, 0], [0, 4]],
+    "q_fraction_pairs": [[1, 2], [1, 4], [1, 2]],
+    "u_texels": [0, 8, 0],
+    "v_texels": [0, 0, 8],
+    "sample_pixel": [0, 0],
+    "anchor_pixel": [0, 0],
+    "q_plane_q37": {"seed": 64424509440, "step_x": -8589934592, "step_y": 0},
+    "U_plane_q27": {"seed": 33554432, "step_x": 67108864, "step_y": 0},
+    "V_plane_q27": {"seed": 67108864, "step_x": 0, "step_y": 134217728},
+    "expected_barycentric_pairs": [[3, 4], [1, 8], [1, 8]],
+    "expected_u_fraction": [8, 15],
+    "expected_v_fraction": [16, 15],
+    "canonical_uv_q16": [34953, 69905],
+    "expected_texel": [0, 1],
+    "affine_texel": [1, 1]
+  },
+  "line": {
+    "id": "LINE-01",
+    "endpoints": [[0, 0], [3, 1]],
+    "expected_pixels": [[0, 0], [1, 0], [2, 1], [3, 1]]
+  },
+  "color": {
+    "id": "COLOR-01",
+    "texel_rgb565": 65535,
+    "modulation_rgb888": [128, 64, 32],
+    "expected_rgb565": 33284
+  }
+}
