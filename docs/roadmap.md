@@ -6,8 +6,11 @@ the first [canonical software reference](software-reference.md), CPU setup
 library, conformance suite, and demo scenes are implemented. M0 still needs
 independent geometric error analysis and command-trace capture. Hardware
 milestones below remain future work.
-An initial [clocked opaque block model](hardware/block-interfaces.md) now
-supplements the canonical SRR with verified Gowin multiplier and BSRAM behavior.
+The [clocked rendering block model](hardware/block-interfaces.md) now covers
+the canonical SRR's complete initial drawing feature set, including perspective
+textures, shading, keyed sprites, and ordered copies, with matching color/depth
+output. It uses verified Gowin multiplier and BSRAM configurations and an exact
+serial perspective divider; throughput optimization remains future work.
 This is software architecture work; hardware synthesis and board measurements
 remain outstanding.
 Use measured exit criteria to advance. Calendar estimates should follow the

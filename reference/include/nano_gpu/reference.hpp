@@ -180,12 +180,20 @@ struct Statistics {
     std::uint64_t texture_samples = 0;
     std::uint64_t color_writes = 0;
     std::uint64_t depth_writes = 0;
-    // Clock counts for the selected opaque block slice only. SDRAM, record
+    // Clock counts for the selected rendering block model. SDRAM, record
     // fetch, host transport, and display timing are not included.
     std::uint64_t hardware_cycles = 0;
     std::uint64_t hardware_stalls = 0;
     std::uint64_t hardware_setup_cycles = 0;
     std::uint64_t hardware_forwarded_reads = 0;
+    std::uint64_t hardware_perspective_cycles = 0;
+    std::uint64_t hardware_texture_cycles = 0;
+    std::uint64_t hardware_texture_hits = 0;
+    std::uint64_t hardware_texture_misses = 0;
+    std::uint64_t hardware_texture_refill_words = 0;
+    // Most recent modeled copy; kept separate from last-pass raster counters.
+    std::uint64_t hardware_copy_cycles = 0;
+    std::uint64_t hardware_copy_words = 0;
 };
 
 // Synchronous logical reference. The provisional binary transport is not modeled.
@@ -195,9 +203,10 @@ public:
     void reset();
     void render(const Pass& pass, RenderMode mode = RenderMode::Tiled);
     void copy_rect(int source, int target, Point source_origin, Point destination_origin,
-                   int width, int height);
+                   int width, int height, RenderMode mode = RenderMode::Tiled);
     void copy_image(const Image& source, int target, Point source_origin,
-                    Point destination_origin, int width, int height);
+                    Point destination_origin, int width, int height,
+                    RenderMode mode = RenderMode::Tiled);
     void queue_present(int target);
     void vertical_blank();
     void abort();

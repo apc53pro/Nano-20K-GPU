@@ -16,9 +16,11 @@ the complete pipeline fits. See the [official board documentation][sipeed].
 The [verified hardware profile](hardware/gowin-profile.md) records the exact
 primitive modes used by the SRR block backend. The 48 multiplier count denotes
 18×18 equivalents, grouped into 24 macros in 12 DSP blocks; wider and 9×9 modes
-share those resources. The initial opaque slice selects one signed multiplier
-and three SDPB 1024×16 banks for RGB565/D24 tile storage. Its clock counts cover
-the selected local datapath; SDRAM arbitration and display timing remain open.
+share those resources. The current rendering model selects one shared signed
+multiplier, three SDPB 1024×16 banks for RGB565/D24 tile storage, and a fourth
+bank for texture caching or an idle-time copy row buffer. Exact perspective
+reconstruction uses serial user logic. Its clock counts cover the selected
+local datapath; SDRAM arbitration and display timing remain open.
 
 Gowin's GW2AR datasheet identifies the QN88 memory configuration as x32, 64 Mbit
 SDR SDRAM and lists a 166 MHz memory clock specification. This is not a proven

@@ -48,16 +48,20 @@ Choose `--scene perspective` or `--scene overdraw` for additional workloads.
 The [renderer guide](docs/software-reference.md) describes controls, frame dumps,
 verification modes, and the C++ API.
 
-The first FPGA block model uses the verified Gowin primitive configurations:
+The FPGA block backend renders the same scenes through modeled hardware blocks
+using the verified Gowin primitive configurations:
 
 ```bash
 ./build/nano-gpu-ref --hardware-profile
-./build/nano-gpu-ref --scene opaque --mode blocks --verify
+./build/nano-gpu-ref --scene showcase --mode blocks --verify
 ```
 
 Use the `.exe` executable in MSYS2 or the headless executable with `--headless`
-on a server. This initial slice supports flat/Gouraud triangles and D24, with one
-signed 18×18 multiplier and three clocked tile-memory blocks. The [hardware
+on a server. The backend supports all five shading modes, perspective textures,
+D24, 2D drawing, keyed sprites, and ordered copies. It uses one shared signed
+18×18 multiplier, three clocked tile-memory banks, a fourth bank for texture
+caching, and a serial perspective divider implemented in user logic. This is an
+exact serial baseline; the one-pixel-per-cycle target needs later work. The [hardware
 profile](docs/hardware/gowin-profile.md) and [block interfaces](docs/hardware/block-interfaces.md)
 record the source revisions, selected modes, ports, and simulation limits.
 
@@ -75,13 +79,14 @@ record the source revisions, selected modes, ports, and simulation limits.
   demos, tests, and output formats.
 - [Gowin hardware profile](docs/hardware/gowin-profile.md): exact device resources
   and the modeled multiplier/BSRAM configurations.
-- [SRR block interfaces](docs/hardware/block-interfaces.md): clocked opaque tile
-  slice, arithmetic, stalls, resets, and future hardware interfaces.
+- [SRR block interfaces](docs/hardware/block-interfaces.md): clocked rendering
+  blocks, arithmetic, texture caching, copies, stalls, and resets.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
   RGB565 dependency check.
 
 Current status: the M0 specification, initial canonical renderer, CPU setup
-library, conformance tests, and demo scenes are available. Independent geometric
+library, conformance tests, demo scenes, and a rendering block backend with
+matching color/depth output are available. Independent geometric
 error analysis and command-trace capture remain M0 work. GPU RTL, the packed bus
 ABI, and measured hardware performance remain future milestones. Software frame
 times do not establish FPGA throughput or fit.

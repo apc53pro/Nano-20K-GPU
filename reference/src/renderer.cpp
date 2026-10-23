@@ -1,5 +1,6 @@
 #include "nano_gpu/reference.hpp"
 #include "nano_gpu/hw/tile_pipeline.hpp"
+#include "nano_gpu/hw/blit.hpp"
 
 #include <algorithm>
 #include <array>
@@ -447,7 +448,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
             validate_primitive(primitive);
         }
         if (mode == RenderMode::HardwareBlocks) {
-            hw::render_opaque_pass(pass, color_[pass.target], depth_, statistics_);
+            hw::render_pass(pass, color_[pass.target], depth_, statistics_);
             color_valid_[pass.target] = true;
             depth_valid_ = true;
             return;
@@ -529,7 +530,10 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
 }
 
 void Renderer::copy_rect(int source, int target, Point source_origin,
-                         Point destination_origin, int width, int height) {
+                         Point destination_origin, int width, int height, RenderMode mode) {
+    if (mode != RenderMode::Tiled && mode != RenderMode::TiledReverse &&
+        mode != RenderMode::Monolithic && mode != RenderMode::HardwareBlocks)
+        throw std::invalid_argument("unsupported copy mode");
     check_buffer(source);
     require_writable(target);
     if (!color_valid_[source]) {
@@ -537,7 +541,20 @@ void Renderer::copy_rect(int source, int target, Point source_origin,
     }
     const auto window = copy_window(screen_width, screen_height, source_origin,
                                     destination_origin, width, height);
+    statistics_.hardware_copy_cycles = 0;
+    statistics_.hardware_copy_words = 0;
     if (window.x0 >= window.x1 || window.y0 >= window.y1) {
+        return;
+    }
+    if (mode == RenderMode::HardwareBlocks) {
+        const hw::CopyRegion region{
+            {static_cast<int>(source_origin.x + window.x0), static_cast<int>(source_origin.y + window.y0)},
+            {static_cast<int>(destination_origin.x + window.x0), static_cast<int>(destination_origin.y + window.y0)},
+            static_cast<int>(window.x1 - window.x0), static_cast<int>(window.y1 - window.y0)};
+        const auto counters = hw::copy_framebuffer(color_[source], color_[target], region);
+        statistics_.hardware_copy_cycles = counters.cycles;
+        statistics_.hardware_copy_words = counters.words;
+        if (full_destination(window, destination_origin)) color_valid_[target] = true;
         return;
     }
     // A host-side snapshot directly defines the specified overlapping-copy result.
@@ -565,11 +582,27 @@ void Renderer::copy_rect(int source, int target, Point source_origin,
 }
 
 void Renderer::copy_image(const Image& source, int target, Point source_origin,
-                          Point destination_origin, int width, int height) {
+                          Point destination_origin, int width, int height, RenderMode mode) {
+    if (mode != RenderMode::Tiled && mode != RenderMode::TiledReverse &&
+        mode != RenderMode::Monolithic && mode != RenderMode::HardwareBlocks)
+        throw std::invalid_argument("unsupported copy mode");
     require_writable(target);
     const auto window = copy_window(source.width(), source.height(), source_origin,
                                     destination_origin, width, height);
+    statistics_.hardware_copy_cycles = 0;
+    statistics_.hardware_copy_words = 0;
     if (window.x0 >= window.x1 || window.y0 >= window.y1) {
+        return;
+    }
+    if (mode == RenderMode::HardwareBlocks) {
+        const hw::CopyRegion region{
+            {static_cast<int>(source_origin.x + window.x0), static_cast<int>(source_origin.y + window.y0)},
+            {static_cast<int>(destination_origin.x + window.x0), static_cast<int>(destination_origin.y + window.y0)},
+            static_cast<int>(window.x1 - window.x0), static_cast<int>(window.y1 - window.y0)};
+        const auto counters = hw::copy_from_image(source, color_[target], region);
+        statistics_.hardware_copy_cycles = counters.cycles;
+        statistics_.hardware_copy_words = counters.words;
+        if (full_destination(window, destination_origin)) color_valid_[target] = true;
         return;
     }
     for (auto j = window.y0; j < window.y1; ++j) {

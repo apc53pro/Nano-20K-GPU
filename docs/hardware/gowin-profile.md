@@ -26,7 +26,8 @@ timing closure, and board validation remain necessary.
 The GW2AR family maximum of four PLLs does not describe this QN88 board. BSRAM
 capacity includes the extra bits available in ×9 configurations; a ×16 instance
 still occupies a complete physical block. These limits do not reserve resources
-for scanout, caches, host control, or future extensions.
+for scanout, host control, or future extensions beyond the explicit allocations
+below.
 
 ## DSP configurations
 
@@ -102,9 +103,48 @@ One 32×32 RGB565/D24 tile uses three instances of that SDPB configuration:
 | Depth high | Depth bits 16–23; remaining word bits zero | One 1024×16 SDPB |
 
 This allocates three physical BSRAM blocks, including unused capacity. Spare
-bits do not create extra ports. The first opaque slice also reserves one
-18×18-equivalent multiplier for edge initialization. Its LUT/FF use and DSP
-packing have not been established by synthesis.
+bits do not create extra ports. The rendering backend also reserves one
+18×18-equivalent multiplier shared between edge initialization and RGB texture
+modulation. The selected signed primitive can represent every unsigned 8-bit
+color operand and the complete 8×8 product. Exact division by 255 after the
+product uses bounded shift/add rounding logic. Its LUT/FF use and DSP packing
+have not been established by synthesis.
+
+## Texture cache and perspective logic
+
+`N20K-HW-RENDER-0.2` adds one SDPB 1024×16 cache bank to the three resident tile
+banks, for **four physical BSRAM blocks and one shared 18×18 multiplier**. The
+cache has 64 direct-mapped lines of 16 RGB565 words. Tags, validity, and a single
+outstanding request are bounded controller state; cache data travels through
+the selected synchronous memory ports.
+
+Texture addressing uses ten clocked shift/add steps for `y × pitch + x`.
+The selected backing-memory adapter waits four edges on a miss and then
+supplies 16 refill words, one per edge. Those delays are model design choices;
+they do not represent a measured or fully simulated SDRAM controller. Binding a
+different immutable image invalidates cache tags. Reset preserves cache RAM.
+See [texture.hpp](../../reference/include/nano_gpu/hw/texture.hpp).
+
+Perspective reconstruction uses the user-logic
+[PerspectiveDivider](../../reference/include/nano_gpu/hw/perspective.hpp), not
+an assumed Gowin hard-divider primitive. A fixed serial restoring algorithm
+evaluates the canonical `RNE((attribute × 2^26) / q)` operation. It consumes a
+90-bit logical numerator with 26 constant low bits, uses a 38-bit divisor and
+remainder datapath, and produces a signed 32-bit Q16 result with overflow checks.
+The selected schedule is one operand-capture edge, 90 bit-processing edges,
+and one rounding/result edge: 92 enabled edges per coordinate. Clock disable
+holds the complete state. The tile controller captures each registered divider
+or texture result on the following common clock edge; these controller edges
+add to total tile clocks without changing the unit's own latency.
+
+The row buffer used by explicit image/framebuffer copies reuses the texture
+cache bank while rasterization is idle, so the peak allocation remains four
+BSRAM blocks. A full clipped source row is buffered before destination writes;
+row direction preserves vertically overlapping copies.
+
+This exact serial implementation closes the rendering feature gap. It is a
+slow correctness baseline for evaluating later reciprocal pipelines. Its
+LUT/register cost, timing, and attainable initiation rate require synthesis.
 
 ## Source revisions
 

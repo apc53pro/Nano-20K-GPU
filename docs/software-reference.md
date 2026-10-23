@@ -58,14 +58,14 @@ build a separate tree with `BUILD_DIR=build/clang` when changing toolchains.
 | `--scene showcase` | Mixed textured 3D, shading, keyed sprites, and bitmap text; the default scene. |
 | `--scene perspective` | Perspective-texture demonstration. |
 | `--scene overdraw` | Overlapping geometry and depth rejection. |
-| `--scene opaque` | Flat/Gouraud geometry compatible with the first hardware block slice. |
+| `--scene opaque` | Flat/Gouraud geometry for focused coverage, interpolation, and depth tests. |
 | `--frames N` | Render 1–1,000,000 frames; the window otherwise runs until closed. |
 | `--time SECONDS` | Set initial animation time; default `0`. |
 | `--step SECONDS` | Advance animation by this amount per frame; default `1/60`, with `0` freezing it. |
 | `--mode tiled` | Traverse 32×32 tiles in normal order; the default. |
 | `--mode reverse` | Traverse the same tiles in reverse order, preserving primitive order inside each tile. |
 | `--mode monolithic` | Evaluate the frame without tile-local attachments. |
-| `--mode blocks` | Run the clocked Gowin opaque slice; the CLI requires `--scene opaque`. |
+| `--mode blocks` | Run the Gowin block model on the selected scene, including the original showcase. |
 | `--hardware-profile` | Print verified device resources and the selected modeled configuration, then exit. |
 | `--verify` | Compare every frame with canonical traversal modes and require identical color/depth results. |
 | `--output FILE.ppm` | Save the last presented frame as binary P6 RGB888. |
@@ -94,10 +94,10 @@ raw files. The JSON hash strings use hexadecimal notation.
 Statistics contain mean host setup/demo-preparation, render-and-bin, and
 verification times, plus last-pass tile references, tiles processed, candidate
 positions, covered fragments, depth/key rejects, texture samples, and color/depth
-writes. These are software measurements and logical counts. They do not model
-FPGA cycles, cache misses, SDRAM transactions, scanout contention, or fill rate.
-The `blocks` mode additionally reports local slice clock counts as described
-below; these have a narrower scope than complete GPU performance.
+writes. These are software measurements and logical counts. The canonical modes
+do not model FPGA cycles, memory transactions, scanout contention, or fill rate.
+The `blocks` mode additionally reports modeled datapath clocks and texture-cache
+events as described below. Their scope excludes complete GPU performance.
 
 ## Implemented behavior
 
@@ -134,8 +134,8 @@ The public types and operations are synchronous C++ calls:
 | `setup_triangle()` | Produce immutable prepared edges/planes from screen vertices; returns an empty optional when culled. |
 | `Pass`, `Primitive` | Submit ordered `Triangle`, `Rect`, `Line`, and `Sprite` records with attachment load/clear settings. |
 | `bin_primitives()` | Inspect stable per-tile lists of primitive indices. |
-| `Renderer::render()` | Execute a pass using tiled, reversed-tile, or monolithic traversal. |
-| `copy_rect()`, `copy_image()` | Perform clipped color copies without changing shared depth. Overlapping framebuffer copies use snapshot semantics. |
+| `Renderer::render()` | Execute a pass using tiled, reversed-tile, monolithic, or hardware-block rendering. |
+| `copy_rect()`, `copy_image()` | Perform clipped color copies without changing shared depth. Overlapping framebuffer copies use snapshot semantics; select the hardware mode to use modeled copy storage. |
 | `queue_present()`, `vertical_blank()` | Queue and apply a logical front/back swap. |
 | `reset()`, `abort()` | Reset to initialized black color/far depth, or cancel queued presentation. Abort does not interrupt synchronous rendering or undo completed work. |
 | `front_color()`, `color()`, `depth()`, `statistics()` | Inspect output attachments and the last render pass's counts. |
@@ -148,34 +148,51 @@ image. See [demo.cpp](../reference/src/demo.cpp) for complete scene construction
 
 ## Gowin hardware block backend
 
-The independent `blocks` backend implements `N20K-HW-OPAQUE-0.1`. It models the
-selected digital configurations of the Tang Nano 20K's Gowin FPGA, while the
-canonical SRR provides expected color/depth results:
+The independent `blocks` backend implements `N20K-HW-RENDER-0.2`. It models the
+selected digital configurations of the Tang Nano 20K's Gowin FPGA and supports
+the same initial drawing feature set as canonical SRR. Compare the same scene at
+the same animation time:
 
 ```sh
 ./build/nano-gpu-ref --hardware-profile
-./build/nano-gpu-ref --scene opaque --mode blocks --verify
-./build/nano-gpu-ref-headless --headless --scene opaque --mode blocks --verify --dump-prefix build/opaque
+./build/nano-gpu-ref --scene showcase --mode blocks --verify
+./build/nano-gpu-ref-headless --headless --scene showcase --time 0 --step 0 --mode blocks --verify --dump-prefix build/hardware-showcase
 ```
 
-In Windows UCRT64, append `.exe` to the executable names. The model supports
-flat/Gouraud triangles and D24 with scissor and independent write enables. It
-uses one shared signed 18×18 multiplier with three enabled-edge stages, and
-three synchronous SDPB 1024×16 memories for color and depth. Tile load, clear,
-and store access the actual simulated ports; reset preserves RAM. There is no
-unbounded memory-port or same-address read/write assumption.
+In Windows UCRT64, append `.exe` to the executable names. `showcase`,
+`perspective`, `overdraw`, and `opaque` are all valid with `--mode blocks`.
+The opaque scene remains a small test workload; its different composition is
+not a substitute for matching the original showcase.
 
-`--verify` compares this slice with all three canonical traversal modes. It does
-not make the Gowin model vendor-library equivalent. The hardware tests also
-exercise clock enables, stalls, reset, primitive latency, and memory collisions.
-The scene's floor markings are triangle geometry, not texture sampling.
+The model includes all five shading modes, perspective-correct nearest textures,
+clamp/repeat addressing, raw color-key rejection, D24, pixels/rectangles, lines,
+and keyed sprites. Font-atlas text uses the same sprite path as canonical SRR.
+It uses one shared signed 18×18 multiplier and four SDPB 1024×16 memories:
+three tile banks and one bounded texture cache. No rendering feature silently
+falls back to the canonical rasterizer.
 
-`hardware_slice_cycles`, `hardware_slice_stalls`,
-`hardware_slice_setup_cycles`, and `hardware_slice_forwarded_reads` count the
-selected local datapath only. The host adapter supplies records and idealized
-tile transfers; SDRAM refresh/arbitration, record fetch, transport, textures,
-scanout, and physical clocks are not modeled. Unsupported drawing features
-produce an error instead of falling back to the canonical rasterizer.
+Perspective coordinates use an explicit serial restoring divider, with a
+90-bit logical numerator and a signed Q16 result rounded to nearest-even. This
+matches canonical quantized-plane reconstruction without a hidden host divide.
+It is a slow exact baseline, not a throughput claim for a future reciprocal
+pipeline. Modulation uses the shared native multiplier and exact byte-rounding
+logic. Tile and cache accesses use the modeled memory ports; reset preserves RAM.
+
+`--verify` compares the resulting color and depth with all three canonical
+traversal modes. The same prepared pass is supplied to each backend. Hardware
+tests also exercise divider arithmetic, cache hits/misses and binding changes,
+global line stepping, clock enables, stalls, reset, latency, and memory collisions.
+This does not establish equivalence with Gowin's installed simulation library.
+
+Block statistics report modeled datapath clocks, stalls, setup work, perspective
+work, texture work, cache hits/misses, and refill words. Unit-work counters
+exclude the tile controller's following-edge result captures; total modeled
+clocks include those capture edges. The host adapter supplies
+records and idealized tile transfers. Cache misses use a selected fixed response
+delay and word stream, not a timed SDRAM controller. SDRAM refresh/arbitration,
+scanout contention, record fetch, transport, and physical clocks remain outside
+these counts. Serial perspective evaluation makes this model slower than the
+canonical renderer; software frame rate is not FPGA performance.
 
 The [Gowin profile](hardware/gowin-profile.md) records primary-source revisions,
 resource grouping, and selected primitive configurations. The [block interface
@@ -192,13 +209,14 @@ Tests consume [golden vectors](spec/golden-vectors.json) and exercise arithmetic
 shared edges, clipping, depth precision, shading/keying, copies, ownership,
 recovery, and generated traversal-equivalence scenes. `make sanitize` runs tests
 in a separate AddressSanitizer/UndefinedBehaviorSanitizer build tree.
-`--verify` checks traversal invariance using shared setup and fragment logic; it
-is not an independent geometric oracle.
+Canonical traversal modes share setup and fragment logic. The block backend
+uses separate rendering arithmetic on the same prepared records. Neither
+comparison is an independent geometric oracle.
 
 The implementation is a typed logical API. The [binary transport contract](spec/commands.md)
 remains provisional and is not parsed or executed here. There is no global 8 MiB
-allocator, aggregate texture/command budget enforcement, texture-cache model,
-complete GPU cycle model, HDMI timing model, or asynchronous transport/fence implementation.
+allocator, aggregate texture/command budget enforcement, complete GPU cycle
+model, HDMI timing model, or asynchronous transport/fence implementation.
 Individual images are bounded, but separate host allocations are not a physical
 GPU memory map.
 
@@ -209,6 +227,6 @@ sample reciprocal/UV domains are errors. Some valid geometric inputs can require
 caller-side refinement before fitting the numeric profile.
 
 An independent higher-precision geometric model, comprehensive end-to-end
-precision qualification, implementation-reciprocal comparison, and serialized
-benchmark input/command trace capture remain work to complete. Host output and
+precision qualification, comparison with a future pipelined reciprocal, and
+serialized benchmark input/command trace capture remain work to complete. Host output and
 timings provide no evidence of FPGA resource fit or one-pixel-per-cycle operation.

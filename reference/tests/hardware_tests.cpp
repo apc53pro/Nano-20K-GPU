@@ -240,8 +240,8 @@ void resource_tests() {
                "18x18 equivalents must not be mistaken for physical DSP blocks");
         expect(TangNano20K::bsram_bits_per_block == 18432 && Sdp1kx16::words * Sdp1kx16::word_bits == 16384,
                "chosen 16-bit mode does not expose the physical parity-bit capacity as free data");
-        expect(OpaqueSliceResources::bsram_blocks == 3 && OpaqueSliceResources::mult18_equivalents == 1,
-               "one resident RGB565/D24 tile requires three banks and the chosen shared multiplier");
+        expect(OpaqueSliceResources::bsram_blocks == 4 && OpaqueSliceResources::mult18_equivalents == 1,
+               "renderer requires three tile banks, one texture-cache bank, and the shared multiplier");
         check_resource_capacity(TangNano20K::bsram_blocks, TangNano20K::mult18_equivalents);
         check_resource_capacity(OpaqueSliceResources::bsram_blocks, OpaqueSliceResources::mult18_equivalents);
         expect_throws([] { check_resource_capacity(47, 1); }, "BSRAM capacity cannot silently overcommit");
@@ -544,16 +544,18 @@ void renderer_tests() {
         compare_pass(pass);
     });
 
-    run_case("block adapter rejects unsupported records before attachment writes", [] {
+    run_case("block adapter rejects malformed records before attachment writes", [] {
         Renderer actual;
         const auto color_before = actual.color(1);
         const auto depth_before = actual.depth();
         Pass pass;
         pass.clear_color = 0xffff;
         square(pass, Bounds{0, 0, 10, 10}, Color{255, 0, 0}, 0);
-        pass.primitives.emplace_back(Rect{});
+        Rect malformed;
+        malformed.state.shade = ShadeMode::TextureReplace;
+        pass.primitives.emplace_back(malformed);
         expect_throws([&] { actual.render(pass, RenderMode::HardwareBlocks); },
-                      "first slice must reject unimplemented 2D records");
+                      "a rectangle may not use textured shading");
         expect(actual.color(1) == color_before && actual.depth() == depth_before,
                "all record support must be checked before clear or earlier valid draws");
         expect(!actual.color_valid(1) && !actual.depth_valid(),
@@ -563,7 +565,7 @@ void renderer_tests() {
         expect(actual.color_valid(1) && actual.depth_valid(), "CLEAR recovers after an unsupported pass");
     });
 
-    run_case("block adapter rejects texture shading explicitly", [] {
+    run_case("block adapter rejects a missing texture before drawing", [] {
         Renderer actual;
         Pass pass;
         auto image = std::make_shared<Image>(1, 1);
@@ -571,9 +573,11 @@ void renderer_tests() {
         RenderState state;
         state.shade = ShadeMode::TextureReplace;
         state.texture = image;
-        pass.primitives.emplace_back(flat_triangle({{{0, 0}, {4, 0}, {0, 4}}}, Color{}, 0, state));
+        auto invalid = flat_triangle({{{0, 0}, {4, 0}, {0, 4}}}, Color{}, 0, state);
+        invalid.state.texture.reset();
+        pass.primitives.emplace_back(invalid);
         expect_throws([&] { actual.render(pass, RenderMode::HardwareBlocks); },
-                      "hardware model must not silently delegate textures to canonical SRR");
+                      "textured shading may not sample an absent texture");
     });
 }
 

@@ -52,7 +52,9 @@ traversals, executable conformance tests, demo scenes, and image/depth exports.
 Independent geometric error analysis, implementation-reciprocal checks, and
 captured command traces remain work before the complete M0 validation is finished.
 
-An initial [hardware block backend](../hardware/block-interfaces.md) implements
-the opaque subset with selected [Gowin primitives](../hardware/gowin-profile.md).
-It provides local cycle/state behavior alongside canonical rendering. It does
-not freeze the packed command ABI or establish complete-system fit and timing.
+The [hardware block backend](../hardware/block-interfaces.md) implements the
+initial drawing feature set with selected [Gowin primitives](../hardware/gowin-profile.md)
+and explicit serial perspective logic. Its original-showcase output matches
+canonical rendering, including color and depth. It provides local cycle/state
+behavior without freezing the packed command ABI or establishing complete-system
+fit and timing.

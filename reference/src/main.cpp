@@ -37,6 +37,16 @@ struct Options {
     std::string stats_path;
 };
 
+const char* render_mode_name(RenderMode mode) {
+    switch (mode) {
+    case RenderMode::Tiled: return "tiled";
+    case RenderMode::TiledReverse: return "reverse";
+    case RenderMode::Monolithic: return "monolithic";
+    case RenderMode::HardwareBlocks: return "blocks";
+    }
+    throw std::invalid_argument("unknown render mode");
+}
+
 void usage() {
     std::cout <<
         "Nano-20K-GPU software reference renderer (N20K-M0-0.1)\n"
@@ -126,10 +136,13 @@ void show_hardware_profile() {
         << ",\n  \"selected_slice\": {\n    \"profile\": \"" << Slice::profile
         << "\",\n    \"resident_tiles\": " << Slice::resident_tiles
         << ",\n    \"bsram_blocks\": " << Slice::bsram_blocks
+        << ",\n    \"tile_bsram_blocks\": " << Slice::tile_bsram_blocks
+        << ",\n    \"texture_cache_banks\": " << Slice::texture_cache_banks
         << ",\n    \"mult18_equivalents\": " << Slice::mult18_equivalents
         << ",\n    \"multiplier\": \"signed 18x18, 36-bit result, three enabled edges\","
-        << "\n    \"memory\": \"three SDPB 1024x16, synchronous BYPASS, full-word writes\","
-        << "\n    \"coverage\": \"flat/Gouraud triangles and D24; other GPU blocks pending\""
+        << "\n    \"memory\": \"four SDPB 1024x16: three tile banks and one texture cache\","
+        << "\n    \"perspective\": \"one 92-edge serial LUT divider; exact Q16 round-to-nearest-even\","
+        << "\n    \"coverage\": \"all M0 shading, perspective textures, D24, 2D and ordered copies\""
         << "\n  },\n  \"physical_implementation_validated\": false\n}\n";
 }
 
@@ -183,6 +196,7 @@ void write_dumps(const std::string& prefix, const Renderer& renderer,
     }
     auto out = output_file(prefix + ".json");
     out << "{\n  \"profile\": \"N20K-M0-0.1\",\n  \"scene\": \"" << scene_name(options.scene)
+        << "\",\n  \"mode\": \"" << render_mode_name(options.mode)
         << "\",\n  \"hardware_slice_profile\": ";
     if (options.mode == RenderMode::HardwareBlocks)
         out << '"' << hw::OpaqueSliceResources::profile << '"';
@@ -218,9 +232,7 @@ struct Timings {
 
 void report(std::ostream& out, const Renderer& renderer, const Options& options, const Timings& timing) {
     const auto& s = renderer.statistics();
-    const char* mode = options.mode == RenderMode::Tiled ? "tiled" :
-                       options.mode == RenderMode::TiledReverse ? "reverse" :
-                       options.mode == RenderMode::HardwareBlocks ? "blocks" : "monolithic";
+    const char* mode = render_mode_name(options.mode);
     out << std::setprecision(9) << "{\n  \"profile\": \"N20K-M0-0.1\",\n  \"scene\": \""
         << scene_name(options.scene) << "\",\n  \"mode\": \"" << mode
         << "\",\n  \"frames\": " << timing.frames
@@ -241,7 +253,12 @@ void report(std::ostream& out, const Renderer& renderer, const Options& options,
         out << ",\n    \"hardware_slice_cycles\": " << s.hardware_cycles
             << ",\n    \"hardware_slice_stalls\": " << s.hardware_stalls
             << ",\n    \"hardware_slice_setup_cycles\": " << s.hardware_setup_cycles
-            << ",\n    \"hardware_slice_forwarded_reads\": " << s.hardware_forwarded_reads;
+            << ",\n    \"hardware_slice_forwarded_reads\": " << s.hardware_forwarded_reads
+            << ",\n    \"hardware_perspective_cycles\": " << s.hardware_perspective_cycles
+            << ",\n    \"hardware_texture_cycles\": " << s.hardware_texture_cycles
+            << ",\n    \"hardware_texture_hits\": " << s.hardware_texture_hits
+            << ",\n    \"hardware_texture_misses\": " << s.hardware_texture_misses
+            << ",\n    \"hardware_texture_refill_words\": " << s.hardware_texture_refill_words;
     }
     out << "\n  },\n  \"color_fnv1a64\": \"" << std::hex << buffer_hash(renderer.front_color())
         << "\",\n  \"depth_fnv1a64\": \"" << buffer_hash(renderer.depth()) << "\"\n}\n" << std::dec;
@@ -257,12 +274,14 @@ struct SdlSession {
 
 class Presenter {
 public:
-    explicit Presenter(bool finite) {
+    Presenter(bool finite, const Options& options) {
         const std::string driver = SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "";
         if (!finite && (driver == "dummy" || driver == "offscreen"))
             throw std::runtime_error("no visible video backend; use --headless or a finite --frames run");
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-        window_.reset(SDL_CreateWindow("Nano-20K GPU reference | Space: pause | S: save | Esc: quit",
+        const auto title = std::string("SRR | ") + scene_name(options.scene) + " | " +
+                           render_mode_name(options.mode) + " | Space: pause | S: save | Esc: quit";
+        window_.reset(SDL_CreateWindow(title.c_str(),
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 960, SDL_WINDOW_RESIZABLE));
         if (!window_) throw std::runtime_error(SDL_GetError());
         renderer_.reset(SDL_CreateRenderer(window_.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC));
@@ -307,11 +326,9 @@ int main(int argc, char** argv) {
         const Options options = parse(argc, argv);
         if (options.help) { usage(); return 0; }
         if (options.hardware_profile) { show_hardware_profile(); return 0; }
-        if (options.mode == RenderMode::HardwareBlocks && options.scene != DemoScene::Opaque)
-            throw std::invalid_argument("the first hardware slice supports --scene opaque; use --mode tiled for textured/2D scenes");
 #ifdef NANO_GPU_WITH_SDL
         std::unique_ptr<Presenter> presenter;
-        if (!options.headless) presenter = std::make_unique<Presenter>(options.frames != 0);
+        if (!options.headless) presenter = std::make_unique<Presenter>(options.frames != 0, options);
 #else
         if (!options.headless) throw std::invalid_argument("this build is headless; add --headless or build the SDL target with make");
 #endif

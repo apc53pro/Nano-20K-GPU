@@ -20,16 +20,24 @@ struct TileStatistics {
     std::uint64_t candidates = 0;
     std::uint64_t covered_fragments = 0;
     std::uint64_t depth_rejected = 0;
+    std::uint64_t keyed_rejected = 0;
+    std::uint64_t texture_samples = 0;
     std::uint64_t color_writes = 0;
     std::uint64_t depth_writes = 0;
     std::uint64_t forwarded_reads = 0;
     std::uint64_t load_words = 0;
     std::uint64_t store_words = 0;
+    std::uint64_t perspective_cycles = 0;
+    std::uint64_t texture_cycles = 0;
+    std::uint64_t texture_hits = 0;
+    std::uint64_t texture_misses = 0;
+    std::uint64_t texture_refill_words = 0;
 };
 
-// First opaque raster slice: three selected SDPB 1024x16 banks (color, depth
-// low16, depth high8) and one shared signed MULT18X18. Flat/Gouraud triangles
-// only. Every memory access goes through a clocked primitive port.
+// Rendering slice: three SDPB 1024x16 tile banks, one SDPB texture cache,
+// one shared signed MULT18X18, and one explicit restoring divider. The original
+// class name is retained for source compatibility. No canonical raster fallback
+// is used for triangles, rectangles, lines, or keyed sprites.
 class OpaqueTile {
 public:
     OpaqueTile();
@@ -53,6 +61,7 @@ public:
     // begin latches one prepared command on one edge. The tile origin must be
     // a visible 32x32 tile boundary. CPU preparation/validation is external.
     void begin(const Triangle& triangle, Point tile_origin);
+    void begin(const Primitive& primitive, Point tile_origin);
     bool busy() const;
 
     // One common rising edge. enable=false freezes every datapath/memory stage
@@ -68,6 +77,10 @@ private:
 // Functional host adapter: CPU bins and idealized tile input/output feed the
 // clocked slice. Record fetching, SDRAM arbitration, and bus timing are not
 // represented by this adapter. Unsupported records fail before attachment writes.
+void render_pass(const Pass& pass, std::vector<std::uint16_t>& color,
+                 std::vector<std::uint32_t>& depth, Statistics& statistics);
+
+// Compatibility entry point; now executes the complete rendering profile.
 void render_opaque_pass(const Pass& pass, std::vector<std::uint16_t>& color,
                         std::vector<std::uint32_t>& depth, Statistics& statistics);
 
