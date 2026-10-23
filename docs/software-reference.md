@@ -12,6 +12,10 @@ the software-rendered RGB565 framebuffer; it does not render the scene itself.
 Run commands from the repository root. Headless builds need `make` and GCC or
 Clang with C++17 and the `__int128` extension. Tests also need Python 3 to generate
 the C++ golden-vector header. Neither headless rendering nor tests require SDL2.
+On Windows, use [MSYS2 UCRT64](development.md#windows-with-msys2); MSVC does not
+provide the required `__int128` extension. The setup script installs matching
+MSYS2 packages, and the Makefile uses `python` there instead of a Windows
+`python3` Microsoft Store alias.
 
 ```sh
 make headless test
@@ -30,6 +34,11 @@ can be selected through `SDL2_PREFIX`.
 make
 ./build/nano-gpu-ref
 ```
+
+In MSYS2 UCRT64 the executable is `./build/nano-gpu-ref.exe`; the headless build
+is `./build/nano-gpu-ref-headless.exe`. Run them from the same MSYS2 shell so SDL2
+and compiler runtime DLLs are on PATH. Build locally on each platform rather than
+copying the ignored `build/` or `.deps/` directories between machines.
 
 The resizable window presents a 640×480 logical image. Escape or Q closes it,
 Space pauses animation, and S saves `build/screenshot.ppm`. A visible desktop

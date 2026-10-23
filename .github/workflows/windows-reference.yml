@@ -1,0 +1,37 @@
+name: Windows reference renderer
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ucrt64:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+      - name: Install dependencies and check RGB565 presentation
+        run: ./scripts/setup-sdl2.sh
+      - name: Build SDL and headless applications and run conformance tests
+        run: make -j4 all headless test
+      - name: Verify all demo traversals
+        run: |
+          for scene in showcase perspective overdraw; do
+            ./build/nano-gpu-ref-headless.exe --headless --scene "$scene" --time 1.25 --verify
+          done
+      - name: Exercise the SDL application
+        run: SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/nano-gpu-ref.exe --frames 2 --step 0 --verify
+      - name: Check incremental builds
+        # The phony dependency check runs on every ordinary build.
+        run: make -q -o check-sdl all headless build/reference-tests.exe

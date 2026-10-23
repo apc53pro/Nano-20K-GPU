@@ -21,6 +21,9 @@ build produces deterministic images and raw color/depth dumps.
 
 Requires a C++17 GCC/Clang compiler with `__int128`, make, pkg-config, and Python 3
 for the tests. See the [setup guide](docs/development.md) for platform details.
+On Windows, use **MSYS2 UCRT64**, update it with `pacman -Syu`, and then run the
+commands below. The installer provides the native compiler, SDL2, pkg-config,
+Python, and make. [Full Windows setup](docs/development.md#windows-with-msys2).
 
 ```bash
 ./scripts/setup-sdl2.sh
@@ -28,6 +31,9 @@ make -j4
 make test
 ./build/nano-gpu-ref
 ```
+
+The Windows executable is `./build/nano-gpu-ref.exe`; keep using the UCRT64 shell
+so SDL2 and compiler runtime DLLs are available on PATH.
 
 Without SDL or a desktop:
 

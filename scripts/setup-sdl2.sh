@@ -12,9 +12,9 @@ usage() {
     cat <<'USAGE'
 Usage: scripts/setup-sdl2.sh [--local] [--prefix DIR] [--rebuild] [--check]
 
-By default, reuse a working SDL2 SDK, otherwise install development packages on
-Debian/Ubuntu or macOS/Homebrew. Without root/sudo on Linux, build a pinned SDL2
-release into .deps/sdl2 instead. No system files are changed by the local build.
+Install native dependencies with MSYS2 on Windows, or reuse/install an SDL2 SDK
+on Debian/Ubuntu or macOS/Homebrew. Without root/sudo on Linux, build a pinned
+SDL2 release into .deps/sdl2 instead. Local builds do not change system files.
 
   --local       Build/reuse a local SDL2 SDK on Linux (no root required).
   --prefix DIR  Choose its installation directory; implies --local.
@@ -42,6 +42,29 @@ while (($#)); do
     esac
     shift
 done
+
+system="$(uname -s)"
+case "$system" in
+    MINGW*|MSYS*|CYGWIN*)
+        command -v pacman >/dev/null 2>&1 ||
+            die 'use an MSYS2 UCRT64 terminal, not Git Bash; see docs/development.md'
+        case "${MSYSTEM:-}" in
+            UCRT64) package_prefix=mingw-w64-ucrt-x86_64; compiler_package=gcc ;;
+            MINGW64) package_prefix=mingw-w64-x86_64; compiler_package=gcc ;;
+            CLANG64) package_prefix=mingw-w64-clang-x86_64; compiler_package=clang ;;
+            *) die 'open MSYS2 UCRT64 (recommended), MINGW64, or CLANG64; see docs/development.md' ;;
+        esac
+        ! $local_install || die '--local/--prefix/--rebuild are Linux-only; MSYS2 uses pacman packages'
+        if ! $check_only; then
+            # Install all build/test tools even if an SDL2 SDK is already present.
+            printf 'Installing native dependencies for MSYS2 %s.\n' "$MSYSTEM"
+            pacman -S --needed --noconfirm make \
+                "$package_prefix-$compiler_package" "$package_prefix-pkgconf" \
+                "$package_prefix-SDL2" "$package_prefix-python"
+        fi
+        exec bash "$project_dir/scripts/check-sdl2.sh"
+        ;;
+esac
 
 use_local_sdk() {
     export SDL2_PREFIX="$prefix"
@@ -74,7 +97,6 @@ fi
 if ! $rebuild && sdk_available && { ! $local_install || [[ -f "$prefix/lib/pkgconfig/sdl2.pc" ]]; }; then
     printf 'Reusing SDL2 %s.\n' "$(pkg-config --modversion sdl2)"
 else
-    system="$(uname -s)"
     if ! $local_install && [[ "$system" == Darwin ]]; then
         command -v brew >/dev/null 2>&1 || die 'install Homebrew first, then rerun this script'
         command -v "${CXX:-c++}" >/dev/null 2>&1 || die 'install Xcode Command Line Tools first'

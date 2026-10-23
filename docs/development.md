@@ -11,8 +11,10 @@ display path:
 The installer reuses a working SDK. On Debian/Ubuntu with root or sudo, it installs
 `build-essential`, `pkg-config`, and `libsdl2-dev`. On macOS it uses an existing
 Homebrew installation for `pkg-config` and `sdl2`; Xcode Command Line Tools must
-already provide a C++ compiler. Windows users can use Debian/Ubuntu under WSL.
-Native Windows installation is not automated by this script.
+already provide a C++ compiler. On Windows it uses MSYS2's package manager to
+install a matching native compiler, SDL2, pkg-config, Python, and make. See the
+[Windows instructions](#windows-with-msys2) below; Debian/Ubuntu under WSL is an
+alternative.
 
 The renderer also needs make and a C++17 GCC/Clang compiler with `__int128`;
 conformance tests need Python 3. On Debian/Ubuntu, install `python3` if missing.
@@ -30,6 +32,55 @@ To build and test without installing SDL2 or opening a window:
 make -j4 headless test
 ./build/nano-gpu-ref-headless --headless --verify --output build/frame.ppm
 ```
+
+## Windows with MSYS2
+
+Install [MSYS2](https://www.msys2.org/) and open **MSYS2 UCRT64** from the Start
+menu. Its prompt should contain `UCRT64`. Git Bash is a separate environment;
+installing Bash alone does not provide the compiler or MSYS2 packages used here.
+The recommended toolchain is 64-bit GCC under UCRT64. MINGW64 and CLANG64 shells
+are also recognized by the installer, which selects packages for that shell.
+Visual Studio/MSVC is not supported because the setup code requires `__int128`.
+
+Update MSYS2 before installing dependencies:
+
+```bash
+pacman -Syu
+```
+
+If the update asks you to close the terminal, do so, reopen **MSYS2 UCRT64**, and
+run `pacman -Syu` again. Then change to your checkout, for example
+`cd /c/w/Nano-20K-GPU`, and run:
+
+```bash
+./scripts/setup-sdl2.sh
+make -j4
+make test
+./build/nano-gpu-ref.exe
+```
+
+The equivalent manual dependency installation for **UCRT64** is:
+
+```bash
+pacman -S --needed make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-python
+```
+
+The Makefile uses MSYS2's `python` command on Windows. This avoids the Windows
+`python3` Microsoft Store execution alias shown when Python is missing. Run the
+build and executable in the same MSYS2 shell so the selected toolchain's `bin`
+directory supplies SDL2 and compiler runtime DLLs. Launching the executable from
+Explorer or a different terminal may require those DLLs to be packaged separately.
+
+For a headless run in UCRT64:
+
+```bash
+make -j4 headless test
+./build/nano-gpu-ref-headless.exe --headless --verify --output build/frame.ppm
+```
+
+Rebuild on each machine. Do not copy Linux/macOS build products or `.deps/sdl2`
+into a Windows checkout. If changing compilers in an existing checkout, run
+`make clean` before rebuilding or use a separate `BUILD_DIR`.
 
 ## Linux without administrator access
 
