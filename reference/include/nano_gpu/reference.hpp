@@ -47,7 +47,7 @@ enum class AddressMode { Clamp, Repeat };
 enum class DepthFunc { Less, LessEqual, Always };
 enum class ShadeMode { Flat, Gouraud, TextureReplace, TextureFlatModulate, TextureGouraudModulate };
 enum class LoadOp { Load, Clear };
-enum class RenderMode { Tiled, TiledReverse, Monolithic };
+enum class RenderMode { Tiled, TiledReverse, Monolithic, HardwareBlocks };
 
 // Generic bounded RGB565 image. Texture bindings additionally require POT sizes.
 class Image {
@@ -180,6 +180,12 @@ struct Statistics {
     std::uint64_t texture_samples = 0;
     std::uint64_t color_writes = 0;
     std::uint64_t depth_writes = 0;
+    // Clock counts for the selected opaque block slice only. SDRAM, record
+    // fetch, host transport, and display timing are not included.
+    std::uint64_t hardware_cycles = 0;
+    std::uint64_t hardware_stalls = 0;
+    std::uint64_t hardware_setup_cycles = 0;
+    std::uint64_t hardware_forwarded_reads = 0;
 };
 
 // Synchronous logical reference. The provisional binary transport is not modeled.

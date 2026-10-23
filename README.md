@@ -48,6 +48,19 @@ Choose `--scene perspective` or `--scene overdraw` for additional workloads.
 The [renderer guide](docs/software-reference.md) describes controls, frame dumps,
 verification modes, and the C++ API.
 
+The first FPGA block model uses the verified Gowin primitive configurations:
+
+```bash
+./build/nano-gpu-ref --hardware-profile
+./build/nano-gpu-ref --scene opaque --mode blocks --verify
+```
+
+Use the `.exe` executable in MSYS2 or the headless executable with `--headless`
+on a server. This initial slice supports flat/Gouraud triangles and D24, with one
+signed 18×18 multiplier and three clocked tile-memory blocks. The [hardware
+profile](docs/hardware/gowin-profile.md) and [block interfaces](docs/hardware/block-interfaces.md)
+record the source revisions, selected modes, ports, and simulation limits.
+
 ## Project documentation
 
 - [Requirements](docs/requirements.md): the requested features, confirmed decisions,
@@ -60,6 +73,10 @@ verification modes, and the C++ API.
   rules, command model, memory layout, and conformance vectors.
 - [Software reference renderer](docs/software-reference.md): implementation,
   demos, tests, and output formats.
+- [Gowin hardware profile](docs/hardware/gowin-profile.md): exact device resources
+  and the modeled multiplier/BSRAM configurations.
+- [SRR block interfaces](docs/hardware/block-interfaces.md): clocked opaque tile
+  slice, arithmetic, stalls, resets, and future hardware interfaces.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
   RGB565 dependency check.
 

@@ -289,7 +289,8 @@ Vec3 rotate(Vec3 point, long double yaw, long double pitch) {
             y_rotated.y * std::sin(pitch) + y_rotated.z * std::cos(pitch)};
 }
 
-void cube(Pass& pass, const Camera& camera, Bounds scissor, long double time) {
+void cube(Pass& pass, const Camera& camera, Bounds scissor, long double time,
+          bool opaque = false) {
     constexpr long double h = 1.35L;
     const std::array<Vec3, 8> local{{{-h, -h, -h}, {h, -h, -h}, {h, h, -h}, {-h, h, -h},
                                      {-h, -h, h}, {h, -h, h}, {h, h, h}, {-h, h, h}}};
@@ -305,11 +306,17 @@ void cube(Pass& pass, const Camera& camera, Bounds scissor, long double time) {
     std::array<Vec3, 8> transformed{};
     for (std::size_t i = 0; i < local.size(); ++i) transformed[i] = rotate(local[i], yaw, pitch) + center;
     for (std::size_t face = 0; face < faces.size(); ++face) {
-        auto state = textured_state(assets().cube, scissor);
-        state.shade = ShadeMode::TextureFlatModulate;
+        auto state = opaque ? RenderState{} : textured_state(assets().cube, scissor);
+        state.scissor = scissor;
+        state.shade = opaque ? ShadeMode::Flat : ShadeMode::TextureFlatModulate;
         const long double intensity = 0.33L + 0.67L * std::max(0.0L, dot(rotate(normals[face], yaw, pitch), light));
         const auto channel = static_cast<std::uint8_t>(std::round(255.0L * intensity));
         state.color = {channel, channel, channel};
+        if (opaque) {
+            const std::array<Color, 6> colors{{cyan, amber, Color{128, 104, 234},
+                                               green, Color{240, 116, 94}, muted}};
+            state.color = modulate(colors[face], state.color);
+        }
         const auto& indices = faces[face];
         // All faces are submitted, including hidden faces, exercising actual D24
         // occlusion rather than using CPU painter sorting or back-face removal.
@@ -435,6 +442,40 @@ void overdraw(Pass& pass, long double time) {
     chrome(pass, "OPAQUE LAYERS / REAL D24 OCCLUSION", "GOURAUD TEXTURE MODULATION / NO BLENDING", 3, time);
 }
 
+// The hardware slice accepts only prepared flat/Gouraud triangles. Every shape
+// here uses those records, including the floor strips and color swatches.
+void opaque_scene(Pass& pass, long double time) {
+    const Bounds viewport{0, 0, screen_width, screen_height};
+    const Camera camera({3.4L, 2.8L, -4.5L}, {0, 0.3L, 3}, 0.28L, 0.04L);
+    RenderState floor;
+    floor.color = {16, 32, 48};
+    quad(pass, {camera.vertex({-9, -1.25L, -3}), camera.vertex({9, -1.25L, -3}),
+                camera.vertex({9, -1.25L, 24}), camera.vertex({-9, -1.25L, 24})}, floor);
+    for (int strip = -6; strip <= 6; ++strip) {
+        floor.color = (strip & 1) ? Color{30, 53, 70} : Color{22, 42, 57};
+        const auto x = static_cast<long double>(strip);
+        quad(pass, {camera.vertex({x, -1.249L, -3}), camera.vertex({x + 0.035L, -1.249L, -3}),
+                    camera.vertex({x + 0.035L, -1.249L, 24}), camera.vertex({x, -1.249L, 24})}, floor);
+    }
+    cube(pass, camera, viewport, time, true);
+
+    RenderState gradient;
+    gradient.shade = ShadeMode::Gouraud;
+    triangle(pass, {screen_vertex(106, 98, 0.08L, 1, 0, 0, Color{255, 104, 92}),
+                    screen_vertex(24, 342, 0.08L, 1, 0, 0, Color{64, 222, 236}),
+                    screen_vertex(190, 342, 0.08L, 1, 0, 0, Color{250, 215, 92})}, gradient);
+    constexpr std::array<Color, 8> swatches{{{239, 89, 98}, {242, 161, 83},
+        {240, 213, 100}, {132, 226, 156}, {70, 215, 230}, {97, 150, 237},
+        {154, 113, 229}, {227, 236, 245}}};
+    auto overlay = overlay_state();
+    for (std::size_t i = 0; i < swatches.size(); ++i) {
+        overlay.color = swatches[i];
+        const auto x = 24.0L + 74.0L * i;
+        quad(pass, {screen_vertex(x, 436, 0), screen_vertex(x + 62, 436, 0),
+                    screen_vertex(x + 62, 456, 0), screen_vertex(x, 456, 0)}, overlay);
+    }
+}
+
 } // namespace
 
 Pass make_demo_pass(DemoScene scene, int target, long double time_seconds) {
@@ -448,6 +489,7 @@ Pass make_demo_pass(DemoScene scene, int target, long double time_seconds) {
     case DemoScene::Showcase: showcase(pass, time); break;
     case DemoScene::Perspective: perspective(pass, time); break;
     case DemoScene::Overdraw: overdraw(pass, time); break;
+    case DemoScene::Opaque: opaque_scene(pass, time); break;
     default: throw std::invalid_argument("unknown demo scene");
     }
     return pass;
@@ -458,6 +500,7 @@ const char* scene_name(DemoScene scene) {
     case DemoScene::Showcase: return "showcase";
     case DemoScene::Perspective: return "perspective";
     case DemoScene::Overdraw: return "overdraw";
+    case DemoScene::Opaque: return "opaque";
     }
     return "unknown";
 }

@@ -1,5 +1,6 @@
 #include "nano_gpu/demo.hpp"
 #include "nano_gpu/reference.hpp"
+#include "nano_gpu/hw/device.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -23,6 +24,7 @@ using Clock = std::chrono::steady_clock;
 
 struct Options {
     bool help = false;
+    bool hardware_profile = false;
     bool headless = false;
     bool verify = false;
     std::uint64_t frames = 0; // Zero means an interactive window until closed.
@@ -40,12 +42,13 @@ void usage() {
         "Nano-20K-GPU software reference renderer (N20K-M0-0.1)\n"
         "Usage: nano-gpu-ref [options]\n"
         "  --headless                 Render without initializing SDL (default: one frame)\n"
-        "  --scene NAME               showcase, perspective, or overdraw\n"
+        "  --scene NAME               showcase, perspective, overdraw, or opaque\n"
         "  --frames N                 Render N frames; window default runs until closed\n"
         "  --time SECONDS             Initial deterministic animation time (default: 0)\n"
         "  --step SECONDS             Time advance per frame (default: 1/60; zero freezes)\n"
-        "  --mode MODE                tiled, reverse, or monolithic\n"
-        "  --verify                   Compare every frame with both other traversal modes\n"
+        "  --mode MODE                tiled, reverse, monolithic, or blocks\n"
+        "  --hardware-profile         Show verified device limits and modeled subset\n"
+        "  --verify                   Compare every frame with canonical traversal modes\n"
         "  --output FILE.ppm          Save the last presented RGB frame\n"
         "  --dump-prefix PATH         Save PATH.rgb565, PATH.depth32, PATH.json\n"
         "  --stats FILE.json          Save software timings and last-frame counters\n"
@@ -70,6 +73,7 @@ Options parse(int argc, char** argv) {
             return argv[i];
         };
         if (arg == "--help" || arg == "-h") options.help = true;
+        else if (arg == "--hardware-profile") options.hardware_profile = true;
         else if (arg == "--headless") options.headless = true;
         else if (arg == "--verify") options.verify = true;
         else if (arg == "--output") options.output = value();
@@ -89,17 +93,44 @@ Options parse(int argc, char** argv) {
             if (name == "showcase") options.scene = DemoScene::Showcase;
             else if (name == "perspective") options.scene = DemoScene::Perspective;
             else if (name == "overdraw") options.scene = DemoScene::Overdraw;
+            else if (name == "opaque") options.scene = DemoScene::Opaque;
             else throw std::invalid_argument("unknown scene: " + name);
         } else if (arg == "--mode") {
             const std::string name = value();
             if (name == "tiled") options.mode = RenderMode::Tiled;
             else if (name == "reverse") options.mode = RenderMode::TiledReverse;
             else if (name == "monolithic") options.mode = RenderMode::Monolithic;
+            else if (name == "blocks") options.mode = RenderMode::HardwareBlocks;
             else throw std::invalid_argument("unknown traversal mode: " + name);
         } else throw std::invalid_argument("unknown option: " + arg);
     }
     if (options.headless && options.frames == 0) options.frames = 1;
     return options;
+}
+
+void show_hardware_profile() {
+    using Device = nano_gpu::hw::TangNano20K;
+    using Slice = nano_gpu::hw::OpaqueSliceResources;
+    std::cout << "{\n  \"part\": \"" << Device::part
+        << "\",\n  \"architecture\": \"" << Device::architecture
+        << "\",\n  \"lut4\": " << Device::lut4
+        << ",\n  \"flip_flops\": " << Device::flip_flops
+        << ",\n  \"bsram_blocks\": " << Device::bsram_blocks
+        << ",\n  \"bsram_bits_per_block\": " << Device::bsram_bits_per_block
+        << ",\n  \"mult18_equivalents\": " << Device::mult18_equivalents
+        << ",\n  \"dsp_macros\": " << Device::dsp_macros
+        << ",\n  \"dsp_blocks\": " << Device::dsp_blocks
+        << ",\n  \"available_plls\": " << Device::available_plls
+        << ",\n  \"sdram_bytes\": " << Device::sdram_bytes
+        << ",\n  \"sdram_data_bits\": " << Device::sdram_data_bits
+        << ",\n  \"selected_slice\": {\n    \"profile\": \"" << Slice::profile
+        << "\",\n    \"resident_tiles\": " << Slice::resident_tiles
+        << ",\n    \"bsram_blocks\": " << Slice::bsram_blocks
+        << ",\n    \"mult18_equivalents\": " << Slice::mult18_equivalents
+        << ",\n    \"multiplier\": \"signed 18x18, 36-bit result, three enabled edges\","
+        << "\n    \"memory\": \"three SDPB 1024x16, synchronous BYPASS, full-word writes\","
+        << "\n    \"coverage\": \"flat/Gouraud triangles and D24; other GPU blocks pending\""
+        << "\n  },\n  \"physical_implementation_validated\": false\n}\n";
 }
 
 std::ofstream output_file(const std::string& name, bool binary = false) {
@@ -152,7 +183,11 @@ void write_dumps(const std::string& prefix, const Renderer& renderer,
     }
     auto out = output_file(prefix + ".json");
     out << "{\n  \"profile\": \"N20K-M0-0.1\",\n  \"scene\": \"" << scene_name(options.scene)
-        << "\",\n  \"time_seconds\": " << std::setprecision(18) << time
+        << "\",\n  \"hardware_slice_profile\": ";
+    if (options.mode == RenderMode::HardwareBlocks)
+        out << '"' << hw::OpaqueSliceResources::profile << '"';
+    else out << "null";
+    out << ",\n  \"time_seconds\": " << std::setprecision(18) << time
         << ",\n  \"width\": 640,\n  \"height\": 480,\n  \"tile_size\": 32,"
         << "\n  \"byte_order\": \"little\",\n  \"color_format\": \"RGB565\","
         << "\n  \"color_pitch_bytes\": 1280,\n  \"depth_format\": \"D24_IN_U32\","
@@ -184,7 +219,8 @@ struct Timings {
 void report(std::ostream& out, const Renderer& renderer, const Options& options, const Timings& timing) {
     const auto& s = renderer.statistics();
     const char* mode = options.mode == RenderMode::Tiled ? "tiled" :
-                       options.mode == RenderMode::TiledReverse ? "reverse" : "monolithic";
+                       options.mode == RenderMode::TiledReverse ? "reverse" :
+                       options.mode == RenderMode::HardwareBlocks ? "blocks" : "monolithic";
     out << std::setprecision(9) << "{\n  \"profile\": \"N20K-M0-0.1\",\n  \"scene\": \""
         << scene_name(options.scene) << "\",\n  \"mode\": \"" << mode
         << "\",\n  \"frames\": " << timing.frames
@@ -200,8 +236,14 @@ void report(std::ostream& out, const Renderer& renderer, const Options& options,
         << ",\n    \"keyed_rejected\": " << s.keyed_rejected
         << ",\n    \"texture_samples\": " << s.texture_samples
         << ",\n    \"color_writes\": " << s.color_writes
-        << ",\n    \"depth_writes\": " << s.depth_writes
-        << "\n  },\n  \"color_fnv1a64\": \"" << std::hex << buffer_hash(renderer.front_color())
+        << ",\n    \"depth_writes\": " << s.depth_writes;
+    if (options.mode == RenderMode::HardwareBlocks) {
+        out << ",\n    \"hardware_slice_cycles\": " << s.hardware_cycles
+            << ",\n    \"hardware_slice_stalls\": " << s.hardware_stalls
+            << ",\n    \"hardware_slice_setup_cycles\": " << s.hardware_setup_cycles
+            << ",\n    \"hardware_slice_forwarded_reads\": " << s.hardware_forwarded_reads;
+    }
+    out << "\n  },\n  \"color_fnv1a64\": \"" << std::hex << buffer_hash(renderer.front_color())
         << "\",\n  \"depth_fnv1a64\": \"" << buffer_hash(renderer.depth()) << "\"\n}\n" << std::dec;
 }
 
@@ -264,6 +306,9 @@ int main(int argc, char** argv) {
     try {
         const Options options = parse(argc, argv);
         if (options.help) { usage(); return 0; }
+        if (options.hardware_profile) { show_hardware_profile(); return 0; }
+        if (options.mode == RenderMode::HardwareBlocks && options.scene != DemoScene::Opaque)
+            throw std::invalid_argument("the first hardware slice supports --scene opaque; use --mode tiled for textured/2D scenes");
 #ifdef NANO_GPU_WITH_SDL
         std::unique_ptr<Presenter> presenter;
         if (!options.headless) presenter = std::make_unique<Presenter>(options.frames != 0);

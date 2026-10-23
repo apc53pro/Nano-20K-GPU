@@ -4,7 +4,7 @@
 
 namespace nano_gpu {
 
-enum class DemoScene { Showcase, Perspective, Overdraw };
+enum class DemoScene { Showcase, Perspective, Overdraw, Opaque };
 
 // CPU scene preparation only: every generated draw uses the M0 render profile.
 Pass make_demo_pass(DemoScene scene, int target, long double time_seconds);

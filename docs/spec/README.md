@@ -51,3 +51,8 @@ includes CPU setup, canonical fixed-plane rendering, tiled and monolithic
 traversals, executable conformance tests, demo scenes, and image/depth exports.
 Independent geometric error analysis, implementation-reciprocal checks, and
 captured command traces remain work before the complete M0 validation is finished.
+
+An initial [hardware block backend](../hardware/block-interfaces.md) implements
+the opaque subset with selected [Gowin primitives](../hardware/gowin-profile.md).
+It provides local cycle/state behavior alongside canonical rendering. It does
+not freeze the packed command ABI or establish complete-system fit and timing.

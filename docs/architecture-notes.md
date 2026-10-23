@@ -13,6 +13,13 @@ available PLLs, and 64 Mbit (8 MiB) of 32-bit SDR SDRAM. These limits make a
 compact fixed-function design a plausible candidate; they do not establish that
 the complete pipeline fits. See the [official board documentation][sipeed].
 
+The [verified hardware profile](hardware/gowin-profile.md) records the exact
+primitive modes used by the SRR block backend. The 48 multiplier count denotes
+18×18 equivalents, grouped into 24 macros in 12 DSP blocks; wider and 9×9 modes
+share those resources. The initial opaque slice selects one signed multiplier
+and three SDPB 1024×16 banks for RGB565/D24 tile storage. Its clock counts cover
+the selected local datapath; SDRAM arbitration and display timing remain open.
+
 Gowin's GW2AR datasheet identifies the QN88 memory configuration as x32, 64 Mbit
 SDR SDRAM and lists a 166 MHz memory clock specification. This is not a proven
 board/controller operating point for this project. Other GW2AR packages have

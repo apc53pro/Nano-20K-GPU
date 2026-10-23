@@ -1,4 +1,5 @@
 #include "nano_gpu/reference.hpp"
+#include "nano_gpu/hw/tile_pipeline.hpp"
 
 #include <algorithm>
 #include <array>
@@ -428,7 +429,7 @@ void Renderer::require_writable(int target) const {
 void Renderer::render(const Pass& pass, RenderMode mode) {
     require_writable(pass.target);
     if (mode != RenderMode::Tiled && mode != RenderMode::TiledReverse &&
-        mode != RenderMode::Monolithic) {
+        mode != RenderMode::Monolithic && mode != RenderMode::HardwareBlocks) {
         throw std::invalid_argument("unsupported render mode");
     }
     if ((pass.color_load != LoadOp::Load && pass.color_load != LoadOp::Clear) ||
@@ -444,6 +445,12 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
     try {
         for (const auto& primitive : pass.primitives) {
             validate_primitive(primitive);
+        }
+        if (mode == RenderMode::HardwareBlocks) {
+            hw::render_opaque_pass(pass, color_[pass.target], depth_, statistics_);
+            color_valid_[pass.target] = true;
+            depth_valid_ = true;
+            return;
         }
         const TileBins bins = bin_primitives(pass.primitives);
         for (const auto& bin : bins) {

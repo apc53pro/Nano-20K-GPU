@@ -1,4 +1,4 @@
-# Software reference renderer
+# Software reference renderer (SRR)
 
 The C++17 renderer implements the logical `N20K-M0-0.1` profile on a host computer.
 It provides CPU triangle setup, fixed-point rasterization, tile traversal, and
@@ -58,13 +58,16 @@ build a separate tree with `BUILD_DIR=build/clang` when changing toolchains.
 | `--scene showcase` | Mixed textured 3D, shading, keyed sprites, and bitmap text; the default scene. |
 | `--scene perspective` | Perspective-texture demonstration. |
 | `--scene overdraw` | Overlapping geometry and depth rejection. |
+| `--scene opaque` | Flat/Gouraud geometry compatible with the first hardware block slice. |
 | `--frames N` | Render 1–1,000,000 frames; the window otherwise runs until closed. |
 | `--time SECONDS` | Set initial animation time; default `0`. |
 | `--step SECONDS` | Advance animation by this amount per frame; default `1/60`, with `0` freezing it. |
 | `--mode tiled` | Traverse 32×32 tiles in normal order; the default. |
 | `--mode reverse` | Traverse the same tiles in reverse order, preserving primitive order inside each tile. |
 | `--mode monolithic` | Evaluate the frame without tile-local attachments. |
-| `--verify` | Re-render every demo frame in both other traversal modes and require identical color/depth results. |
+| `--mode blocks` | Run the clocked Gowin opaque slice; the CLI requires `--scene opaque`. |
+| `--hardware-profile` | Print verified device resources and the selected modeled configuration, then exit. |
+| `--verify` | Compare every frame with canonical traversal modes and require identical color/depth results. |
 | `--output FILE.ppm` | Save the last presented frame as binary P6 RGB888. |
 | `--dump-prefix PATH` | Save the last frame's raw color, shared depth, and metadata. |
 | `--stats FILE.json` | Save timings, counters, and hashes; the same report is also printed to stdout. |
@@ -82,7 +85,7 @@ demo mathematics do not establish byte-identical output across all platforms.
 | --- | --- |
 | `frame.rgb565` | Last presented color buffer: 640×480, row-major from the top-left, little-endian RGB565, 1,280 bytes/row, 614,400 bytes total. |
 | `frame.depth32` | Shared depth buffer: 640×480 little-endian unsigned 32-bit words, meaningful D24 in bits 0–23, 2,560 bytes/row, 1,228,800 bytes total. |
-| `frame.json` | Profile, scene/time, dimensions, tile size, formats, pitches, byte order, and color/depth FNV-1a 64-bit hashes. |
+| `frame.json` | Profile, scene/time, optional hardware-slice profile, dimensions, tile size, formats, pitches, byte order, and color/depth FNV-1a 64-bit hashes. |
 
 Depth is shared between color buffers and is not automatically swapped with
 presentation. Dump hashes process bytes in the same little-endian order as the
@@ -93,6 +96,8 @@ verification times, plus last-pass tile references, tiles processed, candidate
 positions, covered fragments, depth/key rejects, texture samples, and color/depth
 writes. These are software measurements and logical counts. They do not model
 FPGA cycles, cache misses, SDRAM transactions, scanout contention, or fill rate.
+The `blocks` mode additionally reports local slice clock counts as described
+below; these have a narrower scope than complete GPU performance.
 
 ## Implemented behavior
 
@@ -141,6 +146,41 @@ require power-of-two dimensions. Keep texture contents immutable while rendering
 Lines require viewport-clipped endpoints; sprite source rectangles must fit their
 image. See [demo.cpp](../reference/src/demo.cpp) for complete scene construction.
 
+## Gowin hardware block backend
+
+The independent `blocks` backend implements `N20K-HW-OPAQUE-0.1`. It models the
+selected digital configurations of the Tang Nano 20K's Gowin FPGA, while the
+canonical SRR provides expected color/depth results:
+
+```sh
+./build/nano-gpu-ref --hardware-profile
+./build/nano-gpu-ref --scene opaque --mode blocks --verify
+./build/nano-gpu-ref-headless --headless --scene opaque --mode blocks --verify --dump-prefix build/opaque
+```
+
+In Windows UCRT64, append `.exe` to the executable names. The model supports
+flat/Gouraud triangles and D24 with scissor and independent write enables. It
+uses one shared signed 18×18 multiplier with three enabled-edge stages, and
+three synchronous SDPB 1024×16 memories for color and depth. Tile load, clear,
+and store access the actual simulated ports; reset preserves RAM. There is no
+unbounded memory-port or same-address read/write assumption.
+
+`--verify` compares this slice with all three canonical traversal modes. It does
+not make the Gowin model vendor-library equivalent. The hardware tests also
+exercise clock enables, stalls, reset, primitive latency, and memory collisions.
+The scene's floor markings are triangle geometry, not texture sampling.
+
+`hardware_slice_cycles`, `hardware_slice_stalls`,
+`hardware_slice_setup_cycles`, and `hardware_slice_forwarded_reads` count the
+selected local datapath only. The host adapter supplies records and idealized
+tile transfers; SDRAM refresh/arbitration, record fetch, transport, textures,
+scanout, and physical clocks are not modeled. Unsupported drawing features
+produce an error instead of falling back to the canonical rasterizer.
+
+The [Gowin profile](hardware/gowin-profile.md) records primary-source revisions,
+resource grouping, and selected primitive configurations. The [block interface
+contract](hardware/block-interfaces.md) documents ports and the chosen schedules.
+
 ## Verification and current limits
 
 ```sh
@@ -158,7 +198,7 @@ is not an independent geometric oracle.
 The implementation is a typed logical API. The [binary transport contract](spec/commands.md)
 remains provisional and is not parsed or executed here. There is no global 8 MiB
 allocator, aggregate texture/command budget enforcement, texture-cache model,
-cycle model, HDMI timing model, or asynchronous transport/fence implementation.
+complete GPU cycle model, HDMI timing model, or asynchronous transport/fence implementation.
 Individual images are bounded, but separate host allocations are not a physical
 GPU memory map.
 

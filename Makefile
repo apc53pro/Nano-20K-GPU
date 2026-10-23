@@ -33,7 +33,8 @@ SDL_CFLAGS := $(shell PKG_CONFIG_PATH="$(SDL_PKG_PATH)" pkg-config --cflags sdl2
 SDL_LIBS := $(shell PKG_CONFIG_PATH="$(SDL_PKG_PATH)" pkg-config --libs sdl2 2>/dev/null)
 SDL_LIBDIR := $(shell PKG_CONFIG_PATH="$(SDL_PKG_PATH)" pkg-config --variable=libdir sdl2 2>/dev/null)
 
-CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o
+CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
+    $(BUILD_DIR)/hw_mult18x18.o $(BUILD_DIR)/hw_bsram.o $(BUILD_DIR)/hw_tile_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
 .PHONY: all headless test run sanitize clean check-sdl
@@ -72,8 +73,15 @@ $(BUILD_DIR)/reference_tests.o: reference/tests/reference_tests.cpp $(BUILD_DIR)
 $(BUILD_DIR)/reference-tests$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/reference_tests.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
-test: $(BUILD_DIR)/reference-tests$(EXEEXT)
+$(BUILD_DIR)/hardware_tests.o: reference/tests/hardware_tests.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/hardware-tests$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/hardware_tests.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT)
 	./$(BUILD_DIR)/reference-tests$(EXEEXT)
+	./$(BUILD_DIR)/hardware-tests$(EXEEXT)
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
