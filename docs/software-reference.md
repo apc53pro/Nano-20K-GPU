@@ -66,6 +66,7 @@ build a separate tree with `BUILD_DIR=build/clang` when changing toolchains.
 | `--mode reverse` | Traverse the same tiles in reverse order, preserving primitive order inside each tile. |
 | `--mode monolithic` | Evaluate the frame without tile-local attachments. |
 | `--mode blocks` | Run the Gowin block model on the selected scene, including the original showcase. |
+| `--mode system` | Send serialized commands over the modeled 8-bit bus and render through shared timed SDRAM while scanout runs independently. |
 | `--hardware-profile` | Print verified device resources and the selected modeled configuration, then exit. |
 | `--verify` | Compare every frame with canonical traversal modes and require identical color/depth results. |
 | `--output FILE.ppm` | Save the last presented frame as binary P6 RGB888. |
@@ -200,6 +201,33 @@ contract](hardware/block-interfaces.md) documents ports and the chosen schedules
 
 ## Verification and current limits
 
+For system behavior, select `--mode system`:
+
+```sh
+./build/nano-gpu-ref --scene showcase --mode system --verify
+./build/nano-gpu-ref-headless --headless --scene showcase --mode system --time 0 --step 0 --verify --stats build/system.json
+```
+
+The CPU driver uploads serialized textures, primitive records, and ordered tile
+lists through the bus. The GPU fetches them through the SDRAM arbiter; the tile
+and texture blocks cannot sample host image pixels. Fences wait for stores,
+presentation waits for a real modeled vertical blank, and the SDL view uses
+actual display-FIFO output. Framebuffer dumps remain diagnostic memory snapshots.
+Both physical color buffers and shared depth are checked by `--verify`.
+
+The report separates host execution time from simulated clock time and includes
+per-client memory waits/traffic, refresh deadlines, host backpressure, and display
+underflows. Defaults select a 100.8 MHz common core/SDR clock, 25.2 MHz derived
+host/pixel clocks, and 60 Hz scanout. These are project timing assumptions. They
+are configurable using `--core-hz`, `--host-divider`, `--sdram-trcd`,
+`--sdram-trp`, `--sdram-trfc`, and `--scanout-fifo`. Clock changes also change the
+derived pixel rate; the report prints the resulting refresh rate.
+
+See the [system model guide](hardware/system-model.md) for exact scope, timing
+sources, bounded storage, protocol layouts, and recovery. HDMI/TMDS signaling is
+excluded. The serial renderer remains a correctness baseline; adding I/O timing
+does not establish one-pixel-per-cycle throughput.
+
 ```sh
 make test
 make sanitize
@@ -213,12 +241,16 @@ Canonical traversal modes share setup and fragment logic. The block backend
 uses separate rendering arithmetic on the same prepared records. Neither
 comparison is an independent geometric oracle.
 
-The implementation is a typed logical API. The [binary transport contract](spec/commands.md)
-remains provisional and is not parsed or executed here. There is no global 8 MiB
+The canonical and `blocks` implementations use a typed logical API. Their
+[binary transport contract](spec/commands.md) remains provisional. They have no global 8 MiB
 allocator, aggregate texture/command budget enforcement, complete GPU cycle
 model, HDMI timing model, or asynchronous transport/fence implementation.
 Individual images are bounded, but separate host allocations are not a physical
-GPU memory map.
+GPU memory map. The `system` mode separately executes a provisional packed ABI,
+enforces the 8 MiB address space and compiler allocation budget, and models the
+host, memory, and scanout behavior described above. Physical pin assignment,
+analogue electrical behavior, clock-domain metastability, vendor equivalence,
+and complete-system synthesis/timing qualification remain outside its scope.
 
 The setup path rejects unsupported inputs rather than automatically splitting or
 refining triangles. Textured setup requires positive W, per-triangle maximum/minimum

@@ -65,6 +65,22 @@ exact serial baseline; the one-pixel-per-cycle target needs later work. The [har
 profile](docs/hardware/gowin-profile.md) and [block interfaces](docs/hardware/block-interfaces.md)
 record the source revisions, selected modes, ports, and simulation limits.
 
+The complete system simulation adds the 8-bit host bus, bounded command FIFOs,
+packet decoding, SDRAM initialization/refresh/arbitration, fetched primitive
+records, and independent scanout with a bounded display FIFO:
+
+```bash
+./build/nano-gpu-ref --scene showcase --mode system --verify
+```
+
+All uploads, record fetches, texture misses, and framebuffer transfers in this
+mode use the same timed SDRAM controller. SDL displays the pixels actually
+consumed by scanout, including underflow fallback. HDMI/TMDS signaling is outside
+scope. The [system model guide](docs/hardware/system-model.md) separates verified
+device facts from configurable timing assumptions and explains the counters.
+This adds system timing fidelity; the serial rendering datapath still needs
+throughput optimization.
+
 ## Project documentation
 
 - [Requirements](docs/requirements.md): the requested features, confirmed decisions,
@@ -81,12 +97,14 @@ record the source revisions, selected modes, ports, and simulation limits.
   and the modeled multiplier/BSRAM configurations.
 - [SRR block interfaces](docs/hardware/block-interfaces.md): clocked rendering
   blocks, arithmetic, texture caching, copies, stalls, and resets.
+- [GPU system model](docs/hardware/system-model.md): timed host commands,
+  shared SDRAM, scanout, completion, recovery, and provisional simulation ABI.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
   RGB565 dependency check.
 
 Current status: the M0 specification, initial canonical renderer, CPU setup
 library, conformance tests, demo scenes, and a rendering block backend with
-matching color/depth output are available. Independent geometric
+matching color/depth output, plus a timed GPU system simulation, are available. Independent geometric
 error analysis and command-trace capture remain M0 work. GPU RTL, the packed bus
 ABI, and measured hardware performance remain future milestones. Software frame
 times do not establish FPGA throughput or fit.

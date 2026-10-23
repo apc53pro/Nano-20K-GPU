@@ -1,11 +1,14 @@
 #pragma once
 
 #include "nano_gpu/reference.hpp"
+#include "nano_gpu/hw/resources.hpp"
 
 #include <cstdint>
 #include <memory>
 
 namespace nano_gpu::hw {
+
+class SdramController;
 
 struct TextureStatistics {
     std::uint64_t cycles = 0;
@@ -13,14 +16,16 @@ struct TextureStatistics {
     std::uint64_t hits = 0;
     std::uint64_t misses = 0;
     std::uint64_t refill_words = 0;
+    std::uint64_t memory_wait_cycles = 0;
 };
 
 // One selected Gowin SDPB 1024x16 supplies a 64-line direct-mapped cache,
 // with 16 RGB565 words per line. Tags and validity are bounded registers.
 // A single request is outstanding; cache reads/writes use clocked SDPB ports.
-// The backing Image is an immutable, idealized memory-response adapter, not
-// a timed SDRAM controller. A miss has four response-wait edges, then one word
-// per edge for its 16-word refill. Addresses use a ten-edge shift/add generator.
+// The local block profile uses an immutable Image backing adapter: a miss has
+// four response-wait edges, then one word per edge for its 16-word refill.
+// The system profile instead waits for shared SDRAM requests and responses.
+// Both profiles use the ten-edge shift/add address generator and cache ports.
 class TextureUnit {
 public:
     static constexpr unsigned cache_words = 1024;
@@ -40,7 +45,18 @@ public:
     // and clear result_valid. A changed binding invalidates all line tags;
     // rebinding the same immutable Image retains cache contents.
     void bind(std::shared_ptr<const Image> texture);
+    // System-model binding. Cache misses issue bounded reads through the
+    // shared SDRAM Texture client and wait for its registered response. This
+    // unit never advances the SDRAM clock and never reads an Image pixel.
+    void bind_external(const TextureDescriptor& descriptor, SdramController& memory);
     void invalidate();
+
+    // Explicit copies reuse this physical cache bank while rasterization is
+    // idle. Writes invalidate cache tags. Each access costs one edge; the
+    // result getter observes a previously established synchronous read.
+    void scratch_write(std::uint16_t address, std::uint16_t value);
+    void scratch_read_request(std::uint16_t address);
+    std::uint16_t scratch_read_result() const;
 
     // Capture an already clamped/repeated integer texel coordinate in one edge.
     // Following it, a hit needs ten address edges, a tag edge, a read edge and
@@ -48,6 +64,7 @@ public:
     // A completed old result may be replaced by a new request.
     void start(int x, int y);
     bool busy() const;
+    bool external_memory_pending() const;
     bool result_valid() const;
     std::uint16_t result() const;
 
@@ -57,7 +74,8 @@ public:
 
     // One synchronous edge cancels a request, unbinds the descriptor, resets
     // cache output and tag/controller registers, and preserves cache RAM words.
-    // Statistics restart and include this reset edge.
+    // Statistics restart and include this reset edge. An accepted external
+    // SDRAM request must be consumed first; reset otherwise throws unchanged.
     void reset();
     const TextureStatistics& statistics() const;
 

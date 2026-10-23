@@ -148,6 +148,13 @@ LUT/register cost, timing, and attainable initiation rate require synthesis.
 
 ## Source revisions
 
+The optional [complete system model](system-model.md) additionally instantiates
+two scanout FIFO banks, five host-link banks, and one reply-serializer bank:
+**12 selected SDPB 1024×16 instances** including the four rendering banks.
+Copies reuse the texture bank. Bounded request/response, record, and row staging
+also requires register/logic resources. The bank count is not a complete LUT/FF
+budget or proof of whole-GPU fit.
+
 Page numbers below are printed document pages, not PDF viewer indices. Revision
 and section references matter because the CDN URLs may later serve newer files.
 
@@ -161,6 +168,8 @@ and section references matter because the CDN URLs may later serve newer files.
 | [Gowin HDL coding guide, SUG949](https://cdn.gowinsemi.com.cn/SUG949E.pdf) | 2.2E, 2026-06-17; §8.1.2, §10.1.1 pp.110–113 |
 
 Primitive maximum frequencies in the datasheet are not an achieved GPU clock.
-This profile does not choose core, SDRAM, or video clocks. SDRAM service,
-clock-domain crossings, PLL behavior, I/O timing, and TMDS transmission require
-their own models and physical validation.
+This primitive profile does not choose core, SDRAM, or video clocks. The
+[system model](system-model.md) selects configurable clock assumptions and
+provides timed SDRAM service and scanout. PLL behavior, clock-domain crossings,
+and board I/O timing still require physical qualification. HDMI/TMDS signaling
+is outside the system model's scope.

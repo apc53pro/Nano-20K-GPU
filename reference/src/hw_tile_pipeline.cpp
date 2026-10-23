@@ -4,6 +4,7 @@
 #include "nano_gpu/hw/device.hpp"
 #include "nano_gpu/hw/mult18x18.hpp"
 #include "nano_gpu/hw/perspective.hpp"
+#include "nano_gpu/hw/sdram.hpp"
 #include "nano_gpu/hw/texture.hpp"
 #include "nano_gpu/hw/walker2d.hpp"
 
@@ -161,6 +162,7 @@ struct OpaqueTile::Impl {
     std::array<bool, 7> plane_enabled{};
     Pending pending;
     Held held;
+    bool transfer_read_valid = false;
 
     void require_idle() const {
         if (state != State::Idle || pending.valid)
@@ -246,11 +248,15 @@ OpaqueTile& OpaqueTile::operator=(OpaqueTile&&) noexcept = default;
 
 void OpaqueTile::reset() {
     auto& p = *impl_;
+    // An accepted external request must be retired before its consumer resets.
+    // Texture reset diagnoses this before any other tile state is changed.
+    p.texture.reset();
     p.state = Impl::State::Idle; p.pending = {}; p.held = {}; p.counters = {};
+    p.transfer_read_valid = false;
     const BsramCycle reset_output{false, 0, 0, false, 0, true};
     p.banks(reset_output, reset_output, reset_output);
     p.multiplier.tick({0, 0, false, true});
-    p.perspective.reset(); p.texture.reset();
+    p.perspective.reset();
     ++p.counters.cycles;
 }
 void OpaqueTile::load(const TileImage& image) {
@@ -280,18 +286,85 @@ TileImage OpaqueTile::store() {
     }
     return result;
 }
+void OpaqueTile::load_word(std::uint16_t address, std::uint16_t color, std::uint32_t depth) {
+    auto& p = *impl_; p.require_idle(); require_depth(depth);
+    if (address >= tile_words) throw std::out_of_range("tile DMA word address exceeds ten bits");
+    p.transfer_read_valid = false;
+    p.write_word(address, color, depth);
+}
+void OpaqueTile::read_word_request(std::uint16_t address) {
+    auto& p = *impl_; p.require_idle();
+    if (address >= tile_words) throw std::out_of_range("tile DMA word address exceeds ten bits");
+    const BsramCycle read{false, 0, 0, true, address, false};
+    p.banks(read, read, read);
+    p.multiplier.tick({0, 0, false, false});
+    p.transfer_read_valid = true;
+    ++p.counters.cycles;
+    ++p.counters.store_words;
+}
+TileWord OpaqueTile::read_word_result() const {
+    const auto& p = *impl_; p.require_idle();
+    if (!p.transfer_read_valid) throw std::logic_error("tile DMA result has no preceding read request");
+    return {p.color_bank.output(), p.low_bank.output() |
+            (static_cast<std::uint32_t>(p.high_bank.output()) << 16)};
+}
+void OpaqueTile::idle_edge() {
+    auto& p = *impl_; p.require_idle(); p.quiet_edge();
+}
+void OpaqueTile::invalidate_texture() {
+    auto& p = *impl_; p.require_idle();
+    p.texture.invalidate();
+    ++p.counters.texture_cycles;
+    p.quiet_edge();
+}
+void OpaqueTile::copy_buffer_write(std::uint16_t address, std::uint16_t value) {
+    auto& p = *impl_; p.require_idle();
+    p.texture.scratch_write(address, value);
+    p.quiet_edge();
+}
+void OpaqueTile::copy_buffer_read_request(std::uint16_t address) {
+    auto& p = *impl_; p.require_idle();
+    p.texture.scratch_read_request(address);
+    p.quiet_edge();
+}
+std::uint16_t OpaqueTile::copy_buffer_read_result() const {
+    const auto& p = *impl_; p.require_idle();
+    return p.texture.scratch_read_result();
+}
 void OpaqueTile::begin(const Triangle& value, Point tile_origin) {
     begin(Primitive{value}, tile_origin);
 }
 void OpaqueTile::begin(const Primitive& primitive, Point tile_origin) {
+    begin_impl(primitive, tile_origin, std::nullopt, nullptr);
+}
+void OpaqueTile::begin_external(const Primitive& primitive, Point tile_origin,
+                                const std::optional<TextureDescriptor>& texture,
+                                SdramController& memory) {
+    begin_impl(primitive, tile_origin, texture, &memory);
+}
+void OpaqueTile::begin_impl(const Primitive& primitive, Point tile_origin,
+                           const std::optional<TextureDescriptor>& texture,
+                           SdramController* memory) {
     auto& p = *impl_; p.require_idle(); require_origin(tile_origin); validate_record(primitive);
+    const auto state = std::visit([](const auto& item) { return item.state; }, primitive);
+    const bool triangle_draw = std::holds_alternative<Triangle>(primitive);
+    const bool sprite_draw = std::holds_alternative<Sprite>(primitive);
+    const bool need_texture = (sprite_draw || (triangle_draw && textured(state.shade))) &&
+                              (state.color_write || state.color_key.has_value());
+    if (need_texture && memory) {
+        if (!texture || !state.texture || texture->width != static_cast<unsigned>(state.texture->width()) ||
+            texture->height != static_cast<unsigned>(state.texture->height()) ||
+            texture->pitch_bytes != static_cast<unsigned>(state.texture->pitch_bytes()))
+            throw std::invalid_argument("fetched texture descriptor does not match primitive metadata");
+        p.texture.bind_external(*texture, *memory);
+    } else if (need_texture) p.texture.bind(state.texture);
     p.origin = tile_origin; p.pending = {}; p.held = {};
-    p.triangle_draw = std::holds_alternative<Triangle>(primitive);
-    p.sprite_draw = std::holds_alternative<Sprite>(primitive);
-    p.draw_state = std::visit([](const auto& item) { return item.state; }, primitive);
-    p.need_texture = (p.sprite_draw || (p.triangle_draw && textured(p.draw_state.shade))) &&
-                     (p.draw_state.color_write || p.draw_state.color_key.has_value());
-    if (p.need_texture) { p.texture.bind(p.draw_state.texture); ++p.counters.texture_cycles; }
+    p.transfer_read_valid = false;
+    p.triangle_draw = triangle_draw;
+    p.sprite_draw = sprite_draw;
+    p.draw_state = state;
+    p.need_texture = need_texture;
+    if (p.need_texture) ++p.counters.texture_cycles;
     p.quiet_edge(); ++p.counters.setup_cycles;
     if (!p.triangle_draw) {
         p.constant_depth = std::visit([](const auto& item) -> std::uint32_t {
@@ -325,6 +398,7 @@ void OpaqueTile::begin(const Primitive& primitive, Point tile_origin) {
     p.state = Impl::State::EdgeLaunch;
 }
 bool OpaqueTile::busy() const { return impl_->state != Impl::State::Idle; }
+bool OpaqueTile::external_memory_pending() const { return impl_->texture.external_memory_pending(); }
 const TileStatistics& OpaqueTile::statistics() const { return impl_->counters; }
 
 void OpaqueTile::tick(bool enable) {

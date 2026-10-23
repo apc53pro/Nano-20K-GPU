@@ -13,6 +13,10 @@ output. It uses verified Gowin multiplier and BSRAM configurations and an exact
 serial perspective divider; throughput optimization remains future work.
 This is software architecture work; hardware synthesis and board measurements
 remain outstanding.
+The [system simulation](hardware/system-model.md) now connects rendering to a
+timed host link, bounded command queues, shared SDRAM, and independent scanout.
+Its clock/timing assumptions are configurable; measured physical feasibility
+and a faster rendering pipeline remain M1 work.
 Use measured exit criteria to advance. Calendar estimates should follow the
 initial feasibility work, once the toolchain and hardware constraints are known.
 

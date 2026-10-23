@@ -58,3 +58,9 @@ and explicit serial perspective logic. Its original-showcase output matches
 canonical rendering, including color and depth. It provides local cycle/state
 behavior without freezing the packed command ABI or establishing complete-system
 fit and timing.
+
+The [system simulation](../hardware/system-model.md) also executes a provisional
+`N20K-SYS-0.1` packed layout over the modeled host link, with shared SDRAM and
+independent scanout. This exercises one concrete implementation of M0 ordering
+and memory semantics without releasing a stable physical driver ABI. HDMI/TMDS
+signaling is intentionally outside the model.

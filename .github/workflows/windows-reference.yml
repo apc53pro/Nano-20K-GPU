@@ -47,4 +47,10 @@ jobs:
           SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/nano-gpu-ref.exe --scene showcase --mode blocks --frames 2 --step 0 --verify
       - name: Check incremental builds
         # The phony dependency check runs on every ordinary build.
-        run: make -q -o check-sdl all headless build/reference-tests.exe build/hardware-tests.exe build/full-hardware-tests.exe
+        run: make -q -o check-sdl all headless build/reference-tests.exe build/hardware-tests.exe build/full-hardware-tests.exe build/sdram-tests.exe build/host_link-tests.exe build/scanout-tests.exe build/protocol-tests.exe build/system_copy-tests.exe build/system-tests.exe
+      - name: Verify the timed GPU system and actual SDL scanout
+        run: |
+          ./build/nano-gpu-ref-headless.exe --mode system --hardware-profile
+          ./build/nano-gpu-ref-headless.exe --headless --mode system --scene showcase --frames 2 --time 0 --verify
+          ./build/nano-gpu-ref-headless.exe --headless --mode system --scene perspective --time 1.25 --host-divider 8 --sdram-trcd 6 --sdram-trp 6 --sdram-trfc 18 --scanout-fifo 256 --verify
+          SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/nano-gpu-ref.exe --mode system --scene showcase --frames 1 --step 0 --verify

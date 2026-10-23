@@ -36,7 +36,9 @@ SDL_LIBDIR := $(shell PKG_CONFIG_PATH="$(SDL_PKG_PATH)" pkg-config --variable=li
 CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_mult18x18.o $(BUILD_DIR)/hw_bsram.o $(BUILD_DIR)/hw_tile_pipeline.o \
     $(BUILD_DIR)/hw_perspective.o $(BUILD_DIR)/hw_texture.o $(BUILD_DIR)/hw_walker2d.o \
-    $(BUILD_DIR)/hw_blit.o
+    $(BUILD_DIR)/hw_blit.o $(BUILD_DIR)/hw_sdram.o $(BUILD_DIR)/hw_host_link.o \
+    $(BUILD_DIR)/hw_scanout.o $(BUILD_DIR)/hw_protocol.o $(BUILD_DIR)/hw_system_copy.o \
+    $(BUILD_DIR)/hw_system.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
 .PHONY: all headless test run sanitize clean check-sdl
@@ -87,10 +89,20 @@ $(BUILD_DIR)/full_hardware_tests.o: reference/tests/full_hardware_tests.cpp | $(
 $(BUILD_DIR)/full-hardware-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUILD_DIR)/full_hardware_tests.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
-test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT)
+SYSTEM_TEST_NAMES := sdram host_link scanout protocol system_copy system
+SYSTEM_TEST_BINS := $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)-tests$(EXEEXT))
+
+$(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
+
+$(SYSTEM_TEST_BINS): $(BUILD_DIR)/%-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUILD_DIR)/%_tests.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT) $(SYSTEM_TEST_BINS)
 	./$(BUILD_DIR)/reference-tests$(EXEEXT)
 	./$(BUILD_DIR)/hardware-tests$(EXEEXT)
 	./$(BUILD_DIR)/full-hardware-tests$(EXEEXT)
+	@set -e; for test_bin in $(SYSTEM_TEST_BINS); do ./$$test_bin; done
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)

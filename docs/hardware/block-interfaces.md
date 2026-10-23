@@ -213,7 +213,8 @@ They do not establish system frame rate, achievable FPGA clocks, or sustained
 one-pixel-per-cycle throughput. The serial divider is an exact functional
 baseline whose performance can later be improved under the same output contract.
 
-The remaining hardware interfaces are record fetch/scheduling, shared SDRAM
-clients and arbitration, bounded host FIFOs, and scanout. The packed host ABI is
-provisional. Vendor-library comparison, synthesis, primitive packing, routing,
-timing closure, and board validation remain required.
+The separate [`system` mode](system-model.md) now connects this slice to record
+fetch/scheduling, shared timed SDRAM arbitration, a bounded 8-bit host link, and
+independent scanout. The `blocks` adapter above retains its local-only scope.
+The packed host ABI is provisional. Vendor-library comparison, synthesis,
+primitive packing, routing, timing closure, and board validation remain required.

@@ -1,7 +1,9 @@
 #include "nano_gpu/hw/texture.hpp"
 
 #include "nano_gpu/hw/bsram.hpp"
+#include "nano_gpu/hw/sdram.hpp"
 
+#include <algorithm>
 #include <array>
 #include <stdexcept>
 #include <utility>
@@ -19,18 +21,42 @@ void require_texture(const std::shared_ptr<const Image>& texture) {
     }
 }
 
+void require_descriptor(const TextureDescriptor& descriptor) {
+    const auto power_of_two = [](std::uint32_t value) {
+        return value != 0 && (value & (value - 1u)) == 0;
+    };
+    const auto extent = static_cast<std::uint64_t>(descriptor.pitch_bytes) * descriptor.height;
+    if (descriptor.base < heap_base || (descriptor.base & 3u) != 0 ||
+        descriptor.width > 1024 || descriptor.height > 1024 ||
+        !power_of_two(descriptor.width) || !power_of_two(descriptor.height) ||
+        (descriptor.pitch_bytes & 3u) != 0 ||
+        descriptor.pitch_bytes < descriptor.width * 2u ||
+        extent > memory_bytes || static_cast<std::uint64_t>(descriptor.base) + extent > memory_bytes) {
+        throw std::invalid_argument("hardware texture descriptor exceeds the aligned SDRAM heap");
+    }
+}
+
 } // namespace
 
 struct TextureUnit::Impl {
-    enum class State { Idle, Address, Tag, ResponseWait, Refill, CacheRead, Capture };
+    enum class State {
+        Idle, Address, Tag, ResponseWait, ExternalRequest, ExternalWait,
+        Refill, CacheRead, Capture
+    };
 
     Sdp1kx16 bank;
     std::array<std::uint32_t, line_count> tags{};
     std::array<bool, line_count> valid{};
     std::shared_ptr<const Image> texture;
+    TextureDescriptor descriptor;
+    SdramController* external_memory = nullptr;
+    bool external_request_pending = false;
+    unsigned external_words = 0;
+    std::array<std::uint32_t, line_words / 2> external_line{};
     TextureStatistics counters;
     State state = State::Idle;
     bool result_valid = false;
+    bool scratch_read_valid = false;
     std::uint16_t result = 0;
     std::uint32_t address = 0;
     std::uint32_t shifted_stride = 0;
@@ -76,9 +102,25 @@ void TextureUnit::bind(std::shared_ptr<const Image> texture) {
     auto& p = *impl_;
     p.require_idle();
     require_texture(texture);
-    if (p.texture.get() != texture.get()) p.valid.fill(false);
+    if (p.external_memory || p.texture.get() != texture.get()) p.valid.fill(false);
     p.texture = std::move(texture);
+    p.external_memory = nullptr;
+    p.descriptor = {};
     p.result_valid = false;
+    p.scratch_read_valid = false;
+    p.control_edge();
+}
+
+void TextureUnit::bind_external(const TextureDescriptor& descriptor, SdramController& memory) {
+    auto& p = *impl_;
+    p.require_idle();
+    require_descriptor(descriptor);
+    if (p.external_memory != &memory || p.descriptor != descriptor) p.valid.fill(false);
+    p.texture.reset();
+    p.descriptor = descriptor;
+    p.external_memory = &memory;
+    p.result_valid = false;
+    p.scratch_read_valid = false;
     p.control_edge();
 }
 
@@ -87,26 +129,54 @@ void TextureUnit::invalidate() {
     p.require_idle();
     p.valid.fill(false);
     p.result_valid = false;
+    p.scratch_read_valid = false;
     p.control_edge();
+}
+
+void TextureUnit::scratch_write(std::uint16_t address, std::uint16_t value) {
+    auto& p = *impl_; p.require_idle();
+    if (address >= cache_words) throw std::out_of_range("copy cache word address exceeds ten bits");
+    p.bank.tick({true, address, value, false, 0, false});
+    p.valid.fill(false);
+    p.result_valid = p.scratch_read_valid = false;
+    ++p.counters.cycles;
+}
+void TextureUnit::scratch_read_request(std::uint16_t address) {
+    auto& p = *impl_; p.require_idle();
+    if (address >= cache_words) throw std::out_of_range("copy cache word address exceeds ten bits");
+    p.bank.tick({false, 0, 0, true, address, false});
+    p.result_valid = false;
+    p.scratch_read_valid = true;
+    ++p.counters.cycles;
+}
+std::uint16_t TextureUnit::scratch_read_result() const {
+    const auto& p = *impl_; p.require_idle();
+    if (!p.scratch_read_valid) throw std::logic_error("copy cache result has no preceding read request");
+    return p.bank.output();
 }
 
 void TextureUnit::start(int x, int y) {
     auto& p = *impl_;
     p.require_idle();
-    require_texture(p.texture);
-    if (x < 0 || x >= p.texture->width() || y < 0 || y >= p.texture->height()) {
+    if (!p.external_memory) require_texture(p.texture);
+    const auto width = p.external_memory ? p.descriptor.width : static_cast<unsigned>(p.texture->width());
+    const auto height = p.external_memory ? p.descriptor.height : static_cast<unsigned>(p.texture->height());
+    if (x < 0 || static_cast<unsigned>(x) >= width || y < 0 || static_cast<unsigned>(y) >= height) {
         throw std::out_of_range("hardware texture coordinate must be addressed before sampling");
     }
     p.address = static_cast<std::uint32_t>(x);
-    p.shifted_stride = static_cast<std::uint32_t>(p.texture->pitch_bytes() / 2);
+    p.shifted_stride = p.external_memory ? p.descriptor.pitch_bytes / 2u :
+        static_cast<std::uint32_t>(p.texture->pitch_bytes() / 2);
     p.y_bits = static_cast<std::uint32_t>(y);
     p.address_bit = 0;
     p.result_valid = false;
+    p.scratch_read_valid = false;
     p.state = Impl::State::Address;
     p.control_edge();
 }
 
 bool TextureUnit::busy() const { return impl_->state != Impl::State::Idle; }
+bool TextureUnit::external_memory_pending() const { return impl_->external_request_pending; }
 bool TextureUnit::result_valid() const { return impl_->result_valid; }
 
 std::uint16_t TextureUnit::result() const {
@@ -153,18 +223,57 @@ void TextureUnit::tick(bool enable) {
         } else {
             ++p.counters.misses;
             p.valid[p.slot] = false;
-            p.response_wait = backing_response_edges;
             p.refill_word = 0;
-            p.state = Impl::State::ResponseWait;
+            if (p.external_memory) p.state = Impl::State::ExternalRequest;
+            else {
+                p.response_wait = backing_response_edges;
+                p.state = Impl::State::ResponseWait;
+            }
         }
         break;
     case Impl::State::ResponseWait:
         if (--p.response_wait == 0) p.state = Impl::State::Refill;
         break;
+    case Impl::State::ExternalRequest: {
+        // The allocation is four-byte aligned, and each cache line holds an
+        // integral number of 32-bit words. A final short line is never read
+        // past that allocation; only its unused cache tail is padded with zero.
+        const auto allocation_words = static_cast<std::uint64_t>(p.descriptor.pitch_bytes) *
+                                      p.descriptor.height / 4u;
+        const auto first_word = p.line_base >> 1;
+        if (first_word >= allocation_words)
+            throw std::logic_error("hardware texture refill starts outside its allocation");
+        MemoryRequest request;
+        request.address = p.descriptor.base + (p.line_base << 1);
+        request.words = static_cast<unsigned>(std::min<std::uint64_t>(
+            line_words / 2, allocation_words - first_word));
+        request.tag = p.line_base;
+        if (p.external_memory->submit(MemoryClient::Texture, request)) {
+            p.external_request_pending = true;
+            p.external_words = request.words;
+            p.state = Impl::State::ExternalWait;
+        } else ++p.counters.memory_wait_cycles;
+        break;
+    }
+    case Impl::State::ExternalWait:
+        if (p.external_memory->response_ready(MemoryClient::Texture)) {
+            const auto response = p.external_memory->take_response(MemoryClient::Texture);
+            p.external_request_pending = false;
+            if (response.tag != p.line_base || response.words != p.external_words ||
+                response.words == 0 || response.words > p.external_line.size())
+                throw std::logic_error("hardware texture SDRAM response does not match its request");
+            p.external_line.fill(0);
+            for (unsigned word = 0; word < response.words; ++word)
+                p.external_line[word] = response.data[word];
+            p.state = Impl::State::Refill;
+        } else ++p.counters.memory_wait_cycles;
+        break;
     case Impl::State::Refill:
         memory.write_enable = true;
         memory.write_address = static_cast<std::uint16_t>((p.slot << 4) | p.refill_word);
-        memory.write_data = p.backing_word(p.line_base + p.refill_word);
+        memory.write_data = p.external_memory ? static_cast<std::uint16_t>(
+            p.external_line[p.refill_word >> 1] >> ((p.refill_word & 1u) << 4)) :
+            p.backing_word(p.line_base + p.refill_word);
         ++p.counters.refill_words;
         if (++p.refill_word == line_words) {
             p.tags[p.slot] = p.tag;
@@ -190,11 +299,20 @@ void TextureUnit::tick(bool enable) {
 
 void TextureUnit::reset() {
     auto& p = *impl_;
+    // Resetting a local consumer cannot retract an accepted memory request.
+    // Its owner must first clock the consumer until that response is retired.
+    if (p.external_request_pending)
+        throw std::logic_error("drain the outstanding texture SDRAM response before reset");
     p.state = Impl::State::Idle;
     p.texture.reset();
+    p.descriptor = {};
+    p.external_memory = nullptr;
+    p.external_words = 0;
+    p.external_line.fill(0);
     p.valid.fill(false);
     p.tags.fill(0);
     p.result_valid = false;
+    p.scratch_read_valid = false;
     p.result = 0;
     p.address = p.shifted_stride = p.y_bits = 0;
     p.address_bit = p.slot = p.word_in_line = p.response_wait = p.refill_word = 0;

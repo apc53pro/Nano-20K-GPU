@@ -311,6 +311,9 @@ Color modulate(Color texture, Color color) {
 }
 
 Image::Image(int width, int height, int pitch_bytes)
+    : Image(width, height, pitch_bytes, true) {}
+
+Image::Image(int width, int height, int pitch_bytes, bool allocate_pixels)
     : width_(width), height_(height), pitch_bytes_(pitch_bytes) {
     if (width < 1 || width > 1024 || height < 1 || height > 1024) {
         throw std::invalid_argument("image dimensions must lie in 1..1024");
@@ -325,10 +328,15 @@ Image::Image(int width, int height, int pitch_bytes)
     if (extent > heap_bytes) {
         throw std::invalid_argument("image extent exceeds the GPU heap");
     }
-    pixels_.assign(static_cast<std::size_t>(extent / 2), 0);
+    if (allocate_pixels) pixels_.assign(static_cast<std::size_t>(extent / 2), 0);
+}
+
+std::shared_ptr<const Image> Image::descriptor(int width, int height, int pitch_bytes) {
+    return std::shared_ptr<const Image>(new Image(width, height, pitch_bytes, false));
 }
 
 std::uint16_t& Image::at(int x, int y) {
+    if (pixels_.empty()) throw std::logic_error("metadata-only image has no host pixel port");
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
         throw std::out_of_range("image pixel outside image bounds");
     }
@@ -336,6 +344,7 @@ std::uint16_t& Image::at(int x, int y) {
 }
 
 std::uint16_t Image::at(int x, int y) const {
+    if (pixels_.empty()) throw std::logic_error("metadata-only image has no host pixel port");
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
         throw std::out_of_range("image pixel outside image bounds");
     }

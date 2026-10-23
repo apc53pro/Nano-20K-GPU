@@ -53,6 +53,9 @@ enum class RenderMode { Tiled, TiledReverse, Monolithic, HardwareBlocks };
 class Image {
 public:
     Image(int width, int height, int pitch_bytes = 0);
+    // Metadata carried by a fetched GPU descriptor. It has no host pixels;
+    // sampling it is an error, so the system model must use its SDRAM port.
+    static std::shared_ptr<const Image> descriptor(int width, int height, int pitch_bytes = 0);
     int width() const { return width_; }
     int height() const { return height_; }
     int pitch_bytes() const { return pitch_bytes_; }
@@ -61,6 +64,7 @@ public:
     std::uint16_t sample(int x, int y, AddressMode u, AddressMode v) const;
     bool texture_compatible() const;
 private:
+    Image(int width, int height, int pitch_bytes, bool allocate_pixels);
     int width_;
     int height_;
     int pitch_bytes_;
