@@ -127,6 +127,8 @@ void compare_frame(const SdramController& memory, unsigned id, const Pixels& exp
 
 CopyStatistics execute(SystemCopy& copy, SdramController& memory, OpaqueTile& tile,
                        const CopyCommand& command, bool stalls = false) {
+    const auto legacy_submissions = memory.statistics().legacy_submissions;
+    const auto legacy_reads = memory.statistics().legacy_response_reads;
     copy.begin(command);
     for (unsigned guard = 0; copy.busy(); ++guard) {
         expect(guard < 1000000, "clocked system copy hung");
@@ -135,6 +137,9 @@ CopyStatistics execute(SystemCopy& copy, SdramController& memory, OpaqueTile& ti
     }
     expect(!copy.memory_pending() && !memory.response_ready(MemoryClient::Copy),
            "copy retired before destination acknowledgement drained");
+    expect(memory.statistics().legacy_submissions == legacy_submissions &&
+           memory.statistics().legacy_response_reads == legacy_reads,
+           "system copy bypassed the native streaming slot ports");
     return copy.statistics();
 }
 
@@ -244,9 +249,37 @@ void control_tests() {
         MemoryRequest extra; extra.address = image.base; extra.words = 1;
         expect(!memory.submit(MemoryClient::Copy, extra), "response backpressure allowed slot overwrite");
         copy.tick(memory, tile); memory.tick();
-        expect(!copy.memory_pending(), "ready response was not consumed");
+        expect(copy.memory_pending(), "response metadata capture released the unread native slot");
+        throws([&] { copy.reset(); }, "reset abandoned a response still draining through native ports");
+        const auto read_words = memory.statistics().slot_read_words;
+        for (unsigned guard = 0; copy.memory_pending(); ++guard) {
+            expect(guard < 1000, "native source response did not finish draining");
+            copy.tick(memory, tile); memory.tick();
+        }
+        expect(memory.statistics().slot_read_words == read_words + 4,
+               "eight source pixels did not cross four synchronous slot reads");
         copy.reset(); expect(!copy.busy(), "drained copy could not reset");
         compare_frame(memory, 1, blank());
+    });
+    test("reset discards an unsubmitted native write fill before the next copy", [] {
+        SdramController memory; boot(memory);
+        const TextureDescriptor image{heap_base, 8, 1, 16}; const auto source = seed_image(memory, image);
+        const CopyCommand command{true, 0, 1, {}, {3, 2}, 8, 1, image};
+        SystemCopy copy; OpaqueTile tile; copy.begin(command);
+        const auto index = static_cast<unsigned>(MemoryClient::Copy);
+        for (unsigned guard = 0; memory.statistics().clients[index].bytes_read < 16 || copy.memory_pending(); ++guard) {
+            expect(guard < 10000, "source row did not finish buffering before reset test");
+            copy.tick(memory, tile); memory.tick();
+        }
+        // Prime the cache read and capture the first two pixels. The odd
+        // destination completes its first masked slot word immediately.
+        for (unsigned edge = 0; edge < 3; ++edge) { copy.tick(memory, tile); memory.tick(); }
+        expect(!copy.memory_pending() && memory.statistics().clients[index].bytes_written == 0,
+               "partial-fill test reached an issued destination transaction");
+        copy.reset();
+        auto expected = blank(); expected_copy(expected, source, image.width, image.height, command);
+        execute(copy, memory, tile, command, true);
+        compare_frame(memory, 1, expected);
     });
     test("shared memory timing changes actual copy completion cycles", [] {
         const auto measure = [](SdramConfig config, bool stalled) {

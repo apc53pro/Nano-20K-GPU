@@ -12,7 +12,9 @@ class SdramController;
 
 // Clocked system copy engine. A complete clipped row occupies the tile's
 // existing texture-cache BSRAM; no additional row RAM is allocated. Source
-// reads and masked destination writes use the shared SDRAM Copy client.
+// reads and masked destination writes stream through the shared SDRAM Copy
+// client's native synchronous slot ports. Only one 32-bit read hold and one
+// 32-bit write assembly register are retained outside the existing row bank.
 // Front/back ownership and attachment validity are checked by the executor.
 class SystemCopy {
 public:
@@ -30,8 +32,10 @@ public:
     // edges hold engine/BSRAM state while responses remain bounded in SDRAM.
     void tick(SdramController& memory, OpaqueTile& tile, bool enable = true);
     bool busy() const;
+    // Remains true until every required word of an owned response is drained.
     bool memory_pending() const;
     // Recovery may cancel once its accepted memory response has retired.
+    // Unsubmitted words in the Copy slot are discarded before resetting.
     void reset();
     const CopyStatistics& statistics() const;
 

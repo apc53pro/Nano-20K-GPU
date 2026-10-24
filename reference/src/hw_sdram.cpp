@@ -1,4 +1,5 @@
 #include "nano_gpu/hw/sdram.hpp"
+#include "nano_gpu/hw/bsram.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -46,12 +47,59 @@ struct SdramController::Impl {
         RefreshPrecharge, RefreshRecovery
     };
     struct Slot {
+        struct Metadata {
+            bool write = false;
+            std::uint32_t address = 0;
+            unsigned words = 0;
+            std::uint32_t tag = 0;
+        } request;
+        std::array<Sdp1kx16, 2> ram;
+        std::array<BsramCycle, 2> ports{};
+        std::array<std::uint8_t, memory_burst_words> masks{};
+        std::uint16_t filled = 0;
+        bool input_pending = false;
+        unsigned input_index = 0;
+        std::uint32_t input_data = 0;
+        std::uint8_t input_mask = 0;
+        bool output_pending = false;
+        bool output_valid = false;
+        unsigned output_index = 0;
         bool occupied = false;
         bool queued = false;
         bool response_valid = false;
         std::uint64_t queued_at = 0;
-        MemoryRequest request;
-        MemoryResponse response;
+        // Test-driver state and observer shadows are not device RAM or device
+        // execution ports. No hardware client consumes these arrays.
+        std::optional<MemoryRequest> adapter_drive;
+        unsigned adapter_position = 0;
+        std::array<std::uint32_t, memory_burst_words> observed_response{};
+
+        void write_word(unsigned index, std::uint32_t data) {
+            if (ports[0].write_enable) throw std::logic_error("SDRAM slot has two writes on one edge");
+            for (unsigned half = 0; half < 2; ++half) {
+                ports[half].write_enable = true;
+                ports[half].write_address = static_cast<std::uint16_t>(index);
+                ports[half].write_data = static_cast<std::uint16_t>(data >> (16 * half));
+            }
+        }
+        void read_word(unsigned index) {
+            if (ports[0].read_enable) throw std::logic_error("SDRAM slot has two reads on one edge");
+            for (auto& port : ports) {
+                port.read_enable = true;
+                port.read_address = static_cast<std::uint16_t>(index);
+            }
+        }
+        std::uint32_t output() const {
+            return ram[0].output() | (static_cast<std::uint32_t>(ram[1].output()) << 16);
+        }
+        void release() {
+            occupied = queued = response_valid = false;
+            input_pending = output_pending = output_valid = false;
+            filled = 0;
+            request = {};
+            adapter_drive.reset();
+            adapter_position = 0;
+        }
     };
     struct Bank {
         bool open = false;
@@ -201,13 +249,17 @@ struct SdramController::Impl {
     }
 
     void choose_burst() {
-        const auto& request = slots[*active].request;
+        auto& slot = slots[*active];
+        const auto& request = slot.request;
         const auto first_word = request.address / 4 + processed;
         burst_base = first_word & ~(native_burst_words - 1u);
         burst_first = first_word & (native_burst_words - 1u);
         burst_useful = std::min(native_burst_words - burst_first, request.words - processed);
         burst_beat = 0;
         burst_row_accounted = false;
+        // Establish the first useful write word before the native WRITE
+        // command consumes DQ. Subsequent words are prefetched one edge ahead.
+        if (request.write) slot.read_word(processed);
     }
 
     void complete() {
@@ -232,9 +284,11 @@ struct SdramController::Impl {
         signal.data_write = writing;
         if (writing) {
             ++counts.physical_write_beats;
-            const auto enables = useful ? slot.request.masks[index] : std::uint8_t{0};
+            const auto enables = useful ? slot.masks[index] : std::uint8_t{0};
             signal.dqm = static_cast<std::uint8_t>((~enables) & 0xfu);
-            signal.data = useful ? slot.request.data[index] : 0;
+            signal.data = useful ? slot.output() : 0;
+            if (useful && burst_beat + 1 < burst_first + burst_useful)
+                slot.read_word(index + 1);
             const auto mask = byte_mask(enables);
             words[word] = (words[word] & ~mask) | (signal.data & mask);
             defined[word] = static_cast<std::uint8_t>(defined[word] | enables);
@@ -246,7 +300,8 @@ struct SdramController::Impl {
             signal.dqm = 0;
             signal.data = observed_word(word);
             if (useful) {
-                slot.response.data[index] = signal.data;
+                slot.write_word(index, signal.data);
+                slot.observed_response[index] = signal.data;
                 client.bytes_read += 4;
                 if (defined[word] != 0xf) ++counts.uninitialized_read_words;
             }
@@ -320,6 +375,7 @@ struct SdramController::Impl {
         // not first go low when data appears: SDR read masking is pipelined.
         // Only WRITE edges override these low byte masks.
         signal.dqm = 0;
+        for (auto& slot : slots) slot.ports = {};
         if (!ready) ++counts.initialization_cycles;
         switch (phase) {
         case Phase::PowerWait:
@@ -368,9 +424,7 @@ struct SdramController::Impl {
                 auto& slot = slots[*active];
                 auto& client = counts.clients[*active];
                 slot.queued = false;
-                slot.response = {};
-                slot.response.words = slot.request.words;
-                slot.response.tag = slot.request.tag;
+                slot.observed_response = {};
                 const auto wait = now() - slot.queued_at;
                 client.queue_wait_cycles += wait;
                 client.max_queue_wait_cycles = std::max(client.max_queue_wait_cycles, wait);
@@ -407,6 +461,33 @@ struct SdramController::Impl {
             if (now() >= wait_until) phase = Phase::Ready;
             break;
         }
+        // Slot ports advance after the SDR engine has consumed OLD outputs.
+        // A fill completed here cannot enter arbitration until a later edge.
+        for (auto& slot : slots) {
+            if (slot.adapter_drive) {
+                const auto index = slot.adapter_position++;
+                slot.write_word(index, slot.adapter_drive->data[index]);
+                slot.masks[index] = slot.adapter_drive->masks[index];
+                slot.filled |= static_cast<std::uint16_t>(1u << index);
+                if (slot.adapter_position == slot.request.words) {
+                    slot.adapter_drive.reset();
+                    slot.queued = true;
+                }
+            } else if (slot.input_pending) {
+                slot.write_word(slot.input_index, slot.input_data);
+                slot.masks[slot.input_index] = slot.input_mask;
+                slot.filled |= static_cast<std::uint16_t>(1u << slot.input_index);
+                slot.input_pending = false;
+            }
+            if (slot.output_pending) {
+                slot.read_word(slot.output_index);
+                slot.output_pending = false;
+                slot.output_valid = true;
+            }
+            for (unsigned half = 0; half < 2; ++half) slot.ram[half].tick(slot.ports[half]);
+            if (slot.ports[0].write_enable) ++counts.slot_write_words;
+            if (slot.ports[0].read_enable) ++counts.slot_read_words;
+        }
     }
 };
 
@@ -428,25 +509,122 @@ bool SdramController::submit(MemoryClient client, const MemoryRequest& request) 
     }
     auto& p = *impl_;
     auto& slot = p.slots[index];
-    if (slot.occupied) { ++p.counts.clients[index].rejected_busy; return false; }
+    if (slot.occupied || slot.input_pending || slot.filled != 0) {
+        ++p.counts.clients[index].rejected_busy; return false;
+    }
     slot.occupied = true;
-    slot.queued = true;
+    slot.queued = !request.write;
     slot.response_valid = false;
-    slot.request = request;
+    slot.output_valid = false;
+    slot.request = {request.write, request.address, request.words, request.tag};
+    if (request.write) { slot.adapter_drive = request; slot.adapter_position = 0; }
     slot.queued_at = p.now();
     ++p.counts.clients[index].requests;
+    ++p.counts.legacy_submissions;
     return true;
+}
+
+bool SdramController::write_request_word(MemoryClient client, unsigned index,
+                                          std::uint32_t data, std::uint8_t mask) {
+    if (index >= memory_burst_words) throw std::out_of_range("SDRAM slot word exceeds16-word port");
+    if ((mask & 0xf0u) != 0) throw std::out_of_range("SDRAM slot mask exceeds four byte lanes");
+    auto& slot = impl_->slots[client_index(client)];
+    if (slot.occupied || slot.input_pending) return false;
+    slot.input_index = index;
+    slot.input_data = data;
+    slot.input_mask = mask;
+    slot.input_pending = true;
+    return true;
+}
+
+bool SdramController::submit_prepared(MemoryClient client, const MemoryRequest& metadata) {
+    const auto index = client_index(client);
+    validate_address(metadata.address);
+    if (metadata.words == 0 || metadata.words > memory_burst_words ||
+        static_cast<std::uint64_t>(metadata.address) + 4u * metadata.words > sdram_bytes)
+        throw std::out_of_range("SDRAM request extent exceeds the bounded16-word port");
+    auto& p = *impl_;
+    auto& slot = p.slots[index];
+    if (slot.occupied || slot.input_pending) {
+        ++p.counts.clients[index].rejected_busy; return false;
+    }
+    const auto needed = static_cast<std::uint16_t>((1u << metadata.words) - 1u);
+    if ((metadata.write && (slot.filled & needed) != needed) ||
+        (!metadata.write && slot.filled != 0)) return false;
+    slot.occupied = slot.queued = true;
+    slot.response_valid = slot.output_valid = false;
+    slot.request = {metadata.write, metadata.address, metadata.words, metadata.tag};
+    slot.queued_at = p.now();
+    ++p.counts.clients[index].requests;
+    ++p.counts.prepared_submissions;
+    return true;
+}
+
+void SdramController::discard_request_words(MemoryClient client) {
+    auto& slot = impl_->slots[client_index(client)];
+    if (slot.occupied) throw std::logic_error("cannot discard an owned SDRAM request/response");
+    slot.filled = 0;
+    slot.input_pending = false;
 }
 
 bool SdramController::response_ready(MemoryClient client) const {
     return impl_->slots[client_index(client)].response_valid;
 }
 
+MemoryResponseInfo SdramController::response_info(MemoryClient client) const {
+    const auto& slot = impl_->slots[client_index(client)];
+    if (!slot.response_valid) throw std::logic_error("SDRAM response metadata is not valid");
+    return {slot.request.words, slot.request.tag};
+}
+
+bool SdramController::request_response_word(MemoryClient client, unsigned index) {
+    auto& slot = impl_->slots[client_index(client)];
+    if (!slot.response_valid) return false;
+    if (slot.request.write) throw std::logic_error("SDRAM write acknowledgement has no read payload");
+    if (index >= slot.request.words) throw std::out_of_range("SDRAM response word exceeds its extent");
+    if (slot.output_pending) return false;
+    slot.output_index = index;
+    slot.output_pending = true;
+    slot.output_valid = false;
+    return true;
+}
+
+bool SdramController::response_word_valid(MemoryClient client) const {
+    const auto& slot = impl_->slots[client_index(client)];
+    return slot.response_valid && slot.output_valid;
+}
+
+unsigned SdramController::response_word_offset(MemoryClient client) const {
+    const auto& slot = impl_->slots[client_index(client)];
+    if (!slot.response_valid || !slot.output_valid)
+        throw std::logic_error("SDRAM response word offset is not valid");
+    return slot.output_index;
+}
+
+std::uint32_t SdramController::response_word(MemoryClient client) const {
+    const auto& slot = impl_->slots[client_index(client)];
+    if (!slot.response_valid || !slot.output_valid)
+        throw std::logic_error("SDRAM response word is not valid");
+    return slot.output();
+}
+
+void SdramController::release_response(MemoryClient client) {
+    auto& slot = impl_->slots[client_index(client)];
+    if (!slot.response_valid) throw std::logic_error("SDRAM response is not valid");
+    if (slot.output_pending) throw std::logic_error("SDRAM response read must cross its memory edge before release");
+    slot.release();
+}
+
 MemoryResponse SdramController::take_response(MemoryClient client) {
     auto& slot = impl_->slots[client_index(client)];
     if (!slot.response_valid) throw std::logic_error("SDRAM response is not valid");
-    auto result = slot.response;
-    slot = {};
+    if (slot.output_pending) throw std::logic_error("cannot consume response during a staged RAM read");
+    MemoryResponse result;
+    result.words = slot.request.words;
+    result.tag = slot.request.tag;
+    result.data = slot.observed_response;
+    slot.release();
+    ++impl_->counts.legacy_response_reads;
     return result;
 }
 
@@ -454,7 +632,7 @@ void SdramController::tick() { impl_->tick(); }
 bool SdramController::initialized() const { return impl_->ready; }
 bool SdramController::idle() const {
     if (!impl_->ready || impl_->phase != Impl::Phase::Ready) return false;
-    for (const auto& slot : impl_->slots) if (slot.occupied) return false;
+    for (const auto& slot : impl_->slots) if (slot.occupied || slot.input_pending || slot.output_pending) return false;
     return true;
 }
 std::uint64_t SdramController::cycles() const { return impl_->counts.cycles; }

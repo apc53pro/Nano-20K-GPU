@@ -1,5 +1,5 @@
 digraph CurrentRenderer {
-    graph [label="Current renderer — 44f0c8f\nDependency / control-flow view: textured fragments are serialized",
+    graph [label="Current renderer — streamed storage + throughput instrumentation\nDependency / control-flow view: textured fragments are serialized",
         labelloc=t, labeljust=l, fontname="DejaVu Sans", fontsize=21,
         bgcolor="white", charset="UTF-8", rankdir=TB, compound=true,
         newrank=true, nodesep=0.24, ranksep=0.48, pad=0.25,
@@ -86,18 +86,18 @@ digraph CurrentRenderer {
                     color="#6957a3", fillcolor="#f1edf8"];
         cache_capture [label="Parent captures texel\n1 following edge\nNever consume new child\nregister output on the same edge",
                        color="#b76118", fillcolor="#fff2e5"];
-        memory_request [label="System: Texture memory client\nRequest acceptance + variable wait\nShared SDRAM arbitration / refresh\n≤8 × 32-bit words per line\nBound final request to allocation",
+        memory_request [label="System: Texture memory client\nRequest acceptance + variable wait\nShared SDRAM arbitration / refresh\nOwned 2-bank slot; ≤8 ×32-bit words\nSync read → separate 32-bit capture\nBound final request to allocation",
                         color="#6957a3", fillcolor="#f1edf8"];
-        refill [label="Refill cache data bank\n16 RGB565 writes\nOne write / edge\nPad unused short-line tail with zero",
+        refill [label="Refill cache data bank\n16 RGB565 writes through native A port\nOne held 32-bit word → 2 write edges\nNext word needs sync slot read/capture\nPad unused short-line tail with zero",
                 color="#6957a3", fillcolor="#f1edf8"];
-        cache_bank [shape=cylinder, label="ONE SDPB 1024×16\n64 lines × 16 RGB565 texels\n2 KiB + bounded tags / valid bits\n8×32 response staging\nCopies reuse this bank while idle",
+        cache_bank [shape=cylinder, label="ONE SDPB 1024×16\n64 lines × 16 RGB565 texels\n2 KiB + bounded tags / valid bits\nOne 32-bit response hold\nCopies reuse this bank while idle",
                     color="#6957a3", fillcolor="#f1edf8"];
         { rank=same; cache_request; cache_address; tags; cache_read; cache_capture; }
         { rank=same; memory_request; refill; cache_bank; }
         cache_request -> cache_address -> tags [weight=500];
         tags -> cache_read [label="hit", weight=500];
         tags -> memory_request [label="miss"];
-        memory_request -> refill [label="registered response"];
+        memory_request -> refill [label="owned slot read / capture"];
         refill -> cache_read [label="line valid", constraint=false];
         cache_read -> cache_capture [weight=500];
         refill -> cache_bank [label="write A", style=dashed, color="#6957a3", fontcolor="#6957a3"];
@@ -156,8 +156,13 @@ digraph CurrentRenderer {
     advance -> shared_dsp [style=invis];
 
     scope [shape=note, fontsize=11, margin="0.15,0.12", color="#245b8c", fillcolor="#f7f9fc",
-        label="READING THIS VIEW\nADVANCE markers return to the selected walker; they are control exits, not extra hardware.\nCE-low holds local state; system SDRAM, host and scanout continue independently.\nD24 stays separate from perspective division. Keyed depth-only draws must sample.\nCache hit: 14 unit edges + 1 parent capture. System misses have dynamic SDRAM waits.\nOnly the blocks adapter uses a fixed 34-edge miss + 1 parent capture.\nTile cycles INCLUDE texture-memory waits during Draw; exclude record fetch / tile DMA waits.\nSystem last_pass_cycles includes record fetch, tile DMA, rendering and shared-memory delays.\nCPU transforms / clipping / triangle setup / binning remain external. Arrows do not imply 1 pixel / cycle."];
-    divider_resource -> scope [style=invis];
+        label="READING THIS VIEW\nADVANCE markers return to the selected walker; they are control exits, not extra hardware.\nCE-low holds local state; system SDRAM, host and scanout continue independently.\nD24 stays separate from perspective division. Keyed depth-only draws must sample.\nCache hit: 14 unit edges + 1 parent capture. System misses add dynamic waits and native slot reads.\nOnly the blocks adapter uses a fixed 34-edge miss + 1 parent capture.\nTile cycles INCLUDE texture-memory waits during Draw; exclude record fetch / tile DMA waits.\nSystem last_pass_cycles includes record fetch, tile DMA, rendering and shared-memory delays.\nSystem storage: 29 native BSRAM =12 original +12 client-slot +2 reader +3 row banks.\nCPU transforms / clipping / triangle setup / binning remain external. Arrows do not imply 1 pixel / cycle."];
+    trace [shape=note, label="HOST-ONLY PER-CYCLE OBSERVER\nAccepted token ID / retired token ID may differ on the same edge\nCommit, depth rejection, key rejection or reset cancellation\nStage / enable / in-flight counts; common-clock mapping in system mode\nFixed scoreboard; CSV traces / cadence / latency / consecutive-run checks\nNo extra GPU state, ports or cycles", fontsize=11, color="#879dad", fillcolor="#f7f9fc"];
+    pending -> trace [style=dotted, color="#879dad", constraint=false];
+    held -> trace [style=dotted, color="#879dad", constraint=false];
+    fast_commit -> trace [style=dotted, color="#879dad", constraint=false];
+    serial_commit -> trace [style=dotted, color="#879dad", constraint=false];
+    divider_resource -> trace -> scope [style=invis];
     // Finish every row in a section before starting the next cluster. This
     // prevents Graphviz from placing consecutive sections beside one another.
     fast_note -> held [style=invis, weight=100];

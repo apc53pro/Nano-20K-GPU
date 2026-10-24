@@ -122,6 +122,8 @@ int main() {
         Rig rig;
         rig.initialize();
         rig.write_frame(0, pattern);
+        const auto legacy_submissions = rig.memory.statistics().legacy_submissions;
+        const auto legacy_reads = rig.memory.statistics().legacy_response_reads;
         rig.scanout.set_memory_ready(true);
         rig.next_blank(); // Arm and prefetch in vertical blank.
         rig.next_blank(); // Observe the first full active frame.
@@ -135,6 +137,10 @@ int main() {
         const auto& client = rig.memory.statistics().clients[static_cast<unsigned>(MemoryClient::Scanout)];
         expect(client.bytes_read >= 640u * 480u * 2u && counters.read_requests >= 9600,
                "pixels bypassed shared SDRAM requests");
+        expect(rig.memory.statistics().legacy_submissions == legacy_submissions &&
+               rig.memory.statistics().legacy_response_reads == legacy_reads &&
+               rig.memory.statistics().slot_read_words >= 640u * 480u / 2u,
+               "scanout bypassed synchronous native response-slot reads");
     });
 
     run_case("slow row activation produces observable display underflow with a small FIFO", [] {

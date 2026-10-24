@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test run sanitize clean check-sdl
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -92,17 +92,34 @@ $(BUILD_DIR)/full-hardware-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUIL
 SYSTEM_TEST_NAMES := sdram host_link scanout protocol system_copy system
 SYSTEM_TEST_BINS := $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)-tests$(EXEEXT))
 
+$(BUILD_DIR)/throughput_tests.o: reference/tests/throughput_tests.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/throughput_bench.o: reference/tests/throughput_bench.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/throughput-tests$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/throughput_tests.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+$(BUILD_DIR)/throughput-bench$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/throughput_bench.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+throughput: $(BUILD_DIR)/throughput-bench$(EXEEXT)
+throughput-test: $(BUILD_DIR)/throughput-tests$(EXEEXT)
+	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
+
 $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
 
 $(SYSTEM_TEST_BINS): $(BUILD_DIR)/%-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUILD_DIR)/%_tests.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
-test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT) $(SYSTEM_TEST_BINS)
+test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT) $(SYSTEM_TEST_BINS) $(BUILD_DIR)/throughput-tests$(EXEEXT)
 	./$(BUILD_DIR)/reference-tests$(EXEEXT)
 	./$(BUILD_DIR)/hardware-tests$(EXEEXT)
 	./$(BUILD_DIR)/full-hardware-tests$(EXEEXT)
 	@set -e; for test_bin in $(SYSTEM_TEST_BINS); do ./$$test_bin; done
+	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)

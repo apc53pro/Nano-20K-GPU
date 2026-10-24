@@ -81,6 +81,23 @@ device facts from configurable timing assumptions and explains the counters.
 This adds system timing fidelity; the serial rendering datapath still needs
 throughput optimization.
 
+The throughput harness tracks fragment acceptance and retirement on each
+modeled edge, checks ordering and cancellation, and distinguishes sustained
+datapath cadence from complete-pass throughput. It can run without SDL:
+
+```bash
+make -j4 throughput
+make throughput-test
+```
+
+System runs report bounded throughput measurements in their JSON. Add
+`--trace build/edges.csv` to stream a CSV row for every core edge; the trace is
+optional and can be large. The [measurement guide](docs/software-reference.md#fragment-throughput-and-clock-traces)
+explains the counters, controlled benchmarks, and trace format. Bulk system
+staging now has explicit native memory ports and latency, using **29 of 46 BSRAM
+blocks** in the selected map. This allocation remains subject to synthesis and
+timing qualification.
+
 ## Project documentation
 
 - [Requirements](docs/requirements.md): the requested features, confirmed decisions,
@@ -101,6 +118,10 @@ throughput optimization.
   shared SDRAM, scanout, completion, recovery, and provisional simulation ABI.
 - [Current GPU pipeline diagrams](docs/hardware/pipeline.md): detailed system,
   rendering, and tile/memory views, with scalable figures and a three-page PDF.
+- [Throughput validation](docs/hardware/throughput.md): controlled workloads,
+  per-cycle fragment tracking, cadence checks, and JSON/CSV reports.
+- [Selected storage map](docs/hardware/storage-map.md): native BSRAM allocation,
+  synchronous ports, register fields, and resource limits.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
   RGB565 dependency check.
 

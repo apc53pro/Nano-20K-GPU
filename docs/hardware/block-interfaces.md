@@ -100,6 +100,11 @@ These transfer counts describe local ports. They are not SDRAM throughput: the
 host adapter supplies and collects tile words without a complete memory-bus
 model.
 
+The separate system profile uses the [selected storage map](storage-map.md):
+29 native banks account for its payload slots, reader/row staging, host link,
+tile/cache and display FIFO. Those additional banks do not add rendering-tile
+ports or change the standalone adapter's four-bank allocation.
+
 ## Walkers and arithmetic
 
 | Item | Selected representation |

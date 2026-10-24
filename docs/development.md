@@ -33,6 +33,19 @@ make -j4 headless test
 ./build/nano-gpu-ref-headless --headless --verify --output build/frame.ppm
 ```
 
+Architecture throughput tests and benchmarks also run without SDL:
+
+```bash
+make -j4 throughput
+make throughput-test
+```
+
+See [fragment throughput and clock traces](software-reference.md#fragment-throughput-and-clock-traces)
+for per-cycle events, controlled benchmark measurements, and system-mode CSV
+capture. System JSON reports modeled throughput independently of PC execution
+time. The trace files and benchmark outputs belong under the ignored `build/`
+directory and should be regenerated on each machine.
+
 ## Windows with MSYS2
 
 Install [MSYS2](https://www.msys2.org/) and open **MSYS2 UCRT64** from the Start

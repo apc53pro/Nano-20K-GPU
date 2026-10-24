@@ -1,7 +1,7 @@
 digraph CurrentTileMemory {
   graph [rankdir=TB, bgcolor="white", compound=true, newrank=true,
          fontname="DejaVu Sans", fontsize=22, fontcolor="#172b3a",
-         labelloc=t, label="Current GPU model 44f0c8f\nN20K-SYS-0.1 — exact tile lifecycle, SDRAM traffic, copy reuse and scanout",
+         labelloc=t, label="Current GPU model — streamed storage + throughput instrumentation\nN20K-SYS-0.1 — exact tile lifecycle, SDRAM traffic, copy reuse and scanout",
          pad=0.30, nodesep=0.28, ranksep=0.60, splines=polyline];
   node [shape=box, style="rounded,filled", fillcolor="#edf4fb", color="#245b8c",
         fontname="DejaVu Sans", fontsize=11, fontcolor="#172b3a", penwidth=1.4, margin="0.14,0.10"];
@@ -22,10 +22,10 @@ digraph CurrentTileMemory {
     label="Load one resident tile — repeat the row sequence 32 times; color then depth are scheduled in order";
     color="#a8c2db"; style=rounded; fontsize=13;
     row_start [label="Start tile row y=0…31\nGlobal pixel address from tile origin\nNo overlap with a previous tile's stores"];
-    color_load [label="Resolve color load operation\nCLEAR: replicate RGB565 constant\nLOAD: fetch 32 pixels =64 bytes\nthrough the Tile SDRAM client"];
-    depth_load [label="Resolve depth load operation\nCLEAR: replicate D24 constant\nLOAD: fetch 32 U32 values =128 bytes\nTwo serial 64-byte reads"];
-    rows [label="Bounded row staging\n32 ×16-bit color =64 bytes\n32 ×32-bit depth =128 bytes\nNo complete tile kept in staging arrays", color="#6957a3", fillcolor="#f3effb"];
-    local_load [label="LoadLocal: 32 enabled edges per row\nWrite same 10-bit address to 3 banks\nColor16 + depth-low16 + depth-high8\nParallel full-word native writes"];
+    color_load [label="Resolve color load operation\nCLEAR: select RGB565 constant\nLOAD: fetch 32 pixels =64 bytes\nthrough the Tile SDRAM client"];
+    depth_load [label="Resolve depth load operation\nCLEAR: select D24 constant\nLOAD: fetch 32 U32 values =128 bytes\nTwo serial 64-byte reads"];
+    rows [label="THREE native row-staging banks\nSDPB1024×16; 32 used addresses\nRGB565 / D24 low16 / D24 high8\nLOAD unpack: clocked writes, one pixel\nNo row payload arrays or free parallel reads", color="#6957a3", fillcolor="#f3effb"];
+    local_load [label="LoadLocal: 1 prime +32 capture edges\nRead row-bank outputs from prior edge\nWrite same 10-bit address to 3 tile banks\nColor16 + depth-low16 + depth-high8\nParallel full-word native writes"];
     load_next [label="All 32 rows loaded?", shape=diamond, fillcolor="#edf4fb"];
     ready [label="Tile ready\nExactly one resident tile\nConsume its ordered reference list"];
     entry -> row_start [label="begin tile", color="#245b8c", style=dashed];
@@ -45,7 +45,7 @@ digraph CurrentTileMemory {
     color="#d6b58f"; style=rounded; fontsize=13;
     has_refs [label="Any references?", shape=diamond, fillcolor="#edf4fb"];
     reference [label="Fetch next 4-byte primitive address\nPreserve reference-list order\nGlobal pass-reference limit: 1,048,576"];
-    record [label="Fetch 320-byte primitive record\nTriangle / rectangle / line / sprite\nTexture descriptor only, no host pixels\nRecord refetched for each tile reference"];
+    record [label="Fetch 320-byte primitive record\nTriangle / rectangle / line / sprite\nTexture descriptor only, no host pixels\n2-bank reader → registered field pass\nRecord refetched for each tile reference"];
     draw [label="begin_external() → clocked draw\nCoverage / interpolation / D24\nSerial U/V correction / texture cache / shade\nOne retained textured fragment\nWait until tile.busy() becomes false", color="#b76118", fillcolor="#fff2e6"];
     refs_left [label="More references\nin this tile?", shape=diamond, fillcolor="#edf4fb"];
     tile_banks [label="Resident tile memory: 3 native banks\nColor: SDPB 1024×16 (RGB565)\nDepth low: SDPB 1024×16 (bits 0…15)\nDepth high: SDPB 1024×16 (bits 16…23)\nUnused depth-high bits stay zero", color="#6957a3", fillcolor="#f3effb"];
@@ -53,12 +53,12 @@ digraph CurrentTileMemory {
     ready -> has_refs [color="#245b8c", style=dashed];
     has_refs -> reference [label="yes", color="#245b8c", style=dashed];
     reference -> record [label="bounded aligned heap address"];
-    record -> draw [label="prepared record captured"];
+    record -> draw [label="80 x32 fields read/captured before decode"];
     draw -> refs_left [label="drained", color="#245b8c", style=dashed];
     refs_left -> reference [label="yes: fetch next", color="#245b8c", style=dashed, constraint=false];
     draw -> tile_banks [label="registered depth read / conditional commit", dir=both];
     draw -> texture [label="lookup / registered texel", dir=both];
-    local_load -> tile_banks [label="1024 local writes per tile", constraint=false];
+    local_load -> tile_banks [label="1024 local writes +32 row-read primes / tile", constraint=false];
     {rank=same; has_refs; reference; record;}
     {rank=same; draw; refs_left;}
     {rank=same; tile_banks; texture;}
@@ -67,8 +67,8 @@ digraph CurrentTileMemory {
   subgraph cluster_store {
     label="Store one tile — every row and both attachments; no dirty-row suppression";
     color="#a8c2db"; style=rounded; fontsize=13;
-    store_local [label="StoreLocal: read 32 tile positions\n32 parallel 3-bank read requests\n+1 registered-output drain edge\nThen separate StorePrepare edge"];
-    store_color [label="Store RGB565 row: 64 bytes\nWriter fills ≤1 byte / core edge\nSubmit ≤16 ×32-bit words\nWait for SDRAM acknowledgement"];
+    store_local [label="StoreLocal: read 32 tile positions\n32 parallel 3-bank read requests\n+1 registered-output drain edge\nCaptured outputs WRITE three row banks\nThen separate StorePrepare edge"];
+    store_color [label="Store RGB565 row: 64 bytes\nSync row-bank read / later capture\nSerialize ≤1 byte / source edge\nOne 32-bit pack →16-word native slot\nWait for SDRAM acknowledgement"];
     store_depth_lo [label="Store first 16 D24/U32 values: 64 bytes\nFill / submit / wait for acknowledgement"];
     store_depth_hi [label="Store next 16 D24/U32 values: 64 bytes\nFill / submit / wait for acknowledgement"];
     store_next [label="All 32 rows stored?", shape=diamond, fillcolor="#edf4fb"];
@@ -92,9 +92,9 @@ digraph CurrentTileMemory {
   subgraph cluster_io {
     label="Shared bounded memory adapters and physical controller — backpressure affects every dependent state";
     color="#b8add7"; style=rounded; fontsize=13;
-    reader [label="Shared Reader FSM\n512-byte record / readback registers\n16 ×32-bit response staging\nDrain ≤1 word / core edge\nConsumer captures on a later edge"];
-    writer [label="Shared Writer FSM\n16 ×32-bit data +16 byte masks\nFill from one-byte source port\nRequest → wait for completion"];
-    clients [label="Six SDRAM clients\nCommand: descriptors / bins / records / readback\nTile: attachment boot / load / store\nTexture: cache miss; Copy: direct color copy\nHost: uploads; Scanout: front-buffer reads\nOne owned ≤16-word slot per client"];
+    reader [label="Shared Reader FSM\n512-byte payload: 2 ×SDPB1024×16\nSync controller-slot read → RAM write\nExtra RAM read pass → decoded fields\n≤320-byte decoded FF bank\nReadback streams from RAM into reply"];
+    writer [label="Shared Writer FSM\nOne 32-bit packing register +4-bit mask\nSync row / packet source reads\nFill native client slot one word / edge\nPublish after fill; wait for ACK"];
+    clients [label="Six SDRAM clients\nCommand: descriptors / bins / records / readback\nTile: attachment boot / load / store\nTexture: cache miss; Copy: direct color copy\nHost: uploads; Scanout: front-buffer reads\nOne owned ≤16-word x32 slot per client\n2 native banks each: 12 total\nShared request/response; sync word ports"];
     arbitration [label="Arbiter / refresh reservation\n≤4 consecutive Scanout selections\nwhen other clients wait; others round-robin\nOne request owns the bus until complete\nRefresh deadline ≤1575 core cycles\nReserve worst-case transaction + precharge"];
     controller [label="100.8 MHz common-clock SDR controller\nCL3; tRP/RCD/WR/MRD=3, tRFC=9\ntRAS=6, tRC=9, turnarounds=2\nSelected timing assumptions, not measured limits\nAligned sequential BL8 x32 transactions\nDQM masks padding writes", color="#6957a3", fillcolor="#f3effb"];
     memory [label="8 MiB embedded SDRAM\n4 banks ×2048 rows ×256 columns ×32 bits\nWord mapping: row11 | bank2 | col8\nColor 0: 0x000000, 614400 bytes\nColor 1: 0x096000, 614400 bytes\nD24/U32: 0x12C000, 1228800 bytes\nHeap: 0x258000…0x7FFFFF, 5931008 bytes", shape=cylinder, color="#6957a3", fillcolor="#f3effb"];
@@ -115,8 +115,8 @@ digraph CurrentTileMemory {
     label="COPY_RECT alternative — ordered outside render passes, same cache bank, depth unchanged";
     color="#9ac8c1"; style=rounded; fontsize=13;
     copy_begin [label="Validate ownership and clip rectangle\nImage or physical-framebuffer source\nChoose forward / reverse row order\n10 shift/add edges for row addresses"];
-    copy_fill [label="Read complete clipped source row\nCopy SDRAM client, bounded responses\nWrite ≤640 RGB565 words into scratch\nAll source pixels buffered before writes"];
-    copy_emit [label="Read scratch through native RAM port\nCapture old result; pack ≤32 pixels\nMasked ≤16-word destination request\nWait for each Copy acknowledgement\nNext group, then next row"];
+    copy_fill [label="Read complete clipped source row\nCopy slot: synchronous x32 reads\nOne 32-bit hold → two scratch writes\nWrite ≤640 RGB565 words into scratch\nAll source pixels buffered before writes"];
+    copy_emit [label="Read scratch through native RAM port\nCapture old result; one 32-bit pack\nStream masked words into Copy slot\nPublish ≤16-word destination request\nWait for each Copy acknowledgement\nNext group, then next row"];
     copy_begin -> copy_fill [label="invalidate texture tags", color="#245b8c", style=dashed];
     copy_fill -> copy_emit [label="full row buffered"];
     copy_fill -> texture [label="exclusive scratch owner", dir=both, color="#6957a3", style=dotted, constraint=false];
@@ -129,17 +129,17 @@ digraph CurrentTileMemory {
   subgraph cluster_display {
     label="Scanout remains concurrent with the ordered pass / copy engine";
     color="#9ac8c1"; style=rounded; fontsize=13;
-    display_read [label="Continuous current-front reads\nScanout client, one tagged request\n16 ×32-bit response staging"];
+    display_read [label="Continuous current-front reads\nScanout client, one tagged request\nSync owned-slot read →32-bit hold\nTwo RGB565 FIFO write edges / word"];
     display_fifo [label="Display FIFO: 2048 RGB565 pixels\n2 × SDPB 1024×16\nRead request → registered capture\nNever reads the back target", color="#6957a3", fillcolor="#f3effb"];
     display_pixel [label="25.2 MHz pixel enable, 60 Hz\nH=640 +16 front +96 sync +48 back\nV=480 +10 front +2 sync +33 back\nUnderflow blanks rest of frame\nResynchronize / swap at vertical blank\nSDL is a host observation; no HDMI model"];
     display_read -> clients [label="Scanout request / response", dir=both, constraint=false];
-    display_read -> display_fifo [label="one RGB565 word / core edge"];
+    display_read -> display_fifo [label="one RGB565 write / edge; slot-read bubbles"];
     display_fifo -> display_pixel [label="registered FIFO output"];
     pass_done -> display_read [label="PRESENT may change front at vblank", color="#245b8c", style=dashed, constraint=false];
     {rank=same; display_read; display_fifo; display_pixel;}
   }
 
-  accounting [label="Current traffic / storage limits\nEvery pass stores all 300 tiles: 1843200 useful color+depth bytes\nLOAD of both attachments adds another 1843200 bytes; CLEAR avoids those reads\nBoot explicitly writes both color buffers + shared depth: 2457600 bytes\n12 native BSRAM =3 tile +1 cache/copy +2 scanout +5 host +1 reply\nAdditional >2 KiB bounded staging, LUT/FF use and physical timing remain unproven\nOne active ordered executor operation; only scanout and host parsing progress independently\nCPU prepared-record consistency checks are simulation assertions, not timed GPU validation units\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: reused memory.",
+  accounting [label="Current traffic / storage limits\nEvery pass stores all 300 tiles: 1843200 useful color+depth bytes\nLOAD of both attachments adds another 1843200 bytes; CLEAR avoids those reads\nBoot explicitly writes both color buffers + shared depth: 2457600 bytes\n29 native BSRAM =12 original +12 client slots +2 reader +3 row staging\nBulk storage mapped; bounded registers / logic ROM for small fields and arithmetic\nLUT/FF physical fit and timing remain unproven; no synthesized clock claim\nOne active ordered executor operation; only scanout and host parsing progress independently\nHost-only per-edge accept/retire observer adds no device state or memory ports\nCPU prepared-record consistency checks are simulation assertions, not timed GPU validation units\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: reused memory.",
               shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
   // Invisible grid is layout only; every visible arrow is a real data/control relationship.
   edge [style=invis, constraint=true, weight=1000];

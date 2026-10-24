@@ -302,10 +302,14 @@ prove that the chosen timing values remain physically valid.
 
 Each client has one bounded request/response slot. Requests contain 1–16
 32-bit words, byte-write enables, a byte address, and a transaction tag. A
-client retains its slot until the response is consumed, so an unread response
-also applies backpressure. Clients are scanout, host, command fetch, tile
-transfer, texture fetch, and copy. Memory responses established on one edge
-are sampled by consumers on a later edge.
+pair of SDPB 1024x16 banks implements each slot's 32-bit payload. Write
+requests fill that memory one word per edge before queue publication. Read
+responses reuse the same banks and are drained through synchronous word reads;
+the consumer releases ownership only after draining. An unread response also
+applies backpressure. Clients are scanout, host, command fetch, tile transfer,
+texture fetch, and copy. Memory responses established on one edge are sampled
+by consumers on a later edge. The native write engine prefetches payload words
+through the slot's read port before their physical SDRAM DQ beats.
 
 Requests expand into aligned native BL8 transactions. Short or unaligned
 requests still incur the complete physical burst; DQM masks padding writes,
@@ -342,12 +346,13 @@ The nominal industry timing is listed in
 Its nominal 25.175 MHz corresponds to approximately 59.94 Hz; 25.2 MHz is this
 model's selected clock.
 
-Display reads come through the same timed SDRAM controller. A bounded
-16-word response staging register feeds two SDPB 1024×16 FIFO banks. Their
-combined default capacity is 2048 RGB565 pixels; a smaller configured FIFO
-limit provides a contention stress case without claiming a different physical
-bank allocation. A synchronous memory result crosses a separate capture edge
-before pixel consumption.
+Display reads come through the same timed SDRAM controller. Scanout drains its
+owned response slot through synchronous 32-bit reads and one word-hold register,
+then writes the two RGB565 halves on separate edges into two SDPB 1024x16 FIFO
+banks. Their combined default capacity is 2048 pixels; a smaller configured
+FIFO limit provides a contention stress case without claiming a different
+physical bank allocation. A synchronous FIFO result crosses a separate capture
+edge before pixel consumption. No sixteen-word FF response array is allocated.
 
 Display timing continues during initialization or missing memory service.
 Startup output is black until valid attachments and a vertical-blank boundary
@@ -439,45 +444,47 @@ distinguish correct framebuffer contents from a display-service failure.
 
 ## Storage and physical-resource accounting
 
-The explicitly modeled native allocation is **twelve physical BSRAM blocks**:
-three tile banks, one texture-cache/copy-row bank shared outside passes, two
-scanout FIFO banks, five host-link banks and one reply-serializer bank.
-The six rendering/display banks
-provide 12 KiB of selected ×16 data storage. Host RX/TX and three packet banks
-use five more SDPB 1024×16 instances with one low-byte item per word; spare bits
-do not supply extra ports. The reply serializer uses one further instance.
-All twelve instances occupy complete 18-Kbit blocks.
-The shared signed 18×18 multiplier and serial user-logic divider remain the
+The selected mapping is **twenty-nine physical BSRAM blocks**:
+
+| Native allocation | BSRAM blocks |
+| --- | ---: |
+| Resident RGB565/D24 tile | 3 |
+| Texture cache / shared copy row | 1 |
+| Scanout FIFO | 2 |
+| Host RX, TX and three packet payloads | 5 |
+| Reply serializer | 1 |
+| Six shared request/response payload slots, two x16 banks each | 12 |
+| Shared 512-byte record/readback reader, x32 pair | 2 |
+| Tile-row color and depth staging | 3 |
+| **Total selected SDPB 1024x16 instances** | **29 of 46** |
+
+The [explicit storage map](storage-map.md) specifies meaningful capacities,
+unused physical capacity, read/write ports, register fields and ownership.
+Request and response payloads reuse each client's same physical slot. Clients
+fill and drain those slots through clocked word ports; texture, copy and
+scanout no longer receive whole response arrays as device registers. The
+reader and row buffers likewise use native synchronous ports. The writer
+retains one packing word and byte mask instead of a sixteen-word request array.
+Primitive decoding has a separate bounded field-register bank populated by
+streamed reads; readback streams from reader RAM to the reply serializer.
+
+Status snapshots, packet header, executor fields, decoded primitive fields,
+the 92-byte reply source, byte masks and cache tags deliberately remain bounded
+registers. The reply source is distinct from both sideband status snapshots
+and the native reply-serializer bank. Immutable capabilities use logic ROM.
+The storage-map header's 6,212-bit register-array subtotal
+does not include all scalar/arithmetic registers and is not a total FF count.
+The shared signed 18x18 multiplier and serial user-logic divider remain the
 rendering baseline.
 
-**Twelve banks is not a complete-system resource-fit claim.** Additional bounded
-storage still requires an implementation decision:
-
-| Additional logical storage | Minimum data capacity in the selected model |
-| --- | ---: |
-| Current and latched sideband status | 128 bytes |
-| Immutable capability bank | 64 bytes, eligible for constant/ROM implementation |
-| Host parser header and executor-captured fields | 16 + 64 bytes, plus packet metadata |
-| Six clients' request and response word arrays | 768 bytes, plus masks, tags and control |
-| Display response staging | 64 bytes |
-| Shared record/readback reader | 512-byte byte array and a 16-word response |
-| Shared writer | 16-word request plus byte masks and control |
-| Tile-row color/depth and serialization staging | 192 + 64 bytes |
-| Copy request/response staging | Two 16-word arrays plus masks and control |
-| Current descriptor, tile entry and primitive | A decoded current record and execution state |
-
-The host's large byte queues use the five counted native memories; diagnostic
-packet shadows are not extra device storage or execution ports. The remaining
-listed arrays exceed 2 KiB before arithmetic and counters.
-Mapping all of them to flip-flops would exceed the device's 15,552-FF capacity.
-A physical implementation must select additional BSRAM/LUT-memory banks or
-share staged state, respect their ports and account for their latencies.
-Registers for arithmetic,
-addresses, outstanding requests, arbitration, counters and control also consume
-LUTs and FFs. C++ containers do not establish an efficient physical mapping.
-The [device profile](gowin-profile.md) lists capacity limits; synthesis,
-placement, routing, timing closure and vendor-library comparison are still
-required before claiming fit or achieved throughput.
+**Selected mapping is not a complete-system resource-fit claim.** Registers
+for arithmetic, addresses, outstanding requests, arbitration, live status
+counters and control also consume LUTs and FFs. Host diagnostic arrays,
+framebuffer images, trace callbacks and scoreboards are observations; they
+provide no execution ports or device trace storage. The selected allocation
+accounts for native-memory latency, while synthesis, placement, routing,
+timing closure and vendor-library comparison remain necessary before claiming
+fit or achieved throughput. See the [device profile](gowin-profile.md).
 
 ## Run and verify
 

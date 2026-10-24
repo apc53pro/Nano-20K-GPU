@@ -1,6 +1,7 @@
 #include "nano_gpu/demo.hpp"
 #include "nano_gpu/hw/device.hpp"
 #include "nano_gpu/hw/perspective.hpp"
+#include "nano_gpu/hw/sdram.hpp"
 #include "nano_gpu/hw/texture.hpp"
 #include "nano_gpu/hw/tile_pipeline.hpp"
 #include "nano_gpu/hw/walker2d.hpp"
@@ -253,7 +254,58 @@ void texture_tests() {
             unit.tick();
         }
         expect(unit.result() == image->at(7, 9), "invalid command mutated the active request");
+    });    run_case("external texture refill streams native slot words and pads a short final line", [] {
+        SdramController memory;
+        for (unsigned guard = 0; !memory.initialized(); ++guard) {
+            expect(guard < 100000, "external texture SDRAM initialization hung");
+            memory.tick();
+        }
+        const TextureDescriptor descriptor{memory_bytes - 8, 2, 2, 4};
+        expect(memory.write_request_word(MemoryClient::Host, 0, 0x22221111u, 0xf),
+               "texture seed first native word was blocked");
+        memory.tick();
+        expect(memory.write_request_word(MemoryClient::Host, 1, 0x44443333u, 0xf),
+               "texture seed second native word was blocked");
+        memory.tick();
+        MemoryRequest upload; upload.write = true; upload.address = descriptor.base; upload.words = 2;
+        expect(memory.submit_prepared(MemoryClient::Host, upload), "texture native seed could not submit");
+        for (unsigned guard = 0; !memory.response_ready(MemoryClient::Host); ++guard) {
+            expect(guard < 10000, "external texture seed did not complete"); memory.tick();
+        }
+        memory.release_response(MemoryClient::Host);
+        const auto previous_slot_reads = memory.statistics().slot_read_words;
+        TextureUnit unit;
+        unit.bind_external(descriptor, memory); memory.tick();
+        unit.start(1, 1); memory.tick();
+        bool observed_pending = false, observed_slot_read = false;
+        std::uint64_t ready_cycle = 0, first_refill_cycle = 0;
+        for (unsigned guard = 0; unit.busy(); ++guard) {
+            expect(guard < 10000, "native texture refill hung");
+            if (unit.external_memory_pending()) {
+                observed_pending = true;
+                expect_throws([&] { unit.reset(); }, "texture reset abandoned an owned native response");
+            }
+            if (memory.response_ready(MemoryClient::Texture) && ready_cycle == 0)
+                ready_cycle = unit.statistics().cycles;
+            unit.tick(guard % 5 != 1); memory.tick();
+            if (unit.statistics().refill_words != 0 && first_refill_cycle == 0)
+                first_refill_cycle = unit.statistics().cycles;
+            if (memory.statistics().slot_read_words > previous_slot_reads) observed_slot_read = true;
+        }
+        const auto& counts = memory.statistics();
+        expect(observed_pending && observed_slot_read && ready_cycle != 0 &&
+               first_refill_cycle >= ready_cycle + 3,
+               "texture refill skipped slot read or separate word-capture edges");
+        expect(unit.result_valid() && unit.result() == 0x4444 && !unit.external_memory_pending(),
+               "native short-line refill returned an incorrect texel or retained ownership");
+        expect(unit.statistics().refill_words == TextureUnit::line_words &&
+               counts.slot_read_words - previous_slot_reads == 2 &&
+               counts.clients[static_cast<unsigned>(MemoryClient::Texture)].bytes_read == 8,
+               "short final line read beyond its allocation instead of padding the cache tail");
+        expect(counts.legacy_submissions == 0 && counts.legacy_response_reads == 0,
+               "external texture used a host-only bulk transfer adapter");
     });
+
 }
 
 std::vector<Point> walk(const Primitive& primitive, Point origin, bool stall = false) {

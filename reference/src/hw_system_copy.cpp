@@ -35,7 +35,7 @@ void validate_command(const CopyCommand& command) {
 
 struct SystemCopy::Impl {
     enum class State {
-        Idle, Invalidate, Address, ReadRequest, ReadWait, ReadFill,
+        Idle, Invalidate, Address, ReadRequest, ReadWait, ReadPrime, ReadCapture, ReadFill,
         WritePrime, WriteFill, WriteSubmit, WriteWait, RowNext
     };
 
@@ -52,9 +52,16 @@ struct SystemCopy::Impl {
 
     std::uint32_t read_address = 0;
     unsigned read_words_remaining = 0, read_pixels = 0;
-    MemoryResponse response;
-    unsigned response_word = 0, response_lane = 0;
+    SdramController* memory = nullptr;
+    unsigned response_words = 0, response_index = 0, response_lane = 0;
+    std::uint32_t response_word = 0;
+    // Metadata only: the actual write payload occupies the controller's
+    // two native Copy-slot banks, filled one 32-bit word per edge.
     MemoryRequest write_request;
+    std::uint32_t write_word = 0;
+    std::uint8_t write_mask = 0;
+    unsigned write_index = 0;
+    bool write_filling = false;
     unsigned written_pixels = 0, group_pixels = 0, captured_pixels = 0;
     std::uint32_t next_tag = 1, expected_tag = 0;
     unsigned expected_words = 0;
@@ -116,6 +123,8 @@ bool SystemCopy::memory_pending() const { return impl_->pending; }
 
 void SystemCopy::reset() {
     if (memory_pending()) throw std::logic_error("drain the copy SDRAM response before reset");
+    if (impl_->write_filling && impl_->memory)
+        impl_->memory->discard_request_words(MemoryClient::Copy);
     *impl_ = Impl{};
     impl_->counters.cycles = 1;
 }
@@ -125,6 +134,7 @@ const CopyStatistics& SystemCopy::statistics() const { return impl_->counters; }
 void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
     auto& p = *impl_;
     ++p.counters.cycles;
+    p.memory = &memory;
     if (!enable) { tile.tick(false); return; }
     using State = Impl::State;
     switch (p.state) {
@@ -154,7 +164,7 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
         request.address = p.read_address;
         request.words = std::min(memory_burst_words, p.read_words_remaining);
         request.tag = p.next_tag;
-        if (memory.submit(MemoryClient::Copy, request)) {
+        if (memory.submit_prepared(MemoryClient::Copy, request)) {
             p.pending = true;
             p.expected_tag = p.next_tag++;
             p.expected_words = request.words;
@@ -165,34 +175,51 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
     }
     case State::ReadWait:
         if (memory.response_ready(MemoryClient::Copy)) {
-            p.response = memory.take_response(MemoryClient::Copy);
-            p.pending = false;
-            if (p.response.tag != p.expected_tag || p.response.words != p.expected_words)
+            const auto response = memory.response_info(MemoryClient::Copy);
+            if (response.tag != p.expected_tag || response.words != p.expected_words)
                 throw std::logic_error("system copy source response does not match request");
-            p.response_word = 0;
+            p.response_words = response.words;
+            p.response_index = 0;
             p.response_lane = p.read_pixels == 0 && (p.source_row & 2u) != 0 ? 1u : 0u;
-            p.state = State::ReadFill;
+            p.state = State::ReadPrime;
         }
         tile.idle_edge();
         break;
+    case State::ReadPrime:
+        if (memory.request_response_word(MemoryClient::Copy, p.response_index))
+            p.state = State::ReadCapture;
+        tile.idle_edge();
+        break;
+    case State::ReadCapture:
+        if (!memory.response_word_valid(MemoryClient::Copy) ||
+            memory.response_word_offset(MemoryClient::Copy) != p.response_index)
+            throw std::logic_error("system copy slot read did not cross its synchronous edge");
+        p.response_word = memory.response_word(MemoryClient::Copy);
+        p.state = State::ReadFill;
+        tile.idle_edge();
+        break;
     case State::ReadFill: {
-        const auto value = static_cast<std::uint16_t>(
-            p.response.data[p.response_word] >> (p.response_lane << 4));
+        const auto value = static_cast<std::uint16_t>(p.response_word >> (p.response_lane << 4));
         tile.copy_buffer_write(static_cast<std::uint16_t>(p.read_pixels), value);
         ++p.read_pixels;
-        if (p.read_pixels == p.width) p.state = State::WritePrime;
-        else if (++p.response_lane == 2) {
+        if (p.read_pixels == p.width) {
+            memory.release_response(MemoryClient::Copy);
+            p.pending = false;
+            p.state = State::WritePrime;
+        } else if (++p.response_lane == 2) {
             p.response_lane = 0;
-            if (++p.response_word == p.response.words) {
-                p.read_words_remaining -= p.response.words;
-                p.read_address += p.response.words * 4u;
+            if (++p.response_index == p.response_words) {
+                memory.release_response(MemoryClient::Copy);
+                p.pending = false;
+                p.read_words_remaining -= p.response_words;
+                p.read_address += p.response_words * 4u;
                 p.state = State::ReadRequest;
-            }
+            } else p.state = State::ReadPrime;
         }
         break;
     }
     case State::WritePrime: {
-        // One bounded 16x32 staging request receives at most 32 pixels.
+        // The controller's native 16x32 slot receives at most 32 pixels.
         // The first odd destination starts in its high half-word, leaving
         // that first low half protected by the SDRAM byte mask.
         const auto address = p.destination_row + p.written_pixels * 2u;
@@ -204,6 +231,8 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
         p.write_request.address = address & ~3u;
         p.write_request.words = (first_lane + p.group_pixels + 1u) >> 1;
         p.write_request.tag = p.next_tag;
+        p.write_word = 0; p.write_mask = 0; p.write_index = 0;
+        p.write_filling = true;
         tile.copy_buffer_read_request(static_cast<std::uint16_t>(p.written_pixels));
         p.state = State::WriteFill;
         break;
@@ -216,8 +245,17 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
         const auto address = p.destination_row + pixel * 2u;
         const auto word = (address - p.write_request.address) >> 2;
         const bool high_lane = (address & 2u) != 0;
-        p.write_request.data[word] |= static_cast<std::uint32_t>(value) << (high_lane ? 16 : 0);
-        p.write_request.masks[word] |= static_cast<std::uint8_t>(high_lane ? 0xcu : 0x3u);
+        if (word != p.write_index) throw std::logic_error("copy write-slot word order changed");
+        p.write_word |= static_cast<std::uint32_t>(value) << (high_lane ? 16 : 0);
+        p.write_mask |= static_cast<std::uint8_t>(high_lane ? 0xcu : 0x3u);
+        const bool last_pixel = p.captured_pixels + 1 == p.group_pixels;
+        if (high_lane || last_pixel) {
+            if (!memory.write_request_word(MemoryClient::Copy, p.write_index, p.write_word, p.write_mask)) {
+                tile.idle_edge();
+                break;
+            }
+            ++p.write_index; p.write_word = 0; p.write_mask = 0;
+        }
         if (++p.captured_pixels == p.group_pixels) {
             tile.idle_edge();
             p.state = State::WriteSubmit;
@@ -225,8 +263,9 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
         break;
     }
     case State::WriteSubmit:
-        if (memory.submit(MemoryClient::Copy, p.write_request)) {
+        if (memory.submit_prepared(MemoryClient::Copy, p.write_request)) {
             p.pending = true;
+            p.write_filling = false;
             p.expected_tag = p.next_tag++;
             p.expected_words = p.write_request.words;
             p.state = State::WriteWait;
@@ -235,7 +274,8 @@ void SystemCopy::tick(SdramController& memory, OpaqueTile& tile, bool enable) {
         break;
     case State::WriteWait:
         if (memory.response_ready(MemoryClient::Copy)) {
-            const auto response = memory.take_response(MemoryClient::Copy);
+            const auto response = memory.response_info(MemoryClient::Copy);
+            memory.release_response(MemoryClient::Copy);
             p.pending = false;
             if (response.tag != p.expected_tag || response.words != p.expected_words)
                 throw std::logic_error("system copy destination response does not match request");

@@ -325,6 +325,137 @@ void storage_tests() {
     });
 }
 
+void streaming_slot_tests() {
+    test("streamed slots use synchronous native ports and never consume metadata payload arrays", [] {
+        SdramController memory;
+        PinObserver pins;
+        boot(memory, &pins);
+        static_assert(SdramController::storage_bsram_blocks == 12);
+        auto request = write(12, 16, 0x731925afu);
+        request.tag = 0x20c0ffeeu;
+        auto metadata = request;
+        metadata.data.fill(0xdeadbeefu);
+        metadata.masks.fill(0xffu); // Not device payload/masks for submit_prepared.
+        expect(!memory.submit_prepared(MemoryClient::Host, metadata), "unfilled write slot was submitted");
+        for (unsigned word = 0; word < request.words; ++word) {
+            expect(memory.write_request_word(MemoryClient::Host, word, request.data[word], 0xf),
+                   "stream input word rejected");
+            expect(!memory.write_request_word(MemoryClient::Host, word, 0, 0),
+                   "two input words consumed one physical port edge");
+            expect(!memory.submit_prepared(MemoryClient::Host, metadata),
+                   "write submitted before its pending RAM word committed");
+            edge(memory, &pins);
+        }
+        expect(memory.submit_prepared(MemoryClient::Host, metadata), "completed write fill did not queue");
+        expect(!memory.write_request_word(MemoryClient::Host, 0, 0, 0xf), "owned slot accepted another fill");
+        while (!memory.response_ready(MemoryClient::Host)) edge(memory, &pins);
+        const auto written = memory.response_info(MemoryClient::Host);
+        expect(written.words == 16 && written.tag == request.tag, "stream write ACK metadata changed");
+        throws([&] { memory.request_response_word(MemoryClient::Host, 0); },
+               "write ACK offered nonexistent read data");
+        memory.release_response(MemoryClient::Host);
+
+        metadata = read(request.address, request.words);
+        metadata.tag = 123;
+        expect(memory.submit_prepared(MemoryClient::Host, metadata), "read metadata did not queue");
+        while (!memory.response_ready(MemoryClient::Host)) edge(memory, &pins);
+        expect(memory.response_info(MemoryClient::Host).tag == 123, "read identity changed");
+        for (unsigned word = 0; word < request.words; ++word) {
+            expect(memory.request_response_word(MemoryClient::Host, word), "response RAM read was rejected");
+            expect(!memory.response_word_valid(MemoryClient::Host), "new read was valid without a RAM edge");
+            throws([&] { memory.response_word(MemoryClient::Host); }, "new result was consumed on its request edge");
+            expect(!memory.request_response_word(MemoryClient::Host, word), "two reads shared one physical edge");
+            throws([&] { memory.release_response(MemoryClient::Host); }, "pending RAM read lost its ownership");
+            edge(memory, &pins);
+            expect(memory.response_word_valid(MemoryClient::Host) &&
+                   memory.response_word_offset(MemoryClient::Host) == word &&
+                   memory.response_word(MemoryClient::Host) == request.data[word],
+                   "synchronous read did not return the selected slot word");
+        }
+        expect(!memory.submit_prepared(MemoryClient::Host, read(0, 1)), "held stream response did not backpressure");
+        throws([&] { memory.request_response_word(MemoryClient::Host, 16); }, "response index overflow was accepted");
+        memory.release_response(MemoryClient::Host);
+        expect(!memory.response_word_valid(MemoryClient::Host), "released response retained output validity");
+        const auto& stats = memory.statistics();
+        expect(stats.prepared_submissions == 2 && stats.legacy_submissions == 0 && stats.legacy_response_reads == 0,
+               "streamed requests entered the host-only bulk adapter");
+        expect(stats.slot_write_words == 32 && stats.slot_read_words == 32,
+               "slot port traffic omitted input/refill writes or engine/client reads");
+        expect(stats.write_commands == 3 && stats.read_commands == 3,
+               "slot buffering changed required native unaligned BL8 transactions");
+    });
+
+    test("stream fills reject stale words and support explicit partial-fill recovery", [] {
+        SdramController memory;
+        PinObserver pins;
+        boot(memory, &pins);
+        auto metadata = write(0, 2);
+        throws([&] { memory.write_request_word(MemoryClient::Copy, 16, 0, 0xf); }, "slot word overflow accepted");
+        throws([&] { memory.write_request_word(MemoryClient::Copy, 0, 0, 0x10); }, "slot byte-mask overflow accepted");
+        expect(memory.write_request_word(MemoryClient::Copy, 0, 0x12345678u, 5), "first fill rejected");
+        memory.discard_request_words(MemoryClient::Copy); // Cancel before its capture edge.
+        edge(memory, &pins);
+        expect(memory.statistics().slot_write_words == 0, "cancelled input still wrote RAM");
+        expect(!memory.submit_prepared(MemoryClient::Copy, metadata), "discard left stale fill validity");
+        for (unsigned word = 0; word < 2; ++word) {
+            expect(memory.write_request_word(MemoryClient::Copy, word, 0xa1b2c3d4u + word, 5), "fill word rejected");
+            edge(memory, &pins);
+        }
+        expect(memory.submit_prepared(MemoryClient::Copy, metadata), "complete refill rejected");
+        throws([&] { memory.discard_request_words(MemoryClient::Copy); }, "recovery discarded an owned request");
+        while (!memory.response_ready(MemoryClient::Copy)) edge(memory, &pins);
+        memory.release_response(MemoryClient::Copy);
+        expect(memory.inspect_word(0) == 0xcdb2cdd4u && memory.inspect_word(4) == 0xcdb2cdd5u,
+               "streamed write masks did not preserve undefined lanes");
+        expect(memory.write_request_word(MemoryClient::Copy, 0, 7, 0xf), "second fill rejected");
+        edge(memory, &pins);
+        expect(!memory.submit_prepared(MemoryClient::Copy, metadata), "prior request's second word was reused");
+        memory.discard_request_words(MemoryClient::Copy);
+        expect(memory.submit_prepared(MemoryClient::Copy, read(0, 1)), "read blocked by discarded partial fill");
+        while (!memory.response_ready(MemoryClient::Copy)) edge(memory, &pins);
+        expect(memory.request_response_word(MemoryClient::Copy, 0), "response read rejected");
+        edge(memory, &pins);
+        expect(memory.response_word(MemoryClient::Copy) == 0xcdb2cdd4u, "partial fill changed SDRAM without submission");
+        memory.release_response(MemoryClient::Copy);
+    });
+
+    test("six physical client slot pairs retain independent synchronous outputs", [] {
+        SdramController memory;
+        PinObserver pins;
+        boot(memory, &pins);
+        for (unsigned index = 0; index < memory_client_count; ++index) {
+            const auto client = static_cast<MemoryClient>(index);
+            expect(memory.write_request_word(client, 0, 0x12890000u + index, 0xf), "independent input port rejected");
+        }
+        edge(memory, &pins);
+        for (unsigned index = 0; index < memory_client_count; ++index) {
+            auto metadata = write(index * 32, 1);
+            expect(memory.submit_prepared(static_cast<MemoryClient>(index), metadata), "independent write submit rejected");
+        }
+        for (unsigned index = 0; index < memory_client_count; ++index) {
+            const auto client = static_cast<MemoryClient>(index);
+            while (!memory.response_ready(client)) edge(memory, &pins);
+            memory.release_response(client);
+            expect(memory.submit_prepared(client, read(index * 32, 1)), "independent read submit rejected");
+        }
+        bool complete = false;
+        while (!complete) {
+            complete = true;
+            for (unsigned index = 0; index < memory_client_count; ++index)
+                complete = complete && memory.response_ready(static_cast<MemoryClient>(index));
+            if (!complete) edge(memory, &pins);
+        }
+        for (unsigned index = 0; index < memory_client_count; ++index)
+            expect(memory.request_response_word(static_cast<MemoryClient>(index), 0), "independent read port rejected");
+        edge(memory, &pins);
+        for (unsigned index = 0; index < memory_client_count; ++index) {
+            const auto client = static_cast<MemoryClient>(index);
+            expect(memory.response_word(client) == 0x12890000u + index, "client RAM output aliasing");
+            memory.release_response(client);
+        }
+    });
+}
+
 void timing_tests() {
     test("open-row hits avoid ACT while same-bank row conflicts pay PRE and ACT", [] {
         SdramController memory;
@@ -498,6 +629,7 @@ void randomized_test() {
 int main() {
     initialization_tests();
     storage_tests();
+    streaming_slot_tests();
     timing_tests();
     arbitration_tests();
     randomized_test();

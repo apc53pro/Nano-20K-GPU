@@ -72,6 +72,7 @@ build a separate tree with `BUILD_DIR=build/clang` when changing toolchains.
 | `--output FILE.ppm` | Save the last presented frame as binary P6 RGB888. |
 | `--dump-prefix PATH` | Save the last frame's raw color, shared depth, and metadata. |
 | `--stats FILE.json` | Save timings, counters, and hashes; the same report is also printed to stdout. |
+| `--trace FILE.csv` | System mode only: stream one CSV row per core edge, including fragment acceptance, retirement, stalls, and idle/transfer edges. |
 
 Time and step must be finite and nonnegative. Output directories are created as
 needed. Fix scene, time, step, and frame count for repeatable captures. Integer
@@ -99,6 +100,80 @@ writes. These are software measurements and logical counts. The canonical modes
 do not model FPGA cycles, memory transactions, scanout contention, or fill rate.
 The `blocks` mode additionally reports modeled datapath clocks and texture-cache
 events as described below. Their scope excludes complete GPU performance.
+
+## Fragment throughput and clock traces
+
+The hardware model exposes a fresh fragment event after every local edge,
+including command capture, transfer, reset, idle and disabled edges. Acceptance
+means that a covered candidate acquired the fragment context. Retirement means
+commit, depth rejection, key rejection, or reset cancellation. Independent color
+and depth writes belong to a single fragment retirement. The untextured path can
+retire an older fragment while accepting its successor on the same edge.
+
+`OpaqueTile::last_cycle()` exposes the latest event and
+`OpaqueTile::set_cycle_observer()` installs an optional callback. The event
+contains fragment and primitive IDs, pixel coordinates, tile address, controller
+stage, write flags, and occupancy before and after the edge. IDs remain unique
+across resets of the same tile object. Reset restarts the existing local-cycle
+counter and explicitly cancels an in-flight fragment.
+
+`SystemModel::set_cycle_observer()` supplies a common-core-clock timestamp and
+one event for every system edge. It fills periods without a tile edge with idle
+or transfer observations instead of repeating an old acceptance/retirement.
+The callback, observer timestamps, and fragment IDs survive hard reset;
+device `core_cycles` restarts in the new epoch. A public `reset()` consumes one
+reset edge, and either hard-reset route explicitly cancels its retained
+fragment. Attach the observer before submitting traffic so it sees every
+acceptance corresponding to later retirement or cancellation.
+The CLI always collects bounded throughput statistics in system mode:
+
+```sh
+make -j4 headless throughput
+make throughput-test
+./build/throughput-bench --workload flat --output build/flat-throughput.json --trace build/flat-trace.csv
+./build/nano-gpu-ref-headless --headless --scene opaque --mode system --frames 1 --time 0 --step 0 --stats build/opaque-system.json
+```
+
+In MSYS2 UCRT64 use `.exe` on executable names. `make throughput-test` runs the
+focused timing and fragment-accounting regressions. These check sustained
+untextured acceptance/retirement, serial texture spacing, stalls, depth/key
+rejection, resets and synchronous memory ports. The throughput benchmark records
+latency and acceptance/retirement intervals on controlled workloads; it is not a
+PC-speed benchmark. Select `flat`, `gouraud`, `textured`, `sprite`, `depth-reject`,
+or `key-reject` with `--workload`; its default is all workloads. Add `--stalls`
+to inject repeatable clock-enable stalls. The flat workload's trace is a compact
+alternative to a complete system trace.
+
+The top-level `fragment_throughput` JSON object labels its observer scope as all
+observed system edges, including boot, uploads, present waits and scanout.
+`measurements` includes occupancy, pipeline-stage cycles, longest consecutive
+acceptance/retirement/commit runs, and bounded interval/latency histograms.
+`last_pass_color_writes_per_core_cycle` separately divides the most recent pass's
+color-write events by `system.last_pass_cycles`. Color-write events include
+overdraw; depth writes are not additional pixels. Scanout can display the same
+rendered frame many times and is not rendering throughput.
+
+To inspect a full system waveform as CSV, add an explicit trace path:
+
+```sh
+./build/nano-gpu-ref-headless --headless --scene opaque --mode system --frames 1 --time 0 --step 0 --trace build/opaque-edges.csv --stats build/opaque-system.json
+```
+
+Rows are streamed directly to disk; the GPU does not acquire an unbounded trace
+buffer or extra memory ports. Every core edge is included, so full-scene CSVs
+can be large and writing them slows the host simulation. CSV timestamps and
+simulated cycle counts are unaffected by that host I/O time. `--trace` is
+rejected for canonical and standalone `blocks` modes because those CLI modes do
+not supply the complete common-clock system stream.
+Trace paths must differ from statistics, image and derived dump paths; aliased
+paths are rejected before rendering so a later export cannot overwrite the CSV.
+
+A one-pixel-per-cycle claim requires consecutive fragment retirements after
+pipeline fill under a specified workload, not an average of candidate positions
+or the latency of one fragment. Measure complete-pass cycles separately to
+include memory traffic, setup, tile transfers and scanout contention. The model
+can verify those schedules; matching RTL traces and synthesis/timing closure
+remain necessary to establish achieved FPGA performance.
 
 ## Implemented behavior
 

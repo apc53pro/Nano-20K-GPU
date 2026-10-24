@@ -3,6 +3,7 @@
 #include "nano_gpu/hw/host_link.hpp"
 #include "nano_gpu/hw/scanout.hpp"
 #include "nano_gpu/hw/sdram.hpp"
+#include "nano_gpu/hw/tile_pipeline.hpp"
 #include "nano_gpu/reference.hpp"
 
 #include <cstdint>
@@ -11,6 +12,10 @@
 #include <vector>
 
 namespace nano_gpu::hw {
+
+// Host-only cycle observation. Called exactly once per common core edge,
+// including command/DMA/idle clocks without a tile datapath edge.
+using SystemCycleObserver = std::function<void(std::uint64_t, const FragmentCycle&)>;
 
 struct SystemConfig {
     SdramConfig memory{};
@@ -60,6 +65,11 @@ public:
     SystemModel& operator=(SystemModel&&) noexcept;
 
     HostBusResult tick(const HostPins& pins = {});
+    // Observer timestamps and fragment IDs are monotonic across hard resets;
+    // device core_cycles restarts in each epoch. The observer persists and a
+    // reset edge cancels any retained fragment exactly once. Attach before
+    // submitting work so the observer sees the matching acceptance events.
+    void set_cycle_observer(SystemCycleObserver observer);
     void advance(std::uint64_t cycles);
     void reset();
     void abort();

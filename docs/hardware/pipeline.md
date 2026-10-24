@@ -1,8 +1,9 @@
 # Current GPU pipeline
 
-Implementation snapshot: `44f0c8f`, system profile `N20K-SYS-0.1`, rendering
-profile `N20K-HW-RENDER-0.2`. These diagrams describe the current software
-hardware model. The textured path is a serialized state machine with one held
+Implementation snapshot: **streamed storage and throughput instrumentation**.
+System profile `N20K-SYS-0.1`, rendering profile `N20K-HW-RENDER-0.2`, storage
+profile `N20K-STORAGE-0.1`. These diagrams describe the current software hardware
+model. The textured path is a serialized state machine with one held
 fragment; the arrows do not imply a fully overlapped one-pixel-per-cycle pipeline.
 `--mode system` executes the full system shown here. `--mode blocks` runs the
 rendering datapath through its standalone host adapter.
@@ -25,16 +26,16 @@ flowchart TB
     PARSE["NGPU decoder<br/>16-byte header; payload at most 1024 bytes"]
     QUEUE["3 payload BSRAM banks<br/>2 published slots INCLUDING active command<br/>1 decoder staging bank"]
     EXEC["Ordered executor<br/>One command owns the front packet bank until retirement"]
-    UP["WRITE_HEAP<br/>Clocked payload reads and masked writes"]
+    UP["WRITE_HEAP<br/>Clocked payload reads; one 32-bit packing register<br/>Stream masked words into the Host slot"]
     DRAW["SUBMIT_PASS<br/>Fetch descriptor, bins and records; render all 300 tiles"]
     COPY["COPY_RECT<br/>Full-row buffering; rendering idle"]
     READ["READ_MEMORY<br/>Timed diagnostic fetch"]
     DONE["FENCE and PRESENT<br/>Stores acknowledged; swap only at vertical blank"]
     REPLY["Reply serializer: 1 BSRAM<br/>TX FIFO: 1024 bytes, 1 BSRAM"]
     SIDE["Direct sideband registers<br/>Status 1-63; capabilities 64-127<br/>Abort/reset out of band"]
-    ARB["Shared SDRAM controller<br/>6 clients; bounded requests/responses<br/>Initialization, row timing, arbitration and refresh"]
+    ARB["Shared SDRAM controller<br/>6 owned slots: 2 BSRAM banks each, 12 total<br/>Synchronous word ports; request/response share storage<br/>Initialization, row timing, arbitration and refresh"]
     RAM["8 MiB x32 SDR SDRAM<br/>2 RGB565 framebuffers + shared D24/U32 + heap"]
-    SCAN["Independent front-buffer prefetch<br/>Memory client: Scanout"]
+    SCAN["Independent front-buffer prefetch<br/>Owned Scanout slot: synchronous word reads<br/>One 32-bit capture register; two RGB565 writes"]
     FIFO["Display FIFO: 2048 RGB565 pixels<br/>2 BSRAM banks; synchronous read/capture"]
     PIX["640x480 active, 800x525 total<br/>25.2 MHz pixels = 60 Hz<br/>Captured pixels displayed by SDL"]
     CPU --> PACK --> BUS --> RX --> PARSE --> QUEUE --> EXEC
@@ -63,6 +64,13 @@ channels. Status and capability registers remain accessible when command queues
 are blocked. A complete packet publishes a bank selector; it is not a free
 1024-byte parallel copy. The active command retains its slot until retirement.
 
+Each SDRAM client has a pair of native x16 banks forming one 16-word x32 slot.
+Write requests fill it through one word port before publication. Read responses
+remain owned while the consumer drains synchronous word reads. The system
+execution paths do not use the host-only whole-array request/response adapters.
+A shared two-bank reader stores fetched records and readback data; an additional
+clocked read pass establishes at most 320 bytes of decoded-field registers.
+
 CPU preparation is outside modeled GPU time. Host-image pixels enter GPU storage
 only through bus uploads; fetched image handles contain metadata without host
 pixel backing. Captured framebuffer/display images are observers, not memory
@@ -88,7 +96,7 @@ flowchart TB
     UV["Signed Q16 floor<br/>Clamp or power-of-two repeat"]
     ADDR["Texture address generation<br/>10 shift/add edges for Y times pitch plus X"]
     TAG{"64-line direct-mapped cache<br/>16 RGB565 texels per line"}
-    MISS["Texture SDRAM request<br/>Wait for real arbitration/refresh/response<br/>Refill 16 texels through the cache write port"]
+    MISS["Texture SDRAM request<br/>Wait for real arbitration/refresh/response<br/>Drain owned slot by synchronous 32-bit reads<br/>One captured word feeds two 16-bit cache writes"]
     TEX["Synchronous cache read<br/>Unit capture, then separate parent capture"]
     KEY{"Raw RGB565 color key matches?"}
     MOD{"Triangle texture modulation enabled?"}
@@ -149,7 +157,7 @@ rejection or commit, so it does not accept another textured candidate each cycle
 | Textured early depth | Optional registered read/compare before texture work |
 | U followed by V reconstruction | 184 divider-work edges + 2 parent captures |
 | Cache hit | 14 texture-unit edges + 1 parent capture |
-| Cache miss in `system` mode | Variable request/service wait + clocked 16-texel refill and read/captures |
+| Cache miss in `system` mode | Variable request/service wait + synchronous slot word reads/captures + 16 cache writes and final read/captures |
 | Cache miss in standalone `blocks` mode | 34 texture-unit edges + 1 parent capture; fixed adapter timing |
 | RGB modulation | 3 channels x 4 edges = 12 |
 | Passing textured fragment commit | 1 |
@@ -161,15 +169,15 @@ rejection or commit, so it does not accept another textured candidate each cycle
 flowchart TB
     DESC["Fetch pass descriptor: 32 bytes"]
     ENTRY["Fetch next tile-table entry: 8 bytes<br/>300 tiles, 32x32 each"]
-    LOAD["Initialize all 32 tile rows<br/>Color and depth independently CLEAR or LOAD<br/>LOAD uses shared SDRAM; CLEAR uses constants"]
+    LOAD["Initialize all 32 tile rows<br/>Color/depth independently CLEAR or LOAD<br/>LOAD streams into 3 native row banks<br/>1 read-prime + 32 capture/write edges per row"]
     ANY{"Ordered references remain?"}
-    REF["Fetch reference: 4 bytes<br/>Fetch primitive record: 320 bytes"]
+    REF["Fetch reference: 4 bytes; primitive record: 320 bytes<br/>Shared reader: 2 native BSRAM banks<br/>Serial registered read pass establishes decoded fields"]
     DRAW["Render primitive into resident tile<br/>Wait for fragment pipeline to drain"]
-    STORE["Store all 32 rows<br/>33 local read/drain edges per row<br/>RGB565 64 bytes + D24/U32 128 bytes per row<br/>Wait for SDRAM write acknowledgements"]
+    STORE["Store all 32 rows<br/>33 tile read/drain edges into 3 row banks<br/>Synchronous row reads feed byte serialization/32-bit pack<br/>RGB565 64 bytes + D24/U32 128 bytes per row<br/>Wait for SDRAM write acknowledgements"]
     MORE{"More tiles?"}
     PASSDONE["Pass complete; attachments valid<br/>A subsequent FENCE may retire"]
     CLIENTS["Memory clients: Host, Command, Tile, Texture, Copy, Scanout"]
-    SLOTS["One owned request/response slot per client<br/>Up to 16 x 32-bit words per request<br/>An unconsumed response blocks that client"]
+    SLOTS["One owned request/response slot per client<br/>2 SDPB banks per client; 12 total<br/>Up to 16 x 32-bit words; synchronous word ports<br/>An unconsumed response blocks that client"]
     ARB["Single active request<br/>Scanout priority bounded to 4 consecutive grants<br/>Round robin among other waiting clients"]
     SDR["SDR command/data engine<br/>4 banks; row tracking; CL3, BL8 by default<br/>Byte masks, turnarounds, guarded refresh"]
     COPY["COPY_RECT outside passes<br/>Read complete source row into shared cache BSRAM<br/>Choose safe row direction; write destination; wait ACK"]
@@ -199,6 +207,14 @@ reference; there is no separate primitive-record cache in this implementation. A
 32-pixel row uses one 64-byte color transaction and two 64-byte depth transactions
 for stores; LOAD performs only the attachment reads requested by the pass.
 
+Three native row-staging banks replace the old row arrays. Attachment LOAD
+results are unpacked over clocked writes. Initializing the resident tile then
+uses one row-read prime edge and 32 subsequent capture/write edges per row;
+CLEAR selects constants at the tile write inputs. Stores gather 32 tile reads
+plus their drain into these row banks, then perform synchronous row reads and
+serialize bytes through one 32-bit writer packing register. No parallel row
+serialization array or duplicate 16-word writer payload is present.
+
 The memory controller has one physical x32 SDR bus. Native aligned BL8 transfers
 carry 32 bytes; one client request can require several native bursts. Default
 CAS latency is 3. Refresh commands must stay within 1575 core cycles / 15.625 us
@@ -209,10 +225,17 @@ Copies use the same texture-cache BSRAM as a full-row buffer while rendering is
 idle; they do not allocate a fifth renderer bank. Horizontal overlap is protected
 by buffering the complete row, and vertical overlap selects the safe row order.
 Depth is unchanged. Rendering invalidates/rebinds texture state as required.
+The Copy engine drains source-slot words into the shared cache row bank through
+a single 32-bit hold, and fills destination-slot words through a separate
+32-bit assembly register and four-bit mask. Slot ownership is retained until
+required source words or destination acknowledgements have been consumed.
 
 Scanout consumes the front buffer while rendering writes the back buffer. It
-does not wait for a draw to finish. If its FIFO underflows, the model blanks the
-remainder of that frame and resynchronizes at vertical blank. Scanout timing
+does not wait for a draw to finish. Responses remain in the native Scanout
+slot while synchronous reads feed one 32-bit capture register, then two
+16-bit FIFO writes. There is no extra 16-word response array. Stale requests
+and staged native reads are safely drained on a swap. If its FIFO underflows,
+the model blanks the remainder of that frame and resynchronizes at vertical blank. Scanout timing
 continues during boot while pixels stay black until memory is ready and primed.
 
 ## Clocks, memory map and resources
@@ -236,16 +259,39 @@ configurable model assumptions, not measured FPGA operating points or CDC proof.
 | Scanout FIFO BSRAM | 2 |
 | RX / TX / three packet-payload BSRAM | 5 |
 | Reply-serializer BSRAM | 1 |
-| Total selected SDPB 1024x16 instances | **12 of 46 available** |
+| Six shared request/response SDRAM slots, x32 pairs | 12 |
+| Shared record/readback reader, x32 pair | 2 |
+| Tile-row RGB565 / depth low16 / depth high8 staging | 3 |
+| Total selected SDPB 1024x16 instances | **29 of 46 available** |
 | Shared signed 18x18 multiplier equivalents | **1 of 48 available** |
 | Serial perspective divider | 1 LUT/register implementation |
 
-This table is not a whole-system fit claim. Bounded record, request/response,
-row, status and arithmetic state also requires storage/logic; its final physical
-mapping and latency qualification remain open. Wide geometric validation is an
-untimed simulation assertion of the CPU-prepared-record contract. See
-[the full system model](system-model.md), [block interfaces](block-interfaces.md),
-and [verified device resources](gowin-profile.md) for those limits.
+All bulk staging now has a selected native-memory mapping and clocked ports;
+small decoded fields, masks, status and arithmetic state remain explicitly
+bounded registers or logic ROM. The [storage map](storage-map.md) records their
+allocation and ownership. **29 banks is not a whole-system fit or achieved-clock
+claim**: register/logic use, synthesis, placement, routing and timing remain to
+be qualified. Wide geometric validation is an untimed simulation assertion of
+the CPU-prepared-record contract. See [the full system model](system-model.md),
+[block interfaces](block-interfaces.md), and [verified device resources](gowin-profile.md).
+
+## Per-cycle throughput observation
+
+The optional host-only observer records a separate acceptance token and
+retirement token on each edge. Retirement distinguishes commit, depth rejection,
+key rejection and reset cancellation; one fragment can write both attachments
+without becoming two rendered pixels. Events include pre-edge stage occupancy,
+enable/stall state, pixel identity and in-flight counts. Local observers cover
+every tile edge, while the system observer supplies common core-clock timestamps
+and reports whether the tile advanced on that edge.
+
+The [throughput harness](throughput.md) checks token conservation and measures
+consecutive acceptance/retirement runs, initiation intervals and fragment latency.
+Its CSV/JSON reports are simulation observations and create no GPU memory ports
+or storage. The current untextured running path can sustain consecutive
+fragments in the controlled test; textured processing remains serialized.
+Whole-pass throughput uses `last_pass_cycles`, including fetching, tile DMA
+and memory waits, rather than only the local tile-clock count.
 
 ## Source and diagram maintenance
 

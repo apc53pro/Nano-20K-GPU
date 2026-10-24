@@ -29,6 +29,11 @@ still occupies a complete physical block. These limits do not reserve resources
 for scanout, host control, or future extensions beyond the explicit allocations
 below.
 
+The complete system's [selected storage map](storage-map.md) allocates 29 native
+BSRAM blocks, including host, shared-memory payload slots, record/row staging
+and scanout. Its separate register/ROM choices and port schedules do not
+establish whole-device fit or achieved clock frequency.
+
 ## DSP configurations
 
 A DSP block contains two macros. Each macro contains two 18×18 multipliers,

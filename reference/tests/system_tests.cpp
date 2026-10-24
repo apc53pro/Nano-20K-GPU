@@ -2,6 +2,7 @@
 #include "nano_gpu/hw/protocol.hpp"
 #include "nano_gpu/hw/resources.hpp"
 #include "nano_gpu/hw/system.hpp"
+#include "nano_gpu/hw/throughput.hpp"
 
 #include <algorithm>
 #include <array>
@@ -242,6 +243,30 @@ void boot_and_io_tests() {
                model.host_statistics().tx_bytes == fence.size() + 44,
                "readback or upload bypassed the timed device ports");
     });
+    run_case("unaligned maximum readback preserves the reader guard word through clocked ports", [] {
+        SystemModel model; boot(model); RawHost host(model);
+        std::vector<std::uint8_t> expected(520);
+        for (unsigned byte = 0; byte < expected.size(); ++byte)
+            expected[byte] = static_cast<std::uint8_t>(byte * 37u + (byte >> 8) * 19u);
+        auto payload = scalar(heap_base); append(payload, scalar(static_cast<std::uint32_t>(expected.size())));
+        append(payload, expected);
+        auto program = encode_packet(Opcode::WriteHeap, 1, payload);
+        append(program, encode_packet(Opcode::Fence, 2, scalar(0x11223344)));
+        host.send(program); (void)host.reply(Opcode::Fence, 2);
+        const auto before = model.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Command)].bytes_read;
+        const auto actual = host.read_memory(3, heap_base + 1, 512, 0x55667788);
+        expect(actual == std::vector<std::uint8_t>(expected.begin() + 1, expected.begin() + 513),
+               "unaligned 512-byte response lost its final aligned guard word");
+        const auto after = model.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Command)].bytes_read;
+        expect(after - before == 516, "unaligned readback did not fetch its complete aligned extent");
+        expect(host.read_memory(4, heap_base + 512, 8, 0x99aabbcc) ==
+               std::vector<std::uint8_t>(expected.begin() + 512, expected.end()),
+               "readback staging changed adjacent uploaded bytes");
+        const auto& memory = model.memory_statistics();
+        expect(memory.prepared_submissions != 0 && memory.slot_read_words != 0 && memory.slot_write_words != 0 &&
+               memory.legacy_submissions == 0 && memory.legacy_response_reads == 0,
+               "readback or upload used untimed legacy burst arrays");
+    });
 }
 
 void rendering_tests() {
@@ -281,6 +306,11 @@ void rendering_tests() {
         expect(actual.statistics().texture_samples > 100000 && actual.statistics().keyed_rejected != 0 &&
                actual.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Scanout)].bytes_read != 0,
                "showcase or concurrent scanout was replaced by a simpler workload");
+        expect(actual.memory_statistics().legacy_submissions == 0 &&
+               actual.memory_statistics().legacy_response_reads == 0 &&
+               actual.memory_statistics().prepared_submissions != 0 &&
+               actual.memory_statistics().slot_write_words != 0 && actual.memory_statistics().slot_read_words != 0,
+               "showcase GPU execution bypassed the native client-slot memory ports");
         actual.queue_present(1); expected.queue_present(1);
         actual.vertical_blank(); expected.vertical_blank();
         compare_outputs(expected, actual);
@@ -373,6 +403,109 @@ void copy_tests() {
                actual.system_statistics().copies_completed == 7 &&
                actual.display_color() == actual.front_color(), "copies or display bypassed modeled storage");
     });
+}
+
+void clock_observer_tests() {
+    run_case("common-clock observer covers boot DMA drawing and presentation without replaying fragments", [] {
+        SystemModel model;
+        ThroughputMonitor monitor;
+        std::uint64_t events = 0;
+        model.set_cycle_observer([&](std::uint64_t clock, const FragmentCycle& event) {
+            expect(clock == ++events, "common-clock observer skipped or duplicated an edge");
+            monitor.observe(event, clock);
+        });
+        Pass pass;
+        RenderState state; state.color = {30, 120, 210};
+        pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, state, 12345});
+        model.render(pass);
+        monitor.require_drained();
+        const auto& observed = monitor.statistics();
+        expect(events == model.system_statistics().core_cycles && observed.cycles == events,
+               "observer excluded boot or timed external transfers");
+        expect(observed.accepted == 1024 && observed.retired == 1024 && observed.committed == 1024 &&
+               observed.color_writes == model.statistics().color_writes &&
+               observed.depth_writes == model.statistics().depth_writes,
+               "observer acceptance/retirement differs from real attachment traffic");
+        expect(observed.max_consecutive_accepts == 1024 && observed.max_consecutive_commits == 1024 &&
+               observed.same_cycle_accept_retire == 1023 && observed.max_inflight == 1,
+               "dense untextured draw did not sustain its registered one-fragment cadence");
+        expect(observed.stage_cycles[static_cast<unsigned>(FragmentStage::Transfer)] != 0 &&
+               observed.stage_cycles[static_cast<unsigned>(FragmentStage::Idle)] != 0 &&
+               model.system_statistics().last_pass_cycles > model.statistics().hardware_cycles,
+               "common-clock observations omitted transfer/idle bubbles or whole-pass time");
+        model.queue_present(1); model.vertical_blank();
+        monitor.require_drained();
+        expect(events == model.system_statistics().core_cycles && monitor.statistics().accepted == 1024 &&
+               monitor.statistics().retired == 1024 && model.scanout_statistics().underflows == 0,
+               "presentation replayed stale fragment flags or bypassed observed system clocks");
+        model.set_cycle_observer({});
+    });
+
+    run_case("abort cancels an owned textured fragment through the same common-clock observer", [] {
+        SystemModel model; boot(model); RawHost host(model);
+        ThroughputMonitor monitor;
+        model.set_cycle_observer([&](std::uint64_t clock, const FragmentCycle& event) { monitor.observe(event, clock); });
+        Pass pass; auto state = overlay_state(); state.texture = pattern();
+        pass.primitives.emplace_back(Sprite{{0, 0, 8, 8}, 0, 0, state, 0});
+        const auto program = compile_pass(pass);
+        host.send(program.bytes);
+        wait_until(model, [&] { return monitor.inflight() != 0; }, 1000000);
+        model.abort();
+        monitor.require_drained();
+        expect(monitor.statistics().accepted == 1 && monitor.statistics().cancelled == 1 &&
+               monitor.statistics().color_writes == 0 && !model.color_valid(1) && !model.depth_valid(),
+               "abort committed or lost its retained fragment instead of cancelling it");
+        model.advance(100);
+        expect(monitor.statistics().cancelled == 1, "idle recovery replayed a fragment cancellation");
+        model.set_cycle_observer({});
+    });
+
+    for (const bool pin_reset : {false, true}) {
+        run_case(pin_reset ? "host hard reset preserves observer time IDs and cancels an issued texture read" :
+                            "public hard reset preserves observer time IDs and cancels an issued texture read", [=] {
+            SystemModel model; boot(model); RawHost host(model);
+            ThroughputMonitor monitor;
+            std::uint64_t last_clock = 0, last_id = 0, events = 0, reset_events = 0;
+            model.set_cycle_observer([&](std::uint64_t clock, const FragmentCycle& event) {
+                expect(last_clock == 0 || clock == last_clock + 1, "hard reset broke monotonic observer time");
+                last_clock = clock; ++events;
+                if (event.stage == FragmentStage::Reset) ++reset_events;
+                if (event.accepted) {
+                    expect(event.accepted_fragment.id > last_id, "hard reset reused an observable fragment ID");
+                    last_id = event.accepted_fragment.id;
+                }
+                monitor.observe(event, clock);
+            });
+            const auto launch = [&] {
+                Pass pass; auto state = overlay_state(); state.texture = pattern();
+                pass.primitives.emplace_back(Sprite{{0, 0, 8, 8}, 0, 0, state, 0});
+                const auto program = compile_pass(pass, model.system_statistics().completed_sequence + 1);
+                host.send(program.bytes);
+                wait_until(model, [&] {
+                    const auto& texture = model.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Texture)];
+                    return monitor.inflight() != 0 && texture.requests != texture.completed;
+                }, 1000000);
+            };
+            launch();
+            const auto prior_events = events, prior_resets = reset_events;
+            const auto prior_id = last_id;
+            const auto prior_epoch = model.system_statistics().epoch;
+            if (pin_reset) { HostPins pins; pins.reset = true; model.tick(pins); model.tick(); }
+            else model.reset();
+            monitor.require_drained();
+            expect(events == prior_events + (pin_reset ? 2 : 1) && reset_events == prior_resets + 1 &&
+                   monitor.statistics().cancelled == 1 && model.system_statistics().epoch == prior_epoch + 1 &&
+                   model.system_statistics().core_cycles == 1 && model.memory_statistics().cycles == 1 && !model.ready(),
+                   "hard reset lost its observer, failed cancellation, or skipped its single initialization edge");
+            boot(model);
+            launch();
+            expect(last_id > prior_id, "new hard-reset epoch did not advance global fragment IDs");
+            model.abort(); monitor.require_drained();
+            expect(monitor.statistics().accepted == 2 && monitor.statistics().cancelled == 2,
+                   "observer did not retain balanced accounting after reset and fresh traffic");
+            model.set_cycle_observer({});
+        });
+    }
 }
 
 void recovery_tests() {
@@ -507,7 +640,7 @@ void recovery_tests() {
 } // namespace
 
 int main() {
-    boot_and_io_tests(); rendering_tests(); copy_tests(); recovery_tests();
+    boot_and_io_tests(); rendering_tests(); copy_tests(); clock_observer_tests(); recovery_tests();
     std::cout << cases - failures << '/' << cases << " system integration cases passed\n";
     return failures == 0 ? 0 : 1;
 }

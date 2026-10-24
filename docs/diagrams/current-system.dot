@@ -1,7 +1,7 @@
 digraph CurrentSystem {
   graph [rankdir=TB, bgcolor="white", compound=true, newrank=true,
          fontname="DejaVu Sans", fontsize=22, fontcolor="#172b3a",
-         labelloc=t, label="Current GPU model 44f0c8f\nN20K-SYS-0.1 — host, ordered execution, shared SDRAM and independent scanout",
+         labelloc=t, label="Current GPU model — streamed storage + throughput instrumentation\nN20K-SYS-0.1 — host, ordered execution, shared SDRAM and independent scanout",
          pad=0.30, nodesep=0.28, ranksep=0.60, splines=polyline];
   node [shape=box, style="rounded,filled", fillcolor="#edf4fb", color="#245b8c",
         fontname="DejaVu Sans", fontsize=11, fontcolor="#172b3a", penwidth=1.4, margin="0.14,0.10"];
@@ -50,7 +50,7 @@ digraph CurrentSystem {
       label="Ordered executor — exactly one command operation active; branches are alternatives";
       color="#a8c2db"; style=rounded; fontsize=13;
       execute [label="SystemModel executor FSM\nCapture payload through packet RAM\nValidate ranges / attachment ownership\nSelect one operation; retain its lease"];
-      upload [label="WRITE_HEAP\nBounded writer, 16 × 32-bit staging\nSource ≤1 byte / core edge\nUploads cannot write attachments"];
+      upload [label="WRITE_HEAP\nWriter: one 32-bit pack + 4-bit mask\nSource ≤1 byte / core edge\nUploads cannot write attachments"];
       pass [label="SUBMIT_PASS\nFetch descriptor, table, refs and records\nOne resident 32×32 tile\nLoad / draw / drain / store all 300 tiles\n3 tile banks + shared texture bank", color="#b76118", fillcolor="#fff2e6"];
       copy [label="COPY_RECT / heap-image copy\nOutside a render pass\nFull clipped row, ≤640 RGB565 pixels\nReuse texture-cache bank as scratch\nRow direction preserves overlap"];
       readback [label="READ_MEMORY\nOrdered read, length 1–512 bytes\nUses timed shared reader\nNo dirty-tile inspection shortcut"];
@@ -97,7 +97,7 @@ digraph CurrentSystem {
       mem_texture [label="Texture client\nExternal cache refill reads"];
       mem_copy [label="Copy client\nSource reads / masked destination writes"];
       mem_scanout [label="Scanout client\nCurrent front-buffer reads"];
-      slots [label="Per-client ownership / backpressure\n1 request or unconsumed response slot\n1–16 × 32-bit words, ≤64 bytes\nAddress + tag + byte-write masks\nHeld response keeps its slot occupied"];
+      slots [label="Per-client ownership / backpressure\n1 request or unconsumed response slot\n1–16 × 32-bit words, ≤64 bytes\n2 × SDPB 1024×16 per client: 12 banks\nShared write-request / read-response data\nWord-fill + synchronous read ports\nHeld response keeps its slot occupied"];
       arbitration [label="Request arbitration\nScanout priority quota ≤4 requests\nwhen other clients are waiting\nOther five clients round-robin\nOne active request runs to completion"];
       refresh [label="Initialization and mandatory refresh\n≥100 µs wait → PRECHARGE →\n2 refreshes → MODE / timing waits\nRefresh deadline ≤15.625 µs\n≤1575 cycles at 100.8 MHz\nWorst-case request / precharge guard"];
       controller [label="Clocked SDRAM controller / native pins\nOpen rows / bank selection / ACTIVATE\nPRECHARGE / CAS / write recovery\nRead↔write turnaround / DQM masks\nSequential native BL8 (32-byte bursts)\nShort / unaligned requests still pay BL8", color="#6957a3", fillcolor="#f3effb"];
@@ -123,13 +123,13 @@ digraph CurrentSystem {
       label="Independent scanout — continues while the ordered executor renders or waits";
       color="#9ac8c1"; style=rounded; fontsize=13;
       front [label="Front / back ownership\nFront is read-only to draws / copies\nOld front becomes back after swap"];
-      prefetch [label="Front-buffer prefetch\n1 outstanding tagged SDRAM read\n16 × 32-bit response staging\nStale responses discarded at swap"];
+      prefetch [label="Front-buffer prefetch\n1 outstanding tagged SDRAM read\nOwned slot: synchronous 32-bit reads\nOne 32-bit hold → two RGB565 writes\nStale responses discarded at swap"];
       fifo [label="RGB565 display FIFO: 2048 pixels\n2 × SDPB 1024×16\nSynchronous read → later capture\nSmaller limits are stress settings", color="#6957a3", fillcolor="#f3effb"];
       pixel [label="Pixel consumer: core / 4 =25.2 MHz\n640×480 active, 800×525 total\n60 Hz, negative H/V sync\nUnderflow: black rest of frame\nResynchronize at vertical blank"];
       timing [label="Free-running display timing\nH: 640 +16 front +96 sync +48 back\nV: 480 +10 front +2 sync +33 back\nStartup stays black until valid memory"];
       front -> prefetch [label="current physical color ID", color="#245b8c", style=dashed];
       prefetch -> mem_scanout [label="request / response", dir=both, constraint=false];
-      prefetch -> fifo [label="one RGB565 word / core edge"];
+      prefetch -> fifo [label="one RGB565 write / edge; slot-read bubbles"];
       fifo -> pixel [label="old registered output"];
       timing -> pixel [label="pixel enable / H / V", color="#245b8c", style=dashed];
       timing -> present [label="established vertical-blank pulse", color="#245b8c", style=dashed, constraint=false];
@@ -143,6 +143,9 @@ digraph CurrentSystem {
   cpu_program -> bus [label="serialized request bytes"];
   sdl [label="Host-only observer\nSDL / S-key screenshot show actual FIFO output\nRaw dumps inspect completed framebuffer\nObserver images are not GPU memory", color="#879dad", fillcolor="#f7f9fb", style="rounded,dashed"];
   pixel -> sdl [label="captured completed scanout frame"];
-  limits [label="Limits that matter\nSerial rendering / single active command; no 1-pixel-per-cycle textured pipeline\nCPU wide validation checks are simulation assertions, not timed GPU units\n12 native BSRAM =3 tile +1 texture/copy +2 scanout +5 host +1 reply\nAdditional bounded staging / LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
-  sdl -> limits [style=invis];
+  trace [label="Host-only cycle observer / throughput scoreboard\nDistinct accept and retire IDs; stage / enable / occupancy\nCommon-clock CSV traces and cadence / latency histograms\nAdds no GPU registers, queues or ports", color="#879dad", fillcolor="#f7f9fb", style="rounded,dashed"];
+  pass -> trace [label="per-edge observations", color="#879dad", style=dotted, constraint=false];
+  sdl -> trace [style=invis];
+  limits [label="Limits that matter\nSerial rendering / single active command; no 1-pixel-per-cycle textured pipeline\nCPU wide validation checks are simulation assertions, not timed GPU units\n29 native BSRAM =12 original +12 client slots +2 reader +3 row staging\nSmall fields / masks / arithmetic mapped to bounded registers or logic ROM\nWhole-system LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
+  trace -> limits [style=invis];
 }

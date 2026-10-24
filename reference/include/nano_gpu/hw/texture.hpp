@@ -24,7 +24,9 @@ struct TextureStatistics {
 // A single request is outstanding; cache reads/writes use clocked SDPB ports.
 // The local block profile uses an immutable Image backing adapter: a miss has
 // four response-wait edges, then one word per edge for its 16-word refill.
-// The system profile instead waits for shared SDRAM requests and responses.
+// The system profile instead waits for shared SDRAM requests and streams
+// response-slot synchronous reads through one 32-bit capture register into
+// two 16-bit cache writes; the slot stays owned until its real words drain.
 // Both profiles use the ten-edge shift/add address generator and cache ports.
 class TextureUnit {
 public:

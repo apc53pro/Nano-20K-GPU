@@ -41,7 +41,7 @@ void require_descriptor(const TextureDescriptor& descriptor) {
 struct TextureUnit::Impl {
     enum class State {
         Idle, Address, Tag, ResponseWait, ExternalRequest, ExternalWait,
-        Refill, CacheRead, Capture
+        ExternalRead, ExternalCapture, Refill, CacheRead, Capture
     };
 
     Sdp1kx16 bank;
@@ -52,7 +52,9 @@ struct TextureUnit::Impl {
     SdramController* external_memory = nullptr;
     bool external_request_pending = false;
     unsigned external_words = 0;
-    std::array<std::uint32_t, line_words / 2> external_line{};
+    // One registered word bridges the controller slot read port and the
+    // 16-bit cache write port. No parallel cache-line response copy exists.
+    std::uint32_t external_word = 0;
     TextureStatistics counters;
     State state = State::Idle;
     bool result_valid = false;
@@ -248,7 +250,7 @@ void TextureUnit::tick(bool enable) {
         request.words = static_cast<unsigned>(std::min<std::uint64_t>(
             line_words / 2, allocation_words - first_word));
         request.tag = p.line_base;
-        if (p.external_memory->submit(MemoryClient::Texture, request)) {
+        if (p.external_memory->submit_prepared(MemoryClient::Texture, request)) {
             p.external_request_pending = true;
             p.external_words = request.words;
             p.state = Impl::State::ExternalWait;
@@ -257,29 +259,45 @@ void TextureUnit::tick(bool enable) {
     }
     case Impl::State::ExternalWait:
         if (p.external_memory->response_ready(MemoryClient::Texture)) {
-            const auto response = p.external_memory->take_response(MemoryClient::Texture);
-            p.external_request_pending = false;
+            const auto response = p.external_memory->response_info(MemoryClient::Texture);
             if (response.tag != p.line_base || response.words != p.external_words ||
-                response.words == 0 || response.words > p.external_line.size())
+                response.words == 0 || response.words > line_words / 2)
                 throw std::logic_error("hardware texture SDRAM response does not match its request");
-            p.external_line.fill(0);
-            for (unsigned word = 0; word < response.words; ++word)
-                p.external_line[word] = response.data[word];
-            p.state = Impl::State::Refill;
+            p.state = Impl::State::ExternalRead;
         } else ++p.counters.memory_wait_cycles;
+        break;
+    case Impl::State::ExternalRead:
+        if (p.external_memory->request_response_word(MemoryClient::Texture, p.refill_word >> 1))
+            p.state = Impl::State::ExternalCapture;
+        else ++p.counters.memory_wait_cycles;
+        break;
+    case Impl::State::ExternalCapture:
+        if (!p.external_memory->response_word_valid(MemoryClient::Texture) ||
+            p.external_memory->response_word_offset(MemoryClient::Texture) != (p.refill_word >> 1))
+            throw std::logic_error("hardware texture slot read did not cross its synchronous edge");
+        p.external_word = p.external_memory->response_word(MemoryClient::Texture);
+        // The registered word is first consumed by the cache on a later edge.
+        p.state = Impl::State::Refill;
         break;
     case Impl::State::Refill:
         memory.write_enable = true;
         memory.write_address = static_cast<std::uint16_t>((p.slot << 4) | p.refill_word);
         memory.write_data = p.external_memory ? static_cast<std::uint16_t>(
-            p.external_line[p.refill_word >> 1] >> ((p.refill_word & 1u) << 4)) :
+            p.external_word >> ((p.refill_word & 1u) << 4)) :
             p.backing_word(p.line_base + p.refill_word);
         ++p.counters.refill_words;
-        if (++p.refill_word == line_words) {
+        ++p.refill_word;
+        if (p.external_memory && p.external_request_pending && p.refill_word == p.external_words * 2) {
+            p.external_memory->release_response(MemoryClient::Texture);
+            p.external_request_pending = false;
+            p.external_word = 0; // Final short-line padding uses no SDRAM port.
+        }
+        if (p.refill_word == line_words) {
             p.tags[p.slot] = p.tag;
             p.valid[p.slot] = true;
             p.state = Impl::State::CacheRead;
-        }
+        } else if (p.external_memory && p.external_request_pending && (p.refill_word & 1u) == 0)
+            p.state = Impl::State::ExternalRead;
         break;
     case Impl::State::CacheRead:
         memory.read_enable = true;
@@ -308,7 +326,7 @@ void TextureUnit::reset() {
     p.descriptor = {};
     p.external_memory = nullptr;
     p.external_words = 0;
-    p.external_line.fill(0);
+    p.external_word = 0;
     p.valid.fill(false);
     p.tags.fill(0);
     p.result_valid = false;

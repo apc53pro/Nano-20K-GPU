@@ -17,64 +17,109 @@
 namespace nano_gpu::hw {
 namespace {
 
-// One shared bounded record/response staging buffer. Each response is drained
-// at one 32-bit word per edge; a newly completed SDR response is never sampled
-// until the next system edge. It is not an untimed memory-read shortcut.
+// The shared reader has two actual SDPB banks, striped low/high16. Incoming
+// slot words are clocked into RAM; a separate synchronous read pass populates
+// a 320-byte decoded-field register bank. Typed decoders below only interpret
+// those established registers, never inspect RAM through a parallel back door.
+// Diagnostic READ_MEMORY replies stream directly out of RAM instead.
 struct Reader {
-    enum class State { Idle, Request, Wait, Drain, Done } state = State::Idle;
-    std::array<std::uint8_t, 512> bytes{};
-    MemoryResponse response{};
+    enum class State { Idle, Request, Wait, ReadIssue, ReadCapture,
+        DecodePrime, DecodeCapture, Done } state = State::Idle;
+    std::array<Sdp1kx16, 2> ram;
+    std::array<std::uint8_t, primitive_record_bytes> fields{};
     MemoryClient client = MemoryClient::Command;
     std::uint32_t address = 0, burst_address = 0;
-    unsigned length = 0, copied = 0, word = 0;
-    void start(std::uint32_t base, unsigned count, MemoryClient port) {
-        if (count == 0 || count > bytes.size() ||
+    unsigned length = 0, copied = 0, word = 0, response_words = 0, decode_word = 0;
+    bool decode_fields = true;
+    void ports(bool write = false, unsigned wa = 0, std::uint32_t value = 0,
+               bool read = false, unsigned ra = 0) {
+        for (unsigned bank = 0; bank < 2; ++bank)
+            ram[bank].tick({write, static_cast<std::uint16_t>(wa),
+                static_cast<std::uint16_t>(value >> (16 * bank)), read,
+                static_cast<std::uint16_t>(ra), false});
+    }
+    std::uint32_t result() const { return ram[0].output() | (std::uint32_t{ram[1].output()} << 16); }
+    void start(std::uint32_t base, unsigned count, MemoryClient port, bool decode = true) {
+        if (count == 0 || count > 512 || (decode && count > fields.size()) ||
             static_cast<std::uint64_t>(base) + count > memory_bytes)
             throw std::out_of_range("bounded system read outside SDRAM");
-        address = base; length = count; copied = 0; client = port; state = State::Request;
+        address = base; length = count; copied = 0; client = port;
+        decode_fields = decode; state = State::Request;
     }
     bool done() const { return state == State::Done; }
     void tick(SdramController& memory) {
         switch (state) {
-        case State::Idle: case State::Done: break;
+        case State::Idle: case State::Done: ports(); break;
         case State::Request: {
             burst_address = (address + copied) & ~3u;
             MemoryRequest request;
             request.address = burst_address;
             request.words = std::min<unsigned>(memory_burst_words,
                 (address + length - burst_address + 3u) / 4u);
-            if (memory.submit(client, request)) state = State::Wait;
+            if (memory.submit_prepared(client, request)) state = State::Wait;
+            ports();
             break;
         }
         case State::Wait:
             if (memory.response_ready(client)) {
-                response = memory.take_response(client); word = 0; state = State::Drain;
+                response_words = memory.response_info(client).words;
+                word = 0; state = State::ReadIssue;
             }
+            ports();
             break;
-        case State::Drain: {
-            const auto value = response.data[word];
+        case State::ReadIssue:
+            if (memory.request_response_word(client, word)) state = State::ReadCapture;
+            ports();
+            break;
+        case State::ReadCapture: {
+            if (!memory.response_word_valid(client)) { ports(); break; }
+            if (memory.response_word_offset(client) != word)
+                throw std::logic_error("system reader lost its synchronous slot word");
+            const auto value = memory.response_word(client);
+            ports(true, (burst_address + 4 * word - (address & ~3u)) / 4, value);
             for (unsigned byte = 0; byte < 4; ++byte) {
                 const auto source = burst_address + 4 * word + byte;
-                if (source >= address && source < address + length) {
-                    bytes[source - address] = static_cast<std::uint8_t>(value >> (8 * byte));
-                    ++copied;
-                }
+                if (source >= address && source < address + length) ++copied;
             }
-            if (++word == response.words) state = copied == length ? State::Done : State::Request;
+            if (++word == response_words) {
+                memory.release_response(client);
+                state = copied == length ? (decode_fields ? State::DecodePrime : State::Done) : State::Request;
+            } else state = State::ReadIssue;
+            break;
+        }
+        case State::DecodePrime:
+            decode_word = 0; ports(false, 0, 0, true, 0);
+            state = State::DecodeCapture; break;
+        case State::DecodeCapture: {
+            const auto value = result();
+            for (unsigned byte = 0; byte < 4; ++byte) {
+                const auto source = 4 * decode_word + byte;
+                if (source >= (address & 3u) && source - (address & 3u) < length)
+                    fields[source - (address & 3u)] = static_cast<std::uint8_t>(value >> (8 * byte));
+            }
+            if (++decode_word == (length + (address & 3u) + 3) / 4) {
+                ports(); state = State::Done;
+            } else ports(false, 0, 0, true, decode_word);
             break;
         }
         }
     }
-    std::vector<std::uint8_t> view() const { return {bytes.begin(), bytes.begin() + length}; }
+    std::vector<std::uint8_t> view() const {
+        if (!done() || !decode_fields) throw std::logic_error("reader fields are not established");
+        return {fields.begin(), fields.begin() + length};
+    }
 };
 
-// One-byte source port fills a bounded 16-word write staging buffer. Payload
-// sources can stall until a synchronous packet-RAM read result is established.
+// A single32-bit pack register feeds the owned controller slot. It is not a
+// duplicate16-word request array. Packet/row sources may wait for native reads.
 struct Writer {
-    enum class State { Idle, Fill, Request, Wait, Done } state = State::Idle;
+    enum class State { Idle, Fill, Word, Request, Wait, Done } state = State::Idle;
     std::function<std::optional<std::uint8_t>(unsigned)> source;
     MemoryClient client = MemoryClient::Host;
     MemoryRequest request{};
+    std::uint32_t packed = 0;
+    std::uint8_t mask = 0;
+    unsigned word = 0;
     std::uint32_t address = 0;
     unsigned length = 0, cursor = 0, fill = 0, chunk = 0, prefix = 0;
     void prepare() {
@@ -83,7 +128,7 @@ struct Writer {
         prefix = (address + cursor) & 3u;
         chunk = std::min<unsigned>(length - cursor, memory_burst_words * 4 - prefix);
         request.words = (prefix + chunk + 3) / 4;
-        fill = 0; state = State::Fill;
+        fill = word = 0; packed = 0; mask = 0; state = State::Fill;
     }
     void start(std::uint32_t base, unsigned count, MemoryClient port,
                std::function<std::optional<std::uint8_t>(unsigned)> input) {
@@ -99,22 +144,56 @@ struct Writer {
             const auto value = source(cursor + fill);
             if (!value) break;
             const auto index = prefix + fill;
-            request.data[index >> 2] |= static_cast<std::uint32_t>(*value) << (8 * (index & 3u));
-            request.masks[index >> 2] |= static_cast<std::uint8_t>(1u << (index & 3u));
-            if (++fill == chunk) state = State::Request;
+            packed |= static_cast<std::uint32_t>(*value) << (8 * (index & 3u));
+            mask |= static_cast<std::uint8_t>(1u << (index & 3u));
+            ++fill;
+            if (((prefix + fill) & 3u) == 0 || fill == chunk) state = State::Word;
             break;
         }
+        case State::Word:
+            if (memory.write_request_word(client, word, packed, mask)) {
+                ++word; packed = 0; mask = 0;
+                state = fill == chunk ? State::Request : State::Fill;
+            }
+            break;
         case State::Request:
-            if (memory.submit(client, request)) state = State::Wait;
+            if (memory.submit_prepared(client, request)) state = State::Wait;
             break;
         case State::Wait:
             if (memory.response_ready(client)) {
-                (void)memory.take_response(client); cursor += chunk;
+                memory.release_response(client); cursor += chunk;
                 if (cursor == length) state = State::Done; else prepare();
             }
             break;
         }
     }
+};
+
+// Three native row banks match the tile attachment layout. Accesses are staged
+// during execute() and clocked once at the end of the common core edge.
+struct RowBanks {
+    std::array<Sdp1kx16, 3> ram;
+    std::array<BsramCycle, 3> staged{};
+    void read(unsigned index) {
+        for (auto& p : staged) {
+            if (p.read_enable) throw std::logic_error("two row reads in one edge");
+            p.read_enable = true; p.read_address = static_cast<std::uint16_t>(index);
+        }
+    }
+    void write(unsigned index, TileWord value, bool color = true, bool depth = true) {
+        const std::array<std::uint16_t, 3> words{{value.color, static_cast<std::uint16_t>(value.depth),
+            static_cast<std::uint16_t>(value.depth >> 16)}};
+        for (unsigned bank = 0; bank < 3; ++bank) {
+            if ((bank == 0 && !color) || (bank != 0 && !depth)) continue;
+            auto& p = staged[bank];
+            if (p.write_enable) throw std::logic_error("two row writes in one edge");
+            p.write_enable = true; p.write_address = static_cast<std::uint16_t>(index); p.write_data = words[bank];
+        }
+    }
+    TileWord result() const {
+        return {ram[0].output(), ram[1].output() | (std::uint32_t{ram[2].output()} << 16)};
+    }
+    void tick() { for (unsigned bank = 0; bank < 3; ++bank) { ram[bank].tick(staged[bank]); staged[bank] = {}; } }
 };
 
 template<std::size_t N>
@@ -140,9 +219,19 @@ void check_buffer(int id) {
 } // namespace
 
 struct SystemModel::Impl {
+    // Host-only instrumentation survives hard-reset reconstruction. Device
+    // counters restart with their epoch; observer timestamps and token IDs do
+    // not, so a single trace/scoreboard can follow cancellation and recovery.
+    struct Observation {
+        SystemCycleObserver callback;
+        std::uint64_t clock = 0;
+        std::uint64_t last_fragment_id = 0, last_primitive_id = 0;
+        FragmentToken active_fragment{};
+    };
     enum class State {
         Idle, Capture, Upload, PassDescriptor, TileEntry, LoadRow,
-        LoadColor, LoadDepthLow, LoadDepthHigh, LoadLocal,
+        LoadColor, LoadDepthLow, LoadDepthHigh, UnpackColor, UnpackDepth,
+        LoadLocal, LoadLocalCapture,
         Reference, Record, Draw, StoreLocal, StorePrepare, StoreColor, StoreDepthLow,
         StoreDepthHigh, Copy, Present, Readback, ReplyBuild, ReplyRead, Reply, Fault, Abort
     } state = State::Idle;
@@ -162,14 +251,25 @@ struct SystemModel::Impl {
     unsigned capture_size = 0, capture_index = 0;
     bool packet_read_pending = false;
     unsigned packet_read_offset = 0;
-    // Bounded serializer shadow of response fields/Reader registers, not a
-    // bypass around device RAM. ReplyBuild writes one byte per edge; only the
-    // registered reply_bank read port may feed the host TX producer.
-    std::vector<std::uint8_t> reply;
-    unsigned reply_index = 0;
-    std::array<std::uint8_t, 64> row_bytes{};
-    std::array<std::uint16_t, 32> row_colors{};
-    std::array<std::uint32_t, 32> row_depth{};
+    // A distinct736-bit reply-source register bank:28-byte framing plus at
+    // most64 status/capability bytes. READ_MEMORY payload never enters here;
+    // it streams through the reader's synchronous native port. ReplyBuild
+    // writes one byte per edge into the separately counted reply RAM.
+    std::array<std::uint8_t, 92> reply{};
+    unsigned reply_index = 0, reply_source_length = 0;
+    RowBanks rows;
+    bool row_source_depth = false, row_source_pending = false;
+    unsigned row_source_half = 0, row_source_index = 32, unpack_half = 0;
+    TileWord row_source_value{};
+    bool reply_reader = false, reply_reader_pending = false;
+    unsigned reply_length = 0, reply_reader_word = 0;
+    std::uint32_t reply_reader_value = 0;
+    unsigned boot_fill = 0;
+    std::shared_ptr<Observation> observation;
+    std::uint64_t fragment_id_base = 0, primitive_id_base = 0;
+    bool reset_event_pending = false;
+    FragmentCycle edge_event{};
+    bool tile_edge = false;
     PassDescriptor pass;
     TileEntry bin;
     CopyCommand copy;
@@ -187,14 +287,30 @@ struct SystemModel::Impl {
     std::array<std::vector<std::uint16_t>, 2> observed_color;
     std::vector<std::uint32_t> observed_depth;
 
-    explicit Impl(SystemConfig config)
+    explicit Impl(SystemConfig config, std::shared_ptr<Observation> existing_observation = {})
         : configuration(std::move(config)), memory(configuration.memory), host(configuration.host),
-          scanout(configuration.scanout), observed_depth(screen_width * screen_height, depth_max) {
+          scanout(configuration.scanout), observation(existing_observation ? std::move(existing_observation) :
+              std::make_shared<Observation>()), observed_depth(screen_width * screen_height, depth_max) {
         if (configuration.operation_timeout_cycles == 0)
             throw std::invalid_argument("system operation timeout must be positive");
         for (auto& color : observed_color) color.resize(screen_width * screen_height);
         host.set_capabilities(capabilities());
         host.set_status(status());
+        fragment_id_base = observation->last_fragment_id;
+        primitive_id_base = observation->last_primitive_id;
+        tile.set_cycle_observer([this](const FragmentCycle& event) {
+            if (tile_edge) throw std::logic_error("tile advanced twice on one common edge");
+            edge_event = event;
+            const auto map_token = [this](FragmentToken& token) {
+                if (token.id != 0) {
+                    token.id += fragment_id_base;
+                    token.primitive_id += primitive_id_base;
+                }
+            };
+            map_token(edge_event.accepted_fragment);
+            map_token(edge_event.retired_fragment);
+            tile_edge = true;
+        });
     }
     std::array<std::uint8_t, 64> status() const {
         std::array<std::uint8_t, 64> bytes{};
@@ -233,15 +349,16 @@ struct SystemModel::Impl {
         host.pop_command(); command = nullptr; packet_read_pending = false; state = State::Idle;
     }
     void make_reply(std::uint32_t token, const std::vector<std::uint8_t>& data = {}) {
-        if (data.size() > 768) throw std::out_of_range("system reply exceeds bounded staging");
-        reply.assign(28 + data.size(), 0);
+        if (data.size() > 64) throw std::out_of_range("system reply source exceeds bounded registers");
+        reply.fill(0); reply_source_length = 28 + static_cast<unsigned>(data.size());
         reply[0] = 'N'; reply[1] = 'G'; reply[2] = 'P'; reply[3] = 'U'; reply[5] = 1;
-        write_u16(reply, 6, static_cast<std::uint16_t>(command->opcode) | 0x8000u);
-        write_u32(reply, 8, static_cast<std::uint32_t>(12 + data.size()));
-        write_u32(reply, 12, command->sequence); write_u32(reply, 16, totals.epoch);
-        write_u32(reply, 20, 0); write_u32(reply, 24, token);
+        put(reply, 6, static_cast<std::uint16_t>(command->opcode) | 0x8000u, 2);
+        put(reply, 8, static_cast<std::uint32_t>(12 + data.size()));
+        put(reply, 12, command->sequence); put(reply, 16, totals.epoch);
+        put(reply, 20, 0); put(reply, 24, token);
         std::copy(data.begin(), data.end(), reply.begin() + 28);
-        reply_index = 0; state = State::ReplyBuild;
+        reply_index = 0; reply_length = reply_source_length;
+        reply_reader = reply_reader_pending = false; state = State::ReplyBuild;
     }
     void fail(SystemFault code, const std::string& reason) {
         if (error == SystemFault::None) { error = code; message = reason; }
@@ -258,7 +375,7 @@ struct SystemModel::Impl {
             const auto client = static_cast<MemoryClient>(port);
             // The tile unit owns its own texture response until it consumes it.
             if (client != MemoryClient::Texture && client != MemoryClient::Copy && memory.response_ready(client))
-                (void)memory.take_response(client);
+                memory.release_response(client);
             const auto& c = memory.statistics().clients[port];
             drained = drained && c.requests == c.completed;
         }
@@ -331,7 +448,7 @@ struct SystemModel::Impl {
             const auto address = get(captured, 0), length = get(captured, 4);
             if (length == 0 || length > 512 || static_cast<std::uint64_t>(address) + length > memory_bytes)
                 throw std::out_of_range("READ_MEMORY length/range");
-            reader.start(address, length, MemoryClient::Command); state = State::Readback; break;
+            reader.start(address, length, MemoryClient::Command, false); state = State::Readback; break;
         }
         }
     }
@@ -354,25 +471,33 @@ struct SystemModel::Impl {
         if (pass.color_load == LoadOp::Load) {
             reader.start(color_buffer_base(pass.target) + global_pixel() * 2, 64, MemoryClient::Tile);
             state = State::LoadColor;
-        } else {
-            row_colors.fill(pass.clear_color); begin_depth_load();
-        }
+        } else begin_depth_load();
     }
     void begin_depth_load() {
         if (pass.depth_load == LoadOp::Load) {
             reader.start(depth_buffer_base + global_pixel() * 4, 64, MemoryClient::Tile);
             state = State::LoadDepthLow;
-        } else { row_depth.fill(pass.clear_depth); beat = 0; state = State::LoadLocal; }
+        } else { beat = 0; state = State::LoadLocal; }
+    }
+    std::optional<std::uint8_t> row_byte(unsigned index) {
+        const auto element = row_source_depth ? row_source_half * 16 + index / 4 : index / 2;
+        if (row_source_pending) {
+            row_source_value = rows.result(); row_source_pending = false;
+            row_source_index = element;
+        }
+        if (row_source_index != element) {
+            rows.read(element); row_source_pending = true; return {};
+        }
+        return static_cast<std::uint8_t>(row_source_depth ?
+            row_source_value.depth >> (8 * (index & 3u)) : row_source_value.color >> (8 * (index & 1u)));
     }
     void prepare_store(bool depth, unsigned half = 0) {
-        for (unsigned index = 0; index < 64; ++index) {
-            if (depth) row_bytes[index] = static_cast<std::uint8_t>(row_depth[half * 16 + index / 4] >> (8 * (index & 3u)));
-            else row_bytes[index] = static_cast<std::uint8_t>(row_colors[index / 2] >> (8 * (index & 1u)));
-        }
+        row_source_depth = depth; row_source_half = half;
+        row_source_index = 32; row_source_pending = false;
         const auto address = depth ? depth_buffer_base + global_pixel() * 4 + half * 64 :
                                     color_buffer_base(pass.target) + global_pixel() * 2;
         writer.start(address, 64, MemoryClient::Tile,
-            [this](unsigned index) -> std::optional<std::uint8_t> { return row_bytes[index]; });
+            [this](unsigned index) { return row_byte(index); });
     }
     void finish_pass() {
         const auto& c = tile.statistics();
@@ -430,10 +555,14 @@ struct SystemModel::Impl {
             const bool completed = reader.done();
             reader.tick(memory);
             if (completed) {
-                for (unsigned i = 0; i < 32; ++i)
-                    row_colors[i] = static_cast<std::uint16_t>(reader.bytes[2*i] | (reader.bytes[2*i+1] << 8));
-                begin_depth_load();
+                beat = 0; state = State::UnpackColor;
             }
+            break;
+        }
+        case State::UnpackColor: {
+            const auto color = static_cast<std::uint16_t>(reader.fields[2*beat] | (reader.fields[2*beat+1] << 8));
+            rows.write(beat, {color, 0}, true, false);
+            if (++beat == 32) begin_depth_load();
             break;
         }
         case State::LoadDepthLow: case State::LoadDepthHigh: {
@@ -441,12 +570,17 @@ struct SystemModel::Impl {
             const bool completed = reader.done();
             reader.tick(memory);
             if (completed) {
-                for (unsigned i = 0; i < 16; ++i) {
-                    row_depth[(high ? 16 : 0) + i] = 0;
-                    for (unsigned byte = 0; byte < 4; ++byte)
-                        row_depth[(high ? 16 : 0) + i] |= std::uint32_t{reader.bytes[4*i+byte]} << (8*byte);
-                }
-                if (!high) {
+                beat = 0; unpack_half = high ? 1 : 0; state = State::UnpackDepth;
+            }
+            break;
+        }
+        case State::UnpackDepth: {
+            std::uint32_t depth = 0;
+            for (unsigned byte = 0; byte < 4; ++byte)
+                depth |= std::uint32_t{reader.fields[4*beat+byte]} << (8*byte);
+            rows.write(16 * unpack_half + beat, {0, depth}, false, true);
+            if (++beat == 16) {
+                if (unpack_half == 0) {
                     reader.start(depth_buffer_base + global_pixel() * 4 + 64, 64, MemoryClient::Tile);
                     state = State::LoadDepthHigh;
                 } else { beat = 0; state = State::LoadLocal; }
@@ -454,15 +588,21 @@ struct SystemModel::Impl {
             break;
         }
         case State::LoadLocal:
-            tile.load_word(static_cast<std::uint16_t>(row * tile_size + beat), row_colors[beat], row_depth[beat]);
+            rows.read(0); beat = 0; state = State::LoadLocalCapture; break;
+        case State::LoadLocalCapture: {
+            const auto value = rows.result();
+            tile.load_word(static_cast<std::uint16_t>(row * tile_size + beat),
+                pass.color_load == LoadOp::Clear ? pass.clear_color : value.color,
+                pass.depth_load == LoadOp::Clear ? pass.clear_depth : value.depth);
             if (++beat == 32) {
                 if (++row == 32) {
                     reference_index = 0;
                     if (bin.count != 0) fetch_reference();
                     else { row = beat = 0; state = State::StoreLocal; }
                 } else state = State::LoadRow;
-            }
+            } else rows.read(beat);
             break;
+        }
         case State::Reference: {
             const bool completed = reader.done();
             reader.tick(memory);
@@ -493,8 +633,7 @@ struct SystemModel::Impl {
             break;
         case State::StoreLocal:
             if (beat != 0) {
-                const auto value = tile.read_word_result(); row_colors[beat-1] = value.color;
-                row_depth[beat-1] = value.depth;
+                rows.write(beat - 1, tile.read_word_result());
             }
             if (beat < 32) tile.read_word_request(static_cast<std::uint16_t>(row * 32 + beat));
             else tile.idle_edge();
@@ -553,35 +692,55 @@ struct SystemModel::Impl {
             reader.tick(memory);
             if (completed) {
                 auto result = scalar(get(captured, 0)); append(result, scalar(get(captured, 4)));
-                append(result, reader.view()); make_reply(get(captured, 8), result);
+                make_reply(get(captured, 8), result);
+                reply_reader = true; reply_length += reader.length;
+                put(reply, 8, 20 + reader.length);
+                reply_reader_word = std::numeric_limits<unsigned>::max();
             }
             break;
         }
-        case State::ReplyBuild:
-            reply_bank.tick({true, static_cast<std::uint16_t>(reply_index), reply[reply_index], false, 0, false});
-            if (++reply_index == reply.size()) { reply_index = 0; state = State::ReplyRead; }
+        case State::ReplyBuild: {
+            std::uint8_t byte = 0;
+            if (reply_reader && reply_index >= reply_source_length) {
+                const auto at = reply_index - reply_source_length + (reader.address & 3u);
+                if (reply_reader_pending) {
+                    reply_reader_value = reader.result(); reply_reader_pending = false;
+                    reply_reader_word = at / 4;
+                }
+                if (reply_reader_word != at / 4) {
+                    reader.ports(false, 0, 0, true, at / 4); reply_reader_pending = true;
+                    reply_bank.tick({}); break;
+                }
+                byte = static_cast<std::uint8_t>(reply_reader_value >> (8 * (at & 3u)));
+                reader.ports();
+            } else byte = reply[reply_index];
+            reply_bank.tick({true, static_cast<std::uint16_t>(reply_index), byte, false, 0, false});
+            if (++reply_index == reply_length) { reply_index = 0; state = State::ReplyRead; }
             break;
+        }
         case State::ReplyRead:
             reply_bank.tick({false, 0, 0, true, static_cast<std::uint16_t>(reply_index), false});
             state = State::Reply;
             break;
         case State::Reply:
             if (host.push_response_byte(static_cast<std::uint8_t>(reply_bank.output()))) {
-                if (++reply_index == reply.size()) finish(); else state = State::ReplyRead;
+                if (++reply_index == reply_length) finish(); else state = State::ReplyRead;
             }
             reply_bank.tick({});
             break;
         case State::Fault: (void)drain_issued(); break;
         case State::Abort:
-            if (drain_issued()) {
+            if (drain_issued() && !tile_edge) {
                 if (totals.epoch == std::numeric_limits<std::uint32_t>::max())
                     throw std::overflow_error("system epoch exhausted; start a fresh power-on session");
                 copier.reset(); tile.reset(); reader.state = Reader::State::Idle; writer.state = Writer::State::Idle;
+                for (unsigned client = 1; client < memory_client_count; ++client)
+                    memory.discard_request_words(static_cast<MemoryClient>(client));
                 host.recover(++totals.epoch); next_sequence = 1;
                 totals.completed_sequence = totals.completed_fence_token = totals.completed_present_token = 0;
                 command = nullptr; packet_read_pending = false; pass_active = copy_active = false;
                 sealed = driver_present_pending = false; error = SystemFault::None; message.clear(); state = State::Idle;
-                if (!initialized) { boot_address = 0; boot_wait = false; }
+                if (!initialized) { boot_address = 0; boot_wait = false; boot_fill = 0; }
             }
             break;
         }
@@ -590,20 +749,38 @@ struct SystemModel::Impl {
         if (!memory.initialized()) return;
         if (boot_wait) {
             if (!memory.response_ready(MemoryClient::Tile)) return;
-            (void)memory.take_response(MemoryClient::Tile); boot_address += 4 * memory_burst_words; boot_wait = false;
+            memory.release_response(MemoryClient::Tile);
+            boot_address += 4 * memory_burst_words; boot_wait = false; boot_fill = 0;
             if (boot_address == heap_base) {
                 initialized = true; valid = {{true, true}}; valid_depth = true;
                 totals.boot_cycles = totals.core_cycles; scanout.set_memory_ready(true); return;
             }
         }
         MemoryRequest request; request.write = true; request.address = boot_address; request.words = memory_burst_words;
-        for (unsigned word = 0; word < request.words; ++word) {
-            request.data[word] = boot_address >= depth_buffer_base ? depth_max : 0;
-            request.masks[word] = 0xf;
+        if (boot_fill < request.words) {
+            if (memory.write_request_word(MemoryClient::Tile, boot_fill,
+                    boot_address >= depth_buffer_base ? depth_max : 0, 0xf)) ++boot_fill;
+            return;
         }
-        if (memory.submit(MemoryClient::Tile, request)) boot_wait = true;
+        if (memory.submit_prepared(MemoryClient::Tile, request)) boot_wait = true;
     }
     HostBusResult tick(const HostPins& pins) {
+        tile_edge = false;
+        edge_event = {};
+        edge_event.stage = pass_active ? FragmentStage::Transfer : FragmentStage::Idle;
+        edge_event.inflight_before = edge_event.inflight_after = tile.last_cycle().inflight_after;
+        if (reset_event_pending) {
+            edge_event.stage = FragmentStage::Reset;
+            edge_event.cycle = tile.last_cycle().cycle;
+            edge_event.inflight_before = observation->active_fragment.id != 0 ? 1u : 0u;
+            edge_event.inflight_after = 0;
+            if (observation->active_fragment.id != 0) {
+                edge_event.retired = true;
+                edge_event.retired_fragment = observation->active_fragment;
+                edge_event.retirement = FragmentRetirement::Cancelled;
+            }
+            reset_event_pending = false;
+        }
         // The host samples established device registers, never state newly
         // produced by the controller/scanout on this same common edge.
         if (pins.read && pins.register_address == 1) host.set_status(status());
@@ -623,7 +800,17 @@ struct SystemModel::Impl {
         // Consumers see only responses established by a previous memory edge.
         scanout.tick(memory);
         const auto result = host.tick(pins);
+        rows.tick();
         memory.tick();
+        if (edge_event.retired) observation->active_fragment = {};
+        if (edge_event.accepted) {
+            observation->active_fragment = edge_event.accepted_fragment;
+            observation->last_fragment_id = edge_event.accepted_fragment.id;
+            observation->last_primitive_id = std::max(observation->last_primitive_id,
+                                                     edge_event.accepted_fragment.primitive_id);
+        }
+        ++observation->clock;
+        if (observation->callback) observation->callback(observation->clock, edge_event);
         return result;
     }
 };
@@ -636,17 +823,25 @@ HostBusResult SystemModel::tick(const HostPins& pins) {
     if (impl_->host.reset_requested()) {
         const auto config = impl_->configuration;
         const auto epoch = impl_->totals.epoch;
+        const auto observation = impl_->observation;
         if (epoch == std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("system epoch exhausted");
-        impl_ = std::make_unique<Impl>(config); impl_->host.recover(epoch + 1); impl_->totals.epoch = epoch + 1;
+        impl_ = std::make_unique<Impl>(config, observation);
+        impl_->reset_event_pending = true;
+        impl_->host.recover(epoch + 1); impl_->totals.epoch = epoch + 1;
     }
     return impl_->tick(pins);
 }
 void SystemModel::advance(std::uint64_t cycles) { while (cycles-- != 0) tick(); }
+void SystemModel::set_cycle_observer(SystemCycleObserver observer) { impl_->observation->callback = std::move(observer); }
 void SystemModel::reset() {
     auto& p = *impl_;
     if (p.totals.epoch == std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("system epoch exhausted");
     const auto epoch = p.totals.epoch + 1; const auto config = p.configuration;
-    impl_ = std::make_unique<Impl>(config); impl_->host.recover(epoch); impl_->totals.epoch = epoch;
+    const auto observation = p.observation;
+    impl_ = std::make_unique<Impl>(config, observation);
+    impl_->reset_event_pending = true;
+    impl_->host.recover(epoch); impl_->totals.epoch = epoch;
+    (void)impl_->tick({});
 }
 void SystemModel::abort() {
     HostPins pins; pins.abort = true; tick(pins);

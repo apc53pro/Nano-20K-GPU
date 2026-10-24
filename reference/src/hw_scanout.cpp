@@ -42,8 +42,12 @@ struct Scanout::Impl {
     bool read_pending = false, output_valid = false;
     unsigned read_bank = 0;
     std::uint16_t output = 0;
-    std::array<std::uint32_t, memory_burst_words> staging{};
-    unsigned staging_pixels = 0, staging_position = 0;
+    // The controller's two native slot banks retain the whole response.
+    // Only one 32-bit output register bridges their synchronous read port
+    // to the FIFO's 16-bit write port.
+    std::uint32_t response_word = 0;
+    unsigned response_words = 0, response_index = 0, response_lane = 0;
+    bool response_active = false, response_read_pending = false, response_word_valid = false;
     bool memory_pending = false, pending_discard = false;
     unsigned pending_pixels = 0;
     std::uint32_t generation = 0;
@@ -69,7 +73,10 @@ struct Scanout::Impl {
     void flush_stream() {
         read_pointer = write_pointer = stored = 0;
         read_pending = output_valid = false;
-        staging_pixels = staging_position = 0;
+        response_words = response_index = response_lane = 0;
+        response_active = response_word_valid = false;
+        // A staged controller read cannot be retracted. Its output is drained
+        // before the old slot may be released, including on a live swap.
         next_fetch_pixel = 0;
         if (memory_pending) pending_discard = true;
         ++generation;
@@ -149,47 +156,67 @@ void Scanout::tick(SdramController& memory) {
         --p.stored;
         p.read_pending = true;
     }
-    // Only OLD staging data may be written on this edge. A newly accepted
-    // SDRAM response below first enters its staging registers.
-    if (p.streaming && !p.frame_black && p.staging_position < p.staging_pixels &&
+    // Only a word captured on a prior edge feeds the FIFO write port.
+    if (p.streaming && !p.frame_black && p.response_word_valid &&
         p.level() < p.config.fifo_pixels) {
-        const auto word = p.staging[p.staging_position >> 1];
-        const auto pixel = static_cast<std::uint16_t>(word >> ((p.staging_position & 1u) * 16));
+        const auto pixel = static_cast<std::uint16_t>(p.response_word >> (p.response_lane * 16));
         auto& write = ports[p.write_pointer >> 10];
         write.write_enable = true;
         write.write_address = static_cast<std::uint16_t>(p.write_pointer & 1023u);
         write.write_data = pixel;
         p.write_pointer = (p.write_pointer + 1) & (p.config.fifo_pixels - 1u);
         ++p.stored;
-        ++p.staging_position;
+        if (++p.response_lane == 2) {
+            p.response_lane = 0;
+            p.response_word_valid = false;
+            if (++p.response_index == p.response_words) {
+                memory.release_response(MemoryClient::Scanout);
+                p.memory_pending = p.response_active = false;
+            }
+        }
     }
     for (unsigned bank = 0; bank < p.fifo.size(); ++bank) p.fifo[bank].tick(ports[bank]);
 
-    if (p.memory_pending && memory.response_ready(MemoryClient::Scanout)) {
-        const auto response = memory.take_response(MemoryClient::Scanout);
-        p.memory_pending = false;
-        if (p.pending_discard || !p.streaming || p.frame_black) {
+    if (p.memory_pending && (p.pending_discard || !p.streaming || p.frame_black) &&
+        memory.response_ready(MemoryClient::Scanout)) {
+        if (!p.response_read_pending || memory.response_word_valid(MemoryClient::Scanout)) {
+            memory.release_response(MemoryClient::Scanout);
+            p.memory_pending = p.pending_discard = p.response_active = false;
+            p.response_read_pending = p.response_word_valid = false;
             ++p.counters.stale_responses;
-        } else {
-            if (response.words * 2 != p.pending_pixels || response.tag != p.generation)
-                throw std::logic_error("scanout response does not match its outstanding read");
-            if (p.staging_position != p.staging_pixels)
-                throw std::logic_error("scanout response staging overflow");
-            p.staging = response.data;
-            p.staging_pixels = p.pending_pixels;
-            p.staging_position = 0;
         }
-        p.pending_discard = false;
+    } else if (p.response_read_pending && memory.response_word_valid(MemoryClient::Scanout)) {
+        if (memory.response_word_offset(MemoryClient::Scanout) != p.response_index)
+            throw std::logic_error("scanout synchronous slot read returned a different word");
+        p.response_word = memory.response_word(MemoryClient::Scanout);
+        p.response_read_pending = false;
+        p.response_word_valid = true;
+        p.response_lane = 0;
+    }
+
+    if (p.memory_pending && !p.pending_discard && !p.response_active &&
+        memory.response_ready(MemoryClient::Scanout)) {
+        const auto response = memory.response_info(MemoryClient::Scanout);
+        if (response.words * 2 != p.pending_pixels || response.tag != p.generation)
+            throw std::logic_error("scanout response does not match its outstanding read");
+        p.response_words = response.words;
+        p.response_index = p.response_lane = 0;
+        p.response_active = true;
+    }
+    if (p.response_active && !p.pending_discard && !p.response_word_valid && !p.response_read_pending &&
+        p.streaming && !p.frame_black) {
+        if (memory.request_response_word(MemoryClient::Scanout, p.response_index))
+            p.response_read_pending = true;
     }
 
     if (p.streaming && !p.frame_black && memory.initialized() && !p.memory_pending &&
-        p.staging_position == p.staging_pixels && p.next_fetch_pixel < frame_pixels &&
+        p.next_fetch_pixel < frame_pixels &&
         p.config.fifo_pixels - p.level() >= memory_burst_words * 2) {
         MemoryRequest request;
         request.address = static_cast<std::uint32_t>(p.front) * color_buffer_bytes + p.next_fetch_pixel * 2u;
         request.words = std::min(memory_burst_words, (frame_pixels - p.next_fetch_pixel) / 2);
         request.tag = p.generation;
-        if (memory.submit(MemoryClient::Scanout, request)) {
+        if (memory.submit_prepared(MemoryClient::Scanout, request)) {
             p.memory_pending = true;
             p.pending_discard = false;
             p.pending_pixels = request.words * 2;

@@ -29,6 +29,13 @@ struct MemoryResponse {
     std::uint32_t tag = 0;
 };
 
+// Device-side completion metadata. Payload words stay in the client's selected
+// synchronous slot RAM until read through request_response_word()/response_word().
+struct MemoryResponseInfo {
+    unsigned words = 0;
+    std::uint32_t tag = 0;
+};
+
 struct SdramConfig {
     std::uint64_t core_hz = 100800000;
     // Project controller timing assumptions, not verified speed-bin limits.
@@ -77,6 +84,11 @@ struct SdramStatistics {
     std::uint64_t physical_write_beats = 0;
     std::uint64_t uninitialized_read_words = 0;
     std::uint64_t idle_cycles = 0;
+    std::uint64_t prepared_submissions = 0;
+    std::uint64_t legacy_submissions = 0;
+    std::uint64_t legacy_response_reads = 0;
+    std::uint64_t slot_write_words = 0;
+    std::uint64_t slot_read_words = 0;
     std::array<SdramClientStatistics, memory_client_count> clients{};
 };
 
@@ -101,6 +113,9 @@ struct SdramPins {
 // diagnostic observer and is never a renderer/scanout memory port.
 class SdramController {
 public:
+    // Each client owns two native SDPB 1024x16 banks, used together as a
+    // 16x32 slot. Write payload and read response reuse the same physical RAM.
+    static constexpr unsigned storage_bsram_blocks = 2 * memory_client_count;
     explicit SdramController(SdramConfig config = {});
     ~SdramController();
     SdramController(const SdramController&) = delete;
@@ -108,8 +123,34 @@ public:
     SdramController(SdramController&&) noexcept;
     SdramController& operator=(SdramController&&) noexcept;
 
-    bool submit(MemoryClient client, const MemoryRequest& request);
+    // Stage one write word on this client's RAM A ports. It commits only on
+    // tick(); at most one staged word per client/core edge is accepted. Masks
+    // are sixteen selected four-bit registers. A queued/active/response-owned
+    // slot cannot be filled. All words must commit before submit_prepared().
+    bool write_request_word(MemoryClient client, unsigned index,
+                            std::uint32_t data, std::uint8_t mask);
+    // Capture only metadata; data/masks arrays in this compatibility carrier
+    // are ignored. Reads need no input words. Writes require a complete fill.
+    bool submit_prepared(MemoryClient client, const MemoryRequest& metadata);
+    // Cancel an unsubmitted fill during recovery. Queued/active requests and
+    // completed responses must retire instead of being discarded here.
+    void discard_request_words(MemoryClient client);
     bool response_ready(MemoryClient client) const;
+    MemoryResponseInfo response_info(MemoryClient client) const;
+    // Stage one synchronous B-port read. Validity clears immediately, becomes
+    // true after tick(), and persists until another read or release. Consumers
+    // sample the established result before advancing their following edge.
+    bool request_response_word(MemoryClient client, unsigned index);
+    bool response_word_valid(MemoryClient client) const;
+    unsigned response_word_offset(MemoryClient client) const;
+    std::uint32_t response_word(MemoryClient client) const;
+    void release_response(MemoryClient client);
+
+    // Host-only standalone-test adapters. submit() drives one payload word
+    // per controller edge into the same physical slot before queueing a write;
+    // take_response() reads an observer shadow. GPU clients use only the ports
+    // above. Adapter use is reported separately and must be zero in the system.
+    bool submit(MemoryClient client, const MemoryRequest& request);
     MemoryResponse take_response(MemoryClient client);
     // One rising edge: commands, DQ beats, memory commits and output registers.
     // Callers sample established outputs before advancing the common edge.

@@ -44,8 +44,9 @@ struct ScanoutStatistics {
 // by four pixel enable and 800x525 timing yield exactly 60 Hz. HDMI/TMDS
 // encoding/electrical signaling is intentionally outside this model.
 //
-// Pixel data comes only through shared SDRAM reads, a bounded 16x32 response
-// staging register and two selected SDPB 1024x16 FIFO banks. A synchronous
+// Pixel data comes only through shared SDRAM reads, the controller's native
+// response-slot read port, one 32-bit capture register and two selected
+// SDPB 1024x16 FIFO banks. A synchronous
 // memory result crosses a separate capture edge before pixel consumption.
 // SDRAM itself is ticked by the common system scheduler, never by this block.
 class Scanout {

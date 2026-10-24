@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 namespace nano_gpu::hw {
@@ -41,6 +42,45 @@ struct TileStatistics {
     std::uint64_t texture_misses = 0;
     std::uint64_t texture_refill_words = 0;
 };
+
+// Host-only observations of the registered datapath. IDs, callbacks and the
+// last-event snapshot are instrumentation, not extra GPU registers or ports.
+// A covered sample is accepted exactly once; it retires exactly once by commit,
+// depth/key rejection, or cancellation on reset. Color and depth writes belong
+// to one retirement and must not be counted as two rendered fragments.
+enum class FragmentStage {
+    Idle, Transfer, Setup, Raster, Depth, PerspectiveU, PerspectiveV,
+    Texture, Shade, Commit, Drain, Reset
+};
+enum class FragmentRetirement { None, Commit, DepthRejected, KeyRejected, Cancelled };
+
+const char* fragment_stage_name(FragmentStage stage);
+const char* fragment_retirement_name(FragmentRetirement retirement);
+
+struct FragmentToken {
+    // Nonzero IDs are monotonically assigned across resets of this tile object.
+    std::uint64_t id = 0;
+    std::uint64_t primitive_id = 0;
+    int x = 0, y = 0;
+    std::uint16_t address = 0;
+    bool textured = false;
+};
+
+struct FragmentCycle {
+    // Existing tile-local elapsed-edge count; reset restarts it at one. The
+    // system scheduler supplies its own common-clock timestamp to observers.
+    std::uint64_t cycle = 0;
+    FragmentStage stage = FragmentStage::Idle;
+    bool enabled = true;
+    bool candidate = false, covered = false;
+    bool accepted = false, retired = false;
+    FragmentToken accepted_fragment{}, retired_fragment{};
+    FragmentRetirement retirement = FragmentRetirement::None;
+    bool color_write = false, depth_write = false;
+    unsigned inflight_before = 0, inflight_after = 0;
+};
+
+using FragmentCycleObserver = std::function<void(const FragmentCycle&)>;
 
 // Rendering slice: three SDPB 1024x16 tile banks, one SDPB texture cache,
 // one shared signed MULT18X18, and one explicit restoring divider. The original
@@ -96,6 +136,12 @@ public:
     // and counts a stalled clock. Setup and covered-fragment traffic are ordered.
     void tick(bool enable = true);
     const TileStatistics& statistics() const;
+    // The accessor is replaced on every local edge, including idle, transfer,
+    // command capture, reset and disabled edges; stale accept/retire flags are
+    // never replayed. The optional observer receives the same completed event
+    // exactly once per edge. It must not mutate/re-enter this tile.
+    const FragmentCycle& last_cycle() const;
+    void set_cycle_observer(FragmentCycleObserver observer);
 
 private:
     void begin_impl(const Primitive& primitive, Point tile_origin,

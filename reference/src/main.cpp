@@ -2,11 +2,14 @@
 #include "nano_gpu/reference.hpp"
 #include "nano_gpu/hw/device.hpp"
 #include "nano_gpu/hw/system.hpp"
+#include "nano_gpu/hw/storage_map.hpp"
+#include "nano_gpu/hw/throughput.hpp"
 
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cwctype>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -26,8 +29,7 @@ using namespace nano_gpu;
 using Clock = std::chrono::steady_clock;
 constexpr unsigned scanout_bsram_banks = 2;
 constexpr unsigned reply_serializer_bsram_banks = 1;
-constexpr unsigned system_native_bsram_banks = hw::BlockRendererResources::bsram_blocks +
-    scanout_bsram_banks + hw::HostLink::storage_bsram_blocks + reply_serializer_bsram_banks;
+constexpr unsigned system_native_bsram_banks = hw::SystemStorageMap::bsram_blocks;
 static_assert(system_native_bsram_banks <= hw::TangNano20K::bsram_blocks);
 
 struct Options {
@@ -46,6 +48,7 @@ struct Options {
     std::string output;
     std::string dump_prefix;
     std::string stats_path;
+    std::string trace_path;
 };
 
 const char* render_mode_name(RenderMode mode) {
@@ -77,6 +80,7 @@ void usage() {
         "  --output FILE.ppm          Save the last presented RGB frame\n"
         "  --dump-prefix PATH         Save PATH.rgb565, PATH.depth32, PATH.json\n"
         "  --stats FILE.json          Save software timings and last-frame counters\n"
+        "  --trace FILE.csv           Stream every system core edge and fragment events\n"
         "System-mode timing assumptions and stress options:\n"
         "  --core-hz HZ               Common core/SDR clock (default: 100800000)\n"
         "  --host-divider N           Host clock = core/N (default: 4)\n"
@@ -107,6 +111,42 @@ std::uint64_t positive_integer(const std::string& input, const std::string& name
     return result;
 }
 
+bool same_output_path(const std::string& first, const std::string& second) {
+    namespace fs = std::filesystem;
+    // Existing hard links and symlinks can alias even when their names differ.
+    std::error_code error;
+    if (fs::equivalent(fs::path(first), fs::path(second), error)) return true;
+    const auto normalized = [](const std::string& name) {
+        return fs::weakly_canonical(fs::absolute(fs::path(name))).lexically_normal();
+    };
+    const auto first_path = normalized(first), second_path = normalized(second);
+#ifdef _WIN32
+    // Native Windows output paths normally ignore case, including filenames
+    // that do not exist yet. Native path strings are UTF-16 on MinGW/UCRT64.
+    auto first_name = first_path.native(), second_name = second_path.native();
+    for (auto& character : first_name) character = static_cast<wchar_t>(std::towlower(character));
+    for (auto& character : second_name) character = static_cast<wchar_t>(std::towlower(character));
+    return first_name == second_name;
+#else
+    return first_path == second_path;
+#endif
+}
+
+void validate_trace_outputs(const Options& options) {
+    if (options.trace_path.empty()) return;
+    const auto require_distinct = [&](const std::string& name, const char* option) {
+        if (!name.empty() && same_output_path(options.trace_path, name))
+            throw std::invalid_argument(std::string("--trace path collides with ") + option + " output");
+    };
+    require_distinct(options.stats_path, "--stats");
+    require_distinct(options.output, "--output");
+    if (!options.dump_prefix.empty()) {
+        require_distinct(options.dump_prefix + ".json", "--dump-prefix .json");
+        require_distinct(options.dump_prefix + ".rgb565", "--dump-prefix .rgb565");
+        require_distinct(options.dump_prefix + ".depth32", "--dump-prefix .depth32");
+    }
+}
+
 Options parse(int argc, char** argv) {
     Options options;
     for (int i = 1; i < argc; ++i) {
@@ -122,6 +162,7 @@ Options parse(int argc, char** argv) {
         else if (arg == "--output") options.output = value();
         else if (arg == "--dump-prefix") options.dump_prefix = value();
         else if (arg == "--stats") options.stats_path = value();
+        else if (arg == "--trace") options.trace_path = value();
         else if (arg == "--time") options.start_time = number(value(), arg);
         else if (arg == "--step") options.time_step = number(value(), arg);
         else if (arg == "--core-hz") {
@@ -170,6 +211,9 @@ Options parse(int argc, char** argv) {
     if (options.headless && options.frames == 0) options.frames = 1;
     if (options.system_options && !options.system)
         throw std::invalid_argument("clock, SDRAM timing, and scanout FIFO options require --mode system");
+    if (!options.trace_path.empty() && !options.system)
+        throw std::invalid_argument("--trace requires --mode system");
+    validate_trace_outputs(options);
     const auto minimum_row_cycle = static_cast<std::uint64_t>(options.system_config.memory.t_ras) +
         options.system_config.memory.t_rp;
     if (minimum_row_cycle > std::numeric_limits<unsigned>::max())
@@ -218,7 +262,12 @@ void show_hardware_profile(const Options& options) {
             << ",\n    \"scanout_bsram_banks\": " << scanout_bsram_banks
             << ",\n    \"host_bsram_banks\": " << hw::HostLink::storage_bsram_blocks
             << ",\n    \"reply_serializer_bsram_banks\": " << reply_serializer_bsram_banks
-            << ",\n    \"additional_staging_fit_validated\": false,"
+            << ",\n    \"sdram_slot_bsram_banks\": " << hw::SystemStorageMap::sdram_slot_bsram_blocks
+            << ",\n    \"reader_bsram_banks\": " << hw::SystemStorageMap::reader_bsram_blocks
+            << ",\n    \"row_bsram_banks\": " << hw::SystemStorageMap::row_bsram_blocks
+            << ",\n    \"storage_profile\": \"" << hw::SystemStorageMap::profile << "\","
+            << "\n    \"staging_mapping_selected\": true,"
+            << "\n    \"additional_staging_fit_validated\": false,"
             << "\n    \"capability_register_first\": 64,\n    \"capability_register_last\": 127,"
             << "\n    \"shared_memory_clients\": 6,"
             << "\n    \"sdram_geometry\": \"4 banks x 2048 rows x 256 columns x 32 bits\","
@@ -337,7 +386,9 @@ void report_system(std::ostream& out, const hw::SystemModel& renderer) {
         << "\n    \"physical_timing_validated\": false,"
         << "\n    \"hdmi_signaling_modeled\": false,"
         << "\n    \"native_bsram_blocks\": " << system_native_bsram_banks
-        << ",\n    \"additional_staging_fit_validated\": false,"
+        << ",\n    \"storage_profile\": \"" << hw::SystemStorageMap::profile << "\","
+        << "\n    \"staging_mapping_selected\": true,"
+        << "\n    \"additional_staging_fit_validated\": false,"
         << "\n    \"configured_core_hz\": " << core_hz
         << ",\n    \"configured_sdram_hz\": " << core_hz
         << ",\n    \"configured_host_hz\": " << static_cast<double>(core_hz) / config.host.clock_divider
@@ -397,6 +448,11 @@ void report_system(std::ostream& out, const hw::SystemModel& renderer) {
         << ",\n      \"physical_write_beats\": " << memory.physical_write_beats
         << ",\n      \"uninitialized_read_words\": " << memory.uninitialized_read_words
         << ",\n      \"idle_cycles\": " << memory.idle_cycles
+        << ",\n      \"prepared_submissions\": " << memory.prepared_submissions
+        << ",\n      \"legacy_submissions\": " << memory.legacy_submissions
+        << ",\n      \"legacy_response_reads\": " << memory.legacy_response_reads
+        << ",\n      \"slot_write_words\": " << memory.slot_write_words
+        << ",\n      \"slot_read_words\": " << memory.slot_read_words
         << ",\n      \"clients\": {";
     constexpr std::array<const char*, hw::memory_client_count> names{
         "scanout", "host", "command", "tile", "texture", "copy"};
@@ -459,7 +515,8 @@ void report_system(std::ostream& out, const hw::SystemModel& renderer) {
 }
 
 template<class Engine>
-void report(std::ostream& out, const Engine& renderer, const Options& options, const Timings& timing) {
+void report(std::ostream& out, const Engine& renderer, const Options& options, const Timings& timing,
+            const hw::ThroughputMonitor* throughput = nullptr) {
     const auto& s = renderer.statistics();
     const char* mode = render_mode_name(options);
     out << std::setprecision(9) << "{\n  \"profile\": \"N20K-M0-0.1\",\n  \"scene\": \""
@@ -491,7 +548,18 @@ void report(std::ostream& out, const Engine& renderer, const Options& options, c
             << ",\n    \"hardware_texture_refill_words\": " << s.hardware_texture_refill_words;
     }
     out << "\n  }";
-    if constexpr (std::is_same_v<Engine, hw::SystemModel>) report_system(out, renderer);
+    if constexpr (std::is_same_v<Engine, hw::SystemModel>) {
+        report_system(out, renderer);
+        if (throughput) {
+            out << ",\n  \"fragment_throughput\": {\n    \"scope\": \"all observed system core edges\","
+                << "\n    \"measurements\": ";
+            throughput->write_json(out);
+            const auto pass_cycles = renderer.system_statistics().last_pass_cycles;
+            out << ",\n    \"last_pass_color_writes_per_core_cycle\": "
+                << (pass_cycles != 0 ? static_cast<double>(s.color_writes) / pass_cycles : 0.0)
+                << "\n  }";
+        }
+    }
     out << ",\n  \"color_fnv1a64\": \"" << std::hex << buffer_hash(renderer.front_color())
         << "\",\n  \"depth_fnv1a64\": \"" << buffer_hash(renderer.depth()) << "\"\n}\n" << std::dec;
 }
@@ -570,6 +638,19 @@ int run_demo(const Options& options, Engine& renderer) {
 #else
     if (!options.headless) throw std::invalid_argument("this build is headless; add --headless or build the SDL target with make");
 #endif
+    hw::ThroughputMonitor throughput;
+    std::ofstream trace_file;
+    std::unique_ptr<hw::FragmentCsvWriter> trace_writer;
+    if constexpr (std::is_same_v<Engine, hw::SystemModel>) {
+        if (!options.trace_path.empty()) {
+            trace_file = output_file(options.trace_path);
+            trace_writer = std::make_unique<hw::FragmentCsvWriter>(trace_file);
+        }
+        renderer.set_cycle_observer([&](std::uint64_t core_cycle, const hw::FragmentCycle& event) {
+            throughput.observe(event, core_cycle);
+            if (trace_writer) trace_writer->write(event, core_cycle);
+        });
+    }
     std::array<Renderer, 3> references;
     Timings timing;
     long double time = options.start_time;
@@ -606,15 +687,20 @@ int run_demo(const Options& options, Engine& renderer) {
         }
 #endif
     }
+    if constexpr (std::is_same_v<Engine, hw::SystemModel>) {
+        renderer.set_cycle_observer({});
+        throughput.require_drained();
+        if (trace_writer) trace_file.close();
+    }
     if (timing.frames == 0) return 0;
     if (!options.output.empty()) write_ppm(options.output, renderer.front_color());
     if (!options.dump_prefix.empty()) write_dumps(options.dump_prefix, renderer, options, last_time);
     if (!options.stats_path.empty()) {
         auto out = output_file(options.stats_path);
-        report(out, renderer, options, timing);
+        report(out, renderer, options, timing, options.system ? &throughput : nullptr);
         out.close();
     }
-    report(std::cout, renderer, options, timing);
+    report(std::cout, renderer, options, timing, options.system ? &throughput : nullptr);
     return 0;
 }
 } // namespace
