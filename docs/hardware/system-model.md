@@ -14,6 +14,9 @@ reliability, PCB signal integrity, or a clock-domain crossing implementation.
 HDMI/TMDS encoding, serialization, and electrical signaling are outside the
 requested model; scanout timing and memory consumption are included.
 
+The [current pipeline diagrams](pipeline.md) show the system, rendering paths,
+tile scheduler and memory relationships at this implementation revision.
+
 The implementation boundary is documented by
 [system.hpp](../../reference/include/nano_gpu/hw/system.hpp),
 [host_link.hpp](../../reference/include/nano_gpu/hw/host_link.hpp),

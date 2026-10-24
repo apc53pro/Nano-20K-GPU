@@ -99,6 +99,8 @@ throughput optimization.
   blocks, arithmetic, texture caching, copies, stalls, and resets.
 - [GPU system model](docs/hardware/system-model.md): timed host commands,
   shared SDRAM, scanout, completion, recovery, and provisional simulation ABI.
+- [Current GPU pipeline diagrams](docs/hardware/pipeline.md): detailed system,
+  rendering, and tile/memory views, with scalable figures and a three-page PDF.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
   RGB565 dependency check.
 

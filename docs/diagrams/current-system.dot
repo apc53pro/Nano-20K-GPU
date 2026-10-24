@@ -1,0 +1,148 @@
+digraph CurrentSystem {
+  graph [rankdir=TB, bgcolor="white", compound=true, newrank=true,
+         fontname="DejaVu Sans", fontsize=22, fontcolor="#172b3a",
+         labelloc=t, label="Current GPU model 44f0c8f\nN20K-SYS-0.1 — host, ordered execution, shared SDRAM and independent scanout",
+         pad=0.30, nodesep=0.28, ranksep=0.60, splines=polyline];
+  node [shape=box, style="rounded,filled", fillcolor="#edf4fb", color="#245b8c",
+        fontname="DejaVu Sans", fontsize=11, fontcolor="#172b3a", penwidth=1.4, margin="0.14,0.10"];
+  edge [color="#1d7f79", fontcolor="#172b3a", fontname="DejaVu Sans", fontsize=9, penwidth=1.3, arrowsize=0.7];
+
+  subgraph cluster_cpu {
+    label="Host CPU / driver — outside simulated GPU execution time";
+    color="#b8c7d3"; style="rounded,dashed"; fontsize=13;
+    cpu_setup [label="Transform and homogeneous clipping\nProjection / Q4 triangle setup / lighting\nStable bins for 300 logical 32×32 tiles"];
+    cpu_program [label="compile_pass() / CPU packet encoder\nImages + 320-byte prepared records\nTile table + ordered address lists\nTypical stream: WRITE_HEAP, SUBMIT_PASS,\nthen separate FENCE and PRESENT commands"];
+    cpu_setup -> cpu_program [label="prepared commands and pixels"];
+  }
+
+  subgraph cluster_device {
+    label="Current device model — one common 100.8 MHz core / SDR clock (configured assumption)";
+    color="#879dad"; style=rounded; fontsize=14;
+
+    subgraph cluster_link {
+      label="Clocked host interface — no direct C++ pass injection";
+      color="#a8c2db"; style=rounded; fontsize=13;
+      bus [label="Shared 8-bit parallel bus\n25.2 MHz derived transfer cadence\n≤1 byte / 4 core edges, one direction\nSetup 1 / hold 1 core cycle\nRegister select + valid/read/ready"];
+      rx [label="RX FIFO: 256 bytes\n1 × SDPB 1024×16\nLow byte per native word", color="#6957a3", fillcolor="#f3effb"];
+      parser [label="Byte parser / protocol checks\n16-byte NGPU header, version 0.1\nLength ≤1024, opcode and sequence\nPartial packets never execute"];
+      packets [label="3 × 1024-byte packet banks\n3 × SDPB 1024×16\n2 published command slots\nINCLUDING the active front lease\n+ 1 decoder-owned staging bank", color="#6957a3", fillcolor="#f3effb"];
+      payload [label="Synchronous payload read port\nExecutor holds front-bank ownership\nuntil that command retires"];
+      sideband [label="Sideband reads bypass command queue\nRegs 1–63: coherent status snapshot\nRegs 64–127: immutable capabilities\nStatus remains readable during faults"];
+      recovery [label="Out-of-band abort / reset\nAbort: quiesce, drain issued memory,\nflush queues, new epoch\nReset: restart initialization"];
+      reply [label="Reply construction / serializer\n1 × SDPB 1024×16\n1 byte write / core edge\nSeparate synchronous read / capture\nReply: sequence + epoch + token", color="#6957a3", fillcolor="#f3effb"];
+      tx [label="TX reply FIFO: 1024 bytes\n1 × SDPB 1024×16\nRegistered RAM + byte prefetch\nHost pauses propagate backpressure", color="#6957a3", fillcolor="#f3effb"];
+      bus -> rx [label="accepted write byte"];
+      rx -> parser [label="registered read / capture"];
+      parser -> packets [label="write staged payload\npublish only complete packet"];
+      packets -> payload [label="front-bank lease"];
+      reply -> tx [label="registered reply byte"];
+      tx -> bus [label="reply-byte read", constraint=false];
+      bus -> sideband [label="read selector", color="#245b8c", style=dashed, constraint=false];
+      sideband -> bus [label="snapshot / capability byte", constraint=false];
+      bus -> recovery [label="out-of-band controls", color="#245b8c", style=dashed, constraint=false];
+      recovery -> parser [label="fresh packet boundary", color="#245b8c", style=dashed, constraint=false];
+      {rank=same; bus; rx; parser; packets; payload;}
+      {rank=same; sideband; recovery; reply; tx;}
+      payload -> sideband [style=invis, weight=100];
+    }
+
+    subgraph cluster_execution {
+      label="Ordered executor — exactly one command operation active; branches are alternatives";
+      color="#a8c2db"; style=rounded; fontsize=13;
+      execute [label="SystemModel executor FSM\nCapture payload through packet RAM\nValidate ranges / attachment ownership\nSelect one operation; retain its lease"];
+      upload [label="WRITE_HEAP\nBounded writer, 16 × 32-bit staging\nSource ≤1 byte / core edge\nUploads cannot write attachments"];
+      pass [label="SUBMIT_PASS\nFetch descriptor, table, refs and records\nOne resident 32×32 tile\nLoad / draw / drain / store all 300 tiles\n3 tile banks + shared texture bank", color="#b76118", fillcolor="#fff2e6"];
+      copy [label="COPY_RECT / heap-image copy\nOutside a render pass\nFull clipped row, ≤640 RGB565 pixels\nReuse texture-cache bank as scratch\nRow direction preserves overlap"];
+      readback [label="READ_MEMORY\nOrdered read, length 1–512 bytes\nUses timed shared reader\nNo dirty-tile inspection shortcut"];
+      fence [label="FENCE\nExecute after earlier stores complete\nPublish host token / sequence / epoch"];
+      present [label="PRESENT\nSeal initialized writable target\nWait for eligible vertical blank\nSwap front; then publish completion"];
+      retire [label="Command retirement\nRelease front packet bank\nAdvance ordered command stream"];
+      cache_alias [label="Resource alias, not another RAM\n1 × SDPB 1024×16\nTexture cache OR copy-row scratch\nMutually exclusive owners", color="#6957a3", fillcolor="#f3effb"];
+      execute -> upload [label="opcode 3", color="#245b8c", style=dashed];
+      execute -> pass [label="opcode 4", color="#245b8c", style=dashed];
+      execute -> copy [label="opcode 5", color="#245b8c", style=dashed];
+      execute -> readback [label="opcode 8", color="#245b8c", style=dashed];
+      execute -> fence [label="opcode 6", color="#245b8c", style=dashed];
+      execute -> present [label="opcode 7", color="#245b8c", style=dashed];
+      upload -> retire [label="write acknowledgements", color="#245b8c", style=dashed];
+      pass -> retire [label="final tile stores acknowledged", color="#245b8c", style=dashed];
+      copy -> retire [label="destination writes acknowledged", color="#245b8c", style=dashed];
+      retire -> execute [label="next complete command", color="#245b8c", style=dashed, constraint=false];
+      pass -> cache_alias [label="texture owner", color="#6957a3", style=dotted, dir=both, constraint=false];
+      copy -> cache_alias [label="copy owner; invalidate tags", color="#6957a3", style=dotted, dir=both, constraint=false];
+      {rank=same; upload; pass; copy;}
+      {rank=same; readback; fence; present;}
+      upload -> readback [style=invis];
+      pass -> fence [style=invis];
+      copy -> present [style=invis];
+      {rank=same; cache_alias; retire;}
+      present -> retire [style=invis, weight=100];
+    }
+    payload -> execute [label="latched request fields"];
+    tx -> execute [style=invis, weight=100];
+    execute -> reply [label="GET_CAPS / GET_STATUS reply", color="#245b8c", style=dashed, constraint=false];
+    readback -> reply [label="address + length + data", constraint=false];
+    fence -> reply [label="completion", color="#245b8c", style=dashed, constraint=false];
+    present -> reply [label="completion after swap", color="#245b8c", style=dashed, constraint=false];
+    reply -> retire [label="reply published to TX", color="#245b8c", style=dashed, constraint=false];
+    execute -> sideband [label="established status", color="#245b8c", style=dashed, constraint=false];
+    recovery -> execute [label="cancel / drain / recover", color="#245b8c", style=dashed, constraint=false];
+
+    subgraph cluster_memory {
+      label="Shared memory subsystem — six bounded client ports, one physical SDR data bus";
+      color="#b8add7"; style=rounded; fontsize=13;
+      mem_host [label="Host client\nHeap upload writes"];
+      mem_command [label="Command client\nDescriptor / table / reference / record\nDiagnostic READ_MEMORY"];
+      mem_tile [label="Tile client\nAttachment boot writes\nColor / depth loads and stores"];
+      mem_texture [label="Texture client\nExternal cache refill reads"];
+      mem_copy [label="Copy client\nSource reads / masked destination writes"];
+      mem_scanout [label="Scanout client\nCurrent front-buffer reads"];
+      slots [label="Per-client ownership / backpressure\n1 request or unconsumed response slot\n1–16 × 32-bit words, ≤64 bytes\nAddress + tag + byte-write masks\nHeld response keeps its slot occupied"];
+      arbitration [label="Request arbitration\nScanout priority quota ≤4 requests\nwhen other clients are waiting\nOther five clients round-robin\nOne active request runs to completion"];
+      refresh [label="Initialization and mandatory refresh\n≥100 µs wait → PRECHARGE →\n2 refreshes → MODE / timing waits\nRefresh deadline ≤15.625 µs\n≤1575 cycles at 100.8 MHz\nWorst-case request / precharge guard"];
+      controller [label="Clocked SDRAM controller / native pins\nOpen rows / bank selection / ACTIVATE\nPRECHARGE / CAS / write recovery\nRead↔write turnaround / DQM masks\nSequential native BL8 (32-byte bursts)\nShort / unaligned requests still pay BL8", color="#6957a3", fillcolor="#f3effb"];
+      sdram [label="Embedded SDR SDRAM: 8 MiB, x32\n4 banks ×2048 rows ×256 columns\n403.2 MB/s raw peak at 100.8 MHz\nWord mapping: row11 | bank2 | col8\n2 × RGB565 color + shared D24/U32\nHeap: textures / records / descriptors / bins", shape=cylinder, color="#6957a3", fillcolor="#f3effb"];
+      {rank=same; mem_host; mem_command; mem_tile; mem_texture; mem_copy; mem_scanout;}
+      mem_host -> slots [dir=both]; mem_command -> slots [dir=both];
+      mem_tile -> slots [dir=both]; mem_texture -> slots [dir=both];
+      mem_copy -> slots [dir=both]; mem_scanout -> slots [dir=both];
+      slots -> arbitration [label="queued request / response", dir=both];
+      arbitration -> controller [label="grant / registered completion", dir=both];
+      refresh -> arbitration [label="reserve service before deadline", color="#245b8c", style=dashed];
+      controller -> sdram [label="command / address / x32 DQ beats", dir=both];
+    }
+    upload -> mem_host [label="timed upload"];
+    pass -> mem_command [label="fetch prepared work", dir=both];
+    pass -> mem_tile [label="attachment transfers", dir=both];
+    pass -> mem_texture [label="cache miss only", dir=both];
+    copy -> mem_copy [label="timed color copy", dir=both];
+    readback -> mem_command [label="timed read", dir=both];
+    retire -> mem_host [style=invis, weight=100];
+
+    subgraph cluster_scanout {
+      label="Independent scanout — continues while the ordered executor renders or waits";
+      color="#9ac8c1"; style=rounded; fontsize=13;
+      front [label="Front / back ownership\nFront is read-only to draws / copies\nOld front becomes back after swap"];
+      prefetch [label="Front-buffer prefetch\n1 outstanding tagged SDRAM read\n16 × 32-bit response staging\nStale responses discarded at swap"];
+      fifo [label="RGB565 display FIFO: 2048 pixels\n2 × SDPB 1024×16\nSynchronous read → later capture\nSmaller limits are stress settings", color="#6957a3", fillcolor="#f3effb"];
+      pixel [label="Pixel consumer: core / 4 =25.2 MHz\n640×480 active, 800×525 total\n60 Hz, negative H/V sync\nUnderflow: black rest of frame\nResynchronize at vertical blank"];
+      timing [label="Free-running display timing\nH: 640 +16 front +96 sync +48 back\nV: 480 +10 front +2 sync +33 back\nStartup stays black until valid memory"];
+      front -> prefetch [label="current physical color ID", color="#245b8c", style=dashed];
+      prefetch -> mem_scanout [label="request / response", dir=both, constraint=false];
+      prefetch -> fifo [label="one RGB565 word / core edge"];
+      fifo -> pixel [label="old registered output"];
+      timing -> pixel [label="pixel enable / H / V", color="#245b8c", style=dashed];
+      timing -> present [label="established vertical-blank pulse", color="#245b8c", style=dashed, constraint=false];
+      present -> front [label="swap only at vblank", color="#245b8c", style=dashed, constraint=false];
+      {rank=same; front; prefetch; fifo; pixel;}
+      timing -> front [style=invis, weight=100];
+    }
+    sdram -> timing [style=invis, weight=100];
+  }
+
+  cpu_program -> bus [label="serialized request bytes"];
+  sdl [label="Host-only observer\nSDL / S-key screenshot show actual FIFO output\nRaw dumps inspect completed framebuffer\nObserver images are not GPU memory", color="#879dad", fillcolor="#f7f9fb", style="rounded,dashed"];
+  pixel -> sdl [label="captured completed scanout frame"];
+  limits [label="Limits that matter\nSerial rendering / single active command; no 1-pixel-per-cycle textured pipeline\nCPU wide validation checks are simulation assertions, not timed GPU units\n12 native BSRAM =3 tile +1 texture/copy +2 scanout +5 host +1 reply\nAdditional bounded staging / LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
+  sdl -> limits [style=invis];
+}
