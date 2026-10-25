@@ -86,6 +86,21 @@ The system model includes the pipelined rendering datapath. Sustained cache-hit
 throughput and complete-pass throughput are measured separately; SDRAM misses,
 record fetching and tile transfers still introduce waits.
 
+The system backend now reuses resident textures, prefetches the next primitive,
+and overlaps word-streamed tile writeback with rendering through two existing
+physical bank sets. Reproduce cold and steady measurements with:
+
+```bash
+make system-benchmark
+```
+
+This verifies all four scenes against the canonical renderer and checks the
+recorded cycle baseline. At the assumed 100.8 MHz core and 25.2 MHz host clocks,
+the frozen showcase's steady upload/render submission takes 32.4 ms, compared
+with 82.6 ms before these changes. This excludes RP2350 preparation and
+presentation waits; the full FPGA clock and fit remain unqualified. The
+[measurement details](docs/hardware/system-model.md) distinguish these costs.
+
 The throughput harness tracks fragment acceptance and retirement on each
 modeled edge, checks ordering and cancellation, and distinguishes sustained
 datapath cadence from complete-pass throughput. It can run without SDL:

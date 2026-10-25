@@ -1,8 +1,9 @@
 # Current GPU pipeline
 
-Implementation snapshot: **shared-reciprocal textured fragment pipeline**.
+Implementation snapshot: **shared-reciprocal fragments, geometry lookahead and
+overlapped completed-tile export**.
 System profile `N20K-SYS-0.1`, rendering profile `N20K-HW-RENDER-0.3`, storage
-profile `N20K-STORAGE-0.2`. These diagrams describe the selected software
+profile `N20K-STORAGE-0.3`. These diagrams describe the selected software
 hardware model: up to 64 retained fragments, ordered retirement, and streaming
 UV, cache-hit and shading stages. Initiation interval and latency are distinct;
 cache misses, output pressure and a full context ring can stop acceptance.
@@ -21,14 +22,14 @@ scalable diagrams individually:
 ```mermaid
 flowchart TB
     CPU["CPU: transform, clip, project, lighting, triangle setup and binning"]
-    PACK["CPU encoder: textures, prepared records and ordered tile lists"]
+    PACK["CPU encoder: persistent textures<br/>Prepared records and ordered tile lists"]
     BUS["8-bit shared read/write bus<br/>25.2 MHz by default; setup/hold and backpressure"]
     RX["RX FIFO: 256 bytes<br/>1 BSRAM"]
     PARSE["NGPU decoder<br/>16-byte header; payload at most 1024 bytes"]
     QUEUE["3 payload BSRAM banks<br/>2 published slots INCLUDING active command<br/>1 decoder staging bank"]
     EXEC["Ordered executor<br/>One command owns the front packet bank until retirement"]
     UP["WRITE_HEAP<br/>Clocked payload reads; one 32-bit packing register<br/>Stream masked words into the Host slot"]
-    DRAW["SUBMIT_PASS<br/>Fetch descriptor, bins and records; render all 300 tiles"]
+    DRAW["SUBMIT_PASS<br/>One-record lookahead during drawing<br/>Completed-tile export overlaps next CLEAR tile<br/>Render all 300 tiles"]
     COPY["COPY_RECT<br/>Full-row buffering; rendering idle"]
     READ["READ_MEMORY<br/>Timed diagnostic fetch"]
     DONE["FENCE and PRESENT<br/>Stores acknowledged; swap only at vertical blank"]
@@ -69,8 +70,17 @@ Each SDRAM client has a pair of native x16 banks forming one 16-word x32 slot.
 Write requests fill it through one word port before publication. Read responses
 remain owned while the consumer drains synchronous word reads. The system
 execution paths do not use the host-only whole-array request/response adapters.
-A shared two-bank reader stores fetched records and readback data; an additional
-clocked read pass establishes at most 320 bytes of decoded-field registers.
+A shared two-bank reader stores fetched records and readback data. Established
+controller-slot words also populate at most 320 bytes of decoded-field
+registers, removing the former separate decode-read pass. One-record lookahead
+reuses this reader while the tile owns its current captured primitive.
+
+The CPU `HostPassCompiler` retains unchanged textures in a persistent heap
+prefix and reuses its transient record/bin tail after a successful fence.
+Exact CPU snapshots detect changed pixels. This host resource cache adds no
+FPGA memory. Heap writes still execute in order after earlier passes; next-frame
+upload/render overlap is deferred until an explicit safe resource-lease or
+independent upload-arena contract exists.
 
 CPU preparation is outside modeled GPU time. Host-image pixels enter GPU storage
 only through bus uploads; fetched image handles contain metadata without host
@@ -147,7 +157,9 @@ rejections complete first. One retirement can overlap one new acceptance.
 
 A cache miss retains the first missing request, freezes younger address/DSP
 stages, and lets older results drain. The same native cache bank receives refill
-writes; the miss replays only after its line is valid. A full output register
+writes; the next synchronous slot read is issued while the current word's low
+half enters the cache, and its established output is captured after the high
+half. The miss replays only after its line is valid. A full output register
 propagates backpressure. Global clock-enable stalls preserve every dependent
 stage while the system's SDRAM and independent scanout continue as scheduled.
 
@@ -178,11 +190,14 @@ These reference schedules must not be used as current GPU throughput figures.
 flowchart TB
     DESC["Fetch pass descriptor: 32 bytes"]
     ENTRY["Fetch next tile-table entry: 8 bytes<br/>300 tiles, 32x32 each"]
-    LOAD["Initialize all 32 tile rows<br/>Color/depth independently CLEAR or LOAD<br/>LOAD streams into 3 native row banks<br/>1 read-prime + 32 capture/write edges per row"]
+    LOAD["Initialize all 32 tile rows<br/>Color/depth independently CLEAR or LOAD<br/>LOAD streams into 3 native staging banks<br/>CLEAR uses constants while prior tile exports"]
     ANY{"Ordered references remain?"}
-    REF["Fetch reference: 4 bytes; primitive record: 320 bytes<br/>Shared reader: 2 native BSRAM banks<br/>Serial registered read pass establishes decoded fields"]
+    REF["Fetch reference: 4 bytes; primitive record: 320 bytes<br/>Shared reader: 2 native BSRAM banks<br/>Established slot words directly capture fields"]
     DRAW["Render primitive into resident tile<br/>Wait for fragment pipeline to drain"]
-    STORE["Store all 32 rows<br/>33 tile read/drain edges into 3 row banks<br/>Synchronous row reads feed byte serialization/32-bit pack<br/>RGB565 64 bytes + D24/U32 128 bytes per row<br/>Wait for SDRAM write acknowledgements"]
+    MODE{"Both attachments CLEAR?"}
+    STAGE["Exchange bank-set roles on one control edge<br/>Native-port mux; no pixel copy<br/>Wait until previous export releases its banks"]
+    STORE["Word-wide export of all 32 rows<br/>2 RGB565 reads per color word; 1 D24/U32 read<br/>RGB565 64 bytes + D24/U32 128 bytes per row<br/>CLEAR/CLEAR: runs during next resident tile<br/>LOAD: direct serialized resident-tile stores"]
+    SERIAL["LOAD pass: finish word-wide stores<br/>Before initializing the next resident tile"]
     MORE{"More tiles?"}
     PASSDONE["Pass complete; attachments valid<br/>A subsequent FENCE may retire"]
     CLIENTS["Memory clients: Host, Command, Tile, Texture, Copy, Scanout"]
@@ -194,9 +209,15 @@ flowchart TB
     BLANK["Vertical blank<br/>PRESENT swaps sealed BACK to FRONT<br/>Late rendering repeats existing FRONT"]
     DESC --> ENTRY --> LOAD --> ANY
     ANY -->|"Yes"| REF --> DRAW --> ANY
-    ANY -->|"No"| STORE --> MORE
+    DRAW -.->|"Fetch following record while drawing"| REF
+    ANY -->|"No"| MODE
+    MODE -->|"Yes"| STAGE --> MORE
+    MODE -->|"No"| SERIAL --> MORE
+    STAGE --> STORE
     MORE -->|"Yes"| ENTRY
-    MORE -->|"No"| PASSDONE
+    MORE -->|"No: final export acknowledged"| PASSDONE
+    STORE -.->|"Final write ACK"| PASSDONE
+    SERIAL -.->|"Tile client"| CLIENTS
     CLIENTS --> SLOTS --> ARB --> SDR
     LOAD -.->|"Tile client"| CLIENTS
     REF -.->|"Command client"| CLIENTS
@@ -207,22 +228,34 @@ flowchart TB
     SCAN --> BLANK --> SCAN
 ```
 
-There is one resident tile and one ordered pass/command stream. Tile loads,
-drawing, primitive fetches and tile stores follow the sequence above; current
-execution does not overlap next-record fetch or tile DMA with drawing. Color
-and depth are stored for every tile, including tiles with no primitives. A
+There is one resident rendering tile and one ordered pass/command stream. A
+one-record lookahead fetches the next reference and record while the current
+draw runs; each draw still drains before the next primitive is captured. For
+CLEAR/CLEAR passes, the existing three staging banks retain a completed tile
+while its writeback overlaps the next resident tile's initialization, record
+fetch and rendering. One control edge exchanges the two sets' native-port
+roles; it does not copy pixel contents. Roles cannot exchange again until the
+export finishes,
+and pass completion waits for the last export acknowledgement. Loading either
+attachment uses serialized load/draw/store to preserve staging and client-slot
+ownership. Color and depth are stored for every tile, including empty bins. A
 prepared record is stored once in SDRAM but fetched again for each tile-list
 reference; there is no separate primitive-record cache in this implementation. A
 32-pixel row uses one 64-byte color transaction and two 64-byte depth transactions
 for stores; LOAD performs only the attachment reads requested by the pass.
 
-Three native row-staging banks replace the old row arrays. Attachment LOAD
-results are unpacked over clocked writes. Initializing the resident tile then
-uses one row-read prime edge and 32 subsequent capture/write edges per row;
-CLEAR selects constants at the tile write inputs. Stores gather 32 tile reads
-plus their drain into these row banks, then perform synchronous row reads and
-serialize bytes through one 32-bit writer packing register. No parallel row
-serialization array or duplicate 16-word writer payload is present.
+The three staging-role banks use all 1024 addresses for a completed CLEAR tile;
+LOAD-row staging uses their first 32 addresses. Attachment LOAD results are
+unpacked over clocked writes. Initializing a loaded resident tile uses one
+row-read prime edge and 32 subsequent capture/write edges per row; CLEAR selects
+constants at the tile write inputs. CLEAR/CLEAR completion exchanges the bank
+roles through a selector, avoiding the former tile-to-staging pixel copy. The
+tile exporter consumes complete 32-bit
+words: two synchronous RGB565 pixel reads form a color word, and a parallel
+depth-low/high read forms one D24/U32 word. A 32-bit hold and 16-bit color half
+preserve the native read latency and bounded backpressure. Host uploads retain
+byte packing through their packet-bank source. No parallel row serialization
+array, duplicate sixteen-word writer payload or additional BSRAM is present.
 
 The memory controller has one physical x32 SDR bus. Native aligned BL8 transfers
 carry 32 bytes; one client request can require several native bursts. Default

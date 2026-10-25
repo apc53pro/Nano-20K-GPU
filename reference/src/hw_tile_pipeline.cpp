@@ -123,7 +123,18 @@ struct OpaqueTile::Impl {
         bool forwarded = false;
         std::uint32_t forwarded_depth = 0;
     };
-    Sdp1kx16 color_bank, low_bank, high_bank;
+    // These are fixed physical banks. A role-select mux chooses this array
+    // or the one connected external set; the pointers model wiring/selection,
+    // not movable RAM payloads or dynamically allocated hardware storage.
+    AttachmentBanks owned_banks;
+    AttachmentBanks* active_banks = &owned_banks;
+    AttachmentBanks* connected_banks = nullptr;
+    Sdp1kx16& color_bank() { return (*active_banks)[0]; }
+    Sdp1kx16& low_bank() { return (*active_banks)[1]; }
+    Sdp1kx16& high_bank() { return (*active_banks)[2]; }
+    const Sdp1kx16& color_bank() const { return (*active_banks)[0]; }
+    const Sdp1kx16& low_bank() const { return (*active_banks)[1]; }
+    const Sdp1kx16& high_bank() const { return (*active_banks)[2]; }
     Mult18x18 multiplier;
     TextureUnit texture;
     TexturedFragmentPipeline fragments{texture};
@@ -207,7 +218,7 @@ struct OpaqueTile::Impl {
             throw std::logic_error("hardware tile command requires a drained pipeline");
     }
     void banks(const BsramCycle& color, const BsramCycle& low, const BsramCycle& high) {
-        color_bank.tick(color); low_bank.tick(low); high_bank.tick(high);
+        color_bank().tick(color); low_bank().tick(low); high_bank().tick(high);
     }
     void quiet_edge(FragmentStage stage = FragmentStage::Idle, bool enabled = true) {
         start_event(stage, enabled);
@@ -326,9 +337,9 @@ TileImage OpaqueTile::store() {
     for (std::size_t beat = 0; beat <= tile_words; ++beat) {
         p.start_event(FragmentStage::Transfer);
         if (beat != 0) {
-            result.color[beat - 1] = p.color_bank.output();
-            result.depth[beat - 1] = p.low_bank.output() |
-                (static_cast<std::uint32_t>(p.high_bank.output()) << 16);
+            result.color[beat - 1] = p.color_bank().output();
+            result.depth[beat - 1] = p.low_bank().output() |
+                (static_cast<std::uint32_t>(p.high_bank().output()) << 16);
             ++p.counters.store_words;
         }
         const BsramCycle read{false, 0, 0, beat < tile_words,
@@ -360,8 +371,26 @@ void OpaqueTile::read_word_request(std::uint16_t address) {
 TileWord OpaqueTile::read_word_result() const {
     const auto& p = *impl_; p.require_idle();
     if (!p.transfer_read_valid) throw std::logic_error("tile DMA result has no preceding read request");
-    return {p.color_bank.output(), p.low_bank.output() |
-            (static_cast<std::uint32_t>(p.high_bank.output()) << 16)};
+    return {p.color_bank().output(), p.low_bank().output() |
+            (static_cast<std::uint32_t>(p.high_bank().output()) << 16)};
+}
+void OpaqueTile::exchange_attachment_banks(AttachmentBanks*& idle_banks) {
+    auto& p = *impl_; p.require_idle();
+    if (!idle_banks || idle_banks == p.active_banks)
+        throw std::invalid_argument("attachment role exchange requires a distinct physical bank set");
+    if (!p.connected_banks) p.connected_banks = idle_banks;
+    const auto expected = p.active_banks == &p.owned_banks ? p.connected_banks : &p.owned_banks;
+    if (idle_banks != expected)
+        throw std::invalid_argument("attachment role mux only connects two fixed bank sets");
+    p.start_event(FragmentStage::Transfer);
+    // Pointer exchange is the one-bit hardware role-select update. Neither
+    // fixed array is assigned, copied, read or written on this control edge.
+    auto* previous = p.active_banks;
+    p.active_banks = idle_banks; idle_banks = previous;
+    p.transfer_read_valid = false;
+    p.multiplier.tick({0, 0, false, false});
+    ++p.counters.cycles;
+    p.finish_event();
 }
 void OpaqueTile::idle_edge() {
     auto& p = *impl_; p.require_idle(); p.quiet_edge();
@@ -503,8 +532,8 @@ void OpaqueTile::tick(bool enable) {
         }
         const bool perspective_active = p.fragments.perspective_busy();
         const bool texture_active = p.texture.inflight() != 0;
-        const auto stored = p.draw_state.depth_test ? p.low_bank.output() |
-            (static_cast<std::uint32_t>(p.high_bank.output()) << 16) : 0;
+        const auto stored = p.draw_state.depth_test ? p.low_bank().output() |
+            (static_cast<std::uint32_t>(p.high_bank().output()) << 16) : 0;
         const auto result = p.fragments.tick(input, stored);
         if (perspective_active || p.fragments.perspective_busy()) ++p.counters.perspective_cycles;
         if (texture_active || p.texture.inflight() != 0) ++p.counters.texture_cycles;
@@ -551,8 +580,8 @@ void OpaqueTile::tick(bool enable) {
     if (p.pending.valid) {
         const auto& f = p.pending;
         const auto previous = f.depth_test ?
-            (f.forwarded ? f.forwarded_depth : p.low_bank.output() |
-             (static_cast<std::uint32_t>(p.high_bank.output()) << 16)) : 0;
+            (f.forwarded ? f.forwarded_depth : p.low_bank().output() |
+             (static_cast<std::uint32_t>(p.high_bank().output()) << 16)) : 0;
         const bool accepted = !f.depth_test || depth_accept(f.function, f.depth, previous);
         p.retire_fragment(accepted ? FragmentRetirement::Commit : FragmentRetirement::DepthRejected,
                           accepted && f.color_write, accepted && f.depth_write);

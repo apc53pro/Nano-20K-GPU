@@ -31,7 +31,10 @@ struct TextureStatistics {
 // four response-wait edges, then one word per edge for its 16-word refill.
 // The system profile instead waits for shared SDRAM requests and streams
 // response-slot synchronous reads through one 32-bit capture register into
-// two 16-bit cache writes; the slot stays owned until its real words drain.
+// two 16-bit cache writes. Reading the next word overlaps the current low-half
+// write; its capture overlaps the old high-half write, so all sixteen refill
+// writes are consecutive after priming. The slot stays owned until its real
+// words drain; this overlap adds no buffer or memory port.
 // The serial oracle uses a ten-edge shift/add address generator. The streaming
 // selection uses two native18x18 multipliers and registered lookup/read stages.
 class TextureUnit {

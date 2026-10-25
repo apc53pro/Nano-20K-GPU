@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -119,6 +119,14 @@ throughput: $(BUILD_DIR)/throughput-bench$(EXEEXT)
 throughput-test: $(BUILD_DIR)/throughput-tests$(EXEEXT)
 	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
 
+# Complete-system cycles, including host delivery and native SDRAM transfers.
+# The frozen second frame excludes one-time boot and reuses resident textures.
+system-benchmark: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
+	$(PYTHON) scripts/benchmark-system.py --executable "$(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)" --verify --baseline docs/benchmarks/system-after-dataflow.json --require-no-regression --output "$(BUILD_DIR)/system-benchmark.json"
+
+benchmark-test:
+	$(PYTHON) -B -m unittest discover -s scripts/tests -p test_benchmark_system.py
+
 # Optional arithmetic RTL qualification. Ordinary SRR builds need no HDL tools.
 rtl-test:
 	$(PYTHON) scripts/rtl-check.py --build-dir "$(BUILD_DIR)/rtl"
@@ -142,6 +150,7 @@ test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT)
 	@set -e; for test_bin in $(SYSTEM_TEST_BINS); do ./$$test_bin; done
 	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
 	@set -e; for test_bin in $(PIPELINE_TEST_BINS); do ./$$test_bin; done
+	$(PYTHON) -B -m unittest discover -s scripts/tests -p test_benchmark_system.py
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)

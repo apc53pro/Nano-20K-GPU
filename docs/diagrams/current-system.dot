@@ -11,7 +11,7 @@ digraph CurrentSystem {
     label="Host CPU / driver — outside simulated GPU execution time";
     color="#b8c7d3"; style="rounded,dashed"; fontsize=13;
     cpu_setup [label="Transform and homogeneous clipping\nProjection / Q4 triangle setup / lighting\nStable bins for 300 logical 32×32 tiles"];
-    cpu_program [label="compile_pass() / CPU packet encoder\nImages + 320-byte prepared records\nTile table + ordered address lists\nTypical stream: WRITE_HEAP, SUBMIT_PASS,\nthen separate FENCE and PRESENT commands"];
+    cpu_program [label="HostPassCompiler / CPU packet encoder\nPersistent images + 320-byte prepared records\nTile table + ordered address lists\nUpload new/changed textures + transient heap\nTypical stream: WRITE_HEAP, SUBMIT_PASS,\nthen separate FENCE and PRESENT commands"];
     cpu_setup -> cpu_program [label="prepared commands and pixels"];
   }
 
@@ -51,7 +51,7 @@ digraph CurrentSystem {
       color="#a8c2db"; style=rounded; fontsize=13;
       execute [label="SystemModel executor FSM\nCapture payload through packet RAM\nValidate ranges / attachment ownership\nSelect one operation; retain its lease"];
       upload [label="WRITE_HEAP\nWriter: one 32-bit pack + 4-bit mask\nSource ≤1 byte / core edge\nUploads cannot write attachments"];
-      pass [label="SUBMIT_PASS\nFetch descriptor, table, refs and records\nOne resident 32×32 tile\nLoad / draw / drain / store all 300 tiles\n14 rendering banks: tile/cache + contexts/seed ROM", color="#b76118", fillcolor="#fff2e6"];
+      pass [label="SUBMIT_PASS\nOne-record lookahead during current draw\nOne resident + one completed tile\nOne-edge bank-role exchange; no pixel copy\nCLEAR export overlaps next tile; LOAD serialized\n14 rendering banks +3 existing staging banks", color="#b76118", fillcolor="#fff2e6"];
       copy [label="COPY_RECT / heap-image copy\nOutside a render pass\nFull clipped row, ≤640 RGB565 pixels\nReuse texture-cache bank as scratch\nRow direction preserves overlap"];
       readback [label="READ_MEMORY\nOrdered read, length 1–512 bytes\nUses timed shared reader\nNo dirty-tile inspection shortcut"];
       fence [label="FENCE\nExecute after earlier stores complete\nPublish host token / sequence / epoch"];
@@ -92,7 +92,7 @@ digraph CurrentSystem {
       label="Shared memory subsystem — six bounded client ports, one physical SDR data bus";
       color="#b8add7"; style=rounded; fontsize=13;
       mem_host [label="Host client\nHeap upload writes"];
-      mem_command [label="Command client\nDescriptor / table / reference / record\nDiagnostic READ_MEMORY"];
+      mem_command [label="Command client\nDescriptor / table / reference / record\nDiagnostic READ_MEMORY\nSlot-read stream directly captures record fields"];
       mem_tile [label="Tile client\nAttachment boot writes\nColor / depth loads and stores"];
       mem_texture [label="Texture client\nExternal cache refill reads"];
       mem_copy [label="Copy client\nSource reads / masked destination writes"];
@@ -146,6 +146,6 @@ digraph CurrentSystem {
   trace [label="Host-only cycle observer / throughput scoreboard\nDistinct accept and retire IDs; stage / enable / occupancy\nCommon-clock CSV traces and cadence / latency histograms\nAdds no GPU registers, queues or ports", color="#879dad", fillcolor="#f7f9fb", style="rounded,dashed"];
   pass -> trace [label="per-edge observations", color="#879dad", style=dotted, constraint=false];
   sdl -> trace [style=invis];
-  limits [label="Limits that matter\nPipelined textured fragments / single active command; cache misses and shared-memory waits remain\nCPU wide validation checks are simulation assertions, not timed GPU units\n39 native BSRAM =14 renderer +25 system I/O and staging\n46 of48 native18×18 DSP equivalents; 64 textured contexts; bounded registers / logic ROM\nWhole-system LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
+  limits [label="Limits that matter\nPipelined fragments, record lookahead and completed CLEAR-tile export overlap\nOne active ordered command; heap uploads remain serialized\nCPU wide validation checks are simulation assertions, not timed GPU units\n39 native BSRAM =14 renderer +25 system I/O and staging\n46 of48 native18×18 DSP equivalents; 64 textured contexts; bounded registers / logic ROM\nWhole-system LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
   trace -> limits [style=invis];
 }

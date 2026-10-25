@@ -272,7 +272,8 @@ void boot_and_io_tests() {
 void rendering_tests() {
     run_case("all shading modes and mixed2D survive physical upload fetch cache and stores", [] {
         const auto pass = mixed_pass();
-        const auto program = compile_pass(pass);
+        HostPassCompiler compiler;
+        const auto program = compiler.compile(pass, 1);
         Renderer expected; expected.render(pass);
         SystemModel actual; actual.render(pass); // Intentionally submits while boot is still busy.
         compare_outputs(expected, actual); compare_counts(expected.statistics(), actual.statistics());
@@ -319,6 +320,11 @@ void rendering_tests() {
                actual.system_statistics().last_present_wait_cycles != 0 &&
                actual.system_statistics().last_scanout_observation_cycles != 0,
                "SDL observation bypassed FIFO output, vblank presentation, or complete-frame scanout");
+        auto next = pass; next.target = 0;
+        expected.render(next); actual.render(next); compare_outputs(expected, actual);
+        expect(actual.system_statistics().last_submission_cycles <= actual.config().memory.core_hz / 30 &&
+               actual.system_statistics().tile_bank_exchanges == 2u * tile_count,
+               "steady showcase upload/render exceeded the modeled 30-FPS submission budget");
     });
     run_case("multipass LOAD presentation and second physical back preserve shared depth", [] {
         Renderer expected; SystemModel actual;
@@ -367,7 +373,8 @@ void rendering_tests() {
         for (int item = 0; item < 20; ++item)
             pass.primitives.emplace_back(Rect{{item * 3, 5, item * 3 + 2, 8},
                 overlay_state({static_cast<std::uint8_t>(item * 10), 90, 180}), 0});
-        const auto program = compile_pass(pass);
+        HostPassCompiler compiler;
+        const auto program = compiler.compile(pass, 1);
         Renderer expected; expected.render(pass); actual.render(pass);
         compare_outputs(expected, actual);
         const auto& host = actual.host_statistics();
@@ -375,6 +382,93 @@ void rendering_tests() {
                host.rx_high_water == config.host.rx_fifo_capacity && host.command_high_water == 1 &&
                host.protocol_faults == 0 && host.unstable_writes == 0,
                "bounded external command producer lost bytes or escaped backpressure");
+    });
+}
+
+void optimization_tests() {
+    run_case("resident textures omit uploads but mutable texels are refreshed through real ports", [] {
+        auto image = pattern(64, 64, 128);
+        Pass pass;
+        auto state = overlay_state(); state.texture = image;
+        pass.primitives.emplace_back(Sprite{{20, 20, 84, 84}, 0, 0, state, 0});
+        Renderer expected; SystemModel actual; boot(actual);
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        const auto first_upload = actual.system_statistics().uploaded_bytes;
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        const auto second_upload = actual.system_statistics().uploaded_bytes - first_upload;
+        expect(first_upload - second_upload == 64u * 128u,
+               "unchanged texture was uploaded again or omitted without residency");
+        image->at(31, 31) ^= 0xffffu;
+        const auto before = actual.system_statistics().uploaded_bytes;
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        expect(actual.system_statistics().uploaded_bytes - before == first_upload,
+               "mutated resident texture did not traverse the timed upload path");
+        expect(actual.memory_statistics().legacy_submissions == 0 &&
+               actual.memory_statistics().legacy_response_reads == 0,
+               "residency used a diagnostic memory shortcut");
+    });
+    run_case("heap image copies and recovery invalidate CPU texture residency", [] {
+        auto image = pattern(8, 8, 16);
+        Pass pass; auto state = overlay_state(); state.texture = image;
+        pass.primitives.emplace_back(Sprite{{8, 8, 16, 16}, 0, 0, state, 0});
+        Renderer expected; SystemModel actual; boot(actual);
+        expected.render(pass); actual.render(pass);
+        const auto first_upload = actual.system_statistics().uploaded_bytes;
+        auto replacement = pattern(8, 8, 16); replacement->at(1, 1) ^= 0xffffu;
+        expected.copy_image(*replacement, 1, {0, 0}, {8, 8}, 8, 8);
+        actual.copy_image(*replacement, 1, {0, 0}, {8, 8}, 8, 8);
+        auto before = actual.system_statistics().uploaded_bytes;
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        expect(actual.system_statistics().uploaded_bytes - before == first_upload,
+               "heap copy retained invalid residency knowledge");
+        actual.abort(); before = actual.system_statistics().uploaded_bytes;
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        expect(actual.system_statistics().uploaded_bytes - before == first_upload,
+               "abort retained invalid residency knowledge");
+        actual.reset();
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        expect(actual.system_statistics().uploaded_bytes == first_upload,
+               "hard reset reused texture contents from the old device epoch");
+    });
+    run_case("word streamed tile export preserves every boundary and waits for final stores", [] {
+        Pass pass;
+        for (int y = 0; y < screen_height; y += tile_size)
+            for (int x = 0; x < screen_width; x += tile_size) {
+                auto state = overlay_state({static_cast<std::uint8_t>(x + 7),
+                    static_cast<std::uint8_t>(y + 13), static_cast<std::uint8_t>(x + y + 29)});
+                state.depth_write = true;
+                pass.primitives.emplace_back(Rect{{x, y, x + tile_size, y + tile_size}, state,
+                    static_cast<std::uint32_t>(0x123400 + x + screen_width * y)});
+            }
+        Renderer expected; SystemModel actual; boot(actual);
+        const auto before = actual.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Tile)].bytes_written;
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        expect(actual.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Tile)].bytes_written - before ==
+                   static_cast<std::uint64_t>(screen_width) * screen_height * 6 &&
+               actual.system_statistics().tile_staged_pixels ==
+                   static_cast<std::uint64_t>(screen_width) * screen_height &&
+               actual.system_statistics().tile_export_overlap_cycles != 0,
+               "tile stores duplicated bytes, skipped staging, or never overlapped rendering");
+        expect(actual.color_valid(1) && actual.depth_valid() &&
+               actual.system_statistics().passes_completed == 1 && actual.scanout_statistics().underflows == 0,
+               "completion preceded background writeback or scanout starved");
+        pass.color_load = pass.depth_load = LoadOp::Load;
+        pass.primitives.clear();
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+    });
+    run_case("one record lookahead overlaps fetching without reordering shared pixel depth", [] {
+        Pass pass; auto near_state = overlay_state({230, 50, 80});
+        near_state.depth_test = near_state.depth_write = true;
+        auto far_state = near_state; far_state.color = {20, 220, 160};
+        pass.primitives.emplace_back(Rect{{0, 0, 64, 64}, near_state, 0x123456});
+        pass.primitives.emplace_back(Rect{{0, 0, 64, 64}, far_state, 0x654321});
+        Renderer expected; SystemModel actual; boot(actual);
+        expected.render(pass); actual.render(pass); compare_outputs(expected, actual);
+        compare_counts(expected.statistics(), actual.statistics());
+        expect(actual.system_statistics().prefetched_records == 4 &&
+               actual.system_statistics().record_prefetch_overlap_cycles != 0 &&
+               actual.statistics().depth_rejected == 64u * 64u,
+               "lookahead did not overlap fetching or changed ordered D24 behavior");
     });
 }
 
@@ -579,7 +673,8 @@ void recovery_tests() {
         RawHost host(model); host.send(program.bytes);
         wait_until(model, [&] {
             const auto& tile = model.memory_statistics().clients[static_cast<unsigned>(MemoryClient::Tile)];
-            return !model.color_valid(0) && tile.requests != tile.completed;
+            return !model.color_valid(0) && tile.requests != tile.completed &&
+                (model.system_statistics().tile_bank_exchanges & 1u) != 0;
         }, 1000000);
         model.abort();
         expect(model.ready() && !model.faulted() && model.system_statistics().epoch == old_epoch + 1 &&
@@ -624,6 +719,50 @@ void recovery_tests() {
         expect((host.status_byte(1) & 8u) != 0,
                "execution fault was not available through independent status");
     });
+    run_case("malformed prefetched record faults only after the current primitive drains", [] {
+        Pass pass;
+        pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, overlay_state({200, 80, 30}), 0});
+        pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, overlay_state({30, 80, 200}), 0});
+        auto program = compile_pass(pass);
+        const auto corrupt_address = heap_base + primitive_record_bytes + 76;
+        bool changed = false;
+        for (std::size_t cursor = 0; cursor < program.bytes.size();) {
+            const auto length = read_u32(program.bytes, cursor + 8);
+            if (read_u16(program.bytes, cursor + 6) == static_cast<unsigned>(Opcode::WriteHeap)) {
+                const auto address = read_u32(program.bytes, cursor + packet_header_bytes);
+                const auto size = read_u32(program.bytes, cursor + packet_header_bytes + 4);
+                if (address <= corrupt_address && corrupt_address < static_cast<std::uint64_t>(address) + size) {
+                    program.bytes[cursor + packet_header_bytes + 8 + corrupt_address - address] = 1;
+                    changed = true;
+                }
+            }
+            cursor += packet_header_bytes + length;
+        }
+        expect(changed, "test did not corrupt the second uploaded record");
+        SystemModel model; boot(model); RawHost host(model); ThroughputMonitor monitor;
+        model.set_cycle_observer([&](std::uint64_t clock, const FragmentCycle& event) { monitor.observe(event, clock); });
+        host.send(program.bytes);
+        wait_until(model, [&] { return model.faulted(); }, 1000000);
+        monitor.require_drained();
+        expect(monitor.statistics().accepted == 1024 && monitor.statistics().committed == 1024 &&
+               model.system_statistics().prefetched_records == 1 &&
+               model.system_statistics().passes_completed == 0 && model.system_statistics().completed_fence_token == 0,
+               "lookahead fault interrupted the current draw or allowed the malformed next draw");
+        model.abort(); monitor.require_drained(); model.set_cycle_observer({});
+        model.render(clear_pass(1, 0x2468));
+        expect(model.color_valid(1) && model.depth_valid(), "lookahead fault left memory ownership wedged");
+    });
+    run_case("hard reset rebuilds both fixed bank roles after an odd exchange", [] {
+        SystemModel model; boot(model); RawHost host(model);
+        const auto program = compile_pass(clear_pass(1, 0x1357));
+        host.send(program.bytes);
+        wait_until(model, [&] { return model.system_statistics().tile_bank_exchanges == 1; }, 1000000);
+        model.reset();
+        Renderer expected; const auto pass = mixed_pass(); expected.render(pass); model.render(pass);
+        compare_outputs(expected, model);
+        expect(model.system_statistics().tile_bank_exchanges == tile_count &&
+               model.scanout_statistics().underflows == 0, "reset retained an old bank role or exported stale RAM");
+    });
     run_case("out-of-band hard reset restarts timed initialization and clears previous back contents", [] {
         auto image = pattern(); SystemModel model;
         model.copy_image(*image, 1, {0, 0}, {0, 0}, 8, 8);
@@ -645,7 +784,7 @@ void recovery_tests() {
 } // namespace
 
 int main() {
-    boot_and_io_tests(); rendering_tests(); copy_tests(); clock_observer_tests(); recovery_tests();
+    boot_and_io_tests(); rendering_tests(); optimization_tests(); copy_tests(); clock_observer_tests(); recovery_tests();
     std::cout << cases - failures << '/' << cases << " system integration cases passed\n";
     return failures == 0 ? 0 : 1;
 }

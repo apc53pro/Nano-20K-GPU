@@ -418,6 +418,14 @@ void report_system(std::ostream& out, const hw::SystemModel& renderer) {
         << ",\n    \"copies_completed\": " << s.copies_completed
         << ",\n    \"presentations_completed\": " << s.presentations_completed
         << ",\n    \"uploaded_bytes\": " << s.uploaded_bytes
+        << ",\n    \"prefetched_records\": " << s.prefetched_records
+        << ",\n    \"record_prefetch_overlap_cycles\": " << s.record_prefetch_overlap_cycles
+        << ",\n    \"record_prefetch_wait_cycles\": " << s.record_prefetch_wait_cycles
+        << ",\n    \"tile_export_cycles\": " << s.tile_export_cycles
+        << ",\n    \"tile_export_overlap_cycles\": " << s.tile_export_overlap_cycles
+        << ",\n    \"tile_export_wait_cycles\": " << s.tile_export_wait_cycles
+        << ",\n    \"tile_staged_pixels\": " << s.tile_staged_pixels
+        << ",\n    \"tile_bank_exchanges\": " << s.tile_bank_exchanges
         << ",\n    \"fetched_record_bytes\": " << s.fetched_record_bytes
         << ",\n    \"fetched_bin_bytes\": " << s.fetched_bin_bytes
         << ",\n    \"epoch\": " << s.epoch

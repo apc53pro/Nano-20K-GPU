@@ -1,6 +1,6 @@
 # Selected GPU storage mapping
 
-Profile: `N20K-STORAGE-0.2`. The executable allocation is in
+Profile: `N20K-STORAGE-0.3`. The executable allocation is in
 [storage_map.hpp](../../reference/include/nano_gpu/hw/storage_map.hpp).
 The system now selects **39 of the Tang Nano 20K's 46 physical BSRAM blocks**.
 The mapping uses the same SDPB 1024x16 primitive contract as the tile and cache;
@@ -30,9 +30,9 @@ provide extra data capacity or ports.
 | Reply serializer | 1 | 1 | Up to 1024 | 8 |
 | SDRAM client payload slot | 6 | 12 | 16 | 32 |
 | Shared record/readback reader | 1 | 2 | 129, including alignment guard | 32 |
-| Tile-row color staging | 1 | 1 | 32 | 16 |
-| Tile-row depth-low staging | 1 | 1 | 32 | 16 |
-| Tile-row depth-high staging | 1 | 1 | 32 | 8 |
+| Completed-tile / LOAD-row color staging | 1 | 1 | 1024 | 16 |
+| Completed-tile / LOAD-row depth-low staging | 1 | 1 | 1024 | 16 |
+| Completed-tile / LOAD-row depth-high staging | 1 | 1 | 1024 | 8 |
 | Fragment commit address and depth | 1 | 3 | 64 | 34 |
 | Fragment RGB factor | 1 | 2 | 64 | 24 |
 | Fragment RGB565 result | 1 | 1 | 64 | 16 |
@@ -47,9 +47,12 @@ The DSP allocation is 46 of 48 native 18×18 equivalents: one setup, forty
 perspective, two texture-address and three RGB modulation units.
 
 The selected banks occupy **718,848 physical bits**, exposing **638,976 x16
-data bits**. Logical payload capacities use **159,360 meaningful bits**, plus
-**32 alignment-guard bits**, for **159,392 reserved bits**;
-**479,584 selected data bits remain unused**. Independent port ownership and
+data bits**. Logical payload capacities use **199,040 meaningful bits**, plus
+**32 alignment-guard bits**, for **199,072 reserved bits**;
+**439,904 selected data bits remain unused**. The existing three staging banks
+now use all 1024 addresses to retain a completed tile; their additional 39,680
+meaningful bits consume previously unused capacity, without allocating another
+native bank. Independent port ownership and
 narrow fields take precedence over treating spare capacity as free parallel
 storage. FIFO stress limits do not release a physical bank.
 
@@ -96,30 +99,48 @@ host adapters. They do not supply an additional GPU data port. The system
 execution paths use the slot ports; an array snapshot cannot replace a
 synchronous read or bypass slot ownership.
 
-## Reader, decoding and row staging
+## Reader, lookahead and tile staging
 
 The reader reserves 129 x32 words in two native banks for a payload of at most
 512 bytes. An unaligned 512-byte `READ_MEMORY` spans as many as 516 bytes of
 aligned words; the extra word carries alignment guard bytes, not additional
-payload capacity. Fetched words enter its write port serially. Descriptor,
-tile-entry, reference and primitive decoding read that memory through its registered port. The
-largest record is 320 bytes, or eighty 32-bit words.
+payload capacity. Fetched words enter its write port serially. The
+controller-slot read is pipelined: capturing an established word can issue the
+next synchronous read on that same edge. Descriptor, tile-entry, reference and
+primitive fields capture that same established word into their bounded register
+bank while it enters reader RAM; they do not require another serial RAM-read
+pass. The largest record is 320 bytes, or eighty 32-bit words.
 
 Primitive fields are serially captured into a distinct, bounded decoded-field
 register bank with a 320-byte upper bound. The decoded C++ object is a view of
 those fields, not another payload RAM or an additional parallel read port.
 The tile command-capture edge then establishes its own immutable primitive
-registers. Both retained sets of fields must be accounted for; they are not
-silently aliased to the reader RAM. Readback does not need a 512-byte FF copy:
+registers. While that primitive draws, the same reader and field registers can
+fetch one following reference and record. The next primitive still waits for
+the current one to drain before capture. No second record bank or parallel
+record-read port is added. Both retained sets of fields must be accounted for;
+they are not silently aliased to the reader RAM. Readback does not need a 512-byte FF copy:
 the reply path streams reader words through a single-word hold into the reply
 serializer.
 
-Tile-row staging has the same three-way width split as the resident tile. It
-can gather one pixel's color, depth-low and depth-high in parallel, with each
-word entering its own bank. SDRAM loads unpack returned words over clocked
-accesses instead of updating an entire row on one edge. Stores read the row
-banks through synchronous ports and serialize their bytes to the write client.
-The old 64-byte row-serialization array is unnecessary.
+The staging banks have the same three-way width split as the resident tile.
+For a pass clearing both attachments, one control edge exchanges the resident
+and staging bank-set roles. A bank-select mux redirects their native ports;
+the 1024 pixels are not copied or read in parallel. The renderer initializes
+and draws the next tile in the other bank set while the completed set exports
+to SDRAM. Roles cannot exchange again until the previous export finishes, and
+pass completion waits for the final write acknowledgement. Loading either
+attachment retains the serialized load/draw/store schedule and uses the
+staging-role banks for row staging.
+
+The tile writer consumes complete 32-bit words. Color packing reads two RGB565
+pixels on separate native read edges; depth reads the low/high banks together
+for one D24/U32 word. A fixed 32-bit output hold and 16-bit color-half register
+bridge synchronous reads and client-slot fills. There is at most one read per
+bank per edge, and simultaneous read/write at the same staging address remains
+forbidden. Host uploads retain byte packing because their source is the
+eight-bit packet port. No row-serialization array or duplicate sixteen-word
+writer payload is allocated.
 
 ## Fragment contexts and reciprocal ROM
 
@@ -167,9 +188,9 @@ The following fixed arrays deliberately remain registers. Their aggregate is
 | Decoded primitive-field bank | At most 2560 | Streamed reader word capture |
 | Reply envelope and source snapshot | 736 | Fixed 92-byte source, distinct from host status snapshot and reply BSRAM |
 | SDRAM byte masks | 384 | Six clients x sixteen words x four lanes |
-| Writer packing word and mask | 36 | One byte lane update at a time |
+| Writer packing word and mask | 36 | Byte-packed host source or complete tile word |
 | Texture tags | 768 | Sixty-four 12-bit tags |
-| Texture valid bits | 64 | Per-line state; binding invalidates tags |
+| Texture valid bits | 64 | Per-line state; changed binding or a newly uploaded pass invalidates tags |
 | Context ready state | 64 | One ready flag per retained fragment |
 | Context retirement reasons | 128 | Two bits per retained fragment |
 
@@ -213,6 +234,9 @@ container metadata do not describe hardware storage:
 | Host control | Three packet metadata entries, two queue selectors, FIFO pointers/occupancy, parser progress, byte-hold/setup/hold state and registered byte outputs |
 | Scanout control | FIFO pointers/occupancy; pixel position and divider state; front-buffer generation/tag and outstanding request; registered output pixel and one-word streaming state |
 | System control | One ordered command/pass/copy descriptor, tile/reference/row counters, front/back validity and seal bits, epoch/sequence/fence/present tokens and recovery state |
+| Record lookahead | One 32-bit record address, two-bit prefetch state and one invalid-address flag; record payload reuses the existing reader and decoded-field bank |
+| Tile export control | Bank-role selector and native-port mux; three-bit export state, five-bit row index, two 23-bit output base addresses; 32-bit word hold, 16-bit color half, five-bit pending read/word indices, six-bit next index, half selector and bounded valid/pending/depth/staging flags |
+| Optimization counters | Eight 64-bit counters: prefetched records, record-fetch overlap/wait cycles, tile-export active/overlap/wait cycles, published tile pixels and bank-role exchanges; 512 additional scalar counter bits |
 
 No blanket alias is assumed between simultaneously live fields. Small address,
 count and state fields can be narrowed only within the documented legal input

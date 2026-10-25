@@ -623,6 +623,70 @@ TileImage pattern_tile() {
 }
 
 void tile_tests() {
+    run_case("attachment role exchange preserves fixed RAM contents and synchronous read timing", [] {
+        OpaqueTile tile;
+        const auto original = pattern_tile();
+        tile.load(original);
+        OpaqueTile::AttachmentBanks alternate;
+        auto* idle = &alternate;
+        for (unsigned index = 0; index < tile_size * tile_size; ++index) {
+            const auto color = static_cast<std::uint16_t>(0xa500u ^ index);
+            const auto depth = 0x123400u + index;
+            alternate[0].tick({true, static_cast<std::uint16_t>(index), color});
+            alternate[1].tick({true, static_cast<std::uint16_t>(index), static_cast<std::uint16_t>(depth)});
+            alternate[2].tick({true, static_cast<std::uint16_t>(index), static_cast<std::uint16_t>(depth >> 16)});
+        }
+        expect(!alternate[0].output_known(), "writes do not create a parallel read result");
+        unsigned events = 0;
+        tile.set_cycle_observer([&](const FragmentCycle& event) {
+            ++events;
+            expect(event.stage == FragmentStage::Transfer, "exchange emits one transfer control edge");
+        });
+        const auto before = tile.statistics().cycles;
+        tile.exchange_attachment_banks(idle);
+        expect(tile.statistics().cycles == before + 1 && events == 1,
+               "one bank-role register update is exactly one observed edge");
+        expect(idle != &alternate, "idle role now selects the original fixed physical bank set");
+        expect(!alternate[0].output_known(), "exchange does not issue a RAM read or copy payloads");
+        expect_throws([&] { (void)tile.read_word_result(); }, "role change requires a new synchronous request");
+        tile.read_word_request(37);
+        const auto current = tile.read_word_result();
+        expect(current.color == (0xa500u ^ 37u) && current.depth == 0x123400u + 37,
+               "new render role reads the alternate physical contents through native ports");
+        for (auto& bank : *idle) bank.tick({false, 0, 0, true, 37});
+        expect((*idle)[0].output() == original.color[37] &&
+               ((*idle)[1].output() | (std::uint32_t{(*idle)[2].output()} << 16)) == original.depth[37],
+               "completed role retains the original payload without copying it");
+        tile.set_cycle_observer({});
+        tile.reset();
+        tile.read_word_request(37);
+        expect(tile.read_word_result().depth == 0x123400u + 37,
+               "reset preserves the physical role selection and RAM contents");
+        tile.exchange_attachment_banks(idle);
+        expect(idle == &alternate, "second exchange restores the original physical role selection");
+        expect_throws([&] { (void)tile.read_word_result(); }, "each exchange clears stale read validity");
+        compare_images(original, tile.store());
+    });
+    run_case("attachment role exchange rejects busy and unconnected bank sets", [] {
+        OpaqueTile tile;
+        OpaqueTile::AttachmentBanks alternate, unconnected;
+        auto* idle = &alternate;
+        tile.clear(0, depth_max);
+        const auto prepared = flat_triangle({{{0, 0}, {32, 0}, {0, 32}}}, Color{255, 0, 0}, 0);
+        tile.begin(prepared, Point{0, 0});
+        const auto before = tile.statistics().cycles;
+        expect_throws([&] { tile.exchange_attachment_banks(idle); }, "in-flight fragment ports own the render banks");
+        expect(idle == &alternate && tile.statistics().cycles == before,
+               "rejected exchanges neither select banks nor consume an edge");
+        finish(tile);
+        tile.exchange_attachment_banks(idle);
+        auto* same = &alternate;
+        expect_throws([&] { tile.exchange_attachment_banks(same); }, "active banks cannot be both roles");
+        auto* third = &unconnected;
+        expect_throws([&] { tile.exchange_attachment_banks(third); }, "role mux connects only its two fixed arrays");
+        tile.exchange_attachment_banks(idle);
+        expect(idle == &alternate, "rejected selection does not disturb the connected role pair");
+    });
     run_case("tile load and store use clocked ports for all depth bits", [] {
         OpaqueTile tile;
         tile.reset();

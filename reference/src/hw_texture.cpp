@@ -54,7 +54,9 @@ struct TextureUnit::Impl {
     bool external_request_pending = false;
     unsigned external_words = 0;
     // One registered word bridges the controller slot read port and the
-    // 16-bit cache write port. No parallel cache-line response copy exists.
+    // 16-bit cache write port. A following slot read overlaps the low-half
+    // write; its result replaces this register on the old high-half write.
+    // No additional prefetch register or cache-line response copy exists.
     std::uint32_t external_word = 0;
     TextureStatistics counters;
     State state = State::Idle;
@@ -156,7 +158,11 @@ bool TextureUnit::Impl::service_refill(BsramCycle& memory, bool pipeline) {
             if (response.tag != line_base || response.words != external_words ||
                 response.words == 0 || response.words > line_words / 2)
                 throw std::logic_error("hardware texture SDRAM response does not match its request");
-            state = State::ExternalRead;
+            // The response metadata and owned RAM are already established.
+            // Issue the first synchronous read on this edge rather than
+            // inserting a separate controller-only read-request edge.
+            state = external_memory->request_response_word(MemoryClient::Texture, 0) ?
+                State::ExternalCapture : State::ExternalRead;
         } else ++counters.memory_wait_cycles;
         break;
     case State::ExternalRead:
@@ -172,12 +178,32 @@ bool TextureUnit::Impl::service_refill(BsramCycle& memory, bool pipeline) {
         // The registered word is first consumed by the cache on a later edge.
         state = State::Refill;
         break;
-    case State::Refill:
+    case State::Refill: {
+        const auto next_word = (refill_word >> 1) + 1;
+        const bool have_next_word = external_memory && external_request_pending &&
+                                    next_word < external_words;
+        if (have_next_word && (refill_word & 1u) == 0) {
+            // Read the next32-bit word while the current register supplies
+            // its low16 to the cache A port. The slot B result becomes valid
+            // only after the common memory edge, for the following capture.
+            if (!external_memory->request_response_word(MemoryClient::Texture, next_word)) {
+                ++counters.memory_wait_cycles;
+                break;
+            }
+        }
         memory.write_enable = true;
         memory.write_address = static_cast<std::uint16_t>((slot << 4) | refill_word);
         memory.write_data = external_memory ? static_cast<std::uint16_t>(
             external_word >> ((refill_word & 1u) << 4)) :
             backing_word(line_base + refill_word);
+        if (have_next_word && (refill_word & 1u) != 0) {
+            if (!external_memory->response_word_valid(MemoryClient::Texture) ||
+                external_memory->response_word_offset(MemoryClient::Texture) != next_word)
+                throw std::logic_error("texture refill prefetch did not cross its synchronous edge");
+            // memory.write_data above uses the OLD high16. The newly captured
+            // word first supplies its low16 on the next enabled cache edge.
+            external_word = external_memory->response_word(MemoryClient::Texture);
+        }
         ++counters.refill_words;
         ++refill_word;
         if (external_memory && external_request_pending && refill_word == external_words * 2) {
@@ -189,9 +215,9 @@ bool TextureUnit::Impl::service_refill(BsramCycle& memory, bool pipeline) {
             tags[slot] = tag;
             valid[slot] = true;
             state = pipeline ? State::Idle : State::CacheRead;
-        } else if (external_memory && external_request_pending && (refill_word & 1u) == 0)
-            state = State::ExternalRead;
+        }
         break;
+    }
     default: return false;
     }
     return true;

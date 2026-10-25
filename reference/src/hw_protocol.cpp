@@ -88,19 +88,24 @@ void validate_pass(const PassDescriptor& descriptor) {
 
 class HeapBuilder {
 public:
+    explicit HeapBuilder(std::uint32_t base_address = heap_base) : base(base_address) {
+        if (base < heap_base || base > memory_bytes || (base & 3u) != 0)
+            throw std::invalid_argument("compiled heap has invalid base");
+    }
     std::uint32_t allocate(std::uint64_t size) {
-        if (size == 0 || (size & 3u) != 0 || size > memory_bytes - heap_base ||
-            bytes.size() > memory_bytes - heap_base - size)
+        if (size == 0 || (size & 3u) != 0 || size > memory_bytes - base ||
+            bytes.size() > memory_bytes - base - size)
             throw std::invalid_argument("compiled pass exceeds the shared GPU heap");
-        const auto address = heap_base + static_cast<std::uint32_t>(bytes.size());
+        const auto address = base + static_cast<std::uint32_t>(bytes.size());
         bytes.resize(bytes.size() + static_cast<std::size_t>(size), 0);
         return address;
     }
     void put(std::uint32_t address, const std::vector<std::uint8_t>& source) {
-        const auto offset = static_cast<std::size_t>(address - heap_base);
+        const auto offset = static_cast<std::size_t>(address - base);
         require_field(bytes, offset, source.size());
         std::copy(source.begin(), source.end(), bytes.begin() + static_cast<std::ptrdiff_t>(offset));
     }
+    std::uint32_t base;
     std::vector<std::uint8_t> bytes;
 };
 
@@ -374,31 +379,31 @@ CopyCommand decode_copy_command(const std::vector<std::uint8_t>& bytes) {
     return result;
 }
 
-HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
+namespace {
+
+struct Upload {
+    std::uint32_t address;
+    std::shared_ptr<const std::vector<std::uint8_t>> bytes;
+};
+
+std::shared_ptr<const std::vector<std::uint8_t>> texture_pixels(const Image& image) {
+    const auto extent = static_cast<std::uint64_t>(image.pitch_bytes()) * image.height();
+    if (extent > memory_bytes - heap_base)
+        throw std::invalid_argument("texture exceeds the shared GPU heap");
+    auto bytes = std::make_shared<std::vector<std::uint8_t>>(static_cast<std::size_t>(extent), 0);
+    for (int y = 0; y < image.height(); ++y) for (int x = 0; x < image.width(); ++x)
+        write_u16(*bytes, static_cast<std::size_t>(y) * image.pitch_bytes() + 2u * x, image.at(x, y));
+    return bytes;
+}
+
+void require_program(const Pass& pass, std::uint32_t first_sequence) {
     if (first_sequence == 0 || pass.primitives.size() > maximum_primitive_records)
         throw std::invalid_argument("invalid first sequence or too many primitive records");
-    HeapBuilder heap;
-    std::unordered_map<const Image*, TextureDescriptor> textures;
-    std::vector<std::optional<TextureDescriptor>> bindings(pass.primitives.size());
-    for (std::size_t index = 0; index < pass.primitives.size(); ++index) {
-        const auto& primitive = pass.primitives[index];
-        validate_primitive(primitive);
-        if (!needs_texture(primitive)) continue;
-        const auto image = std::visit([](const auto& item) { return item.state.texture; }, primitive);
-        if (!image || !image->texture_compatible()) throw std::invalid_argument("invalid host texture binding");
-        const auto found = textures.find(image.get());
-        if (found != textures.end()) { bindings[index] = found->second; continue; }
-        const auto extent = static_cast<std::uint64_t>(image->pitch_bytes()) * image->height();
-        const auto address = heap.allocate(extent);
-        TextureDescriptor texture{address, static_cast<std::uint32_t>(image->width()),
-            static_cast<std::uint32_t>(image->height()), static_cast<std::uint32_t>(image->pitch_bytes())};
-        require_texture(texture);
-        const auto offset = static_cast<std::size_t>(address - heap_base);
-        for (int y = 0; y < image->height(); ++y) for (int x = 0; x < image->width(); ++x)
-            write_u16(heap.bytes, offset + static_cast<std::size_t>(y) * image->pitch_bytes() + 2u * x, image->at(x, y));
-        textures.emplace(image.get(), texture);
-        bindings[index] = texture;
-    }
+    for (const auto& primitive : pass.primitives) validate_primitive(primitive);
+}
+
+HostProgram build_pass_heap(const Pass& pass, const TileBins& bins,
+        const std::vector<std::optional<TextureDescriptor>>& bindings, HeapBuilder& heap) {
     std::vector<std::uint32_t> records;
     records.reserve(pass.primitives.size());
     for (std::size_t index = 0; index < pass.primitives.size(); ++index) {
@@ -406,7 +411,6 @@ HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
         heap.put(address, encode_primitive(pass.primitives[index], bindings[index]));
         records.push_back(address);
     }
-    const auto bins = bin_primitives(pass.primitives);
     std::array<TileEntry, tile_count> entries{};
     HostProgram result;
     for (std::size_t tile = 0; tile < bins.size(); ++tile) {
@@ -416,11 +420,11 @@ HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
         result.reference_count += count;
         if (count == 0) continue;
         entries[tile] = {heap.allocate(4ull * count), static_cast<std::uint32_t>(count)};
-        const auto offset = static_cast<std::size_t>(entries[tile].address - heap_base);
+        const auto offset = static_cast<std::size_t>(entries[tile].address - heap.base);
         for (std::size_t i = 0; i < count; ++i) write_u32(heap.bytes, offset + 4 * i, records.at(bins[tile][i]));
     }
     const auto table = heap.allocate(tile_count * tile_entry_bytes);
-    const auto table_offset = static_cast<std::size_t>(table - heap_base);
+    const auto table_offset = static_cast<std::size_t>(table - heap.base);
     for (std::size_t tile = 0; tile < entries.size(); ++tile) {
         write_u32(heap.bytes, table_offset + tile * tile_entry_bytes, entries[tile].address);
         write_u32(heap.bytes, table_offset + tile * tile_entry_bytes + 4, entries[tile].count);
@@ -428,8 +432,18 @@ HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
     result.descriptor_address = heap.allocate(pass_descriptor_bytes);
     heap.put(result.descriptor_address, encode_pass_descriptor({pass.target, pass.color_load, pass.depth_load,
         pass.clear_color, pass.clear_depth, table}));
+    result.heap_bytes_used = heap.base - heap_base + heap.bytes.size();
+    return result;
+}
+
+HostProgram encode_program(HostProgram result, const std::vector<Upload>& uploads,
+                           std::uint32_t first_sequence) {
     constexpr std::size_t upload_chunk = maximum_packet_payload - 8;
-    const auto packet_count = (heap.bytes.size() + upload_chunk - 1) / upload_chunk + 2;
+    std::uint64_t packet_count = 2;
+    for (const auto& upload : uploads) {
+        packet_count += (upload.bytes->size() + upload_chunk - 1) / upload_chunk;
+        result.upload_bytes += upload.bytes->size();
+    }
     if (packet_count > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()) - first_sequence)
         throw std::overflow_error("compiled program requires a new sequence epoch");
     auto sequence = first_sequence;
@@ -437,21 +451,171 @@ HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
         auto packet = encode_packet(opcode, sequence++, payload);
         result.bytes.insert(result.bytes.end(), packet.begin(), packet.end());
     };
-    for (std::size_t offset = 0; offset < heap.bytes.size(); offset += upload_chunk) {
-        const auto length = std::min(upload_chunk, heap.bytes.size() - offset);
-        std::vector<std::uint8_t> payload(8 + length);
-        write_u32(payload, 0, heap_base + static_cast<std::uint32_t>(offset));
-        write_u32(payload, 4, static_cast<std::uint32_t>(length));
-        std::copy_n(heap.bytes.begin() + static_cast<std::ptrdiff_t>(offset), length, payload.begin() + 8);
-        append(Opcode::WriteHeap, payload);
+    for (const auto& upload : uploads) {
+        for (std::size_t offset = 0; offset < upload.bytes->size(); offset += upload_chunk) {
+            const auto length = std::min(upload_chunk, upload.bytes->size() - offset);
+            std::vector<std::uint8_t> payload(8 + length);
+            write_u32(payload, 0, upload.address + static_cast<std::uint32_t>(offset));
+            write_u32(payload, 4, static_cast<std::uint32_t>(length));
+            std::copy_n(upload.bytes->begin() + static_cast<std::ptrdiff_t>(offset), length, payload.begin() + 8);
+            append(Opcode::WriteHeap, payload);
+        }
     }
     std::vector<std::uint8_t> payload(4);
     write_u32(payload, 0, result.descriptor_address); append(Opcode::SubmitPass, payload);
     result.fence_sequence = sequence; result.fence_token = sequence;
     write_u32(payload, 0, result.fence_token); append(Opcode::Fence, payload);
     result.next_sequence = sequence;
-    result.upload_bytes = heap.bytes.size(); result.heap_bytes_used = heap.bytes.size();
     return result;
+}
+
+} // namespace
+
+HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence) {
+    require_program(pass, first_sequence);
+    HeapBuilder heap;
+    std::unordered_map<const Image*, TextureDescriptor> textures;
+    std::vector<std::optional<TextureDescriptor>> bindings(pass.primitives.size());
+    std::uint64_t texture_bytes = 0;
+    for (std::size_t index = 0; index < pass.primitives.size(); ++index) {
+        const auto& primitive = pass.primitives[index];
+        if (!needs_texture(primitive)) continue;
+        const auto image = std::visit([](const auto& item) { return item.state.texture; }, primitive);
+        if (!image || !image->texture_compatible()) throw std::invalid_argument("invalid host texture binding");
+        const auto found = textures.find(image.get());
+        if (found != textures.end()) { bindings[index] = found->second; continue; }
+        const auto pixels = texture_pixels(*image);
+        const auto address = heap.allocate(pixels->size());
+        TextureDescriptor texture{address, static_cast<std::uint32_t>(image->width()),
+            static_cast<std::uint32_t>(image->height()), static_cast<std::uint32_t>(image->pitch_bytes())};
+        require_texture(texture);
+        heap.put(address, *pixels);
+        texture_bytes += pixels->size();
+        textures.emplace(image.get(), texture);
+        bindings[index] = texture;
+    }
+    auto result = build_pass_heap(pass, bin_primitives(pass.primitives), bindings, heap);
+    result.texture_upload_bytes = result.resident_texture_bytes = texture_bytes;
+    return encode_program(std::move(result), {{heap.base,
+        std::make_shared<const std::vector<std::uint8_t>>(std::move(heap.bytes))}}, first_sequence);
+}
+
+struct HostPassCompiler::Impl {
+    struct Resident {
+        std::shared_ptr<const Image> image;
+        TextureDescriptor descriptor;
+        std::shared_ptr<const std::vector<std::uint8_t>> pixels;
+    };
+    std::vector<Resident> residents;
+    std::vector<Resident> pending_residents;
+    std::uint32_t end = heap_base;
+    std::uint32_t pending_end = heap_base;
+    bool pending = false;
+};
+
+HostPassCompiler::HostPassCompiler() : impl_(std::make_unique<Impl>()) {}
+HostPassCompiler::~HostPassCompiler() = default;
+HostPassCompiler::HostPassCompiler(HostPassCompiler&&) noexcept = default;
+HostPassCompiler& HostPassCompiler::operator=(HostPassCompiler&&) noexcept = default;
+
+HostProgram HostPassCompiler::compile(const Pass& pass, std::uint32_t first_sequence) {
+    auto& state = *impl_;
+    if (state.pending) throw std::logic_error("complete or reset the outstanding host pass before compiling another");
+    require_program(pass, first_sequence);
+    const auto bins = bin_primitives(pass.primitives);
+    std::uint64_t transient_bytes = pass_descriptor_bytes + tile_count * tile_entry_bytes +
+                                    primitive_record_bytes * pass.primitives.size();
+    std::uint64_t references = 0;
+    for (const auto& bin : bins) references += bin.size();
+    if (references > maximum_pass_references)
+        throw std::invalid_argument("compiled pass exceeds reference counter capacity");
+    transient_bytes += 4 * references;
+
+    // Exact CPU snapshots prevent hash collisions and mutable aliases from
+    // silently retaining stale pixels. The FPGA never sees this host storage.
+    std::vector<Impl::Resident> active;
+    std::uint64_t active_texture_bytes = 0;
+    std::unordered_map<const Image*, std::size_t> images;
+    std::vector<std::optional<std::size_t>> primitive_images(pass.primitives.size());
+    for (std::size_t index = 0; index < pass.primitives.size(); ++index) {
+        const auto& primitive = pass.primitives[index];
+        if (!needs_texture(primitive)) continue;
+        const auto image = std::visit([](const auto& item) { return item.state.texture; }, primitive);
+        if (!image || !image->texture_compatible()) throw std::invalid_argument("invalid host texture binding");
+        auto found = images.find(image.get());
+        if (found == images.end()) {
+            active_texture_bytes += static_cast<std::uint64_t>(image->pitch_bytes()) * image->height();
+            if (active_texture_bytes + transient_bytes > memory_bytes - heap_base)
+                throw std::invalid_argument("compiled pass exceeds the shared GPU heap");
+            found = images.emplace(image.get(), active.size()).first;
+            active.push_back({image, {0, static_cast<std::uint32_t>(image->width()),
+                static_cast<std::uint32_t>(image->height()), static_cast<std::uint32_t>(image->pitch_bytes())},
+                texture_pixels(*image)});
+        }
+        primitive_images[index] = found->second;
+    }
+    auto residents = state.residents;
+    std::vector<Upload> uploads;
+    std::uint64_t end = state.end;
+    for (auto& texture : active) {
+        const auto found = std::find_if(residents.begin(), residents.end(), [&](const auto& resident) {
+            return resident.image.get() == texture.image.get() &&
+                resident.descriptor.width == texture.descriptor.width &&
+                resident.descriptor.height == texture.descriptor.height &&
+                resident.descriptor.pitch_bytes == texture.descriptor.pitch_bytes;
+        });
+        if (found != residents.end()) {
+            texture.descriptor = found->descriptor;
+            if (*texture.pixels == *found->pixels) texture.pixels = found->pixels;
+            else uploads.push_back({texture.descriptor.base, texture.pixels});
+            *found = texture;
+        } else {
+            texture.descriptor.base = static_cast<std::uint32_t>(end);
+            end += texture.pixels->size();
+            residents.push_back(texture);
+            uploads.push_back({texture.descriptor.base, texture.pixels});
+        }
+    }
+    if (end + transient_bytes > memory_bytes) {
+        // Older submissions have completed. Reclaim unused residents and pack
+        // active textures again, uploading all moved/retained content explicitly.
+        end = heap_base;
+        residents.clear(); uploads.clear();
+        for (auto& texture : active) {
+            texture.descriptor.base = static_cast<std::uint32_t>(end);
+            end += texture.pixels->size();
+            residents.push_back(texture);
+            uploads.push_back({texture.descriptor.base, texture.pixels});
+        }
+    }
+    if (end + transient_bytes > memory_bytes)
+        throw std::invalid_argument("compiled pass exceeds the shared GPU heap");
+    for (const auto& texture : active) require_texture(texture.descriptor);
+    HeapBuilder heap(static_cast<std::uint32_t>(end));
+    std::vector<std::optional<TextureDescriptor>> bindings(pass.primitives.size());
+    for (std::size_t index = 0; index < bindings.size(); ++index)
+        if (primitive_images[index]) bindings[index] = active[*primitive_images[index]].descriptor;
+    auto result = build_pass_heap(pass, bins, bindings, heap);
+    result.resident_texture_bytes = end - heap_base;
+    for (const auto& upload : uploads) result.texture_upload_bytes += upload.bytes->size();
+    uploads.push_back({heap.base, std::make_shared<const std::vector<std::uint8_t>>(std::move(heap.bytes))});
+    result = encode_program(std::move(result), uploads, first_sequence);
+    // Commit only after the caller observes the successful matching fence.
+    state.pending_residents = std::move(residents);
+    state.pending_end = static_cast<std::uint32_t>(end);
+    state.pending = true;
+    return result;
+}
+
+void HostPassCompiler::complete() {
+    auto& state = *impl_;
+    if (!state.pending) throw std::logic_error("no outstanding host pass to complete");
+    state.residents = std::move(state.pending_residents);
+    state.end = state.pending_end;
+    state.pending = false;
+}
+void HostPassCompiler::reset() {
+    impl_ = std::make_unique<Impl>();
 }
 
 } // namespace nano_gpu::hw

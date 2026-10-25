@@ -39,6 +39,14 @@ struct SystemStatistics {
     std::uint64_t uploaded_bytes = 0;
     std::uint64_t fetched_record_bytes = 0;
     std::uint64_t fetched_bin_bytes = 0;
+    std::uint64_t prefetched_records = 0;
+    std::uint64_t record_prefetch_overlap_cycles = 0;
+    std::uint64_t record_prefetch_wait_cycles = 0;
+    std::uint64_t tile_export_cycles = 0;
+    std::uint64_t tile_export_overlap_cycles = 0;
+    std::uint64_t tile_export_wait_cycles = 0;
+    std::uint64_t tile_staged_pixels = 0;
+    std::uint64_t tile_bank_exchanges = 0;
     std::uint64_t last_pass_cycles = 0;
     std::uint64_t last_submission_cycles = 0;
     std::uint64_t last_present_wait_cycles = 0;

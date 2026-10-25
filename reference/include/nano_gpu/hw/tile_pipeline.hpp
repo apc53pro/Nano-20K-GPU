@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nano_gpu/reference.hpp"
+#include "nano_gpu/hw/bsram.hpp"
 #include "nano_gpu/hw/resources.hpp"
 
 #include <array>
@@ -96,6 +97,7 @@ using FragmentCycleObserver = std::function<void(const FragmentCycle&)>;
 // not fall back to canonical software rasterization.
 class OpaqueTile {
 public:
+    using AttachmentBanks = std::array<Sdp1kx16, 3>;
     OpaqueTile();
     ~OpaqueTile();
     OpaqueTile(const OpaqueTile&) = delete;
@@ -122,6 +124,12 @@ public:
     void load_word(std::uint16_t address, std::uint16_t color, std::uint32_t depth);
     void read_word_request(std::uint16_t address);
     TileWord read_word_result() const;
+    // One role-select control edge, ready tile only. Both sets retain their
+    // fixed physical RAMs; only the selected bank roles change. No contents
+    // move and no RAM ports are accessed. The caller's bank set must remain
+    // alive and connected until this tile is destroyed, with no staged port
+    // operation on this edge. Results still require a later synchronous read.
+    void exchange_attachment_banks(AttachmentBanks*& idle_banks);
     void idle_edge();
     void invalidate_texture();
     void copy_buffer_write(std::uint16_t address, std::uint16_t value);

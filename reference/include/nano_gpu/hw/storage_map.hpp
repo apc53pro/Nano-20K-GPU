@@ -31,7 +31,7 @@ struct StorageBankMapping {
 };
 
 struct SystemStorageMap {
-    static constexpr const char* profile = "N20K-STORAGE-0.2";
+    static constexpr const char* profile = "N20K-STORAGE-0.3";
     static constexpr bool mapping_selected = true;
     static constexpr bool physical_fit_validated = false;
     static constexpr std::uint32_t original_bsram_blocks = 12;
@@ -66,9 +66,11 @@ struct SystemStorageMap {
         // An unaligned 512-byte read can span 129 aligned words. The extra
         // word supplies alignment guard space, not another four payload bytes.
         {"reader",              1, 2,  129, 32, 32},
-        {"row_color",           1, 1,   32, 16},
-        {"row_depth_low",       1, 1,   32, 16},
-        {"row_depth_high",      1, 1,   32,  8},
+        // CLEAR/CLEAR passes retain one completed tile while the resident
+        // banks render the next. LOAD uses the same banks as row staging.
+        {"row_color",           1, 1, 1024, 16},
+        {"row_depth_low",       1, 1, 1024, 16},
+        {"row_depth_high",      1, 1, 1024,  8},
         {"fragment_commit",     1, 3,   64, 34},
         {"fragment_factor",     1, 2,   64, 24},
         {"fragment_result",     1, 1,   64, 16},

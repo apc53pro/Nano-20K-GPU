@@ -68,8 +68,10 @@ struct AppliedProgram {
     unsigned submits = 0;
     unsigned fences = 0;
 };
-AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t first_sequence) {
+AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t first_sequence,
+                                 const std::vector<std::uint8_t>& previous_heap = {}) {
     AppliedProgram result;
+    result.heap = previous_heap;
     result.heap.resize(static_cast<std::size_t>(program.heap_bytes_used));
     std::size_t cursor = 0;
     auto sequence = first_sequence;
@@ -113,6 +115,20 @@ AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t firs
     expect(result.submits == 1 && result.fences == 1 && sequence == program.next_sequence,
            "CPU pass program did not end with submit/fence");
     return result;
+}
+
+TextureDescriptor first_texture(const HostProgram& program, const AppliedProgram& applied) {
+    const auto descriptor = decode_pass_descriptor(slice(applied.heap,
+        program.descriptor_address, pass_descriptor_bytes));
+    for (unsigned tile = 0; tile < tile_count; ++tile) {
+        const auto entry = decode_tile_entry(slice(applied.heap,
+            descriptor.tile_table_address + tile * tile_entry_bytes, tile_entry_bytes));
+        if (entry.count == 0) continue;
+        const auto record = read_u32(slice(applied.heap, entry.address, 4), 0);
+        const auto decoded = decode_primitive(slice(applied.heap, record, primitive_record_bytes));
+        if (decoded.texture) return *decoded.texture;
+    }
+    throw std::runtime_error("test program has no textured primitive");
 }
 
 void byte_tests() {
@@ -350,10 +366,128 @@ void program_tests() {
     });
 }
 
+void resident_program_tests() {
+    run_case("resident compiler reuses texture bytes only after the previous fence", [] {
+        auto image = pattern();
+        Pass pass;
+        pass.primitives.emplace_back(triangle(ShadeMode::TextureReplace, image));
+        pass.primitives.emplace_back(triangle(ShadeMode::TextureGouraudModulate, image));
+        HostPassCompiler compiler;
+        const auto initial = compiler.compile(pass, 10);
+        const auto initial_heap = apply_host_program(initial, 10);
+        expect(initial.texture_upload_bytes == 48 && initial.resident_texture_bytes == 48,
+               "initial shared texture was not uploaded exactly once");
+        expect_throws([&] { compiler.compile(pass, initial.next_sequence); },
+                      "transient allocations reused before completion fence");
+        compiler.complete();
+        const auto next = compiler.compile(pass, initial.next_sequence);
+        const auto next_heap = apply_host_program(next, initial.next_sequence, initial_heap.heap);
+        expect(next.texture_upload_bytes == 0 && next.upload_bytes + 48 == initial.upload_bytes &&
+               next.resident_texture_bytes == 48 && next.heap_bytes_used == initial.heap_bytes_used,
+               "unchanged texture consumed another upload or heap allocation");
+        expect(first_texture(next, next_heap) == first_texture(initial, initial_heap),
+               "unchanged texture moved to a different physical descriptor");
+        expect(next_heap.heap == initial_heap.heap, "resident frame changed uploaded primitive/pixel contents");
+        compiler.complete();
+    });
+    run_case("mutable aliases and changed image dimensions invalidate CPU residency", [] {
+        auto image = pattern();
+        Pass pass;
+        pass.primitives.emplace_back(triangle(ShadeMode::TextureReplace, image));
+        HostPassCompiler compiler;
+        const auto initial = compiler.compile(pass);
+        const auto initial_heap = apply_host_program(initial, 1);
+        compiler.complete();
+        image->at(1, 2) ^= 0x5a5a;
+        const auto changed = compiler.compile(pass, initial.next_sequence);
+        const auto changed_heap = apply_host_program(changed, initial.next_sequence, initial_heap.heap);
+        expect(changed.texture_upload_bytes == 48, "mutable pixel edit silently retained old GPU pixels");
+        const auto descriptor = first_texture(changed, changed_heap);
+        expect(descriptor.base == heap_base &&
+               read_u16(changed_heap.heap, 2u * 12u + 2u) == image->at(1, 2),
+               "changed pixels did not reach the retained texture allocation");
+        // The uploaded snapshot must be independent of later Image writes.
+        image->at(1, 2) ^= 0xffff;
+        compiler.complete();
+        const auto changed_again = compiler.compile(pass, changed.next_sequence);
+        expect(changed_again.texture_upload_bytes == 48, "pending snapshot aliased mutable host pixels");
+        compiler.complete();
+        *image = Image(8, 8);
+        const auto resized = compiler.compile(pass, changed_again.next_sequence);
+        const auto resized_heap = apply_host_program(resized, changed_again.next_sequence, changed_heap.heap);
+        const auto resized_descriptor = first_texture(resized, resized_heap);
+        expect(resized.texture_upload_bytes == 128 && resized_descriptor.width == 8 &&
+               resized_descriptor.height == 8 && resized_descriptor.base >= heap_base + 48,
+               "same Image owner with new dimensions reused an incompatible allocation");
+        compiler.complete();
+    });
+    run_case("residency resets on recovery and failed compilation is transactional", [] {
+        auto image = pattern();
+        Pass pass; pass.primitives.emplace_back(triangle(ShadeMode::TextureReplace, image));
+        HostPassCompiler compiler;
+        expect_throws([&] { compiler.complete(); }, "completion without a pending submission accepted");
+        const auto initial = compiler.compile(pass);
+        compiler.complete();
+        expect_throws([&] { compiler.compile(pass, std::numeric_limits<std::uint32_t>::max() - 1); },
+                      "resident compile wrapped its packet sequence");
+        Pass invalid = pass; invalid.target = 3;
+        expect_throws([&] { compiler.compile(invalid, initial.next_sequence); },
+                      "invalid pass changed compiler state");
+        const auto reused = compiler.compile(pass, initial.next_sequence);
+        expect(reused.texture_upload_bytes == 0, "failed compilation invalidated a completed resident texture");
+        compiler.reset();
+        const auto recovered = compiler.compile(pass);
+        expect(recovered.texture_upload_bytes == 48 && recovered.resident_texture_bytes == 48,
+               "recovery assumed stale GPU contents survived");
+        compiler.complete();
+    });
+    run_case("resident heap compacts between completed passes and rejects aggregate overflow", [] {
+        HostPassCompiler compiler;
+        std::uint32_t sequence = 1;
+        for (unsigned frame = 0; frame < 3; ++frame) {
+            auto image = std::make_shared<Image>(1024, 1024);
+            image->at(0, 0) = static_cast<std::uint16_t>(frame + 1);
+            auto state = overlay_state(); state.texture = image;
+            Pass pass; pass.primitives.emplace_back(Sprite{{0, 0, 1, 1}, 0, 0, state, 0});
+            const auto program = compiler.compile(pass, sequence);
+            const auto applied = apply_host_program(program, sequence);
+            const auto descriptor = first_texture(program, applied);
+            expect(program.texture_upload_bytes == 2u * 1024u * 1024u &&
+                   read_u16(applied.heap, descriptor.base - heap_base) == frame + 1,
+                   "new resident texture omitted its bytes");
+            expect(program.resident_texture_bytes == (frame == 1 ? 4u : 2u) * 1024u * 1024u,
+                   "unused residents were not reclaimed when the heap filled");
+            sequence = program.next_sequence; compiler.complete();
+        }
+        Pass overflow;
+        for (unsigned index = 0; index < 3; ++index) {
+            auto state = overlay_state(); state.texture = std::make_shared<Image>(1024, 1024);
+            overflow.primitives.emplace_back(Sprite{{0, 0, 1, 1}, 0, 0, state, 0});
+        }
+        expect_throws([&] { compiler.compile(overflow, sequence); },
+                      "aggregate active textures exceeded the shared GPU heap");
+        const auto after_failure = compiler.compile(Pass{}, sequence);
+        expect(after_failure.texture_upload_bytes == 0, "overflow poisoned the next compile");
+        compiler.complete();
+    });
+    run_case("resident ownership prevents host pointer reuse until allocator reset", [] {
+        HostPassCompiler compiler;
+        std::weak_ptr<const Image> lifetime;
+        {
+            auto image = pattern(); lifetime = image;
+            Pass pass; pass.primitives.emplace_back(triangle(ShadeMode::TextureReplace, image));
+            compiler.compile(pass); compiler.complete();
+        }
+        expect(!lifetime.expired(), "resident cache retained an unowned raw Image pointer");
+        compiler.reset();
+        expect(lifetime.expired(), "allocator reset leaked host texture ownership");
+    });
+}
+
 } // namespace
 
 int main() {
-    byte_tests(); record_tests(); program_tests();
+    byte_tests(); record_tests(); program_tests(); resident_program_tests();
     std::cout << cases - failures << '/' << cases << " protocol cases passed\n";
     return failures == 0 ? 0 : 1;
 }

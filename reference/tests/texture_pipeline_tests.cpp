@@ -196,6 +196,43 @@ void local_tests() {
 }
 
 void external_tests() {
+    run("external refill streams sixteen native cache writes on consecutive edges", [] {
+        const auto image = pattern(16, 1);
+        SdramController memory; boot(memory); upload(memory, heap_base, *image);
+        TextureUnit unit; unit.pipeline_mode(true);
+        unit.bind_external({heap_base, 16, 1, 32}, memory);
+        const auto before = memory.statistics();
+        expect(unit.push(11, 0), "cold external coordinate was rejected");
+        unsigned previous_write = 0, writes = 0, edge = 0;
+        while (!unit.output_valid()) {
+            expect(++edge < 1000, "external refill did not produce a texel");
+            const auto refill_before = unit.statistics().refill_words;
+            unit.tick(); memory.tick();
+            if (unit.statistics().refill_words != refill_before) {
+                expect(unit.statistics().refill_words == refill_before + 1,
+                       "cache wrote more than one native word in an edge");
+                if (writes != 0)
+                    expect(edge == previous_write + 1,
+                           "external refill inserted a bubble between cache writes");
+                previous_write = edge; ++writes;
+            }
+        }
+        expect(unit.output() == image->at(11, 0) && writes == 16,
+               "external refill returned stale data or omitted a cache word");
+        const auto& after = memory.statistics();
+        expect(after.slot_read_words - before.slot_read_words == 8,
+               "external refill did not read each synchronous response word exactly once");
+        expect(!unit.external_memory_pending(), "completed refill retained its SDRAM slot");
+        expect(unit.pop(), "completed external sample could not retire");
+        unit.tick(); memory.tick();
+        // Read every halfword after the refill to expose a word-overwrite bug
+        // even when the original coordinate used only one half of the line.
+        std::vector<std::pair<int, int>> coordinates;
+        for (int x = 0; x < 16; ++x) coordinates.emplace_back(x, 0);
+        (void)drive(unit, *image, coordinates, false, false, &memory);
+        expect(unit.statistics().misses == 1,
+               "the complete external line was not retained after its refill");
+    });
     run("streaming cache misses use synchronous owned SDRAM slots", [] {
         const auto image = pattern(8, 8, 24);
         SdramController memory; boot(memory); upload(memory, heap_base, *image);

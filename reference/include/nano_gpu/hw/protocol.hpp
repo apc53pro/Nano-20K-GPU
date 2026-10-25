@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -112,7 +113,34 @@ struct HostProgram {
     std::uint64_t upload_bytes = 0;
     std::uint64_t reference_count = 0;
     std::uint64_t heap_bytes_used = 0;
+    std::uint64_t texture_upload_bytes = 0;
+    std::uint64_t resident_texture_bytes = 0;
 };
 HostProgram compile_pass(const Pass& pass, std::uint32_t first_sequence = 1);
+
+// CPU driver resource cache, not additional FPGA memory. Texture snapshots are
+// compared exactly, including detection of writes through a mutable Image alias.
+// Textures occupy a persistent heap prefix; records/bins use its transient tail.
+// There is one outstanding program: call complete() only after its matching
+// successful FENCE. compile() then safely reuses transient storage. Call reset()
+// after abort/reset, failed delivery, or external writes into this allocator's
+// heap. Before reusing addresses, the caller must quiesce older device work.
+// The device must invalidate texture tags before executing a newly uploaded
+// pass: changed contents and heap compaction can reuse a physical descriptor.
+class HostPassCompiler {
+public:
+    HostPassCompiler();
+    ~HostPassCompiler();
+    HostPassCompiler(const HostPassCompiler&) = delete;
+    HostPassCompiler& operator=(const HostPassCompiler&) = delete;
+    HostPassCompiler(HostPassCompiler&&) noexcept;
+    HostPassCompiler& operator=(HostPassCompiler&&) noexcept;
+    HostProgram compile(const Pass& pass, std::uint32_t first_sequence = 1);
+    void complete();
+    void reset();
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
 
 } // namespace nano_gpu::hw

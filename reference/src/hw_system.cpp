@@ -18,18 +18,17 @@ namespace nano_gpu::hw {
 namespace {
 
 // The shared reader has two actual SDPB banks, striped low/high16. Incoming
-// slot words are clocked into RAM; a separate synchronous read pass populates
-// a 320-byte decoded-field register bank. Typed decoders below only interpret
-// those established registers, never inspect RAM through a parallel back door.
-// Diagnostic READ_MEMORY replies stream directly out of RAM instead.
+// slot words are clocked into RAM and the already allocated 320-byte decoded
+// field registers on the same edge. Consecutive synchronous slot reads overlap
+// capture of the previous word. Typed decoders only interpret established
+// registers; diagnostic READ_MEMORY replies stream out of RAM instead.
 struct Reader {
-    enum class State { Idle, Request, Wait, ReadIssue, ReadCapture,
-        DecodePrime, DecodeCapture, Done } state = State::Idle;
+    enum class State { Idle, Request, Wait, ReadCapture, Done } state = State::Idle;
     std::array<Sdp1kx16, 2> ram;
     std::array<std::uint8_t, primitive_record_bytes> fields{};
     MemoryClient client = MemoryClient::Command;
     std::uint32_t address = 0, burst_address = 0;
-    unsigned length = 0, copied = 0, word = 0, response_words = 0, decode_word = 0;
+    unsigned length = 0, copied = 0, word = 0, response_words = 0;
     bool decode_fields = true;
     void ports(bool write = false, unsigned wa = 0, std::uint32_t value = 0,
                bool read = false, unsigned ra = 0) {
@@ -44,6 +43,7 @@ struct Reader {
             static_cast<std::uint64_t>(base) + count > memory_bytes)
             throw std::out_of_range("bounded system read outside SDRAM");
         address = base; length = count; copied = 0; client = port;
+        if (decode) fields.fill(0);
         decode_fields = decode; state = State::Request;
     }
     bool done() const { return state == State::Done; }
@@ -63,12 +63,11 @@ struct Reader {
         case State::Wait:
             if (memory.response_ready(client)) {
                 response_words = memory.response_info(client).words;
-                word = 0; state = State::ReadIssue;
+                word = 0;
+                if (!memory.request_response_word(client, word))
+                    throw std::logic_error("system reader could not prime its owned slot");
+                state = State::ReadCapture;
             }
-            ports();
-            break;
-        case State::ReadIssue:
-            if (memory.request_response_word(client, word)) state = State::ReadCapture;
             ports();
             break;
         case State::ReadCapture: {
@@ -79,27 +78,16 @@ struct Reader {
             ports(true, (burst_address + 4 * word - (address & ~3u)) / 4, value);
             for (unsigned byte = 0; byte < 4; ++byte) {
                 const auto source = burst_address + 4 * word + byte;
-                if (source >= address && source < address + length) ++copied;
+                if (source >= address && source < address + length) {
+                    if (decode_fields) fields[source - address] = static_cast<std::uint8_t>(value >> (8 * byte));
+                    ++copied;
+                }
             }
             if (++word == response_words) {
                 memory.release_response(client);
-                state = copied == length ? (decode_fields ? State::DecodePrime : State::Done) : State::Request;
-            } else state = State::ReadIssue;
-            break;
-        }
-        case State::DecodePrime:
-            decode_word = 0; ports(false, 0, 0, true, 0);
-            state = State::DecodeCapture; break;
-        case State::DecodeCapture: {
-            const auto value = result();
-            for (unsigned byte = 0; byte < 4; ++byte) {
-                const auto source = 4 * decode_word + byte;
-                if (source >= (address & 3u) && source - (address & 3u) < length)
-                    fields[source - (address & 3u)] = static_cast<std::uint8_t>(value >> (8 * byte));
-            }
-            if (++decode_word == (length + (address & 3u) + 3) / 4) {
-                ports(); state = State::Done;
-            } else ports(false, 0, 0, true, decode_word);
+                state = copied == length ? State::Done : State::Request;
+            } else if (!memory.request_response_word(client, word))
+                throw std::logic_error("system reader could not advance its owned slot");
             break;
         }
         }
@@ -110,11 +98,13 @@ struct Reader {
     }
 };
 
-// A single32-bit pack register feeds the owned controller slot. It is not a
-// duplicate16-word request array. Packet/row sources may wait for native reads.
+// Byte uploads use one pack register. Native-word sources feed the owned
+// controller slot directly from an established synchronous source result.
+// Neither mode keeps a duplicate16-word request array.
 struct Writer {
     enum class State { Idle, Fill, Word, Request, Wait, Done } state = State::Idle;
     std::function<std::optional<std::uint8_t>(unsigned)> source;
+    std::function<std::optional<std::uint32_t>(unsigned)> word_source;
     MemoryClient client = MemoryClient::Host;
     MemoryRequest request{};
     std::uint32_t packed = 0;
@@ -134,13 +124,29 @@ struct Writer {
                std::function<std::optional<std::uint8_t>(unsigned)> input) {
         if (count == 0 || static_cast<std::uint64_t>(base) + count > memory_bytes)
             throw std::out_of_range("system write outside SDRAM");
-        address = base; length = count; client = port; source = std::move(input); cursor = 0; prepare();
+        address = base; length = count; client = port; source = std::move(input);
+        word_source = {}; cursor = 0; prepare();
+    }
+    void start_words(std::uint32_t base, unsigned count, MemoryClient port,
+                     std::function<std::optional<std::uint32_t>(unsigned)> input) {
+        if (count == 0 || (base & 3u) != 0 || (count & 3u) != 0 ||
+            static_cast<std::uint64_t>(base) + count > memory_bytes)
+            throw std::out_of_range("native-word system write outside SDRAM or unaligned");
+        address = base; length = count; client = port; word_source = std::move(input);
+        source = {}; cursor = 0; prepare();
     }
     bool done() const { return state == State::Done; }
     void tick(SdramController& memory) {
         switch (state) {
         case State::Idle: case State::Done: break;
         case State::Fill: {
+            if (word_source) {
+                const auto value = word_source((cursor + fill) / 4);
+                if (!value || !memory.write_request_word(client, word, *value, 0xf)) break;
+                ++word; fill += 4;
+                if (fill == chunk) state = State::Request;
+                break;
+            }
             const auto value = source(cursor + fill);
             if (!value) break;
             const auto index = prefix + fill;
@@ -172,7 +178,8 @@ struct Writer {
 // Three native row banks match the tile attachment layout. Accesses are staged
 // during execute() and clocked once at the end of the common core edge.
 struct RowBanks {
-    std::array<Sdp1kx16, 3> ram;
+    OpaqueTile::AttachmentBanks ram;
+    OpaqueTile::AttachmentBanks* active = &ram;
     std::array<BsramCycle, 3> staged{};
     void read(unsigned index) {
         for (auto& p : staged) {
@@ -191,9 +198,15 @@ struct RowBanks {
         }
     }
     TileWord result() const {
-        return {ram[0].output(), ram[1].output() | (std::uint32_t{ram[2].output()} << 16)};
+        return {(*active)[0].output(), (*active)[1].output() | (std::uint32_t{(*active)[2].output()} << 16)};
     }
-    void tick() { for (unsigned bank = 0; bank < 3; ++bank) { ram[bank].tick(staged[bank]); staged[bank] = {}; } }
+    void exchange_with(OpaqueTile& tile) {
+        for (const auto& p : staged)
+            if (p.read_enable || p.write_enable || p.reset)
+                throw std::logic_error("attachment bank exchange overlaps a staged RAM port operation");
+        tile.exchange_attachment_banks(active);
+    }
+    void tick() { for (unsigned bank = 0; bank < 3; ++bank) { (*active)[bank].tick(staged[bank]); staged[bank] = {}; } }
 };
 
 template<std::size_t N>
@@ -248,11 +261,11 @@ struct SystemModel::Impl {
         }
     };
     enum class State {
-        Idle, Capture, Upload, PassDescriptor, TileEntry, LoadRow,
+        Idle, Capture, Upload, PassInvalidate, PassDescriptor, TileEntry, LoadRow,
         LoadColor, LoadDepthLow, LoadDepthHigh, UnpackColor, UnpackDepth,
         LoadLocal, LoadLocalCapture,
-        Reference, Record, Draw, StoreLocal, StorePrepare, StoreColor, StoreDepthLow,
-        StoreDepthHigh, Copy, Present, Readback, ReplyBuild, ReplyRead, Reply, Fault, Abort
+        Reference, Record, Prefetched, Draw, StoreLocal, StorePrepare, StoreColor, StoreDepthLow,
+        StoreDepthHigh, StoreDrain, Copy, Present, Readback, ReplyBuild, ReplyRead, Reply, Fault, Abort
     } state = State::Idle;
     SystemConfig configuration;
     SdramController memory;
@@ -262,7 +275,14 @@ struct SystemModel::Impl {
     SystemCopy copier;
     Sdp1kx16 reply_bank;
     Reader reader;
+    // The current primitive lives in the tile command registers. This same
+    // reader RAM/field bank holds one upcoming record while it draws.
+    enum class Prefetch { Idle, Reference, Record, Ready } prefetch = Prefetch::Idle;
+    std::uint32_t prefetch_record = 0;
+    bool prefetch_invalid = false;
     Writer writer;
+    HostPassCompiler compiler; // CPU driver storage, not FPGA resources.
+    bool driver_program_pending = false; // CPU driver ownership, not a device bit.
     Statistics counts{};
     SystemStatistics totals{};
     const HostCommand* command = nullptr; // Lease the front packet bank until retirement.
@@ -277,9 +297,18 @@ struct SystemModel::Impl {
     std::array<std::uint8_t, 92> reply{};
     unsigned reply_index = 0, reply_source_length = 0;
     RowBanks rows;
-    bool row_source_depth = false, row_source_pending = false;
-    unsigned row_source_half = 0, row_source_index = 32, unpack_half = 0;
-    TileWord row_source_value{};
+    bool row_source_depth = false, row_source_pending = false, row_source_word_valid = false;
+    unsigned row_source_half = 0, row_source_index = 32, row_source_next = 0,
+             row_source_pending_index = 0, unpack_half = 0;
+    std::uint16_t row_source_low_color = 0;
+    std::uint32_t row_source_word_value = 0;
+    // A one-bit role mux exchanges the existing two physical attachment sets.
+    // One holds a completed tile for DMA while the other renders its successor.
+    // LOAD passes serialize because their row input uses the same idle set.
+    enum class TileExport { Idle, PrepareColor, Color, DepthLow, DepthHigh } tile_export = TileExport::Idle;
+    bool row_source_staged = false;
+    unsigned tile_export_row = 0;
+    std::uint32_t tile_export_color_address = 0, tile_export_depth_address = 0;
     bool reply_reader = false, reply_reader_pending = false;
     unsigned reply_length = 0, reply_reader_word = 0;
     std::uint32_t reply_reader_value = 0;
@@ -394,6 +423,7 @@ struct SystemModel::Impl {
         if (pass_active) { valid[pass.target] = false; valid_depth = false; }
         if (copy_active) valid[copy.target] = false;
         sealed = driver_present_pending = false;
+        cancel_tile_export();
         state = State::Fault;
     }
     bool drain_issued() {
@@ -452,14 +482,16 @@ struct SystemModel::Impl {
             if (length != command->payload_size - 8 || length == 0)
                 throw std::invalid_argument("WRITE_HEAP data length");
             validate_heap_range(address, length, 1);
+            // Low-level host writes may reuse any heap address. The CPU
+            // convenience driver must discard its residency knowledge then.
+            if (!driver_program_pending) compiler.reset();
             writer.start(address, length, MemoryClient::Host,
                 [this](unsigned index) { return packet_byte(8 + index); });
             state = State::Upload; break;
         }
         case Opcode::SubmitPass:
             validate_heap_range(get(captured, 0), pass_descriptor_bytes);
-            reader.start(get(captured, 0), pass_descriptor_bytes, MemoryClient::Command);
-            pass_start = totals.core_cycles; state = State::PassDescriptor; break;
+            pass_start = totals.core_cycles; state = State::PassInvalidate; break;
         case Opcode::Fence:
             totals.completed_fence_token = get(captured, 0); make_reply(get(captured, 0)); break;
         case Opcode::Present:
@@ -495,6 +527,39 @@ struct SystemModel::Impl {
     void fetch_reference() {
         reader.start(bin.address + reference_index * 4, 4, MemoryClient::Command); state = State::Reference;
     }
+    void begin_record_draw() {
+        const auto decoded = decode_primitive(reader.view());
+        tile.begin_external(decoded.primitive, origin(), decoded.texture, memory);
+        state = State::Draw;
+        prefetch = Prefetch::Idle; prefetch_invalid = false;
+        if (reference_index + 1 < bin.count) {
+            reader.start(bin.address + (reference_index + 1) * 4, 4, MemoryClient::Command);
+            prefetch = Prefetch::Reference;
+        }
+    }
+    void advance_prefetch() {
+        if (prefetch == Prefetch::Idle || prefetch == Prefetch::Ready) return;
+        const bool completed = reader.done();
+        reader.tick(memory);
+        if (!completed) return;
+        if (prefetch == Prefetch::Reference) {
+            prefetch_record = read_u32(reader.view(), 0);
+            totals.fetched_bin_bytes += 4;
+            // Defer malformed-reference faults until the current draw drains,
+            // without issuing an invalid speculative memory request.
+            prefetch_invalid = (prefetch_record & 3u) != 0 || prefetch_record < heap_base ||
+                static_cast<std::uint64_t>(prefetch_record) + primitive_record_bytes > memory_bytes;
+            if (prefetch_invalid) prefetch = Prefetch::Ready;
+            else {
+                reader.start(prefetch_record, primitive_record_bytes, MemoryClient::Command);
+                prefetch = Prefetch::Record;
+            }
+        } else {
+            totals.fetched_record_bytes += primitive_record_bytes;
+            ++totals.prefetched_records;
+            prefetch = Prefetch::Ready;
+        }
+    }
     void begin_row_load() {
         beat = 0;
         if (pass.color_load == LoadOp::Load) {
@@ -508,25 +573,84 @@ struct SystemModel::Impl {
             state = State::LoadDepthLow;
         } else { beat = 0; state = State::LoadLocal; }
     }
-    std::optional<std::uint8_t> row_byte(unsigned index) {
-        const auto element = row_source_depth ? row_source_half * 16 + index / 4 : index / 2;
+    std::optional<std::uint32_t> row_word(unsigned index) {
+        // Keep a completed word stable if the destination stalls. One pending
+        // native read may be retained alongside it; that RAM output remains
+        // established until the next request and is never read combinationally.
+        if (row_source_word_valid && row_source_index == index) return row_source_word_value;
+        row_source_word_valid = false;
         if (row_source_pending) {
-            row_source_value = rows.result(); row_source_pending = false;
-            row_source_index = element;
+            const auto value = row_source_staged ? rows.result() : tile.read_word_result();
+            row_source_pending = false;
+            const auto element = row_source_pending_index;
+            if (row_source_depth) {
+                row_source_word_value = value.depth;
+                row_source_index = element - row_source_half * 16;
+                row_source_word_valid = true;
+            } else if ((element & 1u) == 0) row_source_low_color = value.color;
+            else {
+                row_source_word_value = row_source_low_color | (std::uint32_t{value.color} << 16);
+                row_source_index = element / 2;
+                row_source_word_valid = true;
+            }
         }
-        if (row_source_index != element) {
-            rows.read(element); row_source_pending = true; return {};
+        // Pipeline one pixel ahead: depth supplies one x32 word per edge,
+        // RGB565 packs two successive x16 reads into each x32 word.
+        const auto end = row_source_depth ? (row_source_half + 1) * 16 : 32;
+        if (row_source_next < end) {
+            row_source_pending_index = row_source_next++;
+            if (row_source_staged) rows.read(tile_export_row * tile_size + row_source_pending_index);
+            else tile.read_word_request(static_cast<std::uint16_t>(row * tile_size + row_source_pending_index));
+            row_source_pending = true;
         }
-        return static_cast<std::uint8_t>(row_source_depth ?
-            row_source_value.depth >> (8 * (index & 3u)) : row_source_value.color >> (8 * (index & 1u)));
+        if (!row_source_word_valid) return {};
+        if (row_source_index != index) throw std::logic_error("row word source lost its sequential offset");
+        return row_source_word_value;
     }
-    void prepare_store(bool depth, unsigned half = 0) {
-        row_source_depth = depth; row_source_half = half;
-        row_source_index = 32; row_source_pending = false;
-        const auto address = depth ? depth_buffer_base + global_pixel() * 4 + half * 64 :
-                                    color_buffer_base(pass.target) + global_pixel() * 2;
-        writer.start(address, 64, MemoryClient::Tile,
-            [this](unsigned index) { return row_byte(index); });
+    void prepare_store(bool depth, unsigned half = 0, bool staged = false) {
+        row_source_depth = depth; row_source_half = half; row_source_staged = staged;
+        row_source_index = 32; row_source_pending = row_source_word_valid = false;
+        row_source_next = depth ? half * 16 : 0;
+        const auto address = staged ? (depth ? tile_export_depth_address + tile_export_row * screen_width * 4 + half * 64 :
+                                               tile_export_color_address + tile_export_row * screen_width * 2) :
+            (depth ? depth_buffer_base + global_pixel() * 4 + half * 64 :
+                     color_buffer_base(pass.target) + global_pixel() * 2);
+        writer.start_words(address, 64, MemoryClient::Tile,
+            [this](unsigned index) { return row_word(index); });
+    }
+    bool can_overlap_tile_export() const {
+        return pass.color_load == LoadOp::Clear && pass.depth_load == LoadOp::Clear;
+    }
+    void cancel_tile_export() {
+        tile_export = TileExport::Idle;
+        row_source_pending = row_source_word_valid = false;
+        writer.state = Writer::State::Idle;
+    }
+    void advance_tile_export() {
+        if (tile_export == TileExport::Idle) return;
+        ++totals.tile_export_cycles;
+        if (state != State::StoreLocal && state != State::StoreDrain)
+            ++totals.tile_export_overlap_cycles;
+        switch (tile_export) {
+        case TileExport::Idle: break;
+        case TileExport::PrepareColor:
+            prepare_store(false, 0, true); tile_export = TileExport::Color; break;
+        case TileExport::Color:
+            writer.tick(memory);
+            if (writer.done()) { prepare_store(true, 0, true); tile_export = TileExport::DepthLow; }
+            break;
+        case TileExport::DepthLow:
+            writer.tick(memory);
+            if (writer.done()) { prepare_store(true, 1, true); tile_export = TileExport::DepthHigh; }
+            break;
+        case TileExport::DepthHigh:
+            writer.tick(memory);
+            if (writer.done()) {
+                if (++tile_export_row == tile_size) tile_export = TileExport::Idle;
+                else tile_export = TileExport::PrepareColor;
+            }
+            break;
+        }
     }
     void finish_pass() {
         const auto& c = tile.statistics();
@@ -554,6 +678,14 @@ struct SystemModel::Impl {
         case State::Upload:
             writer.tick(memory);
             if (writer.done()) { totals.uploaded_bytes += writer.length; finish(); }
+            break;
+        case State::PassInvalidate:
+            // Uploads may replace texels at an unchanged address. Invalidation
+            // consumes its own real cache-control edge before pass fetching.
+            tile.invalidate_texture();
+            prefetch = Prefetch::Idle;
+            reader.start(get(captured, 0), pass_descriptor_bytes, MemoryClient::Command);
+            state = State::PassDescriptor;
             break;
         case State::PassDescriptor: {
             const bool completed = reader.done();
@@ -617,9 +749,10 @@ struct SystemModel::Impl {
             break;
         }
         case State::LoadLocal:
-            rows.read(0); beat = 0; state = State::LoadLocalCapture; break;
+            if (!can_overlap_tile_export()) rows.read(0);
+            beat = 0; state = State::LoadLocalCapture; break;
         case State::LoadLocalCapture: {
-            const auto value = rows.result();
+            const auto value = can_overlap_tile_export() ? TileWord{} : rows.result();
             tile.load_word(static_cast<std::uint16_t>(row * tile_size + beat),
                 pass.color_load == LoadOp::Clear ? pass.clear_color : value.color,
                 pass.depth_load == LoadOp::Clear ? pass.clear_depth : value.depth);
@@ -629,7 +762,7 @@ struct SystemModel::Impl {
                     if (bin.count != 0) fetch_reference();
                     else { row = beat = 0; state = State::StoreLocal; }
                 } else state = State::LoadRow;
-            } else rows.read(beat);
+            } else if (!can_overlap_tile_export()) rows.read(beat);
             break;
         }
         case State::Reference: {
@@ -647,29 +780,52 @@ struct SystemModel::Impl {
             const bool completed = reader.done();
             reader.tick(memory);
             if (completed) {
-                const auto decoded = decode_primitive(reader.view());
                 totals.fetched_record_bytes += primitive_record_bytes;
-                tile.begin_external(decoded.primitive, origin(), decoded.texture, memory); state = State::Draw;
+                begin_record_draw();
             }
             break;
         }
+        case State::Prefetched:
+            advance_prefetch();
+            if (prefetch == Prefetch::Ready) {
+                if (prefetch_invalid) validate_heap_range(prefetch_record, primitive_record_bytes);
+                begin_record_draw();
+            } else ++totals.record_prefetch_wait_cycles;
+            break;
         case State::Draw:
+            if (prefetch == Prefetch::Reference || prefetch == Prefetch::Record)
+                ++totals.record_prefetch_overlap_cycles;
+            advance_prefetch();
             tile.tick();
             if (!tile.busy()) {
-                if (++reference_index < bin.count) fetch_reference();
+                if (++reference_index < bin.count) state = State::Prefetched;
                 else { row = beat = 0; state = State::StoreLocal; }
             }
             break;
         case State::StoreLocal:
-            if (beat != 0) {
-                rows.write(beat - 1, tile.read_word_result());
+            if (can_overlap_tile_export()) {
+                if (tile_export != TileExport::Idle) { ++totals.tile_export_wait_cycles; break; }
+                rows.exchange_with(tile);
+                ++totals.tile_bank_exchanges;
+                totals.tile_staged_pixels += tile_size * tile_size;
+                tile_export_row = 0;
+                tile_export_color_address = color_buffer_base(pass.target) + global_pixel() * 2;
+                tile_export_depth_address = depth_buffer_base + global_pixel() * 4;
+                tile_export = TileExport::PrepareColor;
+                ++counts.tiles_processed;
+                if (++tile_index != tile_count) fetch_entry();
+                else state = State::StoreDrain;
+                break;
             }
-            if (beat < 32) tile.read_word_request(static_cast<std::uint16_t>(row * 32 + beat));
-            else tile.idle_edge();
-            if (++beat == 33) state = State::StorePrepare;
-            break;
+            [[fallthrough]];
         case State::StorePrepare:
+            // Read the resident tile directly while filling the SDRAM slot.
+            // The row banks remain a LOAD staging resource; exporting does
+            // not copy the row through a second set of synchronous RAM ports.
             prepare_store(false); state = State::StoreColor;
+            break;
+        case State::StoreDrain:
+            if (tile_export == TileExport::Idle) finish_pass();
             break;
         case State::StoreColor:
             writer.tick(memory);
@@ -768,6 +924,7 @@ struct SystemModel::Impl {
                 host.recover(++totals.epoch); next_sequence = 1;
                 totals.completed_sequence = totals.completed_fence_token = totals.completed_present_token = 0;
                 command = nullptr; packet_read_pending = false; pass_active = copy_active = false;
+                prefetch = Prefetch::Idle; compiler.reset();
                 sealed = driver_present_pending = false; error = SystemFault::None; message.clear(); state = State::Idle;
                 if (!initialized) { boot_address = 0; boot_wait = false; boot_fill = 0; }
             }
@@ -816,11 +973,13 @@ struct SystemModel::Impl {
         if (host.abort_requested() && state != State::Abort) {
             if (pass_active) { valid[pass.target] = false; valid_depth = false; }
             if (copy_active) valid[copy.target] = false;
+            cancel_tile_export();
             sealed = driver_present_pending = false; state = State::Abort; ++totals.aborts;
         }
         if (host.faulted() && state != State::Abort && error == SystemFault::None)
             fail(SystemFault::Transport, "parallel link or packet decoder fault");
         try {
+            if (initialized && state != State::Abort && state != State::Fault) advance_tile_export();
             if (state == State::Abort || state == State::Fault) execute();
             else if (!initialized) boot();
             else execute();
@@ -945,11 +1104,18 @@ void SystemModel::observe_memory() {
 }
 void SystemModel::render(const Pass& pass, RenderMode) {
     auto& p = *impl_;
-    const auto program = compile_pass(pass, p.next_sequence);
+    const auto program = p.compiler.compile(pass, p.next_sequence);
     p.next_sequence = program.next_sequence;
     const auto start = p.totals.core_cycles;
-    send_bytes(program.bytes); const auto response = read_reply(Opcode::Fence, program.fence_sequence);
-    if (read_u32(response, 24) != program.fence_token) throw std::runtime_error("wrong fence token");
+    p.driver_program_pending = true;
+    try {
+        send_bytes(program.bytes); const auto response = read_reply(Opcode::Fence, program.fence_sequence);
+        if (read_u32(response, 24) != program.fence_token) throw std::runtime_error("wrong fence token");
+        p.compiler.complete();
+    } catch (...) {
+        p.compiler.reset(); p.driver_program_pending = false; throw;
+    }
+    p.driver_program_pending = false;
     p.totals.last_submission_cycles = p.totals.core_cycles - start; observe_memory();
 }
 void SystemModel::copy_rect(int source, int target, Point source_origin, Point destination_origin,
@@ -966,6 +1132,7 @@ void SystemModel::copy_rect(int source, int target, Point source_origin, Point d
 void SystemModel::copy_image(const Image& image, int target, Point source_origin, Point destination_origin,
                              int width, int height) {
     auto& p = *impl_;
+    p.compiler.reset(); // The raw heap upload may overwrite resident textures.
     TextureDescriptor descriptor{heap_base, static_cast<std::uint32_t>(image.width()),
         static_cast<std::uint32_t>(image.height()), static_cast<std::uint32_t>(image.pitch_bytes())};
     const auto extent = texture_extent(descriptor);
