@@ -1,6 +1,8 @@
 #include "nano_gpu/demo.hpp"
 #include "nano_gpu/hw/device.hpp"
+#include "nano_gpu/hw/fragment_pipeline.hpp"
 #include "nano_gpu/hw/perspective.hpp"
+#include "nano_gpu/hw/reciprocal.hpp"
 #include "nano_gpu/hw/sdram.hpp"
 #include "nano_gpu/hw/texture.hpp"
 #include "nano_gpu/hw/tile_pipeline.hpp"
@@ -637,7 +639,7 @@ void copy_tests() {
 }
 
 void tile_stall_tests() {
-    run_case("registered divider and texture outputs cross parent clock boundaries", [] {
+    run_case("streamed UV texture shader and context outputs cross registered clock boundaries", [] {
         RenderState state = overlay_state();
         state.shade = ShadeMode::TextureReplace;
         state.texture = solid(0x07e0);
@@ -646,24 +648,25 @@ void tile_stall_tests() {
         tile.clear(0x1234, depth_max);
         const auto before = tile.statistics().cycles;
 
-        // Independent interface schedule for one covered sample in a 2x2
-        // candidate box. A parent's register may capture a child's registered
-        // result only on a later edge, even when completion is predictable.
+        // Independent interface schedule for one covered sample in a2x2 box.
+        // UVlaunch shares the early-depth capture edge. UVparent capture also
+        // launches the factor RAM read; texture parent capture launches shade.
+        // These coincident launches still consume OLD registered outputs.
         constexpr unsigned command_capture = 1;
         constexpr unsigned edge_setup = 6 * 4; // 3 DSP stages + parent capture
         constexpr unsigned candidates = 4;
-        constexpr unsigned perspective_work = 2 * PerspectiveDivider::enabled_edge_latency;
-        constexpr unsigned perspective_capture = 2;
-        constexpr unsigned texture_miss = 1 + TextureUnit::address_edges + 1 +
-            TextureUnit::backing_response_edges + TextureUnit::line_words + 1 + 1;
-        constexpr unsigned texture_capture = 1;
-        constexpr unsigned commit = 1;
-        constexpr unsigned drain = 1;
-        constexpr unsigned draw_edges = command_capture + edge_setup + candidates +
-            perspective_work + perspective_capture + texture_miss + texture_capture + commit + drain;
-        constexpr unsigned first_commit = command_capture + edge_setup + 1 +
-            perspective_work + perspective_capture + texture_miss + texture_capture + commit;
-        static_assert(draw_edges == 252 && first_commit == 248);
+        constexpr unsigned warm_fragment = PerspectivePipeline::enabled_edge_latency +
+            TexturedFragmentPipeline::factor_read_edges + TexturedFragmentPipeline::factor_capture_edges +
+            TextureUnit::pipeline_hit_edges + TexturedFragmentPipeline::shade_enabled_edges +
+            TexturedFragmentPipeline::retirement_read_edges + TexturedFragmentPipeline::retirement_capture_edges;
+        constexpr unsigned cold_extra = TextureUnit::backing_response_edges + TextureUnit::line_words + 1;
+        constexpr unsigned first_accept = command_capture + edge_setup + 1;
+        constexpr unsigned first_commit = first_accept + warm_fragment + cold_extra;
+        // The three uncovered successors walk while that first fragment is in
+        // flight. Tile drain finishes on the final retirement's own edge.
+        constexpr unsigned traversal_end = command_capture + edge_setup + candidates;
+        constexpr unsigned draw_edges = first_commit > traversal_end ? first_commit : traversal_end;
+        static_assert(warm_fragment == 41 && cold_extra == 21 && first_commit == 88 && draw_edges == 88);
 
         tile.begin(prepared(vertices, state), {0, 0});
         while (tile.busy()) {
@@ -678,9 +681,9 @@ void tile_stall_tests() {
         expect(counts.cycles - before == draw_edges && counts.covered_fragments == 1 &&
                counts.candidates == candidates && counts.color_writes == 1,
                "cross-block register boundaries were skipped or double-counted");
-        expect(counts.perspective_cycles == perspective_work &&
-               counts.texture_cycles == 1 + texture_miss,
-               "child work must be distinct from the parent capture edges and binding edge");
+        expect(counts.perspective_cycles >= PerspectivePipeline::enabled_edge_latency &&
+               counts.texture_cycles >= TextureUnit::pipeline_hit_edges + cold_extra,
+               "unit-active counters omitted registered arithmetic or texture service");
         const auto image = tile.store();
         expect(image.color[0] == 0x07e0 && image.color[1] == 0x1234 &&
                image.depth[0] == depth_max, "timed one-sample draw produced incorrect attachments");

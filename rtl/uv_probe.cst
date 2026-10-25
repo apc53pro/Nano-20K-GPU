@@ -1,0 +1,19 @@
+// Qualification harness only. This is not the GPU board/host-bus pinout.
+IO_LOC "clk" 4;
+IO_LOC "reset" 88;
+IO_LOC "ce" 87;
+IO_LOC "serial_data" 15;
+IO_LOC "in_valid" 16;
+IO_LOC "out_ready" 17;
+IO_LOC "out_valid" 18;
+IO_LOC "serial_result" 19;
+IO_LOC "out_error" 20;
+IO_PORT "clk" IO_TYPE=LVCMOS33;
+IO_PORT "reset" IO_TYPE=LVCMOS33;
+IO_PORT "ce" IO_TYPE=LVCMOS33;
+IO_PORT "serial_data" IO_TYPE=LVCMOS33;
+IO_PORT "in_valid" IO_TYPE=LVCMOS33;
+IO_PORT "out_ready" IO_TYPE=LVCMOS33;
+IO_PORT "out_valid" IO_TYPE=LVCMOS33;
+IO_PORT "serial_result" IO_TYPE=LVCMOS33;
+IO_PORT "out_error" IO_TYPE=LVCMOS33;

@@ -413,10 +413,11 @@ Statistics separate the following costs:
 | Active/displayed/startup-black/underflow pixels | Display progress and failures to meet scanout deadlines |
 | Renderer perspective/cache clocks and committed pixels | Existing local datapath costs within the system |
 
-The reciprocal and shading datapath remains the serialized
-[rendering block baseline](block-interfaces.md). System modeling adds real
-delivery, arbitration and display costs; it does not improve that datapath's
-throughput. Software frames per second measure how quickly the PC executes
+The selected [rendering block pipeline](block-interfaces.md) overlaps fragment
+work through a shared-reciprocal UV pipeline, streaming texture cache and three
+parallel RGB multipliers. Sixty-four bounded contexts retain ordered work.
+System modeling also includes delivery, arbitration and display costs, so local
+cache-hit cadence and complete-pass throughput are different measurements. Software frames per second measure how quickly the PC executes
 the simulation. Simulated elapsed cycles divided by the configured core clock
 estimate the selected model's elapsed device time, subject to its stated
 physical timing assumptions.
@@ -444,7 +445,7 @@ distinguish correct framebuffer contents from a display-service failure.
 
 ## Storage and physical-resource accounting
 
-The selected mapping is **twenty-nine physical BSRAM blocks**:
+The selected mapping is **thirty-nine physical BSRAM blocks**:
 
 | Native allocation | BSRAM blocks |
 | --- | ---: |
@@ -456,7 +457,9 @@ The selected mapping is **twenty-nine physical BSRAM blocks**:
 | Six shared request/response payload slots, two x16 banks each | 12 |
 | Shared 512-byte record/readback reader, x32 pair | 2 |
 | Tile-row color and depth staging | 3 |
-| **Total selected SDPB 1024x16 instances** | **29 of 46** |
+| Fragment commit metadata / factor / result contexts | 6 |
+| Reciprocal seed base / gradient ROM | 4 |
+| **Total selected SDPB 1024x16 instances** | **39 of 46** |
 
 The [explicit storage map](storage-map.md) specifies meaningful capacities,
 unused physical capacity, read/write ports, register fields and ownership.
@@ -472,10 +475,12 @@ Status snapshots, packet header, executor fields, decoded primitive fields,
 the 92-byte reply source, byte masks and cache tags deliberately remain bounded
 registers. The reply source is distinct from both sideband status snapshots
 and the native reply-serializer bank. Immutable capabilities use logic ROM.
-The storage-map header's 6,212-bit register-array subtotal
+The storage-map header's 6,404-bit register-array subtotal
 does not include all scalar/arithmetic registers and is not a total FF count.
-The shared signed 18x18 multiplier and serial user-logic divider remain the
-rendering baseline.
+The selected renderer uses **46 of 48 native 18×18 multiplier equivalents**:
+one setup, forty perspective, two texture-address and three RGB units. Its
+fourteen native banks are included in the thirty-nine system banks. The serial
+divider remains a standalone arithmetic oracle, outside the selected GPU path.
 
 **Selected mapping is not a complete-system resource-fit claim.** Registers
 for arithmetic, addresses, outstanding requests, arbitration, live status

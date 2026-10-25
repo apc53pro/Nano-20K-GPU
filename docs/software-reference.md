@@ -115,15 +115,16 @@ retire an older fragment while accepting its successor on the same edge.
 contains fragment and primitive IDs, pixel coordinates, tile address, controller
 stage, write flags, and occupancy before and after the edge. IDs remain unique
 across resets of the same tile object. Reset restarts the existing local-cycle
-counter and explicitly cancels an in-flight fragment.
+counter and explicitly cancels every retained fragment. A reset can report up
+to 64 cancellations in one bounded batch on that one physical edge.
 
 `SystemModel::set_cycle_observer()` supplies a common-core-clock timestamp and
 one event for every system edge. It fills periods without a tile edge with idle
 or transfer observations instead of repeating an old acceptance/retirement.
 The callback, observer timestamps, and fragment IDs survive hard reset;
 device `core_cycles` restarts in the new epoch. A public `reset()` consumes one
-reset edge, and either hard-reset route explicitly cancels its retained
-fragment. Attach the observer before submitting traffic so it sees every
+reset edge, and either hard-reset route explicitly cancels all retained
+fragments. Attach the observer before submitting traffic so it sees every
 acceptance corresponding to later retirement or cancellation.
 The CLI always collects bounded throughput statistics in system mode:
 
@@ -136,17 +137,19 @@ make throughput-test
 
 In MSYS2 UCRT64 use `.exe` on executable names. `make throughput-test` runs the
 focused timing and fragment-accounting regressions. These check sustained
-untextured acceptance/retirement, serial texture spacing, stalls, depth/key
+untextured and warm-cache textured acceptance/retirement, stalls, depth/key
 rejection, resets and synchronous memory ports. The throughput benchmark records
 latency and acceptance/retirement intervals on controlled workloads; it is not a
-PC-speed benchmark. Select `flat`, `gouraud`, `textured`, `sprite`, `depth-reject`,
-or `key-reject` with `--workload`; its default is all workloads. Add `--stalls`
+PC-speed benchmark. Warm `*-hit` cases prefill the needed cache lines before
+observation; their warmup cycles and hit/miss counters are excluded from the window. Select `flat`, `gouraud`, `textured`, `textured-hit`, `sprite`, `sprite-hit`,
+`depth-reject`, or `key-reject` with `--workload`; its default is all workloads. Add `--stalls`
 to inject repeatable clock-enable stalls. The flat workload's trace is a compact
 alternative to a complete system trace.
 
 The top-level `fragment_throughput` JSON object labels its observer scope as all
 observed system edges, including boot, uploads, present waits and scanout.
-`measurements` includes occupancy, pipeline-stage cycles, longest consecutive
+`measurements` includes retained-context occupancy, walker-controller phase
+cycles, longest consecutive
 acceptance/retirement/commit runs, and bounded interval/latency histograms.
 `last_pass_color_writes_per_core_cycle` separately divides the most recent pass's
 color-write events by `system.last_pass_cycles`. Color-write events include
@@ -224,7 +227,7 @@ image. See [demo.cpp](../reference/src/demo.cpp) for complete scene construction
 
 ## Gowin hardware block backend
 
-The independent `blocks` backend implements `N20K-HW-RENDER-0.2`. It models the
+The independent `blocks` backend implements `N20K-HW-RENDER-0.3`. It models the
 selected digital configurations of the Tang Nano 20K's Gowin FPGA and supports
 the same initial drawing feature set as canonical SRR. Compare the same scene at
 the same animation time:
@@ -243,16 +246,25 @@ not a substitute for matching the original showcase.
 The model includes all five shading modes, perspective-correct nearest textures,
 clamp/repeat addressing, raw color-key rejection, D24, pixels/rectangles, lines,
 and keyed sprites. Font-atlas text uses the same sprite path as canonical SRR.
-It uses one shared signed 18×18 multiplier and four SDPB 1024×16 memories:
-three tile banks and one bounded texture cache. No rendering feature silently
-falls back to the canonical rasterizer.
+The selected datapath uses 46 native 18×18 multiplier equivalents and fourteen
+SDPB 1024×16 banks: three tile attachments, one cache, six 64-entry context banks
+and four reciprocal-seed ROM banks. No rendering feature silently falls back to
+the canonical rasterizer.
 
-Perspective coordinates use an explicit serial restoring divider, with a
-90-bit logical numerator and a signed Q16 result rounded to nearest-even. This
-matches canonical quantized-plane reconstruction without a hidden host divide.
-It is a slow exact baseline, not a throughput claim for a future reciprocal
-pipeline. Modulation uses the shared native multiplier and exact byte-rounding
-logic. Tile and cache accesses use the modeled memory ports; reset preserves RAM.
+A 26-enabled-edge perspective pipeline reconstructs both U and V from one shared
+reciprocal, with initiation interval one. Native 18×18 partial products, a fixed
+256-entry seed ROM, refinement and bounded exact remainder correction preserve
+canonical signed Q16 round-to-nearest-even output. The retained serial divider
+is an arithmetic oracle; GPU execution uses the pipeline. See the
+[reciprocal design and proof](hardware/reciprocal-pipeline.md).
+
+The texture pipeline accepts one addressed texel per edge on cache hits, using
+two native multipliers for the pitched address and synchronous lookup/read
+stages. Three parallel registered DSPs modulate RGB with the exact byte-rounding
+rule. Bounded context memories retain commit metadata, color factors and results
+while fragments overlap. Ordered retirement preserves depth/key/write semantics.
+Cache misses and downstream pressure propagate stalls; reset preserves RAM data
+while invalidating or cancelling retained work.
 
 `--verify` compares the resulting color and depth with all three canonical
 traversal modes. The same prepared pass is supplied to each backend. Hardware
@@ -261,14 +273,15 @@ global line stepping, clock enables, stalls, reset, latency, and memory collisio
 This does not establish equivalence with Gowin's installed simulation library.
 
 Block statistics report modeled datapath clocks, stalls, setup work, perspective
-work, texture work, cache hits/misses, and refill words. Unit-work counters
-exclude the tile controller's following-edge result captures; total modeled
-clocks include those capture edges. The host adapter supplies
+activity, texture activity, cache hits/misses, and refill words. Perspective and
+texture counters describe occupied pipeline clocks; they overlap and must not
+be added to obtain elapsed time. The controller-phase histogram likewise does
+not describe exclusive utilization of each parallel unit. The host adapter supplies
 records and idealized tile transfers. Cache misses use a selected fixed response
 delay and word stream, not a timed SDRAM controller. SDRAM refresh/arbitration,
 scanout contention, record fetch, transport, and physical clocks remain outside
-these counts. Serial perspective evaluation makes this model slower than the
-canonical renderer; software frame rate is not FPGA performance.
+these counts. The host executes explicit clocked state and observers, so software
+frame rate is not FPGA performance.
 
 The [Gowin profile](hardware/gowin-profile.md) records primary-source revisions,
 resource grouping, and selected primitive configurations. The [block interface
@@ -300,8 +313,10 @@ derived pixel rate; the report prints the resulting refresh rate.
 
 See the [system model guide](hardware/system-model.md) for exact scope, timing
 sources, bounded storage, protocol layouts, and recovery. HDMI/TMDS signaling is
-excluded. The serial renderer remains a correctness baseline; adding I/O timing
-does not establish one-pixel-per-cycle throughput.
+excluded. A cache-hit fragment cadence claim applies to the stated controlled
+workload; it does not establish one pixel per cycle across cache misses or
+complete passes. Physical fit and achieved clock frequency require synthesis
+and timing closure.
 
 ```sh
 make test
@@ -333,7 +348,9 @@ W ratio at most 64, and vertex UVs within ±1,024 texels. Plane overflow and inv
 sample reciprocal/UV domains are errors. Some valid geometric inputs can require
 caller-side refinement before fitting the numeric profile.
 
-An independent higher-precision geometric model, comprehensive end-to-end
-precision qualification, comparison with a future pipelined reciprocal, and
-serialized benchmark input/command trace capture remain work to complete. Host output and
-timings provide no evidence of FPGA resource fit or one-pixel-per-cycle operation.
+The reciprocal pipeline has separate exact rational arithmetic tests and
+[RTL qualification](hardware/rtl-qualification.md). An independent
+higher-precision geometric model and comprehensive end-to-end geometric
+precision qualification remain work to complete. Host frame timings do not
+establish FPGA fit or operating frequency; per-cycle tests establish cadence
+only for their stated workloads and modeled schedules.

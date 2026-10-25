@@ -53,6 +53,7 @@ enum class FragmentStage {
     Texture, Shade, Commit, Drain, Reset
 };
 enum class FragmentRetirement { None, Commit, DepthRejected, KeyRejected, Cancelled };
+inline constexpr unsigned fragment_trace_capacity = 64;
 
 const char* fragment_stage_name(FragmentStage stage);
 const char* fragment_retirement_name(FragmentRetirement retirement);
@@ -78,14 +79,21 @@ struct FragmentCycle {
     FragmentRetirement retirement = FragmentRetirement::None;
     bool color_write = false, depth_write = false;
     unsigned inflight_before = 0, inflight_after = 0;
+    // A reset may atomically discard a whole bounded pipeline. Batch
+    // cancellation is exclusive with normal acceptance/retirement/write flags.
+    // The emitter owns this host-only snapshot; its storage remains valid
+    // through callbacks and last_cycle() observation until the next local edge.
+    const FragmentToken* cancelled_fragments = nullptr;
+    unsigned cancelled_count = 0;
 };
 
 using FragmentCycleObserver = std::function<void(const FragmentCycle&)>;
 
-// Rendering slice: three SDPB 1024x16 tile banks, one SDPB texture cache,
-// one shared signed MULT18X18, and one explicit restoring divider. The original
-// class name is retained for source compatibility. No canonical raster fallback
-// is used for triangles, rectangles, lines, or keyed sprites.
+// Rendering slice: three native tile banks, one texture cache, six fragment
+// context banks and four reciprocal seed-ROM banks. The selected pipeline uses
+// 46 native multiplier equivalents and exact corrected UV reconstruction.
+// The original class name is retained for source compatibility; primitives do
+// not fall back to canonical software rasterization.
 class OpaqueTile {
 public:
     OpaqueTile();
@@ -131,6 +139,9 @@ public:
     // Recovery may keep clocking until issued texture memory work retires,
     // then reset/cancel before the retained fragment commits.
     bool external_memory_pending() const;
+    // Recovery-only edge: drain an issued texture memory operation while
+    // freezing fragment processing and attachment commits. Reset must follow.
+    void drain_external_memory_edge();
 
     // One common rising edge. enable=false freezes every datapath/memory stage
     // and counts a stalled clock. Setup and covered-fragment traffic are ordered.

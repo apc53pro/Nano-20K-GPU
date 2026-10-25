@@ -108,57 +108,81 @@ One 32×32 RGB565/D24 tile uses three instances of that SDPB configuration:
 | Depth high | Depth bits 16–23; remaining word bits zero | One 1024×16 SDPB |
 
 This allocates three physical BSRAM blocks, including unused capacity. Spare
-bits do not create extra ports. The rendering backend also reserves one
-18×18-equivalent multiplier shared between edge initialization and RGB texture
-modulation. The selected signed primitive can represent every unsigned 8-bit
-color operand and the complete 8×8 product. Exact division by 255 after the
-product uses bounded shift/add rounding logic. Its LUT/FF use and DSP packing
-have not been established by synthesis.
+bits do not create extra ports. The first serial rendering profile reserved one 18×18-equivalent multiplier
+shared between edge initialization and RGB texture modulation. The selected
+signed primitive represents unsigned byte operands and their complete 8×8
+product. Exact division by 255 uses bounded shift/add rounding after that
+product. The current profile uses separate pipelined instances as described
+below.
 
-## Texture cache and perspective logic
+## Current textured rendering profile
 
-`N20K-HW-RENDER-0.2` adds one SDPB 1024×16 cache bank to the three resident tile
-banks, for **four physical BSRAM blocks and one shared 18×18 multiplier**. The
-cache has 64 direct-mapped lines of 16 RGB565 words. Tags, validity, and a single
-outstanding request are bounded controller state; cache data travels through
-the selected synchronous memory ports.
+`N20K-HW-RENDER-0.3` selects **fourteen native BSRAM blocks and 46 native
+18×18 multiplier equivalents**:
 
-Texture addressing uses ten clocked shift/add steps for `y × pitch + x`.
-The selected backing-memory adapter waits four edges on a miss and then
-supplies 16 refill words, one per edge. Those delays are model design choices;
-they do not represent a measured or fully simulated SDRAM controller. Binding a
-different immutable image invalidates cache tags. Reset preserves cache RAM.
-See [texture.hpp](../../reference/include/nano_gpu/hw/texture.hpp).
+| Allocation | BSRAM blocks | Multiplier equivalents |
+| --- | ---: | ---: |
+| Resident color/depth tile | 3 | 0 |
+| Texture cache / shared copy row | 1 | 0 |
+| Fragment commit metadata, factors and results | 6 | 0 |
+| Shared-reciprocal seed ROM | 4 | 40 |
+| Triangle edge initialization | 0 | 1 |
+| Streaming pitched-texture address | 0 | 2 |
+| Parallel RGB shading | 0 | 3 |
 
-Perspective reconstruction uses the user-logic
-[PerspectiveDivider](../../reference/include/nano_gpu/hw/perspective.hpp), not
-an assumed Gowin hard-divider primitive. A fixed serial restoring algorithm
-evaluates the canonical `RNE((attribute × 2^26) / q)` operation. It consumes a
-90-bit logical numerator with 26 constant low bits, uses a 38-bit divisor and
-remainder datapath, and produces a signed 32-bit Q16 result with overflow checks.
-The selected schedule is one operand-capture edge, 90 bit-processing edges,
-and one rounding/result edge: 92 enabled edges per coordinate. Clock disable
-holds the complete state. The tile controller captures each registered divider
-or texture result on the following common clock edge; these controller edges
-add to total tile clocks without changing the unit's own latency.
+The 64-entry fragment ring uses synchronous context-memory ports and ordered
+retirement. The reciprocal unit reconstructs both U and V in 26 enabled edges
+with initiation interval one. Its native partial products and bounded exact
+remainder correction preserve canonical signed Q16 rounding. The four ROM
+banks hold fixed initialization data; reset clears output/valid state without
+rewriting or clearing the memory words. See the
+[arithmetic design and proof](reciprocal-pipeline.md).
 
-The row buffer used by explicit image/framebuffer copies reuses the texture
-cache bank while rasterization is idle, so the peak allocation remains four
-BSRAM blocks. A full clipped source row is buffered before destination writes;
-row direction preserves vertically overlapping copies.
+The streaming texture unit retains the same 64-line, 16-texel direct-mapped
+cache. Two registered native multipliers form `y * pitch + x`; tag lookup,
+synchronous cache read and later capture form a seven-edge hit pipeline with
+initiation interval one. At most eight requests/reservations and one external
+miss are retained. A miss freezes younger address/DSP stages while older
+results drain, fills the native cache port, then replays the held lookup.
+The system profile uses real modeled SDRAM service; the standalone backing
+adapter supplies fixed waits and refill words. See
+[texture.hpp](../../reference/include/nano_gpu/hw/texture.hpp).
 
-This exact serial implementation closes the rendering feature gap. It is a
-slow correctness baseline for evaluating later reciprocal pipelines. Its
-LUT/register cost, timing, and attainable initiation rate require synthesis.
+Three native multipliers shade R, G and B in parallel. Replacement and sprites
+use factors of 255 through those same stages, preserving raw RGB565. Explicit
+image/framebuffer copies reuse the cache bank while rasterization is idle;
+a complete clipped source row is buffered before writes and safe row ordering
+preserves overlap. They do not allocate an additional renderer bank.
+
+These are selected resources, not a whole-GPU fit claim. The
+[RTL qualification report](rtl-qualification.md) records synthesis and routing
+of the reciprocal prototype separately from complete-system qualification.
+
+## Retained serial oracles
+
+The historical `N20K-HW-RENDER-0.2` profile used four physical BSRAM blocks and
+one shared multiplier. Its serial texture interface retains the ten-edge
+shift/add address generator, 14-edge hit schedule and 34-edge idealized miss
+schedule for standalone unit comparisons. Those are not current GPU timings.
+
+The user-logic
+[PerspectiveDivider](../../reference/include/nano_gpu/hw/perspective.hpp)
+also remains an exact arithmetic oracle, not an assumed Gowin hard-divider
+primitive. Its restoring algorithm evaluates
+`RNE((attribute * 2^26) / q)` using a 90-bit logical numerator, 38-bit divisor
+and remainder, and signed 32-bit Q16 result. One capture edge, 90 bit edges and
+one rounding edge total 92 enabled edges per coordinate. Current GPU execution
+uses the shared-reciprocal pipeline instead of this U-then-V serial schedule.
 
 ## Source revisions
 
-The optional [complete system model](system-model.md) additionally instantiates
-two scanout FIFO banks, five host-link banks, and one reply-serializer bank:
-**12 selected SDPB 1024×16 instances** including the four rendering banks.
-Copies reuse the texture bank. Bounded request/response, record, and row staging
-also requires register/logic resources. The bank count is not a complete LUT/FF
-budget or proof of whole-GPU fit.
+The [complete system model](system-model.md) selects **39 of 46 native
+SDPB 1024×16 banks**: fourteen rendering banks, two scanout banks, five host-link
+banks, one reply-serializer bank, twelve client-slot banks, two shared-reader
+banks and three row-staging banks. The [storage map](storage-map.md) records
+ports, meaningful capacity, unused capacity and bounded register fields.
+Neither the bank count nor the 46-of-48 multiplier budget proves complete
+LUT/FF fit or achieved GPU clock.
 
 Page numbers below are printed document pages, not PDF viewer indices. Revision
 and section references matter because the CDN URLs may later serve newer files.

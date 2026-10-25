@@ -1,7 +1,7 @@
 digraph CurrentTileMemory {
   graph [rankdir=TB, bgcolor="white", compound=true, newrank=true,
          fontname="DejaVu Sans", fontsize=22, fontcolor="#172b3a",
-         labelloc=t, label="Current GPU model — streamed storage + throughput instrumentation\nN20K-SYS-0.1 — exact tile lifecycle, SDRAM traffic, copy reuse and scanout",
+         labelloc=t, label="Current GPU model — shared-reciprocal textured pipeline\nN20K-SYS-0.1 — exact tile lifecycle, SDRAM traffic, copy reuse and scanout",
          pad=0.30, nodesep=0.28, ranksep=0.60, splines=polyline];
   node [shape=box, style="rounded,filled", fillcolor="#edf4fb", color="#245b8c",
         fontname="DejaVu Sans", fontsize=11, fontcolor="#172b3a", penwidth=1.4, margin="0.14,0.10"];
@@ -46,7 +46,7 @@ digraph CurrentTileMemory {
     has_refs [label="Any references?", shape=diamond, fillcolor="#edf4fb"];
     reference [label="Fetch next 4-byte primitive address\nPreserve reference-list order\nGlobal pass-reference limit: 1,048,576"];
     record [label="Fetch 320-byte primitive record\nTriangle / rectangle / line / sprite\nTexture descriptor only, no host pixels\n2-bank reader → registered field pass\nRecord refetched for each tile reference"];
-    draw [label="begin_external() → clocked draw\nCoverage / interpolation / D24\nSerial U/V correction / texture cache / shade\nOne retained textured fragment\nWait until tile.busy() becomes false", color="#b76118", fillcolor="#fff2e6"];
+    draw [label="begin_external() → clocked draw\nCoverage / interpolation / D24\nShared-reciprocal U/V / streaming cache / RGB\n64 bounded contexts; ordered retirement\nWait until tile.busy() becomes false", color="#b76118", fillcolor="#fff2e6"];
     refs_left [label="More references\nin this tile?", shape=diamond, fillcolor="#edf4fb"];
     tile_banks [label="Resident tile memory: 3 native banks\nColor: SDPB 1024×16 (RGB565)\nDepth low: SDPB 1024×16 (bits 0…15)\nDepth high: SDPB 1024×16 (bits 16…23)\nUnused depth-high bits stay zero", color="#6957a3", fillcolor="#f3effb"];
     texture [label="Texture cache / copy scratch: 1 bank\nSDPB 1024×16, 2 KiB\n64 direct-mapped lines ×16 RGB565 words\nOne outstanding miss / refill\nCache misses use shared SDRAM", color="#6957a3", fillcolor="#f3effb"];
@@ -139,7 +139,7 @@ digraph CurrentTileMemory {
     {rank=same; display_read; display_fifo; display_pixel;}
   }
 
-  accounting [label="Current traffic / storage limits\nEvery pass stores all 300 tiles: 1843200 useful color+depth bytes\nLOAD of both attachments adds another 1843200 bytes; CLEAR avoids those reads\nBoot explicitly writes both color buffers + shared depth: 2457600 bytes\n29 native BSRAM =12 original +12 client slots +2 reader +3 row staging\nBulk storage mapped; bounded registers / logic ROM for small fields and arithmetic\nLUT/FF physical fit and timing remain unproven; no synthesized clock claim\nOne active ordered executor operation; only scanout and host parsing progress independently\nHost-only per-edge accept/retire observer adds no device state or memory ports\nCPU prepared-record consistency checks are simulation assertions, not timed GPU validation units\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: reused memory.",
+  accounting [label="Current traffic / storage limits\nEvery pass stores all 300 tiles: 1843200 useful color+depth bytes\nLOAD of both attachments adds another 1843200 bytes; CLEAR avoids those reads\nBoot explicitly writes both color buffers + shared depth: 2457600 bytes\n39 native BSRAM =14 renderer +25 system I/O and staging\n46 of48 native18×18 DSP equivalents; 64 textured contexts; bulk storage mapped\nLUT/FF physical fit and timing remain unproven; no synthesized clock claim\nOne active ordered executor operation; only scanout and host parsing progress independently\nHost-only per-edge accept/retire observer adds no device state or memory ports\nCPU prepared-record consistency checks are simulation assertions, not timed GPU validation units\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: reused memory.",
               shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
   // Invisible grid is layout only; every visible arrow is a real data/control relationship.
   edge [style=invis, constraint=true, weight=1000];

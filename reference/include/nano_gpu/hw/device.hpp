@@ -28,7 +28,7 @@ struct TangNano20K {
 // These are selected GPU configurations, not additional capabilities of Gowin
 // primitives. Each SDPB 1024x16 instance occupies one physical 18-Kbit BSRAM.
 struct BlockRendererResources {
-    static constexpr const char* profile = "N20K-HW-RENDER-0.2";
+    static constexpr const char* profile = "N20K-HW-RENDER-0.3";
     static constexpr std::uint32_t resident_tiles = 1;
     static constexpr std::uint32_t color_banks = 1;
     static constexpr std::uint32_t depth_banks = 2; // low 16 / high 8 in 16-bit RAM
@@ -36,9 +36,18 @@ struct BlockRendererResources {
     static constexpr std::uint32_t texture_cache_banks = 1;
     // Copies execute outside passes and reuse the cache-bank allocation.
     static constexpr std::uint32_t copy_row_buffer_banks = texture_cache_banks;
-    static constexpr std::uint32_t bsram_blocks = tile_bsram_blocks + texture_cache_banks;
-    static constexpr std::uint32_t mult18_equivalents = 1;
-    static constexpr std::uint32_t serial_lut_dividers = 1;
+    static constexpr std::uint32_t fragment_contexts = 64;
+    static constexpr std::uint32_t context_bsram_blocks = 6;
+    static constexpr std::uint32_t reciprocal_seed_banks = 4;
+    static constexpr std::uint32_t bsram_blocks = tile_bsram_blocks + texture_cache_banks +
+        context_bsram_blocks + reciprocal_seed_banks;
+    static constexpr std::uint32_t setup_mult18_equivalents = 1;
+    static constexpr std::uint32_t perspective_mult18_equivalents = 40;
+    static constexpr std::uint32_t texture_address_mult18_equivalents = 2;
+    static constexpr std::uint32_t shading_mult18_equivalents = 3;
+    static constexpr std::uint32_t mult18_equivalents = setup_mult18_equivalents +
+        perspective_mult18_equivalents + texture_address_mult18_equivalents + shading_mult18_equivalents;
+    static constexpr std::uint32_t serial_lut_dividers = 0;
     static constexpr std::uint32_t edge_bits = 32;
     static constexpr std::uint32_t attribute_bits = 64;
 };

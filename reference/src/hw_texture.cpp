@@ -1,6 +1,7 @@
 #include "nano_gpu/hw/texture.hpp"
 
 #include "nano_gpu/hw/bsram.hpp"
+#include "nano_gpu/hw/mult18x18.hpp"
 #include "nano_gpu/hw/sdram.hpp"
 
 #include <algorithm>
@@ -71,8 +72,33 @@ struct TextureUnit::Impl {
     unsigned response_wait = 0;
     unsigned refill_word = 0;
 
+    // Static alternative to the serial oracle above. Two physical MULT18X18
+    // instances evaluate Y * (pitch_low17 + pitch_high * 2^17). Both operands
+    // fit the positive range of signed18; no host-wide multiply supplies the
+    // address result. Metadata follows the three registered DSP stages.
+    bool streaming = false;
+    Mult18x18 pitch_low, pitch_high;
+    struct Input { bool valid = false; unsigned x = 0, y = 0; } input;
+    struct MultiplyMeta { bool valid = false; unsigned x = 0; };
+    std::array<MultiplyMeta, 3> multiply_meta{};
+    bool linear_valid = false;
+    std::uint32_t linear_address = 0;
+    bool lookup_valid = false;
+    unsigned lookup_address = 0;
+    bool cache_read_pending = false;
+    bool output_valid = false, output_pop = false;
+    std::uint16_t output = 0;
+    bool replay_miss = false;
+
+    unsigned inflight() const {
+        unsigned count = input.valid + linear_valid + lookup_valid +
+            cache_read_pending + output_valid;
+        for (const auto& stage : multiply_meta) count += stage.valid;
+        return count;
+    }
+
     void require_idle() const {
-        if (state != State::Idle)
+        if (state != State::Idle || (streaming && inflight() != 0))
             throw std::logic_error("hardware texture unit already has an outstanding request");
     }
 
@@ -93,7 +119,164 @@ struct TextureUnit::Impl {
             column >= static_cast<std::uint32_t>(texture->width())) return 0;
         return texture->at(static_cast<int>(column), static_cast<int>(row));
     }
+
+    bool service_refill(BsramCycle& memory, bool pipeline);
+    void pipeline_tick();
 };
+
+bool TextureUnit::Impl::service_refill(BsramCycle& memory, bool pipeline) {
+    switch (state) {
+    case State::ResponseWait:
+        if (--response_wait == 0) state = State::Refill;
+        break;
+    case State::ExternalRequest: {
+        // The allocation is four-byte aligned, and each cache line holds an
+        // integral number of 32-bit words. A final short line is never read
+        // past that allocation; only its unused cache tail is padded with zero.
+        const auto allocation_words = static_cast<std::uint64_t>(descriptor.pitch_bytes) *
+                                      descriptor.height / 4u;
+        const auto first_word = line_base >> 1;
+        if (first_word >= allocation_words)
+            throw std::logic_error("hardware texture refill starts outside its allocation");
+        MemoryRequest request;
+        request.address = descriptor.base + (line_base << 1);
+        request.words = static_cast<unsigned>(std::min<std::uint64_t>(
+            line_words / 2, allocation_words - first_word));
+        request.tag = line_base;
+        if (external_memory->submit_prepared(MemoryClient::Texture, request)) {
+            external_request_pending = true;
+            external_words = request.words;
+            state = State::ExternalWait;
+        } else ++counters.memory_wait_cycles;
+        break;
+    }
+    case State::ExternalWait:
+        if (external_memory->response_ready(MemoryClient::Texture)) {
+            const auto response = external_memory->response_info(MemoryClient::Texture);
+            if (response.tag != line_base || response.words != external_words ||
+                response.words == 0 || response.words > line_words / 2)
+                throw std::logic_error("hardware texture SDRAM response does not match its request");
+            state = State::ExternalRead;
+        } else ++counters.memory_wait_cycles;
+        break;
+    case State::ExternalRead:
+        if (external_memory->request_response_word(MemoryClient::Texture, refill_word >> 1))
+            state = State::ExternalCapture;
+        else ++counters.memory_wait_cycles;
+        break;
+    case State::ExternalCapture:
+        if (!external_memory->response_word_valid(MemoryClient::Texture) ||
+            external_memory->response_word_offset(MemoryClient::Texture) != (refill_word >> 1))
+            throw std::logic_error("hardware texture slot read did not cross its synchronous edge");
+        external_word = external_memory->response_word(MemoryClient::Texture);
+        // The registered word is first consumed by the cache on a later edge.
+        state = State::Refill;
+        break;
+    case State::Refill:
+        memory.write_enable = true;
+        memory.write_address = static_cast<std::uint16_t>((slot << 4) | refill_word);
+        memory.write_data = external_memory ? static_cast<std::uint16_t>(
+            external_word >> ((refill_word & 1u) << 4)) :
+            backing_word(line_base + refill_word);
+        ++counters.refill_words;
+        ++refill_word;
+        if (external_memory && external_request_pending && refill_word == external_words * 2) {
+            external_memory->release_response(MemoryClient::Texture);
+            external_request_pending = false;
+            external_word = 0; // Final short-line padding uses no SDRAM port.
+        }
+        if (refill_word == line_words) {
+            tags[slot] = tag;
+            valid[slot] = true;
+            state = pipeline ? State::Idle : State::CacheRead;
+        } else if (external_memory && external_request_pending && (refill_word & 1u) == 0)
+            state = State::ExternalRead;
+        break;
+    default: return false;
+    }
+    return true;
+}
+
+void TextureUnit::Impl::pipeline_tick() {
+    BsramCycle memory;
+    bool advance = !output_valid || output_pop;
+    if (output_pop) {
+        output_valid = false; output_pop = false;
+        ++counters.pipeline_outputs;
+    }
+    // The cache B output belongs to a read established on an earlier edge.
+    // It may remain pending behind a full result register while the A port
+    // refills another line; writes do not change that registered B output.
+    if (advance && cache_read_pending) {
+        output = bank.output(); output_valid = true;
+        cache_read_pending = false;
+    }
+
+    const bool servicing = state != State::Idle;
+    if (servicing) {
+        if (!service_refill(memory, true))
+            throw std::logic_error("streaming texture entered a serial-only state");
+        advance = false;
+    } else if (advance) {
+        // An older lookup can issue its read even when this edge discovers a
+        // younger miss. Refilling begins on a later edge, so no cache read
+        // collides with the first refill write and completion order is kept.
+        if (lookup_valid) {
+            memory.read_enable = true;
+            memory.read_address = static_cast<std::uint16_t>(lookup_address);
+            cache_read_pending = true; lookup_valid = false;
+        }
+        if (linear_valid) {
+            const auto next_slot = (linear_address >> 4) & (line_count - 1u);
+            const auto next_tag = linear_address >> 10;
+            if (valid[next_slot] && tags[next_slot] == next_tag) {
+                if (!replay_miss) ++counters.hits;
+                replay_miss = false;
+                lookup_address = (next_slot << 4) | (linear_address & (line_words - 1u));
+                lookup_valid = true;
+            } else {
+                if (replay_miss) throw std::logic_error("refilled texture line was lost before replay");
+                ++counters.misses;
+                line_base = linear_address & ~(line_words - 1u);
+                slot = next_slot; tag = next_tag;
+                valid[slot] = false; refill_word = 0; replay_miss = true;
+                if (external_memory) state = State::ExternalRequest;
+                else { response_wait = backing_response_edges; state = State::ResponseWait; }
+                advance = false;
+            }
+        }
+    }
+
+    Mult18Cycle low{0, 0, false, false}, high{0, 0, false, false};
+    if (advance) {
+        // A DSP product becomes an OLD registered output before its consumer
+        // captures it here. The matching metadata spends three enabled edges
+        // in the same register chain as the primitive's A/B, PIPE and OUT.
+        linear_valid = multiply_meta.back().valid;
+        if (linear_valid) {
+            if (!pitch_low.output_known() || !pitch_high.output_known())
+                throw std::logic_error("texture address product was not registered");
+            const auto value = static_cast<std::uint64_t>(pitch_low.product()) +
+                (static_cast<std::uint64_t>(pitch_high.product()) << 17) + multiply_meta.back().x;
+            if (value >= maximum_texture_words)
+                throw std::overflow_error("streaming texture address exceeds the bounded image heap");
+            linear_address = static_cast<std::uint32_t>(value);
+        }
+        for (unsigned stage = static_cast<unsigned>(multiply_meta.size()) - 1; stage != 0; --stage)
+            multiply_meta[stage] = multiply_meta[stage - 1];
+        multiply_meta[0] = {input.valid, input.x};
+        const auto pitch = external_memory ? descriptor.pitch_bytes / 2u :
+            (texture ? static_cast<std::uint32_t>(texture->pitch_bytes() / 2) : 0u);
+        low = {static_cast<std::int32_t>(input.valid ? input.y : 0),
+               static_cast<std::int32_t>(pitch & 0x1ffffu), true, false};
+        high = {static_cast<std::int32_t>(input.valid ? input.y : 0),
+                static_cast<std::int32_t>(pitch >> 17), true, false};
+        if (input.valid) ++counters.pipeline_inputs;
+        input = {};
+    } else if (inflight() != 0) ++counters.pipeline_backpressure_cycles;
+    pitch_low.tick(low); pitch_high.tick(high);
+    bank.tick(memory);
+}
 
 TextureUnit::TextureUnit() : impl_(std::make_unique<Impl>()) { reset(); }
 TextureUnit::~TextureUnit() = default;
@@ -159,6 +342,7 @@ std::uint16_t TextureUnit::scratch_read_result() const {
 
 void TextureUnit::start(int x, int y) {
     auto& p = *impl_;
+    if (p.streaming) throw std::logic_error("streaming texture requests use push()");
     p.require_idle();
     if (!p.external_memory) require_texture(p.texture);
     const auto width = p.external_memory ? p.descriptor.width : static_cast<unsigned>(p.texture->width());
@@ -177,7 +361,9 @@ void TextureUnit::start(int x, int y) {
     p.control_edge();
 }
 
-bool TextureUnit::busy() const { return impl_->state != Impl::State::Idle; }
+bool TextureUnit::busy() const {
+    return impl_->state != Impl::State::Idle || (impl_->streaming && impl_->inflight() != 0);
+}
 bool TextureUnit::external_memory_pending() const { return impl_->external_request_pending; }
 bool TextureUnit::result_valid() const { return impl_->result_valid; }
 
@@ -186,14 +372,49 @@ std::uint16_t TextureUnit::result() const {
     return impl_->result;
 }
 
+void TextureUnit::pipeline_mode(bool enabled) {
+    auto& p = *impl_; p.require_idle();
+    p.streaming = enabled; p.result_valid = false;
+}
+bool TextureUnit::pipeline_mode() const { return impl_->streaming; }
+bool TextureUnit::input_ready() const {
+    const auto& p = *impl_;
+    return p.streaming && (p.external_memory || p.texture) && !p.input.valid;
+}
+bool TextureUnit::push(int x, int y) {
+    auto& p = *impl_;
+    if (!input_ready()) return false;
+    const auto width = p.external_memory ? p.descriptor.width : static_cast<unsigned>(p.texture->width());
+    const auto height = p.external_memory ? p.descriptor.height : static_cast<unsigned>(p.texture->height());
+    if (x < 0 || static_cast<unsigned>(x) >= width || y < 0 || static_cast<unsigned>(y) >= height)
+        throw std::out_of_range("streaming texture coordinate exceeds the bound image");
+    p.input = {true, static_cast<unsigned>(x), static_cast<unsigned>(y)};
+    if (p.inflight() > streaming_capacity)
+        throw std::logic_error("streaming texture exceeded its bounded stage capacity");
+    return true;
+}
+bool TextureUnit::output_valid() const { return impl_->streaming && impl_->output_valid; }
+std::uint16_t TextureUnit::output() const {
+    if (!output_valid()) throw std::logic_error("streaming texture output is not valid");
+    return impl_->output;
+}
+bool TextureUnit::pop() {
+    auto& p = *impl_;
+    if (!p.streaming || !p.output_valid || p.output_pop) return false;
+    p.output_pop = true; return true;
+}
+unsigned TextureUnit::inflight() const { return impl_->streaming ? impl_->inflight() : (busy() ? 1u : 0u); }
+
 void TextureUnit::tick(bool enable) {
     auto& p = *impl_;
     ++p.counters.cycles;
     if (!enable) {
         p.bank.tick({});
+        p.pitch_low.tick({0, 0, false, false}); p.pitch_high.tick({0, 0, false, false});
         ++p.counters.stalls;
         return;
     }
+    if (p.streaming) { p.pipeline_tick(); return; }
 
     BsramCycle memory;
     switch (p.state) {
@@ -233,71 +454,10 @@ void TextureUnit::tick(bool enable) {
             }
         }
         break;
-    case Impl::State::ResponseWait:
-        if (--p.response_wait == 0) p.state = Impl::State::Refill;
-        break;
-    case Impl::State::ExternalRequest: {
-        // The allocation is four-byte aligned, and each cache line holds an
-        // integral number of 32-bit words. A final short line is never read
-        // past that allocation; only its unused cache tail is padded with zero.
-        const auto allocation_words = static_cast<std::uint64_t>(p.descriptor.pitch_bytes) *
-                                      p.descriptor.height / 4u;
-        const auto first_word = p.line_base >> 1;
-        if (first_word >= allocation_words)
-            throw std::logic_error("hardware texture refill starts outside its allocation");
-        MemoryRequest request;
-        request.address = p.descriptor.base + (p.line_base << 1);
-        request.words = static_cast<unsigned>(std::min<std::uint64_t>(
-            line_words / 2, allocation_words - first_word));
-        request.tag = p.line_base;
-        if (p.external_memory->submit_prepared(MemoryClient::Texture, request)) {
-            p.external_request_pending = true;
-            p.external_words = request.words;
-            p.state = Impl::State::ExternalWait;
-        } else ++p.counters.memory_wait_cycles;
-        break;
-    }
-    case Impl::State::ExternalWait:
-        if (p.external_memory->response_ready(MemoryClient::Texture)) {
-            const auto response = p.external_memory->response_info(MemoryClient::Texture);
-            if (response.tag != p.line_base || response.words != p.external_words ||
-                response.words == 0 || response.words > line_words / 2)
-                throw std::logic_error("hardware texture SDRAM response does not match its request");
-            p.state = Impl::State::ExternalRead;
-        } else ++p.counters.memory_wait_cycles;
-        break;
-    case Impl::State::ExternalRead:
-        if (p.external_memory->request_response_word(MemoryClient::Texture, p.refill_word >> 1))
-            p.state = Impl::State::ExternalCapture;
-        else ++p.counters.memory_wait_cycles;
-        break;
-    case Impl::State::ExternalCapture:
-        if (!p.external_memory->response_word_valid(MemoryClient::Texture) ||
-            p.external_memory->response_word_offset(MemoryClient::Texture) != (p.refill_word >> 1))
-            throw std::logic_error("hardware texture slot read did not cross its synchronous edge");
-        p.external_word = p.external_memory->response_word(MemoryClient::Texture);
-        // The registered word is first consumed by the cache on a later edge.
-        p.state = Impl::State::Refill;
-        break;
-    case Impl::State::Refill:
-        memory.write_enable = true;
-        memory.write_address = static_cast<std::uint16_t>((p.slot << 4) | p.refill_word);
-        memory.write_data = p.external_memory ? static_cast<std::uint16_t>(
-            p.external_word >> ((p.refill_word & 1u) << 4)) :
-            p.backing_word(p.line_base + p.refill_word);
-        ++p.counters.refill_words;
-        ++p.refill_word;
-        if (p.external_memory && p.external_request_pending && p.refill_word == p.external_words * 2) {
-            p.external_memory->release_response(MemoryClient::Texture);
-            p.external_request_pending = false;
-            p.external_word = 0; // Final short-line padding uses no SDRAM port.
-        }
-        if (p.refill_word == line_words) {
-            p.tags[p.slot] = p.tag;
-            p.valid[p.slot] = true;
-            p.state = Impl::State::CacheRead;
-        } else if (p.external_memory && p.external_request_pending && (p.refill_word & 1u) == 0)
-            p.state = Impl::State::ExternalRead;
+    case Impl::State::ResponseWait: case Impl::State::ExternalRequest:
+    case Impl::State::ExternalWait: case Impl::State::ExternalRead:
+    case Impl::State::ExternalCapture: case Impl::State::Refill:
+        (void)p.service_refill(memory, false);
         break;
     case Impl::State::CacheRead:
         memory.read_enable = true;
@@ -335,6 +495,11 @@ void TextureUnit::reset() {
     p.address = p.shifted_stride = p.y_bits = 0;
     p.address_bit = p.slot = p.word_in_line = p.response_wait = p.refill_word = 0;
     p.line_base = p.tag = 0;
+    p.input = {}; p.multiply_meta = {};
+    p.linear_valid = p.lookup_valid = p.cache_read_pending = false;
+    p.output_valid = p.output_pop = p.replay_miss = false;
+    p.output = 0;
+    p.pitch_low.tick({0, 0, false, true}); p.pitch_high.tick({0, 0, false, true});
     p.counters = {};
     p.bank.tick({false, 0, 0, false, 0, true});
     ++p.counters.cycles;

@@ -39,7 +39,7 @@ Options options(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--help") {
-            std::cout << "Usage: throughput-bench [--workload all|flat|gouraud|textured|sprite|depth-reject|key-reject]\n"
+            std::cout << "Usage: throughput-bench [--workload all|flat|gouraud|textured|textured-hit|sprite|sprite-hit|depth-reject|key-reject]\n"
                 << "                        [--output FILE.json] [--trace FILE.csv] [--stalls]\n"
                 << "Runs one resident 32x32 tile with standalone block timing, excluding tile DMA.\n"
                 << "Trace requires one named workload; events stream directly to the file.\n";
@@ -66,6 +66,9 @@ void create_parent(const std::string& path) {
 void workload(std::ostream& out, const std::string& name, const Options& options) {
     OpaqueTile tile;
     tile.clear(0x18e3, depth_max);
+    const auto primitive = throughput_workloads::primitive(name);
+    if (throughput_workloads::warm_hit(name)) throughput_workloads::warm_cache(tile, primitive);
+    const auto before = tile.statistics();
     ThroughputMonitor monitor;
     std::ofstream trace;
     std::unique_ptr<FragmentCsvWriter> writer;
@@ -79,15 +82,18 @@ void workload(std::ostream& out, const std::string& name, const Options& options
         monitor.observe(event);
         if (writer) writer->write(event, monitor.statistics().last_cycle);
     });
-    throughput_workloads::draw(tile, throughput_workloads::primitive(name), options.stalls);
+    throughput_workloads::draw(tile, primitive, options.stalls);
     monitor.require_drained();
     out << "{\"name\":\"" << name << "\",\"clock_domain\":\"resident_tile_enabled_and_disabled_edges\","
         << "\"includes_command_capture_setup_and_drain\":true,\"includes_tile_dma\":false,"
+        << "\"cache_condition\":\"" << (throughput_workloads::warm_hit(name) ? "warm_hit" : "cold") << "\","
+        << "\"includes_cache_warmup\":false,"
         << "\"fixed_stall_pattern\":" << (options.stalls ? "true" : "false")
         << ",\"expected_covered_fragments\":1024,\"throughput\":";
     monitor.write_json(out);
     const auto& counts = tile.statistics();
-    out << ",\"cache_hits\":" << counts.texture_hits << ",\"cache_misses\":" << counts.texture_misses << '}';
+    out << ",\"cache_hits\":" << counts.texture_hits - before.texture_hits
+        << ",\"cache_misses\":" << counts.texture_misses - before.texture_misses << '}';
 }
 } // namespace
 

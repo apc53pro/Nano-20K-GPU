@@ -144,6 +144,23 @@ void multiplier_tests() {
 }
 
 void bsram_tests() {
+    run_case("SDPB nonzero configuration INIT still requires clocked observation", [] {
+        std::array<std::uint16_t, Sdp1kx16::words> initial{};
+        initial[0] = 0x1234; initial[255] = 0xabcd; initial[1023] = 0x55aa;
+        Sdp1kx16 ram(initial);
+        expect(!ram.output_known(), "configuration INIT must not bypass the synchronous output register");
+        expect_throws([&] { (void)ram.output(); }, "initialized contents do not establish an output before a read edge");
+        ram.tick({false, 0, 0, true, 255, false});
+        expect(ram.output() == 0xabcd, "the selected INIT word did not reach the read latch");
+        ram.tick({false, 0, 0, false, 0, true});
+        expect(ram.output() == 0, "synchronous output reset did not clear the read latch");
+        ram.tick({false, 0, 0, true, 255, false});
+        expect(ram.output() == 0xabcd, "output reset cleared configured INIT words");
+        ram.tick({false, 0, 0, true, 1023, false});
+        expect(ram.output() == 0x55aa, "configuration INIT truncated the final native address");
+        ram.tick({false, 0, 0, true, 1, false});
+        expect(ram.output() == 0, "unselected INIT words must retain their configured zero value");
+    });
     run_case("SDPB initial output is unknown and configured RAM INIT is zero", [] {
         Sdp1kx16 ram;
         expect(!ram.output_known(), "output latch requires a clocked read or reset");
@@ -240,8 +257,9 @@ void resource_tests() {
                "18x18 equivalents must not be mistaken for physical DSP blocks");
         expect(TangNano20K::bsram_bits_per_block == 18432 && Sdp1kx16::words * Sdp1kx16::word_bits == 16384,
                "chosen 16-bit mode does not expose the physical parity-bit capacity as free data");
-        expect(OpaqueSliceResources::bsram_blocks == 4 && OpaqueSliceResources::mult18_equivalents == 1,
-               "renderer requires three tile banks, one texture-cache bank, and the shared multiplier");
+        expect(OpaqueSliceResources::bsram_blocks == 14 && OpaqueSliceResources::mult18_equivalents == 46 &&
+               OpaqueSliceResources::fragment_contexts == 64 && OpaqueSliceResources::serial_lut_dividers == 0,
+               "renderer must count tile/cache, context/seed banks and all pipelined DSP instances");
         check_resource_capacity(TangNano20K::bsram_blocks, TangNano20K::mult18_equivalents);
         check_resource_capacity(OpaqueSliceResources::bsram_blocks, OpaqueSliceResources::mult18_equivalents);
         expect_throws([] { check_resource_capacity(47, 1); }, "BSRAM capacity cannot silently overcommit");

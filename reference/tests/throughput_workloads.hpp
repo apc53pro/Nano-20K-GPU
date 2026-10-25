@@ -7,6 +7,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace nano_gpu::throughput_workloads {
@@ -48,8 +49,9 @@ inline Primitive primitive(const std::string& name) {
         rect.depth = name == "depth-reject" ? depth_max : 0x123456;
         return rect;
     }
-    if (name == "gouraud" || name == "textured") return triangle(name == "textured");
-    if (name == "sprite" || name == "key-reject") {
+    if (name == "gouraud" || name == "textured" || name == "textured-hit")
+        return triangle(name != "gouraud");
+    if (name == "sprite" || name == "sprite-hit" || name == "key-reject") {
         Sprite sprite;
         sprite.bounds = {0, 0, tile_size, tile_size};
         sprite.state = depth_state();
@@ -61,10 +63,15 @@ inline Primitive primitive(const std::string& name) {
     throw std::invalid_argument("unknown throughput workload: " + name);
 }
 
-inline const std::array<const char*, 6>& names() {
-    static constexpr std::array<const char*, 6> values{{
-        "flat", "gouraud", "textured", "sprite", "depth-reject", "key-reject"}};
+inline const std::array<const char*, 8>& names() {
+    static constexpr std::array<const char*, 8> values{{
+        "flat", "gouraud", "textured", "textured-hit", "sprite", "sprite-hit",
+        "depth-reject", "key-reject"}};
     return values;
+}
+
+inline bool warm_hit(const std::string& name) {
+    return name == "textured-hit" || name == "sprite-hit";
 }
 
 inline void draw(hw::OpaqueTile& tile, const Primitive& primitive, bool stalls = false) {
@@ -74,6 +81,24 @@ inline void draw(hw::OpaqueTile& tile, const Primitive& primitive, bool stalls =
         if (++edge > 4000000) throw std::runtime_error("throughput workload failed to drain");
         tile.tick(!stalls || (edge % 5 != 1 && edge % 7 != 3));
     }
+}
+
+inline void warm_cache(hw::OpaqueTile& tile, const Primitive& primitive) {
+    if (const auto* triangle = std::get_if<Triangle>(&primitive)) {
+        // A one-pixel sprite binds the same immutable image and fills its first
+        // cache line without modifying CPU-prepared triangle bounds/anchors.
+        Sprite warm;
+        warm.bounds = {0, 0, 1, 1}; warm.state = triangle->state;
+        warm.state.depth_test = warm.state.depth_write = false;
+        warm.state.color_write = true; warm.state.shade = ShadeMode::TextureReplace;
+        draw(tile, warm);
+        return;
+    }
+    auto warm = primitive;
+    std::visit([](auto& item) {
+        item.state.depth_test = item.state.depth_write = false;
+    }, warm);
+    draw(tile, warm);
 }
 
 } // namespace nano_gpu::throughput_workloads

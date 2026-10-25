@@ -29,6 +29,8 @@ struct ThroughputStatistics {
     std::uint64_t color_writes = 0, depth_writes = 0;
     std::uint64_t disabled_cycles = 0, occupied_cycles = 0;
     std::uint64_t same_cycle_accept_retire = 0;
+    std::uint64_t batch_cancellation_edges = 0;
+    unsigned max_cancelled_per_edge = 0;
     unsigned max_inflight = 0;
     std::uint64_t max_consecutive_accepts = 0, max_consecutive_retirements = 0;
     std::uint64_t max_consecutive_commits = 0;
@@ -42,7 +44,7 @@ struct ThroughputStatistics {
 
 class ThroughputMonitor {
 public:
-    static constexpr unsigned scoreboard_capacity = 64;
+    static constexpr unsigned scoreboard_capacity = fragment_trace_capacity;
 
     // Sequential observer time survives a reset of the tile-local counter.
     void observe(const FragmentCycle& event) {
@@ -56,7 +58,8 @@ public:
             fail("clock timestamps must increase strictly");
         if (stage >= statistics_.stage_cycles.size()) fail("unknown fragment stage");
         if (event.inflight_before != inflight_) fail("incorrect pre-edge in-flight count");
-        if (!event.enabled && (event.accepted || event.retired || event.color_write || event.depth_write))
+        if (!event.enabled && (event.accepted || event.retired || event.color_write || event.depth_write ||
+                               event.cancelled_count != 0))
             fail("disabled edge changed fragment state");
         if (event.accepted && (!event.candidate || !event.covered || event.accepted_fragment.id == 0))
             fail("accepted fragment must identify a covered candidate");
@@ -67,6 +70,7 @@ public:
             fail("attachment write without passing retirement");
         if (event.accepted && event.accepted_fragment.id <= last_accepted_id_)
             fail("fragment IDs must increase across resets");
+        if (event.cancelled_count != 0) validate_cancellations(event);
 
         // The existing fast path retires the old fragment before accepting its
         // successor. Support a future combinational accept/retire only when its
@@ -76,6 +80,12 @@ public:
         if (new_token_retirement) accept(event.accepted_fragment, timestamp);
         if (event.retired) retire(event, timestamp);
         if (event.accepted && !new_token_retirement) accept(event.accepted_fragment, timestamp);
+        for (unsigned index = 0; index < event.cancelled_count; ++index) {
+            FragmentCycle cancellation;
+            cancellation.retired_fragment = event.cancelled_fragments[index];
+            cancellation.retirement = FragmentRetirement::Cancelled;
+            retire(cancellation, timestamp);
+        }
         if (event.inflight_after != inflight_) fail("incorrect post-edge in-flight count");
 
         auto& s = statistics_;
@@ -86,6 +96,10 @@ public:
         if (event.inflight_before != 0 || event.inflight_after != 0) ++s.occupied_cycles;
         s.max_inflight = std::max(s.max_inflight, std::max(event.inflight_before, event.inflight_after));
         if (event.accepted && event.retired) ++s.same_cycle_accept_retire;
+        if (event.cancelled_count != 0) {
+            ++s.batch_cancellation_edges;
+            s.max_cancelled_per_edge = std::max(s.max_cancelled_per_edge, event.cancelled_count);
+        }
     }
 
     const ThroughputStatistics& statistics() const { return statistics_; }
@@ -105,6 +119,8 @@ public:
             << ",\"disabled_cycles\":" << s.disabled_cycles << ",\"occupied_cycles\":" << s.occupied_cycles
             << ",\"max_inflight\":" << s.max_inflight
             << ",\"same_cycle_accept_retire\":" << s.same_cycle_accept_retire
+            << ",\"batch_cancellation_edges\":" << s.batch_cancellation_edges
+            << ",\"max_cancelled_per_edge\":" << s.max_cancelled_per_edge
             << ",\"max_consecutive_accepts\":" << s.max_consecutive_accepts
             << ",\"max_consecutive_retirements\":" << s.max_consecutive_retirements
             << ",\"max_consecutive_commits\":" << s.max_consecutive_commits
@@ -147,6 +163,24 @@ private:
     static bool same_token(const FragmentToken& a, const FragmentToken& b) {
         return a.id == b.id && a.primitive_id == b.primitive_id && a.x == b.x && a.y == b.y &&
             a.address == b.address && a.textured == b.textured;
+    }
+    void validate_cancellations(const FragmentCycle& event) const {
+        if (event.cancelled_count > scoreboard_capacity || event.cancelled_fragments == nullptr)
+            fail("invalid bounded cancellation snapshot");
+        if (event.stage != FragmentStage::Reset || !event.enabled || event.accepted || event.retired ||
+            event.color_write || event.depth_write || event.inflight_after != 0 ||
+            event.cancelled_count != inflight_)
+            fail("batch cancellation must atomically drain the pipeline on a reset edge");
+        for (unsigned index = 0; index < event.cancelled_count; ++index) {
+            const auto& token = event.cancelled_fragments[index];
+            const auto found = std::find_if(scoreboard_.begin(), scoreboard_.end(),
+                [&](const Entry& entry) { return entry.token.id == token.id && token.id != 0; });
+            if (found == scoreboard_.end() || !same_token(found->token, token))
+                fail("unknown or changed fragment in cancellation snapshot");
+            for (unsigned prior = 0; prior < index; ++prior)
+                if (event.cancelled_fragments[prior].id == token.id)
+                    fail("duplicate fragment in cancellation snapshot");
+        }
     }
     static void cadence(std::uint64_t timestamp, std::uint64_t count, std::uint64_t& first,
                         std::uint64_t& last, std::uint64_t& run, std::uint64_t& maximum,
@@ -205,10 +239,12 @@ private:
 class FragmentCsvWriter {
 public:
     explicit FragmentCsvWriter(std::ostream& output) : out_(output) {
-        out_ << "cycle,local_cycle,stage,enabled,candidate,covered,accepted_id,accepted_primitive,accepted_x,accepted_y,accepted_address,accepted_textured,retired_id,retired_primitive,retired_x,retired_y,retired_address,retired_textured,retirement,color_write,depth_write,inflight_before,inflight_after\n";
+        out_ << "cycle,local_cycle,stage,enabled,candidate,covered,accepted_id,accepted_primitive,accepted_x,accepted_y,accepted_address,accepted_textured,retired_id,retired_primitive,retired_x,retired_y,retired_address,retired_textured,retirement,color_write,depth_write,inflight_before,inflight_after,cancelled_count,cancelled_ids\n";
         check();
     }
     void write(const FragmentCycle& e, std::uint64_t timestamp) {
+        if (e.cancelled_count > fragment_trace_capacity || (e.cancelled_count != 0 && e.cancelled_fragments == nullptr))
+            throw std::logic_error("invalid bounded cancellation snapshot for CSV");
         out_ << timestamp << ',' << e.cycle << ',' << fragment_stage_name(e.stage) << ',' << e.enabled
             << ',' << e.candidate << ',' << e.covered << ',' << e.accepted_fragment.id
             << ',' << e.accepted_fragment.primitive_id << ',' << e.accepted_fragment.x
@@ -218,7 +254,12 @@ public:
             << ',' << e.retired_fragment.y << ',' << e.retired_fragment.address
             << ',' << e.retired_fragment.textured << ',' << fragment_retirement_name(e.retirement)
             << ',' << e.color_write << ',' << e.depth_write << ',' << e.inflight_before
-            << ',' << e.inflight_after << '\n';
+            << ',' << e.inflight_after << ',' << e.cancelled_count << ",\"";
+        for (unsigned index = 0; index < e.cancelled_count; ++index) {
+            if (index != 0) out_ << ';';
+            out_ << e.cancelled_fragments[index].id;
+        }
+        out_ << "\"\n";
         check();
     }
 private:

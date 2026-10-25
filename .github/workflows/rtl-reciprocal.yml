@@ -1,0 +1,32 @@
+name: Reciprocal RTL prototype
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arithmetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install the pinned local HDL toolchain
+        run: ./scripts/setup-rtl-tools.sh
+      - name: Verify arithmetic, synthesize, and record actual-part timing
+        # Timing is reported independently of functional acceptance. The model's
+        # 100.8-MHz assumption is not a whole-GPU timing-closure claim.
+        run: python3 scripts/rtl-check.py --pnr --build-dir build/rtl
+      - name: Save qualification reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: reciprocal-rtl-qualification
+          path: |
+            build/rtl/qualification.json
+            build/rtl/uv-timing.json
+            build/rtl/*.log
+          if-no-files-found: warn

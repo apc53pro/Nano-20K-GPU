@@ -17,17 +17,23 @@ struct TextureStatistics {
     std::uint64_t misses = 0;
     std::uint64_t refill_words = 0;
     std::uint64_t memory_wait_cycles = 0;
+    std::uint64_t pipeline_inputs = 0;
+    std::uint64_t pipeline_outputs = 0;
+    std::uint64_t pipeline_backpressure_cycles = 0;
 };
 
 // One selected Gowin SDPB 1024x16 supplies a 64-line direct-mapped cache,
 // with 16 RGB565 words per line. Tags and validity are bounded registers.
-// A single request is outstanding; cache reads/writes use clocked SDPB ports.
+// The serial oracle retains one request. The selected streaming alternative
+// retains at most eight stages/reservations and can accept one hit per edge;
+// cache reads/writes always use the same clocked SDPB ports.
 // The local block profile uses an immutable Image backing adapter: a miss has
 // four response-wait edges, then one word per edge for its 16-word refill.
 // The system profile instead waits for shared SDRAM requests and streams
 // response-slot synchronous reads through one 32-bit capture register into
 // two 16-bit cache writes; the slot stays owned until its real words drain.
-// Both profiles use the ten-edge shift/add address generator and cache ports.
+// The serial oracle uses a ten-edge shift/add address generator. The streaming
+// selection uses two native18x18 multipliers and registered lookup/read stages.
 class TextureUnit {
 public:
     static constexpr unsigned cache_words = 1024;
@@ -35,6 +41,9 @@ public:
     static constexpr unsigned line_count = 64;
     static constexpr unsigned address_edges = 10;
     static constexpr unsigned backing_response_edges = 4;
+    static constexpr unsigned pipeline_address_multipliers = 2;
+    static constexpr unsigned pipeline_hit_edges = 7;
+    static constexpr unsigned streaming_capacity = 8;
 
     TextureUnit();
     ~TextureUnit();
@@ -69,6 +78,24 @@ public:
     bool external_memory_pending() const;
     bool result_valid() const;
     std::uint16_t result() const;
+
+    // Static architectural selection, changed only while completely drained.
+    // It consumes no device edge. The default retains the serial block oracle;
+    // the GPU selects the streaming path, which shares this same cache bank.
+    // Reset preserves the selection. Bind and scratch access still require all
+    // accepted requests/results to have drained.
+    void pipeline_mode(bool enabled);
+    bool pipeline_mode() const;
+    // push/pop reserve their handshake until tick(). At most one producer and
+    // one consumer may reserve an edge. A disabled tick preserves reservations
+    // and all pipeline state. The caller samples OLD output before that edge.
+    bool input_ready() const;
+    bool push(int x, int y);
+    bool output_valid() const;
+    std::uint16_t output() const;
+    bool pop();
+    // Includes all pipeline stages, the result register and a reserved input.
+    unsigned inflight() const;
 
     // Apply one common rising edge. Disabled edges hold all controller/cache
     // state and count only as elapsed stalled clocks.

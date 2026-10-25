@@ -32,6 +32,12 @@ public:
     static constexpr unsigned word_bits = 16;
     static constexpr unsigned read_latency = 1;
 
+    Sdp1kx16() = default;
+    // A selected constant INIT_RAM image, applied by FPGA configuration rather
+    // than by runtime writes. Output still starts unknown and reset preserves
+    // these words exactly as it preserves the zero-initialized default image.
+    explicit Sdp1kx16(const std::array<std::uint16_t, words>& initial) : contents_(initial) {}
+
     // Apply one common rising edge. Illegal requests throw before any mutation.
     // Cross-port same-address read/write is forbidden, not assigned a RAM value.
     // Reset zeros only the output latch. It never clears stored words.

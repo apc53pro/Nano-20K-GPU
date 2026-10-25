@@ -1,0 +1,107 @@
+{
+  "schema": "N20K-UV-RTL-0.1",
+  "scope": "shared reciprocal/UV core in serial qualification harness",
+  "device": "GW2AR-LV18QN88C8/I7",
+  "family": "GW2A-18C",
+  "enabled_edge_latency": 26,
+  "initiation_interval": 1,
+  "simulation_passed": true,
+  "whole_gpu_validated": false,
+  "target_mhz": 100.8,
+  "target_met": false,
+  "synthesized": true,
+  "routed": true,
+  "modeled_mult18_equivalents": 40,
+  "modeled_seed_bsram_blocks": 4,
+  "probe_stimulus_bits": 198,
+  "probe_checksum_bits": 32,
+  "toolchain_release": "2026-10-24",
+  "yosys_version": "Yosys 0.70+219 (git sha1 5053d0e26, Release, Clang /usr/bin/clang++ 21.1.8)",
+  "nextpnr_version": "\"nextpnr-himbaechel\" -- Next Generation Place and Route (Version nextpnr-0.11.1-79-g22c5adf4)",
+  "synthesis_cells": {
+    "$scopeinfo": 49,
+    "ALU": 1768,
+    "DFFE": 3840,
+    "DFFRE": 631,
+    "DFFSE": 1,
+    "GND": 1,
+    "IBUF": 6,
+    "LUT1": 859,
+    "LUT2": 358,
+    "LUT3": 1434,
+    "LUT4": 2025,
+    "MULT18X18": 37,
+    "MUX2_LUT5": 1411,
+    "MUX2_LUT6": 400,
+    "MUX2_LUT7": 171,
+    "MUX2_LUT8": 35,
+    "OBUF": 3,
+    "SDPB": 4,
+    "VCC": 1
+  },
+  "source_sha256": {
+    "rtl/uv_mult.v": "f6f24e2e9a3095c9b5b8431181119b185f19935a9e705b403f354f60de854928",
+    "rtl/uv_pipeline.v": "a13bb9c19f901d45a497d72c5eabb63ecffcd4a973cbc10426bc0404e42961f2",
+    "rtl/uv_probe.v": "d3354113354c60a282628808b6adb620fd6862261f3a21026c0b40103b790be2",
+    "rtl/uv_probe.cst": "f555c92c10a984c26c6371129dcf4478a7d9d2114c1615bdad05cc6ddc16962e",
+    "rtl/tests/uv_pipeline_tb.v": "c9a8bb67c337ecfba16672468c4d4f1e680cd6d5f31df5c5b2e5665a6374da0a",
+    "rtl/tests/generate_uv_vectors.cpp": "ddbd47f55045f13a468508e80b5a69cf23ec0e1a45896f1276d213bfb9d41f99",
+    "reference/tests/uv_oracle.hpp": "a4c4ce764bbd086484099cb5f6b7ea3125762a31b79a5e4708df6d7c174a1cc8",
+    "reference/src/hw_reciprocal.cpp": "ae1bdc3e8558326573c0449e67558453a93df6a057032829bd4de975b7398162",
+    "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+    "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+    "scripts/generate-reciprocal-rom.py": "ef3e67a50e8e24e82b6291b6462558a6865f703d604aab9f733171c675112b9a",
+    "scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
+    "scripts/rtl-check.py": "1bdf88d2ccfc2062d3aaafa926aabf651ec47cfa1a215682adf9d1975ac6b7ba",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
+  },
+  "generated_sha256": {
+    "seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+    "uv-vectors.txt": "14eeaea9354618d58510dd54894f73026a72c175ad5b6be5f11aba2e5a4efcb6"
+  },
+  "simulation_vectors": 68237,
+  "simulation_stalled_edges": 20629,
+  "fmax": {
+    "core.clk": {
+      "achieved": 89.17424774169922,
+      "constraint": 100.80000305175781
+    }
+  },
+  "utilization": {
+    "ALU": {
+      "available": 15552,
+      "used": 1844
+    },
+    "BSRAM": {
+      "available": 46,
+      "used": 4
+    },
+    "DFF": {
+      "available": 15552,
+      "used": 4472
+    },
+    "IOB": {
+      "available": 384,
+      "used": 9
+    },
+    "LUT4": {
+      "available": 20736,
+      "used": 8718
+    },
+    "MULT18X18": {
+      "available": 48,
+      "used": 37
+    }
+  },
+  "critical_path": {
+    "from": "core.exponent[17]_DFFE_Q_5",
+    "to": "core.estimate_u[18]_DFFE_Q_23",
+    "total_ns": 11.214000161737204,
+    "logic_ns": 6.0450001284480095,
+    "routing_ns": 4.903000026941299,
+    "description": "Stage17 exponent selection through UV quotient extraction and round-to-nearest-even into stage18 estimate."
+  }
+}

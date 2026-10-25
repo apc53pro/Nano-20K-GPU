@@ -31,15 +31,18 @@ struct StorageBankMapping {
 };
 
 struct SystemStorageMap {
-    static constexpr const char* profile = "N20K-STORAGE-0.1";
+    static constexpr const char* profile = "N20K-STORAGE-0.2";
     static constexpr bool mapping_selected = true;
     static constexpr bool physical_fit_validated = false;
     static constexpr std::uint32_t original_bsram_blocks = 12;
     static constexpr std::uint32_t sdram_slot_bsram_blocks = 6 * 2;
     static constexpr std::uint32_t reader_bsram_blocks = 2;
     static constexpr std::uint32_t row_bsram_blocks = 3;
+    static constexpr std::uint32_t context_bsram_blocks = BlockRendererResources::context_bsram_blocks;
+    static constexpr std::uint32_t reciprocal_seed_bsram_blocks = BlockRendererResources::reciprocal_seed_banks;
     static constexpr std::uint32_t bsram_blocks = original_bsram_blocks +
-        sdram_slot_bsram_blocks + reader_bsram_blocks + row_bsram_blocks;
+        sdram_slot_bsram_blocks + reader_bsram_blocks + row_bsram_blocks +
+        context_bsram_blocks + reciprocal_seed_bsram_blocks;
 
     // Each bank has one full-word write port and one synchronous read port.
     // Read/write to the same address on one edge remains forbidden.
@@ -49,7 +52,7 @@ struct SystemStorageMap {
     static constexpr std::uint32_t parent_capture_edges = 1;
     static constexpr bool same_address_read_write_allowed = false;
 
-    inline static constexpr std::array<StorageBankMapping, 14> banks{{
+    inline static constexpr std::array<StorageBankMapping, 19> banks{{
         {"tile_color",          1, 1, 1024, 16},
         {"tile_depth_low",      1, 1, 1024, 16},
         {"tile_depth_high",     1, 1, 1024,  8},
@@ -65,7 +68,12 @@ struct SystemStorageMap {
         {"reader",              1, 2,  129, 32, 32},
         {"row_color",           1, 1,   32, 16},
         {"row_depth_low",       1, 1,   32, 16},
-        {"row_depth_high",      1, 1,   32,  8}
+        {"row_depth_high",      1, 1,   32,  8},
+        {"fragment_commit",     1, 3,   64, 34},
+        {"fragment_factor",     1, 2,   64, 24},
+        {"fragment_result",     1, 1,   64, 16},
+        {"reciprocal_seed",     1, 3,  256, 35},
+        {"reciprocal_gradient", 1, 1,  256, 16}
     }};
 
     static constexpr std::uint32_t allocated_blocks() {
@@ -116,15 +124,17 @@ struct SystemStorageMap {
     static constexpr std::uint32_t texture_tag_bits = 64 * 12;
     static constexpr std::uint32_t texture_valid_bits = 64;
     static constexpr std::uint32_t capability_rom_bits = 64 * 8;
+    static constexpr std::uint32_t context_ready_bits = BlockRendererResources::fragment_contexts;
+    static constexpr std::uint32_t context_reason_bits = 2 * BlockRendererResources::fragment_contexts;
     static constexpr std::uint32_t fixed_payload_register_bits = current_status_bits +
         latched_status_bits + parser_header_bits + captured_command_bits +
         decoded_field_bits + reply_source_bits + sdram_mask_bits + writer_pack_bits +
-        texture_tag_bits + texture_valid_bits;
+        texture_tag_bits + texture_valid_bits + context_ready_bits + context_reason_bits;
 };
 
 static_assert(SystemStorageMap::allocated_blocks() == SystemStorageMap::bsram_blocks);
 static_assert(SystemStorageMap::valid_geometry());
-static_assert(SystemStorageMap::bsram_blocks == 29);
+static_assert(SystemStorageMap::bsram_blocks == 39);
 static_assert(SystemStorageMap::bsram_blocks <= TangNano20K::bsram_blocks);
 static_assert(SystemStorageMap::useful_bsram_bits() <= SystemStorageMap::selected_data_bits());
 static_assert(SystemStorageMap::reserved_bsram_bits() <= SystemStorageMap::selected_data_bits());

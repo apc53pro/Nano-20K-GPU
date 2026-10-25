@@ -1,181 +1,123 @@
 digraph CurrentRenderer {
-    graph [label="Current renderer — streamed storage + throughput instrumentation\nDependency / control-flow view: textured fragments are serialized",
-        labelloc=t, labeljust=l, fontname="DejaVu Sans", fontsize=21,
-        bgcolor="white", charset="UTF-8", rankdir=TB, compound=true,
-        newrank=true, nodesep=0.24, ranksep=0.48, pad=0.25,
-        splines=polyline, outputorder=edgesfirst];
-    node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=12,
-          margin="0.12,0.09", color="#245b8c", fontcolor="#183448", fillcolor="#edf4fa", penwidth=1.4];
-    edge [fontname="DejaVu Sans", fontsize=11, color="#1d7f79", fontcolor="#1d7f79",
-          arrowsize=0.7, penwidth=1.3];
+  graph [label="Current GPU renderer — shared reciprocal and streaming fragments\nN20K-HW-RENDER-0.3 · bounded contexts, backpressure and ordered retirement",
+    labelloc=t, labeljust=l, fontname="DejaVu Sans", fontsize=22,
+    bgcolor="white", charset="UTF-8", rankdir=TB, compound=true,
+    newrank=true, nodesep=0.28, ranksep=0.55, pad=0.3, splines=polyline];
+  node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=12,
+    margin="0.14,0.10", color="#245b8c", fontcolor="#183448", fillcolor="#edf4fa", penwidth=1.4];
+  edge [fontname="DejaVu Sans", fontsize=10, color="#1d7f79", fontcolor="#1d7f79", arrowsize=0.75, penwidth=1.3, constraint=false];
 
-    subgraph cluster_walk {
-        label="1 · Prepared input and sample generation";
-        fontname="DejaVu Sans"; fontsize=15; fontcolor="#245b8c"; color="#b9cbdc"; style=rounded;
-        prepared [label="Accept immutable primitive\n1 capture edge\nCPU-prepared edges / planes\nBounds, state, texture descriptor"];
-        tri_init [label="Triangle edge initialization\n6 shared-DSP products\n6 × 4 = 24 edges\nCPU triangle setup stays external"];
-        offsets [label="Move plane seeds to tile\nΔy + Δx addition edges\nEnabled 64-bit planes:\nz, R, G, B, q, U, V"];
-        triangle [label="Triangle walker\nQ4 centers / top-left coverage\n3 signed 32-bit edge registers\nIncrement enabled planes"];
-        rectangle [label="Rect / pixel grid walker\nTile + scissor clipping\nFlat color; constant D24"];
-        line [label="Global Bresenham line walker\nOriginal endpoints / tie rules\nThen tile + scissor filtering\nFlat unkeyed color; constant D24"];
-        sprite [label="1:1 sprite grid walker\nClipped source X/Y counters\nPreserve original source origin\nRaw texture replacement / key"];
-        covered [shape=diamond, label="Covered\ncandidate?", color="#1d7f79", fillcolor="#e7f4f2"];
-        walk_skip [label="ADVANCE selected walker\nOutside coverage: no fragment", fontsize=11];
-        { rank=same; prepared; tri_init; offsets; triangle; }
-        { rank=same; rectangle; line; sprite; }
-        { rank=same; covered; walk_skip; }
-        prepared -> tri_init [label="triangle"];
-        tri_init -> offsets -> triangle;
-        prepared -> rectangle [label="rect"];
-        prepared -> line [label="line"];
-        prepared -> sprite [label="sprite"];
-        rectangle -> line -> sprite [style=invis];
-        triangle -> covered;
-        rectangle -> covered;
-        line -> covered;
-        sprite -> covered;
-        covered -> walk_skip [label="no", color="#245b8c", fontcolor="#245b8c"];
-    }
+  subgraph cluster_walk {
+    label="1 · Primitive capture, setup and sample generation";
+    fontname="DejaVu Sans"; fontsize=15; color="#b9cbdc"; style=rounded;
+    prepared [label="Immutable prepared primitive\n1 capture edge; bind texture\nCPU clipping / triangle setup external\nDrain before next primitive"];
+    setup [label="Triangle initialization\n6 products ×4 edges =24\nONE dedicated setup MULT18X18\nExact Δy + Δx plane-anchor walk"];
+    walk [label="Triangle / 2D walker\nQ4 centers and top-left coverage\nSigned32 edges; signed64 planes\nRect / sprite grid; global line walk\nAt most one candidate / edge\nOutside coverage: advance without token"];
+    {rank=same; prepared; setup; walk;}
+    prepared -> setup -> walk;
+  }
 
-    texture_needed [shape=diamond, label="Texture\nneeded?"];
-    pending [label="Untextured: pending fragment N\nQuantize / pack color and D24\nLaunch depth read if enabled\nWalker advances on this edge",
-             color="#1d7f79", fillcolor="#e7f4f2"];
-    fast_commit [label="Next edge: compare / commit N\nLESS / LEQUAL / ALWAYS or bypass\nConditional RGB565 + D24 writes\nCan overlap new candidate N+1\nSame-address depth forwarding",
-                 color="#1d7f79", fillcolor="#e7f4f2"];
-    fast_note [shape=note, label="Fast path: one candidate / enabled edge\nafter setup; a final drain edge is required.\nRect / line and unkeyed depth-only\ntriangles also use this path.", fontsize=11,
-               color="#1d7f79", fillcolor="#f4fbfa"];
-    { rank=same; texture_needed; pending; fast_commit; }
-    covered -> texture_needed [label="yes"];
-    texture_needed -> pending [label="no"];
-    pending -> fast_commit [label="registered pending / depth"];
-    fast_commit -> fast_note [style=dotted, arrowhead=none, color="#1d7f79"];
+  subgraph cluster_accept {
+    label="2 · Separate untextured and textured paths";
+    fontname="DejaVu Sans"; fontsize=15; color="#9ac8c1"; style=rounded;
+    need [shape=diamond, label="Covered candidate:\ntexture needed?"];
+    fast [label="Untextured fast path\nONE pending fragment\nDepth read → next-edge compare / commit\nCan retire N while accepting N+1\nSame-address depth forwarding", color="#1d7f79", fillcolor="#e7f4f2"];
+    allocate [label="Textured context allocation\n64-entry ordered ring / six-bit tag\nCommit address + D24; RGB factor\nStop walker when credits unavailable", color="#b76118", fillcolor="#fff2e5"];
+    depth [label="Early D24\nNative read at acceptance\nCompare on following edge\nReject before UV / sampling"];
+    depth_note [shape=note, label="Why no depth retest at retirement?\nEach supported primitive visits a pixel once.\nPrimitives drain before another begins.\nFuture primitive overlap needs a hazard policy.", fontsize=11];
+    {rank=same; need; fast; allocate; depth;}
+    need -> fast [label="no"];
+    need -> allocate [label="yes"];
+    allocate -> depth;
+    depth -> depth_note [style=dotted, arrowhead=none];
+  }
+  walk -> need [label="covered candidate"];
 
-    subgraph cluster_perspective {
-        label="2 · Textured fragment — ONE held fragment stops the walker";
-        fontname="DejaVu Sans"; fontsize=15; fontcolor="#b76118"; color="#d9ad83"; style=rounded;
-        held [label="Hold covered fragment\nTile address, D24, RGB factor\nTriangle q/U/V or sprite X/Y\nNo next candidate yet",
-              color="#b76118", fillcolor="#fff2e5"];
-        early_depth [shape=diamond, label="Early D24\npasses / test\ndisabled?", color="#b76118", fillcolor="#fff2e5"];
-        coordinate_source [shape=diamond, label="Triangle\nor sprite?", color="#b76118", fillcolor="#fff2e5"];
-        divide_u [label="Serial U division\nRNE((U × 2^26) / q)\n92 unit edges\n+ 1 parent capture",
-                  color="#b76118", fillcolor="#fff2e5"];
-        divide_v [label="Serial V division\nSAME divider, after U\n92 unit edges\n+ 1 parent capture",
-                  color="#b76118", fillcolor="#fff2e5"];
-        address_mode [label="Triangle nearest addressing\nSigned Q16 floor\nPOT clamp / repeat\nSprites bypass this block",
-                      color="#1d7f79", fillcolor="#e7f4f2"];
-        early_reject [label="REJECT → ADVANCE\nNo UV / sampling / writes\nDepth read at candidate edge;\ncompare on following edge",
-                      fontsize=11, color="#245b8c", fillcolor="#edf4fa"];
-        { rank=same; held; early_depth; coordinate_source; divide_u; divide_v; address_mode; }
-        held -> early_depth [weight=500];
-        early_depth -> coordinate_source [label="pass / bypass", weight=500];
-        early_depth -> early_reject [label="reject", color="#245b8c", fontcolor="#245b8c"];
-        coordinate_source -> divide_u [label="triangle", weight=500];
-        divide_u -> divide_v -> address_mode [weight=500];
-    }
-    texture_needed -> held [label="yes"];
+  subgraph cluster_uv {
+    label="3 · Shared-reciprocal U/V pipeline — initiation interval ONE";
+    fontname="DejaVu Sans"; fontsize=15; color="#d9ad83"; style=rounded;
+    normalize [label="Normalize q and signed U/V\nCarry six-bit context tag\nq raw domain [2^29, 2^37]\nSprites bypass this entire stage", color="#b76118", fillcolor="#fff2e5"];
+    seed [label="Synchronous linear seed ROM\n256 entries\n35-bit base: THREE native banks\n16-bit gradient: ONE native bank", color="#6957a3", fillcolor="#f1edf8"];
+    refine [label="Refine one reciprocal for U and V\nRegistered native18×18 partial products\n40 DSP equivalents across full UV unit\nNo assumed free wide multiply", color="#b76118", fillcolor="#fff2e5"];
+    exact [label="Bounded exact quotient correction\nSignedQ16 round-to-nearest-even\nBoth U/V and error flags + context tag\n26 enabled unit edges TOTAL\nParent captures on following edge", color="#b76118", fillcolor="#fff2e5"];
+    {rank=same; normalize; seed; refine; exact;}
+    normalize -> seed -> refine -> exact;
+  }
+  depth -> normalize [label="pass / disabled, textured triangle"];
 
-    subgraph cluster_texture {
-        label="3 · Texture unit — bounded cache; one outstanding request";
-        fontname="DejaVu Sans"; fontsize=15; fontcolor="#6957a3"; color="#b7acd2"; style=rounded;
-        cache_request [label="Capture integer texel X/Y\n1 edge\nPrimitive texture binding:\n1 edge overlapped with acceptance",
-                       color="#b76118", fillcolor="#fff2e5"];
-        cache_address [label="Word address: y × pitch + x\n10 serial shift / add edges\nOne bounded 32-bit adder",
-                       color="#b76118", fillcolor="#fff2e5"];
-        tags [shape=diamond, label="64-line\ntag lookup\n1 edge", color="#6957a3", fillcolor="#f1edf8"];
-        cache_read [label="Synchronous cache read\n1 BSRAM read edge\n+ 1 unit capture edge",
-                    color="#6957a3", fillcolor="#f1edf8"];
-        cache_capture [label="Parent captures texel\n1 following edge\nNever consume new child\nregister output on the same edge",
-                       color="#b76118", fillcolor="#fff2e5"];
-        memory_request [label="System: Texture memory client\nRequest acceptance + variable wait\nShared SDRAM arbitration / refresh\nOwned 2-bank slot; ≤8 ×32-bit words\nSync read → separate 32-bit capture\nBound final request to allocation",
-                        color="#6957a3", fillcolor="#f1edf8"];
-        refill [label="Refill cache data bank\n16 RGB565 writes through native A port\nOne held 32-bit word → 2 write edges\nNext word needs sync slot read/capture\nPad unused short-line tail with zero",
-                color="#6957a3", fillcolor="#f1edf8"];
-        cache_bank [shape=cylinder, label="ONE SDPB 1024×16\n64 lines × 16 RGB565 texels\n2 KiB + bounded tags / valid bits\nOne 32-bit response hold\nCopies reuse this bank while idle",
-                    color="#6957a3", fillcolor="#f1edf8"];
-        { rank=same; cache_request; cache_address; tags; cache_read; cache_capture; }
-        { rank=same; memory_request; refill; cache_bank; }
-        cache_request -> cache_address -> tags [weight=500];
-        tags -> cache_read [label="hit", weight=500];
-        tags -> memory_request [label="miss"];
-        memory_request -> refill [label="owned slot read / capture"];
-        refill -> cache_read [label="line valid", constraint=false];
-        cache_read -> cache_capture [weight=500];
-        refill -> cache_bank [label="write A", style=dashed, color="#6957a3", fontcolor="#6957a3"];
-        cache_bank -> cache_read [label="read B", style=dashed, color="#6957a3", fontcolor="#6957a3", constraint=false];
-    }
-    address_mode -> cache_request;
-    coordinate_source -> cache_request [label="sprite integer X/Y: bypass U and V"];
+  subgraph cluster_texture {
+    label="4 · Streaming texture hit path — initiation interval ONE, at most eight reservations";
+    fontname="DejaVu Sans"; fontsize=15; color="#b7acd2"; style=rounded;
+    address_mode [label="Address coordinates\nTriangle: signedQ16 floor / clamp / repeat\nSprite: existing integer source X/Y\nPreserve clipped source origin"];
+    factor [label="Synchronous RGB-factor handoff\nTWO SDPB banks, 64 ×RGB888\nRead context tag → later capture\nTwo elastic coordinate/factor stages", color="#6957a3", fillcolor="#f1edf8"];
+    address [label="Pitched word address\ny × (pitch_low17 + pitch_high ×2^17) + x\nTWO native registered18×18 DSPs\nSeparate address / tag registers"];
+    read [label="Tag and synchronous cache read\nONE SDPB1024×16 bank\n64 direct-mapped lines ×16 texels\nNative B read → later output capture\n7 enabled unit edges on hit TOTAL\nParent captures on following edge", color="#6957a3", fillcolor="#f1edf8"];
+    miss [label="Miss service / replay\nFreeze younger address and DSP stages\nOlder cache results drain in order\nSystem: one owned Texture SDRAM slot\nSync32-bit reads → one held word\nTwo16-bit native writes per word\nPad final short-line tail without extra reads", color="#6957a3", fillcolor="#f1edf8"];
+    {rank=same; address_mode; factor; address; read;}
+    address_mode -> factor -> address -> read;
+    read -> miss [label="miss"];
+    miss -> read [label="line valid; replay held request", constraint=false];
+  }
+  exact -> address_mode;
+  depth -> address_mode [label="pass / disabled, sprite", constraint=false];
 
-    subgraph cluster_shade {
-        label="4 · Reject / shade / commit — walker resumes only after this fragment retires";
-        fontname="DejaVu Sans"; fontsize=15; fontcolor="#b76118"; color="#d9ad83"; style=rounded;
-        key_test [shape=diamond, label="Raw RGB565\nkey match?", color="#b76118", fillcolor="#fff2e5"];
-        modulation_needed [shape=diamond, label="Modulated triangle\nand color-write\nenabled?", color="#b76118", fillcolor="#fff2e5"];
-        modulate [label="RGB modulation: shared DSP\nExpanded RGB888 × flat / Gouraud\n3 channels × 4 = 12 edges\nExact rounded /255 shift / add",
-                  color="#b76118", fillcolor="#fff2e5"];
-        replace [label="Replacement / keyed depth-only\nSprites bypass modulation\nRGB565 expand / pack is exact",
-                 color="#1d7f79", fillcolor="#e7f4f2"];
-        serial_commit [label="Conditional local commit\n1 edge\nEnabled RGB565 and D24 writes\nOnly after depth + raw-key checks",
-                       color="#b76118", fillcolor="#fff2e5"];
-        key_reject [label="KEY REJECT → ADVANCE\nNeither color nor depth changes", fontsize=11];
-        advance [label="ADVANCE selected walker\nRelease held fragment\nLast candidate: 1 drain edge → ready\nDrain before accepting next primitive"];
-        { rank=same; key_test; modulation_needed; modulate; serial_commit; advance; }
-        { rank=same; key_reject; replace; }
-        key_test -> modulation_needed [label="no key / no match", weight=500];
-        key_test -> key_reject [label="match", color="#245b8c", fontcolor="#245b8c"];
-        modulation_needed -> modulate [label="yes", weight=500];
-        modulation_needed -> replace [label="no"];
-        modulate -> serial_commit [weight=500];
-        replace -> serial_commit [constraint=false];
-        serial_commit -> advance [color="#245b8c", weight=500];
-    }
-    cache_capture -> key_test;
-    // Keep the miss/refill row above shading without adding a data dependency.
-    refill -> key_test [style=invis];
+  subgraph cluster_shading {
+    label="5 · Raw key test and parallel RGB shading — initiation interval ONE";
+    fontname="DejaVu Sans"; fontsize=15; color="#d9ad83"; style=rounded;
+    key [shape=diamond, label="Raw RGB565\nkey match?"];
+    rgb [label="Replace or RGB modulation\nTHREE parallel registered18×18 DSPs\n3 unit edges + parent capture\nExact rounded /255 shift-add\nSprites / replacement use factor255\nthrough the same RGB stages", color="#b76118", fillcolor="#fff2e5"];
+    result [label="Store RGB565 result\nONE native context-result bank\nResult +ready update on one edge\nScheduler sees OLD ready flags\nIndependent color/depth write controls", color="#6957a3", fillcolor="#f1edf8"];
+    factor_fifo [label="Matching texture-context FIFO\n8 bounded register entries\nSix-bit tag +24-bit RGB factor\nRetain until ordered texture output"];
+    {rank=same; key; factor_fifo; rgb; result;}
+    key -> rgb [label="keep"];
+    factor_fifo -> rgb [label="matching RGB factor"];
+    rgb -> result;
+  }
+  read -> key [label="old registered texel"];
+  miss -> key [style=invis];
+  factor -> factor_fifo [label="captured with texture request", style=dashed, constraint=false];
+  read -> factor_fifo [label="pop matching context", style=dashed, constraint=false];
 
-    subgraph cluster_resources {
-        label="Shared physical rendering resources";
-        fontname="DejaVu Sans"; fontsize=15; fontcolor="#6957a3"; color="#b7acd2"; style=rounded;
-        shared_dsp [label="ONE signed MULT18X18\n18×18 → full 36-bit product\n3 registered enabled edges\n+ next-edge consumer capture\nEdge init OR modulation",
-                    color="#6957a3", fillcolor="#f1edf8"];
-        tile_banks [shape=cylinder, label="32×32 resident tile\nTHREE SDPB 1024×16 banks\nColor RGB565: 1 bank\nD24 low16 + high8: 2 banks\nUnused high-depth bits stay zero",
-                    color="#6957a3", fillcolor="#f1edf8"];
-        divider_resource [label="ONE serial LUT / register divider\n90-bit logical numerator\n38-bit remainder / divisor\n32-bit signed Q16 + overflow\nU and V share this unit",
-                          color="#6957a3", fillcolor="#f1edf8"];
-        { rank=same; shared_dsp; tile_banks; divider_resource; }
-        shared_dsp -> tile_banks -> divider_resource [style=invis];
-    }
-    shared_dsp -> tri_init [style=dashed, color="#6957a3", constraint=false];
-    shared_dsp -> modulate [style=dashed, color="#6957a3", constraint=false];
-    divider_resource -> divide_u [style=dashed, color="#6957a3", constraint=false];
-    divider_resource -> divide_v [style=dashed, color="#6957a3", constraint=false];
-    tile_banks -> early_depth [label="D24 read", style=dashed, color="#6957a3", fontcolor="#6957a3", constraint=false];
-    tile_banks -> pending [label="D24 read", style=dashed, color="#6957a3", fontcolor="#6957a3", constraint=false];
-    fast_commit -> tile_banks [label="conditional writes", style=dashed, color="#6957a3", fontcolor="#6957a3", constraint=false];
-    serial_commit -> tile_banks [label="conditional writes", style=dashed, color="#6957a3", fontcolor="#6957a3", constraint=false];
-    advance -> shared_dsp [style=invis];
+  subgraph cluster_retire {
+    label="6 · Ordered completion and attachment commit";
+    fontname="DejaVu Sans"; fontsize=15; color="#9ac8c1"; style=rounded;
+    ready [label="Bounded ready/reason registers\n64 ready bits +64 ×2-bit reasons\nCommit / depth reject / key reject\nA younger ready entry waits for older work"];
+    context_read [label="Retirement context ports\nTHREE commit-metadata SDPB banks\nTile address10 +D24, 64 entries\nONE RGB565 result bank, shared with shade\nSynchronous read → separate capture", color="#6957a3", fillcolor="#f1edf8"];
+    retire [label="Retire oldest fragment once\nConditional RGB565 and D24 writes\nRejects write neither attachment\nRelease context credit\nOne retirement may overlap acceptance", color="#1d7f79", fillcolor="#e7f4f2"];
+    tile [shape=cylinder, label="Resident32×32 tile\nTHREE SDPB1024×16 banks\nRGB565 / depth low16 / depth high8\nUnused high-depth bits remain zero", color="#6957a3", fillcolor="#f1edf8"];
+    {rank=same; ready; context_read; retire; tile;}
+    ready -> context_read -> retire -> tile;
+  }
+  result -> ready [label="next-edge retirement scheduler"];
+  key -> ready [label="key rejection", constraint=false];
+  depth -> ready [label="depth rejection", constraint=false];
+  fast -> tile [label="enabled writes", constraint=false];
+  tile -> depth [label="early native read", style=dashed, constraint=false];
+  retire -> allocate [label="release oldest context", style=dashed, constraint=false];
 
-    scope [shape=note, fontsize=11, margin="0.15,0.12", color="#245b8c", fillcolor="#f7f9fc",
-        label="READING THIS VIEW\nADVANCE markers return to the selected walker; they are control exits, not extra hardware.\nCE-low holds local state; system SDRAM, host and scanout continue independently.\nD24 stays separate from perspective division. Keyed depth-only draws must sample.\nCache hit: 14 unit edges + 1 parent capture. System misses add dynamic waits and native slot reads.\nOnly the blocks adapter uses a fixed 34-edge miss + 1 parent capture.\nTile cycles INCLUDE texture-memory waits during Draw; exclude record fetch / tile DMA waits.\nSystem last_pass_cycles includes record fetch, tile DMA, rendering and shared-memory delays.\nSystem storage: 29 native BSRAM =12 original +12 client-slot +2 reader +3 row banks.\nCPU transforms / clipping / triangle setup / binning remain external. Arrows do not imply 1 pixel / cycle."];
-    trace [shape=note, label="HOST-ONLY PER-CYCLE OBSERVER\nAccepted token ID / retired token ID may differ on the same edge\nCommit, depth rejection, key rejection or reset cancellation\nStage / enable / in-flight counts; common-clock mapping in system mode\nFixed scoreboard; CSV traces / cadence / latency / consecutive-run checks\nNo extra GPU state, ports or cycles", fontsize=11, color="#879dad", fillcolor="#f7f9fc"];
-    pending -> trace [style=dotted, color="#879dad", constraint=false];
-    held -> trace [style=dotted, color="#879dad", constraint=false];
-    fast_commit -> trace [style=dotted, color="#879dad", constraint=false];
-    serial_commit -> trace [style=dotted, color="#879dad", constraint=false];
-    divider_resource -> trace -> scope [style=invis];
-    // Finish every row in a section before starting the next cluster. This
-    // prevents Graphviz from placing consecutive sections beside one another.
-    fast_note -> held [style=invis, weight=100];
-    early_reject -> cache_request [style=invis, weight=100];
-    key_reject -> shared_dsp [style=invis, weight=100];
-    replace -> shared_dsp [style=invis, weight=100];
-    // Strong vertical spine folds the long dependency chain into stage rows.
-    // These invisible layout edges have no data/control meaning.
-    prepared [group="stage_start"];
-    held [group="stage_start"];
-    cache_request [group="stage_start"];
-    key_test [group="stage_start"];
-    shared_dsp [group="stage_start"];
-    prepared -> held -> cache_request -> key_test -> shared_dsp
-        [style=invis, weight=1000];
+  resources [shape=note, fontsize=12, label="SELECTED RESOURCES / CLOCK QUALIFICATION\nRenderer:14 BSRAM =3 tile +1 cache/copy +6 context +4 seed ROM\nSystem:39 of46 BSRAM =renderer14 +2 scanout +5 host +1 reply +12 client slots +2 reader +3 row\n46 of48 native18×18 equivalents =1 setup +40 UV +2 texture address +3 RGB\nThe selected schedule permits overlap; misses/backpressure/context exhaustion cause bubbles.\nCore/SDRAM100.8MHz is a configurable assumption. Whole-GPU fit and achieved timing are not established.\nOld serial divider /14-edge texture-hit APIs remain standalone oracles, outside selected GPU execution.", color="#879dad", fillcolor="#f7f9fc"];
+  trace [shape=note, fontsize=11, label="HOST-ONLY OBSERVATION\nPer-edge accepted and retired tokens; batch cancellation during reset/recovery\nWalker phase is not exclusive utilization of concurrent arithmetic/cache/shading blocks\nHardware activity counters overlap: do not sum them into elapsed clocks\nSystem last_pass_cycles includes record fetch, tile DMA, drawing and memory waits\nTrace IDs, scoreboards and CSV/JSON create no FPGA state or GPU memory ports", color="#879dad", fillcolor="#f7f9fc"];
+  ready -> resources [style=invis, weight=1000];
+  resources -> trace [style=invis];
+  allocate -> trace [style=dotted, constraint=false, color="#879dad"];
+  retire -> trace [style=dotted, constraint=false, color="#879dad"];
+  prepared [group="spine"]; need [group="spine"]; normalize [group="spine"];
+  address_mode [group="spine"]; key [group="spine"]; ready [group="spine"];
+  resources [group="spine"]; trace [group="spine"];
+  prepared -> need [style=invis, weight=1000];
+  depth_note -> normalize [style=invis, weight=1000];
+  normalize -> address_mode [style=invis, weight=1000];
+  miss -> key [style=invis, weight=1000];
+  key -> factor_fifo [style=invis, weight=1000];
+  key -> ready [style=invis, weight=1000];
+  // Invisible grid is layout only; visible arrows retain data/control meaning.
+  edge [style=invis, constraint=true, weight=1000];
+  prepared -> need -> depth_note -> normalize -> address_mode -> miss -> key -> ready -> resources -> trace;
+  prepared -> setup -> walk;
+  need -> fast -> allocate -> depth;
+  normalize -> seed -> refine -> exact;
+  address_mode -> factor -> address -> read;
+  key -> factor_fifo -> rgb -> result;
+  ready -> context_read -> retire -> tile;
+  depth_note [group="spine"]; miss [group="spine"];
 }

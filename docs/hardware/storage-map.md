@@ -1,8 +1,8 @@
 # Selected GPU storage mapping
 
-Profile: `N20K-STORAGE-0.1`. The executable allocation is in
+Profile: `N20K-STORAGE-0.2`. The executable allocation is in
 [storage_map.hpp](../../reference/include/nano_gpu/hw/storage_map.hpp).
-The system now selects **29 of the Tang Nano 20K's 46 physical BSRAM blocks**.
+The system now selects **39 of the Tang Nano 20K's 46 physical BSRAM blocks**.
 The mapping uses the same SDPB 1024x16 primitive contract as the tile and cache;
 a logical 32-bit memory combines two instances at the same address.
 
@@ -33,21 +33,25 @@ provide extra data capacity or ports.
 | Tile-row color staging | 1 | 1 | 32 | 16 |
 | Tile-row depth-low staging | 1 | 1 | 32 | 16 |
 | Tile-row depth-high staging | 1 | 1 | 32 | 8 |
-| **Total** | | **29** | | |
+| Fragment commit address and depth | 1 | 3 | 64 | 34 |
+| Fragment RGB factor | 1 | 2 | 64 | 24 |
+| Fragment RGB565 result | 1 | 1 | 64 | 16 |
+| Reciprocal seed base | 1 | 3 | 256 | 35 |
+| Reciprocal seed gradient | 1 | 1 | 256 | 16 |
+| **Total** | | **39** | | |
 
-The original system selected twelve banks. Twelve client-slot banks, two reader
-banks and three tile-row banks account for the additional seventeen. The
-resident renderer still uses four banks: three tile attachments and the cache
-shared with copies. The complete system has seventeen physical banks left
-unallocated by this profile.
+The previous streamed-storage system selected twenty-nine banks. Six context
+banks and four reciprocal-seed banks add ten. The resident renderer now selects
+fourteen banks; the complete system has seven physical banks left unallocated.
+The DSP allocation is 46 of 48 native 18×18 equivalents: one setup, forty
+perspective, two texture-address and three RGB modulation units.
 
-The selected banks occupy **534,528 physical bits**, exposing **475,136 x16
-data bits**. The logical payload capacities use **141,568 meaningful bits**,
-plus **32 alignment-guard bits**, for **141,600 reserved bits**;
-**333,536 selected data bits remain unused**. This waste is intentional:
-independent port ownership and narrow fields take precedence over treating
-spare capacity as free parallel storage. FIFO stress limits may reduce useful
-capacity without releasing a physical bank.
+The selected banks occupy **718,848 physical bits**, exposing **638,976 x16
+data bits**. Logical payload capacities use **159,360 meaningful bits**, plus
+**32 alignment-guard bits**, for **159,392 reserved bits**;
+**479,584 selected data bits remain unused**. Independent port ownership and
+narrow fields take precedence over treating spare capacity as free parallel
+storage. FIFO stress limits do not release a physical bank.
 
 ## Common port contract
 
@@ -117,10 +121,42 @@ accesses instead of updating an entire row on one edge. Stores read the row
 banks through synchronous ports and serialize their bytes to the write client.
 The old 64-byte row-serialization array is unnecessary.
 
+## Fragment contexts and reciprocal ROM
+
+Textured draws retain up to sixty-four ordered fragment contexts in six native
+banks. Untextured draws retain the existing one-pending-fragment fast path. Three retain the
+commit tile address (10 bits) and D24 depth, two retain the RGB888 modulation
+factor, and one holds the eventual RGB565 result. These are separate memories:
+commit metadata can be read for retirement while factors feed shading and a
+completed color writes the result bank. Each still has only one read and one
+write port. Synchronous context reads cross a distinct capture edge.
+
+Ready state is sixty-four one-bit registers; each context has a two-bit
+retirement reason (commit, depth rejection or key rejection). Ring head/tail
+and count establish validity. Result writes become visible before readiness can
+permit a dependent retirement read. Old context addresses are not recycled until
+ordered retirement releases their ownership. Pipeline context tags are six bits;
+trace fragment IDs remain host observations.
+
+Early depth reads occur at acceptance and compare on the following edge before
+UV work. Every currently supported walker visits each pixel at most once within
+a primitive, and primitives drain before another begins. Therefore no older
+in-flight fragment can update that same address before its early test. The
+selected implementation does not retest depth at retirement. A future design
+which overlaps primitives must add a depth-hazard policy instead of assuming
+this property continues to hold.
+
+The shared-reciprocal pipeline uses a fixed 256-entry linear seed ROM: a 35-bit
+base spans three native banks and a 16-bit gradient occupies a fourth. ROM words
+are initialized through selected BSRAM INIT configuration and use synchronous
+read ports; resetting outputs preserves those contents. Every wide arithmetic
+product is assembled from registered native 18×18 partial products. See the
+[arithmetic design and proof](reciprocal-pipeline.md).
+
 ## Register and logic-ROM selection
 
 The following fixed arrays deliberately remain registers. Their aggregate is
-**6,212 bits**; this is a subtotal, not a whole-device FF estimate.
+**6,404 bits**; this is a subtotal, not a whole-device FF estimate.
 
 | Register allocation | Selected bits | Access |
 | --- | ---: | --- |
@@ -134,6 +170,8 @@ The following fixed arrays deliberately remain registers. Their aggregate is
 | Writer packing word and mask | 36 | One byte lane update at a time |
 | Texture tags | 768 | Sixty-four 12-bit tags |
 | Texture valid bits | 64 | Per-line state; binding invalidates tags |
+| Context ready state | 64 | One ready flag per retained fragment |
+| Context retirement reasons | 128 | Two bits per retained fragment |
 
 The immutable 64-byte capabilities bank is **512 bits of logic ROM**, selected
 by its byte address. It does not allocate another BSRAM or require 512 mutable
@@ -163,12 +201,13 @@ container metadata do not describe hardware storage:
 | Tile plane working set | Seven signed 64-bit plane triplets plus seven row and seven current signed 64-bit accumulators; seven enable bits |
 | Tile edge working set | Three signed 32-bit values in each of row, current, X-step and Y-step sets |
 | Draw state | RGB888 factor (24 bits); RGB565 key (16 bits) plus enable; depth function (2 bits); shade mode (3 bits); address modes (1 bit each); attachment-enable bits; signed 32-bit scissor fields; texture descriptor fields (32 bits each) |
-| Pending fast fragment | Address (10 bits); RGB565 color (16 bits); D24; D24 forwarding value; valid/write/test/forward flags and depth function (2 bits) |
-| Held textured fragment | Address (10 bits); D24; two RGB888 values; q/U/V (signed 64 bits each); recovered U/V (signed 32 bits each); bounded source coordinates and modulation channel |
-| Perspective divider | Magnitude (64 bits); divisor/remainder (38 bits each); quotient/result (32 bits each); bit index (7 bits); sign/overflow/valid and state bits |
+| Pending fast fragment | Address10, RGB56516, D24 and forwarding D24, valid/test/write/forward flags and depth function2; untextured next-edge retirement |
+| Fragment scheduling | Six-bit context tags and ring selectors; seven-bit occupancy count; bounded depth-read, UV, texture and retirement handoff state; payloads reside in the six context memories |
+| Perspective pipeline | Fixed-width normalized q, seed/refinement/correction registers and six-bit context tags across 26 enabled stages; forty registered native multipliers; no serial-divider state in the selected path |
+| RGB pipeline | Three parallel registered native products plus bounded factor/color/context-tag metadata and exact rounded divide-by-255 logic |
 | Multiplier | Two signed 18-bit operand registers and two 36-bit product/output registers within the selected registered DSP configuration |
 | 2D walker | Signed 32-bit command/window and source fields; visible X/Y counters within 640x480; signed 16-bit Bresenham differences, increments and error |
-| Texture control | Bounded descriptor/address/shift/line/tag fields; one outstanding request; one held texel result; no line-response array |
+| Texture control | At most eight input/address/tag/read/result reservations, two registered address DSPs, one external miss, one held SDRAM word; no line-response array |
 | Copy control | Bounded source/destination row addresses, pitch, shift/add state, pixel/word/lane counters, request metadata and one-word streaming state; full source row stays in the shared cache bank |
 | SDRAM control | Per-client address (23 bits), word count (5 bits), tag (32 bits), byte masks and ownership bits; four open-row tags (11 bits each) plus timing/state counters; one active transaction |
 | Host control | Three packet metadata entries, two queue selectors, FIFO pointers/occupancy, parser progress, byte-hold/setup/hold state and registered byte outputs |

@@ -243,10 +243,13 @@ void show_hardware_profile(const Options& options) {
         << ",\n    \"bsram_blocks\": " << Slice::bsram_blocks
         << ",\n    \"tile_bsram_blocks\": " << Slice::tile_bsram_blocks
         << ",\n    \"texture_cache_banks\": " << Slice::texture_cache_banks
+        << ",\n    \"fragment_contexts\": " << Slice::fragment_contexts
+        << ",\n    \"context_bsram_blocks\": " << Slice::context_bsram_blocks
+        << ",\n    \"reciprocal_seed_banks\": " << Slice::reciprocal_seed_banks
         << ",\n    \"mult18_equivalents\": " << Slice::mult18_equivalents
         << ",\n    \"multiplier\": \"signed 18x18, 36-bit result, three enabled edges\","
-        << "\n    \"memory\": \"four SDPB 1024x16: three tile banks and one texture cache\","
-        << "\n    \"perspective\": \"one 92-edge serial LUT divider; exact Q16 round-to-nearest-even\","
+        << "\n    \"memory\": \"14 SDPB 1024x16: 3 tile, 1 texture, 6 context, 4 reciprocal ROM\","
+        << "\n    \"perspective\": \"26-edge shared reciprocal U/V pipeline, initiation interval one; exact Q16 round-to-nearest-even\","
         << "\n    \"coverage\": \"all M0 shading, perspective textures, D24, 2D and ordered copies\""
         << "\n  },\n  \"system_model\": ";
     if (options.system) {
@@ -265,6 +268,9 @@ void show_hardware_profile(const Options& options) {
             << ",\n    \"sdram_slot_bsram_banks\": " << hw::SystemStorageMap::sdram_slot_bsram_blocks
             << ",\n    \"reader_bsram_banks\": " << hw::SystemStorageMap::reader_bsram_blocks
             << ",\n    \"row_bsram_banks\": " << hw::SystemStorageMap::row_bsram_blocks
+            << ",\n    \"context_bsram_banks\": " << hw::SystemStorageMap::context_bsram_blocks
+            << ",\n    \"reciprocal_seed_bsram_banks\": " << hw::SystemStorageMap::reciprocal_seed_bsram_blocks
+            << ",\n    \"render_mult18_equivalents\": " << Slice::mult18_equivalents
             << ",\n    \"storage_profile\": \"" << hw::SystemStorageMap::profile << "\","
             << "\n    \"staging_mapping_selected\": true,"
             << "\n    \"additional_staging_fit_validated\": false,"
@@ -386,6 +392,9 @@ void report_system(std::ostream& out, const hw::SystemModel& renderer) {
         << "\n    \"physical_timing_validated\": false,"
         << "\n    \"hdmi_signaling_modeled\": false,"
         << "\n    \"native_bsram_blocks\": " << system_native_bsram_banks
+        << ",\n    \"render_profile\": \"" << hw::BlockRendererResources::profile << "\","
+        << "\n    \"render_mult18_equivalents\": " << hw::BlockRendererResources::mult18_equivalents
+        << ",\n    \"fragment_contexts\": " << hw::BlockRendererResources::fragment_contexts
         << ",\n    \"storage_profile\": \"" << hw::SystemStorageMap::profile << "\","
         << "\n    \"staging_mapping_selected\": true,"
         << "\n    \"additional_staging_fit_validated\": false,"

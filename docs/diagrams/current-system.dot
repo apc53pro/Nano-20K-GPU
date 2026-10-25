@@ -1,7 +1,7 @@
 digraph CurrentSystem {
   graph [rankdir=TB, bgcolor="white", compound=true, newrank=true,
          fontname="DejaVu Sans", fontsize=22, fontcolor="#172b3a",
-         labelloc=t, label="Current GPU model — streamed storage + throughput instrumentation\nN20K-SYS-0.1 — host, ordered execution, shared SDRAM and independent scanout",
+         labelloc=t, label="Current GPU model — shared-reciprocal textured pipeline\nN20K-SYS-0.1 — host, ordered execution, shared SDRAM and independent scanout",
          pad=0.30, nodesep=0.28, ranksep=0.60, splines=polyline];
   node [shape=box, style="rounded,filled", fillcolor="#edf4fb", color="#245b8c",
         fontname="DejaVu Sans", fontsize=11, fontcolor="#172b3a", penwidth=1.4, margin="0.14,0.10"];
@@ -51,7 +51,7 @@ digraph CurrentSystem {
       color="#a8c2db"; style=rounded; fontsize=13;
       execute [label="SystemModel executor FSM\nCapture payload through packet RAM\nValidate ranges / attachment ownership\nSelect one operation; retain its lease"];
       upload [label="WRITE_HEAP\nWriter: one 32-bit pack + 4-bit mask\nSource ≤1 byte / core edge\nUploads cannot write attachments"];
-      pass [label="SUBMIT_PASS\nFetch descriptor, table, refs and records\nOne resident 32×32 tile\nLoad / draw / drain / store all 300 tiles\n3 tile banks + shared texture bank", color="#b76118", fillcolor="#fff2e6"];
+      pass [label="SUBMIT_PASS\nFetch descriptor, table, refs and records\nOne resident 32×32 tile\nLoad / draw / drain / store all 300 tiles\n14 rendering banks: tile/cache + contexts/seed ROM", color="#b76118", fillcolor="#fff2e6"];
       copy [label="COPY_RECT / heap-image copy\nOutside a render pass\nFull clipped row, ≤640 RGB565 pixels\nReuse texture-cache bank as scratch\nRow direction preserves overlap"];
       readback [label="READ_MEMORY\nOrdered read, length 1–512 bytes\nUses timed shared reader\nNo dirty-tile inspection shortcut"];
       fence [label="FENCE\nExecute after earlier stores complete\nPublish host token / sequence / epoch"];
@@ -146,6 +146,6 @@ digraph CurrentSystem {
   trace [label="Host-only cycle observer / throughput scoreboard\nDistinct accept and retire IDs; stage / enable / occupancy\nCommon-clock CSV traces and cadence / latency histograms\nAdds no GPU registers, queues or ports", color="#879dad", fillcolor="#f7f9fb", style="rounded,dashed"];
   pass -> trace [label="per-edge observations", color="#879dad", style=dotted, constraint=false];
   sdl -> trace [style=invis];
-  limits [label="Limits that matter\nSerial rendering / single active command; no 1-pixel-per-cycle textured pipeline\nCPU wide validation checks are simulation assertions, not timed GPU units\n29 native BSRAM =12 original +12 client slots +2 reader +3 row staging\nSmall fields / masks / arithmetic mapped to bounded registers or logic ROM\nWhole-system LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
+  limits [label="Limits that matter\nPipelined textured fragments / single active command; cache misses and shared-memory waits remain\nCPU wide validation checks are simulation assertions, not timed GPU units\n39 native BSRAM =14 renderer +25 system I/O and staging\n46 of48 native18×18 DSP equivalents; 64 textured contexts; bounded registers / logic ROM\nWhole-system LUT / FF fit and achieved clock remain unproven\nSolid teal: data / request-response. Dashed blue: control. Dotted purple: shared resource.\nHDMI/TMDS signaling excluded.", shape=note, color="#879dad", fillcolor="#f7f9fb", fontsize=11];
   trace -> limits [style=invis];
 }

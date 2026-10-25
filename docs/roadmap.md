@@ -1,22 +1,26 @@
 # GPU architecture and feature roadmap
 
-Status: development sequence, 2026-10-23. The
+Status: development sequence, 2026-10-25. The
 [M0 specification](spec/README.md) is delivered and tiled rendering is selected;
 the first [canonical software reference](software-reference.md), CPU setup
 library, conformance suite, and demo scenes are implemented. M0 still needs
 independent geometric error analysis and command-trace capture. Hardware
-milestones below remain future work.
+milestones below retain their physical exit gates.
 The [clocked rendering block model](hardware/block-interfaces.md) now covers
 the canonical SRR's complete initial drawing feature set, including perspective
 textures, shading, keyed sprites, and ordered copies, with matching color/depth
-output. It uses verified Gowin multiplier and BSRAM configurations and an exact
-serial perspective divider; throughput optimization remains future work.
-This is software architecture work; hardware synthesis and board measurements
-remain outstanding.
-The [system simulation](hardware/system-model.md) now connects rendering to a
+output. Its selected profile now uses a shared-reciprocal U/V pipeline,
+streaming texture hits, parallel RGB shading and 64 ordered fragment contexts.
+The [throughput harness](hardware/throughput.md) verifies 1024 consecutive
+acceptances and commits for controlled warm-cache textured triangles and sprites.
+The earlier exact serial divider is retained as an arithmetic oracle.
+The [system simulation](hardware/system-model.md) connects rendering to a
 timed host link, bounded command queues, shared SDRAM, and independent scanout.
-Its clock/timing assumptions are configurable; measured physical feasibility
-and a faster rendering pipeline remain M1 work.
+Its core/memory timing assumptions are configurable. A separate
+[RTL qualification report](hardware/rtl-qualification.md) covers the reciprocal
+prototype; complete-GPU synthesis, timing closure and board measurements remain
+physical feasibility work. Local one-fragment-per-cycle cadence does not remove
+cache-miss, host, record-fetch or tile-transfer costs.
 Use measured exit criteria to advance. Calendar estimates should follow the
 initial feasibility work, once the toolchain and hardware constraints are known.
 

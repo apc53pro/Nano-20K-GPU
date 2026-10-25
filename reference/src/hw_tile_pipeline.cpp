@@ -3,7 +3,7 @@
 #include "nano_gpu/hw/bsram.hpp"
 #include "nano_gpu/hw/device.hpp"
 #include "nano_gpu/hw/mult18x18.hpp"
-#include "nano_gpu/hw/perspective.hpp"
+#include "nano_gpu/hw/fragment_pipeline.hpp"
 #include "nano_gpu/hw/sdram.hpp"
 #include "nano_gpu/hw/texture.hpp"
 #include "nano_gpu/hw/walker2d.hpp"
@@ -46,31 +46,9 @@ std::uint16_t pack_color(Color color) {
     return static_cast<std::uint16_t>(((color.r >> 3) << 11) |
                                     ((color.g >> 2) << 5) | (color.b >> 3));
 }
-Color expand_color(std::uint16_t value) {
-    const auto r = static_cast<std::uint8_t>((value >> 11) & 31u);
-    const auto g = static_cast<std::uint8_t>((value >> 5) & 63u);
-    const auto b = static_cast<std::uint8_t>(value & 31u);
-    return {static_cast<std::uint8_t>((r << 3) | (r >> 2)),
-            static_cast<std::uint8_t>((g << 2) | (g >> 4)),
-            static_cast<std::uint8_t>((b << 3) | (b >> 2))};
-}
 bool textured(ShadeMode mode) {
     return mode == ShadeMode::TextureReplace || mode == ShadeMode::TextureFlatModulate ||
            mode == ShadeMode::TextureGouraudModulate;
-}
-bool modulated(ShadeMode mode) {
-    return mode == ShadeMode::TextureFlatModulate || mode == ShadeMode::TextureGouraudModulate;
-}
-int floor_coordinate(std::int32_t q16) {
-    if (q16 >= 0) return q16 >> 16;
-    return -static_cast<int>((-static_cast<std::int64_t>(q16) + 65535) >> 16);
-}
-int address_coordinate(std::int32_t q16, int size, AddressMode mode) {
-    const int integer = floor_coordinate(q16);
-    if (mode == AddressMode::Clamp) return std::clamp(integer, 0, size - 1);
-    if (mode == AddressMode::Repeat)
-        return static_cast<int>(static_cast<std::uint32_t>(integer) & static_cast<unsigned>(size - 1));
-    throw std::invalid_argument("unsupported hardware texture address mode");
 }
 bool depth_accept(DepthFunc function, std::uint32_t incoming, std::uint32_t stored) {
     switch (function) {
@@ -96,14 +74,6 @@ void validate_record(const Primitive& primitive) {
         Walker2D validator;
         validator.begin(primitive, {0, 0});
     }
-}
-std::uint8_t channel(Color color, unsigned index) {
-    return index == 0 ? color.r : index == 1 ? color.g : color.b;
-}
-void set_channel(Color& color, unsigned index, std::uint8_t value) {
-    if (index == 0) color.r = value;
-    else if (index == 1) color.g = value;
-    else color.b = value;
 }
 
 } // namespace
@@ -139,10 +109,7 @@ const char* fragment_retirement_name(FragmentRetirement retirement) {
 
 struct OpaqueTile::Impl {
     enum class State {
-        Idle, EdgeLaunch, EdgeWait, EdgeCapture, OffsetY, OffsetX, Raster, Drain,
-        FragmentDepth, PerspectiveUStart, PerspectiveUWait, PerspectiveUCapture,
-        PerspectiveVStart, PerspectiveVWait, PerspectiveVCapture, TextureStart,
-        TextureWait, TextureCapture, ModLaunch, ModWait, ModCapture, FragmentCommit
+        Idle, EdgeLaunch, EdgeWait, EdgeCapture, OffsetY, OffsetX, Raster, Drain
     };
     struct Pending {
         bool valid = false;
@@ -156,20 +123,10 @@ struct OpaqueTile::Impl {
         bool forwarded = false;
         std::uint32_t forwarded_depth = 0;
     };
-    struct Held {
-        std::uint16_t address = 0;
-        std::uint32_t depth = 0;
-        Color factor{}, color{};
-        std::int64_t q = 0, u = 0, v = 0;
-        std::int32_t recovered_u = 0, recovered_v = 0;
-        int source_x = 0, source_y = 0;
-        unsigned mod_channel = 0;
-    };
-
     Sdp1kx16 color_bank, low_bank, high_bank;
     Mult18x18 multiplier;
-    PerspectiveDivider perspective;
     TextureUnit texture;
+    TexturedFragmentPipeline fragments{texture};
     Walker2D walker;
     TileStatistics counters;
     State state = State::Idle;
@@ -190,14 +147,15 @@ struct OpaqueTile::Impl {
     std::array<std::int64_t, 7> plane_row{}, plane_current{};
     std::array<bool, 7> plane_enabled{};
     Pending pending;
-    Held held;
     bool transfer_read_valid = false;
 
-    // Observer bookkeeping only. The real pending/held datapath above retains
-    // one fragment; no extra hardware queue or fragment-context RAM is added.
+    // Observer identities are separate from the six physical context banks.
+    // They never provide fragment data or additional hardware storage ports.
     FragmentCycle event;
     FragmentCycleObserver observer;
     FragmentToken observed_fragment;
+    std::array<FragmentToken, fragment_trace_capacity> observed_contexts{}, cancelled_contexts{};
+    unsigned observed_count = 0;
     std::uint64_t next_fragment_id = 1, primitive_id = 0;
 
     FragmentStage current_stage() const {
@@ -207,16 +165,6 @@ struct OpaqueTile::Impl {
         case State::OffsetY: case State::OffsetX: return FragmentStage::Setup;
         case State::Raster: return FragmentStage::Raster;
         case State::Drain: return FragmentStage::Drain;
-        case State::FragmentDepth: return FragmentStage::Depth;
-        case State::PerspectiveUStart: case State::PerspectiveUWait:
-        case State::PerspectiveUCapture: return FragmentStage::PerspectiveU;
-        case State::PerspectiveVStart: case State::PerspectiveVWait:
-        case State::PerspectiveVCapture: return FragmentStage::PerspectiveV;
-        case State::TextureStart: case State::TextureWait:
-        case State::TextureCapture: return FragmentStage::Texture;
-        case State::ModLaunch: case State::ModWait:
-        case State::ModCapture: return FragmentStage::Shade;
-        case State::FragmentCommit: return FragmentStage::Commit;
         }
         throw std::logic_error("unknown tile controller state");
     }
@@ -224,36 +172,38 @@ struct OpaqueTile::Impl {
         event = {};
         event.stage = stage;
         event.enabled = enabled;
-        event.inflight_before = observed_fragment.id != 0 ? 1u : 0u;
+        event.inflight_before = observed_count;
     }
     void finish_event() {
         event.cycle = counters.cycles;
-        event.inflight_after = observed_fragment.id != 0 ? 1u : 0u;
+        event.inflight_after = observed_count;
         if (observer) observer(event);
     }
-    void accept_fragment(int px, int py) {
-        if (observed_fragment.id != 0 || event.accepted)
+    void accept_fragment(int px, int py, int slot = -1) {
+        auto& token = slot < 0 ? observed_fragment : observed_contexts.at(static_cast<unsigned>(slot));
+        if (token.id != 0 || event.accepted)
             throw std::logic_error("fragment observer detected an overwritten context");
         if (next_fragment_id == 0)
             throw std::overflow_error("fragment observer ID space exhausted");
-        observed_fragment = {next_fragment_id++, primitive_id, px, py,
-                             local_address(px, py), need_texture};
+        token = {next_fragment_id++, primitive_id, px, py, local_address(px, py), need_texture};
+        ++observed_count;
         event.accepted = true;
-        event.accepted_fragment = observed_fragment;
+        event.accepted_fragment = token;
     }
-    void retire_fragment(FragmentRetirement reason, bool color = false, bool depth = false) {
-        if (observed_fragment.id == 0 || event.retired)
+    void retire_fragment(FragmentRetirement reason, bool color = false, bool depth = false, int slot = -1) {
+        auto& token = slot < 0 ? observed_fragment : observed_contexts.at(static_cast<unsigned>(slot));
+        if (token.id == 0 || event.retired)
             throw std::logic_error("fragment observer detected retirement without acceptance");
         event.retired = true;
-        event.retired_fragment = observed_fragment;
+        event.retired_fragment = token;
         event.retirement = reason;
         event.color_write = color;
         event.depth_write = depth;
-        observed_fragment = {};
+        token = {}; --observed_count;
     }
 
     void require_idle() const {
-        if (state != State::Idle || pending.valid)
+        if (state != State::Idle || pending.valid || fragments.busy())
             throw std::logic_error("hardware tile command requires a drained pipeline");
     }
     void banks(const BsramCycle& color, const BsramCycle& low, const BsramCycle& high) {
@@ -318,9 +268,6 @@ struct OpaqueTile::Impl {
         if (!(draw_state.depth_test || draw_state.depth_write)) return 0;
         return triangle_draw ? quantize_q16(plane_current[0], depth_max) : constant_depth;
     }
-    void after_depth() {
-        state = sprite_draw ? State::TextureStart : State::PerspectiveUStart;
-    }
     void sync_texture_statistics() {
         const auto& t = texture.statistics();
         counters.texture_hits = t.hits;
@@ -342,15 +289,24 @@ void OpaqueTile::reset() {
     auto& p = *impl_;
     // An accepted external request must be retired before its consumer resets.
     // Texture reset diagnoses this before any other tile state is changed.
-    p.texture.reset();
+    p.fragments.reset();
     p.start_event(FragmentStage::Reset);
     if (p.observed_fragment.id != 0) p.retire_fragment(FragmentRetirement::Cancelled);
-    p.state = Impl::State::Idle; p.pending = {}; p.held = {}; p.counters = {};
+    if (p.observed_count != 0) {
+        if (p.event.retired) throw std::logic_error("simultaneous fast and streamed fragment reset");
+        unsigned count = 0;
+        for (auto& token : p.observed_contexts) {
+            if (token.id != 0) { p.cancelled_contexts[count++] = token; token = {}; }
+        }
+        if (count != p.observed_count) throw std::logic_error("fragment cancellation lost a context");
+        p.event.cancelled_count = count; p.event.cancelled_fragments = p.cancelled_contexts.data();
+        p.observed_count = 0;
+    }
+    p.state = Impl::State::Idle; p.pending = {}; p.counters = {};
     p.transfer_read_valid = false;
     const BsramCycle reset_output{false, 0, 0, false, 0, true};
     p.banks(reset_output, reset_output, reset_output);
     p.multiplier.tick({0, 0, false, true});
-    p.perspective.reset();
     ++p.counters.cycles;
     p.finish_event();
 }
@@ -457,12 +413,13 @@ void OpaqueTile::begin_impl(const Primitive& primitive, Point tile_origin,
             throw std::invalid_argument("fetched texture descriptor does not match primitive metadata");
         p.texture.bind_external(*texture, *memory);
     } else if (need_texture) p.texture.bind(state.texture);
-    p.origin = tile_origin; p.pending = {}; p.held = {};
+    p.origin = tile_origin; p.pending = {};
     p.transfer_read_valid = false;
     p.triangle_draw = triangle_draw;
     p.sprite_draw = sprite_draw;
     p.draw_state = state;
     p.need_texture = need_texture;
+    if (need_texture) p.fragments.configure(state);
     if (++p.primitive_id == 0)
         throw std::overflow_error("fragment observer primitive ID space exhausted");
     if (p.need_texture) ++p.counters.texture_cycles;
@@ -501,13 +458,23 @@ void OpaqueTile::begin_impl(const Primitive& primitive, Point tile_origin,
 }
 bool OpaqueTile::busy() const { return impl_->state != Impl::State::Idle; }
 bool OpaqueTile::external_memory_pending() const { return impl_->texture.external_memory_pending(); }
+void OpaqueTile::drain_external_memory_edge() {
+    auto& p = *impl_;
+    p.start_event(FragmentStage::Transfer);
+    p.fragments.drain_external();
+    p.banks({}, {}, {}); p.multiplier.tick({0, 0, false, false});
+    ++p.counters.cycles; p.finish_event();
+}
 const TileStatistics& OpaqueTile::statistics() const { return impl_->counters; }
 const FragmentCycle& OpaqueTile::last_cycle() const { return impl_->event; }
 void OpaqueTile::set_cycle_observer(FragmentCycleObserver observer) { impl_->observer = std::move(observer); }
 
 void OpaqueTile::tick(bool enable) {
     auto& p = *impl_;
-    if (!enable) { ++p.counters.stalls; p.quiet_edge(p.current_stage(), false); return; }
+    if (!enable) {
+        if (p.need_texture) (void)p.fragments.tick({}, 0, false);
+        ++p.counters.stalls; p.quiet_edge(p.current_stage(), false); return;
+    }
     p.start_event(p.current_stage());
     ++p.counters.cycles;
     BsramCycle color_port, low_port, high_port;
@@ -515,6 +482,72 @@ void OpaqueTile::tick(bool enable) {
     bool depth_write = false;
     std::uint16_t write_address = 0;
     std::uint32_t write_depth = 0;
+    if (p.need_texture && (p.state == Impl::State::Raster || p.state == Impl::State::Drain)) {
+        TexturedFragmentPipeline::Input input;
+        int px = p.x, py = p.y;
+        bool inside = false;
+        if (p.state == Impl::State::Raster) {
+            Sample2D point;
+            inside = true;
+            if (p.triangle_draw) {
+                for (std::size_t i = 0; i < 3; ++i)
+                    inside = inside && (p.edge_current[i] > 0 ||
+                        (p.edge_current[i] == 0 && p.triangle.edges[i].inclusive));
+                input.q = p.plane_current[4]; input.u = p.plane_current[5]; input.v = p.plane_current[6];
+            } else {
+                point = p.walker.sample(); px = point.x; py = point.y; inside = point.covered;
+                input.source_x = point.source_x; input.source_y = point.source_y;
+            }
+            input.valid = inside; input.sprite = p.sprite_draw;
+            input.address = p.local_address(px, py); input.depth = p.sample_depth(); input.factor = p.sample_factor();
+        }
+        const bool perspective_active = p.fragments.perspective_busy();
+        const bool texture_active = p.texture.inflight() != 0;
+        const auto stored = p.draw_state.depth_test ? p.low_bank.output() |
+            (static_cast<std::uint32_t>(p.high_bank.output()) << 16) : 0;
+        const auto result = p.fragments.tick(input, stored);
+        if (perspective_active || p.fragments.perspective_busy()) ++p.counters.perspective_cycles;
+        if (texture_active || p.texture.inflight() != 0) ++p.counters.texture_cycles;
+        p.sync_texture_statistics();
+        if (result.retired) {
+            p.retire_fragment(result.reason, result.color_write, result.depth_write, result.retired_slot);
+            if (result.reason == FragmentRetirement::DepthRejected) ++p.counters.depth_rejected;
+            else {
+                ++p.counters.texture_samples;
+                if (result.reason == FragmentRetirement::KeyRejected) ++p.counters.keyed_rejected;
+            }
+            if (result.color_write) {
+                color_port = {true, result.address, result.color, false, 0, false}; ++p.counters.color_writes;
+            }
+            if (result.depth_write) {
+                low_port = {true, result.address, static_cast<std::uint16_t>(result.depth), false, 0, false};
+                high_port = {true, result.address, static_cast<std::uint16_t>(result.depth >> 16), false, 0, false};
+                ++p.counters.depth_writes;
+            }
+        }
+        if (p.state == Impl::State::Raster && (!inside || result.accepted)) {
+            p.event.candidate = true;
+            if (p.triangle_draw || inside) ++p.counters.candidates;
+            if (inside) {
+                p.event.covered = true;
+                p.accept_fragment(px, py, result.accepted_slot); ++p.counters.covered_fragments;
+                if (p.draw_state.depth_test) {
+                    // Every walker visits an address at most once per
+                    // primitive, and primitives drain before the next begins.
+                    if (result.depth_write && result.address == input.address)
+                        throw std::logic_error("textured walker repeated a live depth address");
+                    low_port.read_enable = high_port.read_enable = true;
+                    low_port.read_address = high_port.read_address = input.address;
+                }
+            }
+            p.advance_candidate();
+        }
+        if (p.state == Impl::State::Drain && !p.fragments.busy()) p.state = Impl::State::Idle;
+        p.banks(color_port, low_port, high_port);
+        p.multiplier.tick(multiply_port);
+        p.finish_event();
+        return;
+    }
     if (p.pending.valid) {
         const auto& f = p.pending;
         const auto previous = f.depth_test ?
@@ -596,19 +629,6 @@ void OpaqueTile::tick(bool enable) {
             p.event.covered = true;
             p.accept_fragment(px, py);
             ++p.counters.covered_fragments;
-            if (p.need_texture) {
-                auto& h = p.held;
-                h = {}; h.address = p.local_address(px, py); h.depth = p.sample_depth();
-                h.factor = p.sample_factor();
-                if (p.triangle_draw) { h.q = p.plane_current[4]; h.u = p.plane_current[5]; h.v = p.plane_current[6]; }
-                else { h.source_x = point.source_x; h.source_y = point.source_y; }
-                if (p.draw_state.depth_test) {
-                    low_port.read_enable = high_port.read_enable = true;
-                    low_port.read_address = high_port.read_address = h.address;
-                    p.state = State::FragmentDepth;
-                } else p.after_depth();
-                break;
-            }
             auto& f = p.pending;
             f.valid = true; f.address = p.local_address(px, py); f.depth = p.sample_depth();
             f.color = pack_color(p.sample_factor());
@@ -627,98 +647,6 @@ void OpaqueTile::tick(bool enable) {
         break;
     }
     case State::Drain: p.state = State::Idle; break;
-    case State::FragmentDepth: {
-        const auto stored = p.low_bank.output() | (static_cast<std::uint32_t>(p.high_bank.output()) << 16);
-        if (!depth_accept(p.draw_state.depth_func, p.held.depth, stored)) {
-            p.retire_fragment(FragmentRetirement::DepthRejected);
-            ++p.counters.depth_rejected; p.advance_candidate();
-        } else p.after_depth();
-        break;
-    }
-    case State::PerspectiveUStart:
-        p.perspective.start(p.held.u, p.held.q); ++p.counters.perspective_cycles;
-        p.state = State::PerspectiveUWait; break;
-    case State::PerspectiveUWait:
-        p.perspective.tick(); ++p.counters.perspective_cycles;
-        if (!p.perspective.busy()) p.state = State::PerspectiveUCapture;
-        break;
-    case State::PerspectiveUCapture:
-        // The consumer captures the divider's OLD registered output on this
-        // edge. It cannot consume the result produced by the same edge above.
-        if (!p.perspective.result_valid()) throw std::logic_error("perspective U result is invalid");
-        p.held.recovered_u = p.perspective.result();
-        p.state = State::PerspectiveVStart;
-        break;
-    case State::PerspectiveVStart:
-        p.perspective.start(p.held.v, p.held.q); ++p.counters.perspective_cycles;
-        p.state = State::PerspectiveVWait; break;
-    case State::PerspectiveVWait:
-        p.perspective.tick(); ++p.counters.perspective_cycles;
-        if (!p.perspective.busy()) p.state = State::PerspectiveVCapture;
-        break;
-    case State::PerspectiveVCapture:
-        if (!p.perspective.result_valid()) throw std::logic_error("perspective V result is invalid");
-        p.held.recovered_v = p.perspective.result();
-        p.state = State::TextureStart;
-        break;
-    case State::TextureStart:
-        if (!p.sprite_draw) {
-            p.held.source_x = address_coordinate(p.held.recovered_u, p.draw_state.texture->width(), p.draw_state.address_u);
-            p.held.source_y = address_coordinate(p.held.recovered_v, p.draw_state.texture->height(), p.draw_state.address_v);
-        }
-        p.texture.start(p.held.source_x, p.held.source_y); ++p.counters.texture_cycles;
-        p.state = State::TextureWait; break;
-    case State::TextureWait:
-        p.texture.tick(); ++p.counters.texture_cycles;
-        if (!p.texture.busy()) p.state = State::TextureCapture;
-        break;
-    case State::TextureCapture:
-        if (!p.texture.result_valid()) throw std::logic_error("texture result is invalid");
-        {
-            const auto texel = p.texture.result(); ++p.counters.texture_samples;
-            p.sync_texture_statistics();
-            if (p.draw_state.color_key && texel == *p.draw_state.color_key) {
-                p.retire_fragment(FragmentRetirement::KeyRejected);
-                ++p.counters.keyed_rejected; p.advance_candidate();
-            } else {
-                p.held.color = expand_color(texel);
-                if (p.triangle_draw && p.draw_state.color_write && modulated(p.draw_state.shade)) {
-                    p.held.mod_channel = 0; p.state = State::ModLaunch;
-                } else p.state = State::FragmentCommit;
-            }
-        }
-        break;
-    case State::ModLaunch:
-        multiply_port = {channel(p.held.color, p.held.mod_channel),
-                         channel(p.held.factor, p.held.mod_channel), true, false};
-        p.multiply_wait = Mult18x18::enabled_edge_latency - 1; p.state = State::ModWait;
-        break;
-    case State::ModWait:
-        multiply_port.ce = true;
-        if (--p.multiply_wait == 0) p.state = State::ModCapture;
-        break;
-    case State::ModCapture: {
-        if (!p.multiplier.output_known()) throw std::logic_error("modulation product is unknown");
-        const auto adjusted = static_cast<std::uint32_t>(p.multiplier.product()) + 128u;
-        const auto result = static_cast<std::uint8_t>((adjusted + (adjusted >> 8)) >> 8);
-        set_channel(p.held.color, p.held.mod_channel, result);
-        if (++p.held.mod_channel == 3) p.state = State::FragmentCommit;
-        else p.state = State::ModLaunch;
-        break;
-    }
-    case State::FragmentCommit:
-        p.retire_fragment(FragmentRetirement::Commit, p.draw_state.color_write, p.draw_state.depth_write);
-        if (p.draw_state.color_write) {
-            color_port = {true, p.held.address, pack_color(p.held.color), false, 0, false};
-            ++p.counters.color_writes;
-        }
-        if (p.draw_state.depth_write) {
-            low_port = {true, p.held.address, static_cast<std::uint16_t>(p.held.depth), false, 0, false};
-            high_port = {true, p.held.address, static_cast<std::uint16_t>(p.held.depth >> 16), false, 0, false};
-            ++p.counters.depth_writes;
-        }
-        p.advance_candidate();
-        break;
     }
     p.banks(color_port, low_port, high_port);
     p.multiplier.tick(multiply_port);

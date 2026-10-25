@@ -226,7 +226,26 @@ struct SystemModel::Impl {
         SystemCycleObserver callback;
         std::uint64_t clock = 0;
         std::uint64_t last_fragment_id = 0, last_primitive_id = 0;
-        FragmentToken active_fragment{};
+        std::array<FragmentToken, fragment_trace_capacity> active_fragments{};
+        unsigned active_count = 0;
+
+        void accept(const FragmentToken& token) {
+            const auto found = std::find_if(active_fragments.begin(), active_fragments.end(),
+                [](const FragmentToken& active) { return active.id == 0; });
+            if (found == active_fragments.end()) throw std::logic_error("system observer capacity exceeded");
+            *found = token; ++active_count;
+            last_fragment_id = token.id;
+            last_primitive_id = std::max(last_primitive_id, token.primitive_id);
+        }
+        void retire(const FragmentToken& token) {
+            const auto found = std::find_if(active_fragments.begin(), active_fragments.end(),
+                [&](const FragmentToken& active) { return active.id == token.id && token.id != 0; });
+            if (found == active_fragments.end() || found->primitive_id != token.primitive_id ||
+                found->x != token.x || found->y != token.y || found->address != token.address ||
+                found->textured != token.textured)
+                throw std::logic_error("system observer retired an unknown or changed fragment");
+            *found = {}; --active_count;
+        }
     };
     enum class State {
         Idle, Capture, Upload, PassDescriptor, TileEntry, LoadRow,
@@ -269,6 +288,7 @@ struct SystemModel::Impl {
     std::uint64_t fragment_id_base = 0, primitive_id_base = 0;
     bool reset_event_pending = false;
     FragmentCycle edge_event{};
+    std::array<FragmentToken, fragment_trace_capacity> cancellation_snapshot{};
     bool tile_edge = false;
     PassDescriptor pass;
     TileEntry bin;
@@ -309,6 +329,15 @@ struct SystemModel::Impl {
             };
             map_token(edge_event.accepted_fragment);
             map_token(edge_event.retired_fragment);
+            if (event.cancelled_count != 0) {
+                if (event.cancelled_count > cancellation_snapshot.size() || event.cancelled_fragments == nullptr)
+                    throw std::logic_error("invalid tile cancellation snapshot");
+                for (unsigned index = 0; index < event.cancelled_count; ++index) {
+                    cancellation_snapshot[index] = event.cancelled_fragments[index];
+                    map_token(cancellation_snapshot[index]);
+                }
+                edge_event.cancelled_fragments = cancellation_snapshot.data();
+            }
             tile_edge = true;
         });
     }
@@ -368,7 +397,7 @@ struct SystemModel::Impl {
         state = State::Fault;
     }
     bool drain_issued() {
-        if (tile.external_memory_pending()) tile.tick();
+        if (tile.external_memory_pending()) tile.drain_external_memory_edge();
         if (copier.memory_pending()) copier.tick(memory, tile);
         bool drained = !tile.external_memory_pending() && !copier.memory_pending();
         for (unsigned port = 1; port < memory_client_count; ++port) {
@@ -768,17 +797,16 @@ struct SystemModel::Impl {
         tile_edge = false;
         edge_event = {};
         edge_event.stage = pass_active ? FragmentStage::Transfer : FragmentStage::Idle;
-        edge_event.inflight_before = edge_event.inflight_after = tile.last_cycle().inflight_after;
+        edge_event.inflight_before = edge_event.inflight_after = observation->active_count;
         if (reset_event_pending) {
             edge_event.stage = FragmentStage::Reset;
             edge_event.cycle = tile.last_cycle().cycle;
-            edge_event.inflight_before = observation->active_fragment.id != 0 ? 1u : 0u;
             edge_event.inflight_after = 0;
-            if (observation->active_fragment.id != 0) {
-                edge_event.retired = true;
-                edge_event.retired_fragment = observation->active_fragment;
-                edge_event.retirement = FragmentRetirement::Cancelled;
+            for (const auto& token : observation->active_fragments) {
+                if (token.id != 0) cancellation_snapshot[edge_event.cancelled_count++] = token;
             }
+            if (edge_event.cancelled_count != 0)
+                edge_event.cancelled_fragments = cancellation_snapshot.data();
             reset_event_pending = false;
         }
         // The host samples established device registers, never state newly
@@ -802,13 +830,15 @@ struct SystemModel::Impl {
         const auto result = host.tick(pins);
         rows.tick();
         memory.tick();
-        if (edge_event.retired) observation->active_fragment = {};
-        if (edge_event.accepted) {
-            observation->active_fragment = edge_event.accepted_fragment;
-            observation->last_fragment_id = edge_event.accepted_fragment.id;
-            observation->last_primitive_id = std::max(observation->last_primitive_id,
-                                                     edge_event.accepted_fragment.primitive_id);
-        }
+        const bool new_token_retirement = edge_event.accepted && edge_event.retired &&
+            edge_event.accepted_fragment.id == edge_event.retired_fragment.id;
+        if (new_token_retirement) observation->accept(edge_event.accepted_fragment);
+        if (edge_event.retired) observation->retire(edge_event.retired_fragment);
+        for (unsigned index = 0; index < edge_event.cancelled_count; ++index)
+            observation->retire(edge_event.cancelled_fragments[index]);
+        if (edge_event.accepted && !new_token_retirement) observation->accept(edge_event.accepted_fragment);
+        if (observation->active_count != edge_event.inflight_after)
+            throw std::logic_error("system observer occupancy differs from the fragment pipeline");
         ++observation->clock;
         if (observation->callback) observation->callback(observation->clock, edge_event);
         return result;

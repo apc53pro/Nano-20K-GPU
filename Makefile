@@ -38,10 +38,10 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_perspective.o $(BUILD_DIR)/hw_texture.o $(BUILD_DIR)/hw_walker2d.o \
     $(BUILD_DIR)/hw_blit.o $(BUILD_DIR)/hw_sdram.o $(BUILD_DIR)/hw_host_link.o \
     $(BUILD_DIR)/hw_scanout.o $(BUILD_DIR)/hw_protocol.o $(BUILD_DIR)/hw_system_copy.o \
-    $(BUILD_DIR)/hw_system.o
+    $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -91,6 +91,17 @@ $(BUILD_DIR)/full-hardware-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUIL
 
 SYSTEM_TEST_NAMES := sdram host_link scanout protocol system_copy system
 SYSTEM_TEST_BINS := $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)-tests$(EXEEXT))
+PIPELINE_TEST_NAMES := perspective_pipeline texture_pipeline
+PIPELINE_TEST_BINS := $(foreach name,$(PIPELINE_TEST_NAMES),$(BUILD_DIR)/$(subst _,-,$(name))-tests$(EXEEXT))
+
+$(foreach name,$(PIPELINE_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/perspective-pipeline-tests$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/perspective_pipeline_tests.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+
+$(BUILD_DIR)/texture-pipeline-tests$(EXEEXT): $(CORE_OBJECTS) $(BUILD_DIR)/texture_pipeline_tests.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 $(BUILD_DIR)/throughput_tests.o: reference/tests/throughput_tests.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
@@ -108,18 +119,29 @@ throughput: $(BUILD_DIR)/throughput-bench$(EXEEXT)
 throughput-test: $(BUILD_DIR)/throughput-tests$(EXEEXT)
 	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
 
+# Optional arithmetic RTL qualification. Ordinary SRR builds need no HDL tools.
+rtl-test:
+	$(PYTHON) scripts/rtl-check.py --build-dir "$(BUILD_DIR)/rtl"
+
+rtl-synth:
+	$(PYTHON) scripts/rtl-check.py --synth --build-dir "$(BUILD_DIR)/rtl"
+
+rtl-pnr:
+	$(PYTHON) scripts/rtl-check.py --pnr --require-timing --build-dir "$(BUILD_DIR)/rtl"
+
 $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
 
 $(SYSTEM_TEST_BINS): $(BUILD_DIR)/%-tests$(EXEEXT): $(CORE_OBJECTS) $(DEMO_OBJECT) $(BUILD_DIR)/%_tests.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
-test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT) $(SYSTEM_TEST_BINS) $(BUILD_DIR)/throughput-tests$(EXEEXT)
+test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT) $(BUILD_DIR)/full-hardware-tests$(EXEEXT) $(SYSTEM_TEST_BINS) $(BUILD_DIR)/throughput-tests$(EXEEXT) $(PIPELINE_TEST_BINS)
 	./$(BUILD_DIR)/reference-tests$(EXEEXT)
 	./$(BUILD_DIR)/hardware-tests$(EXEEXT)
 	./$(BUILD_DIR)/full-hardware-tests$(EXEEXT)
 	@set -e; for test_bin in $(SYSTEM_TEST_BINS); do ./$$test_bin; done
 	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
+	@set -e; for test_bin in $(PIPELINE_TEST_BINS); do ./$$test_bin; done
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)

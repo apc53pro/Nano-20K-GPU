@@ -33,31 +33,34 @@ bus timing are not yet released.
 - [Validation contract](validation.md): conformance rules, hand-checked vectors,
   benchmarks, and remaining M0 implementation work.
 - [Golden vector data](golden-vectors.json): small inputs/expected results for the
-  executable software conformance suite; RTL validation remains future work.
+  executable software conformance suite; complete-GPU RTL conformance remains future work.
 
 The parent [requirements](../requirements.md) remain the product goals; this
 profile supplies concrete initial details. Optional indexed textures, dithering,
 scaling/flipping, fog, stencil, blending, filtering, and GPU setup are outside
 this profile. Capability bits must not advertise an unimplemented feature.
 
-M1 still determines physical tile banking, number of resident tiles, texture
-cache size, pipeline stages, reciprocal implementation, clocks, pin assignments,
-and the packed record/command ABI. A physical design may process a logical tile
+M1 must physically qualify the selected tile banking, number of resident tiles,
+texture cache, pipeline stages, reciprocal implementation and clocks, and finalize
+pin assignments and the packed record/command ABI. A physical design may process a logical tile
 in smaller internal blocks if results and ordering remain identical.
 
 The specification portion of M0 and the first [software reference
 implementation](../software-reference.md) are delivered. The implementation
 includes CPU setup, canonical fixed-plane rendering, tiled and monolithic
 traversals, executable conformance tests, demo scenes, and image/depth exports.
-Independent geometric error analysis, implementation-reciprocal checks, and
-captured command traces remain work before the complete M0 validation is finished.
+Independent geometric error analysis and captured command traces remain work
+before complete M0 validation. The selected reciprocal now has independent
+exact-rational arithmetic checks and a separate RTL qualification path.
 
 The [hardware block backend](../hardware/block-interfaces.md) implements the
 initial drawing feature set with selected [Gowin primitives](../hardware/gowin-profile.md)
-and explicit serial perspective logic. Its original-showcase output matches
+and a pipelined shared reciprocal with exact quotient correction. Its original-showcase output matches
 canonical rendering, including color and depth. It provides local cycle/state
-behavior without freezing the packed command ABI or establishing complete-system
-fit and timing.
+behavior and controlled warm-cache one-fragment-per-cycle checks without freezing
+the packed command ABI or establishing complete-system fit and timing. See the
+[throughput results](../hardware/throughput.md) and
+[RTL qualification scope](../hardware/rtl-qualification.md).
 
 The [system simulation](../hardware/system-model.md) also executes a provisional
 `N20K-SYS-0.1` packed layout over the modeled host link, with shared SDRAM and

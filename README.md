@@ -6,7 +6,9 @@ The feature baseline is 640×480 RGB565 video through the HDMI connector,
 hardware triangle rasterization, perspective-correct textures, two color
 framebuffers, at least 24-bit depth, shading, and 2D drawing. The RP2350 performs
 triangle setup initially and communicates over an 8-bit parallel bus. A rendering
-rate of one pixel per core cycle is a design target that requires validation.
+rate of one pixel per core cycle is the design target. The modeled warm-cache
+textured path now meets that cadence in controlled resident-tile tests;
+complete-system throughput and FPGA timing are qualified separately.
 
 Video-only DVI-compatible signaling at approximately 60 Hz is confirmed sufficient.
 
@@ -58,10 +60,12 @@ using the verified Gowin primitive configurations:
 
 Use the `.exe` executable in MSYS2 or the headless executable with `--headless`
 on a server. The backend supports all five shading modes, perspective textures,
-D24, 2D drawing, keyed sprites, and ordered copies. It uses one shared signed
-18×18 multiplier, three clocked tile-memory banks, a fourth bank for texture
-caching, and a serial perspective divider implemented in user logic. This is an
-exact serial baseline; the one-pixel-per-cycle target needs later work. The [hardware
+D24, 2D drawing, keyed sprites, and ordered copies. The selected pipeline uses 46 signed 18×18 multiplier equivalents and 14 native
+BSRAM banks: three tile attachments, one texture cache, six fragment-context
+banks, and four reciprocal-seed ROM banks. Perspective reconstruction shares a
+reciprocal between U and V and corrects the result to exact signed Q16 rounding.
+A bounded 64-context pipeline overlaps fragments; cache hits and RGB modulation
+have initiation interval one. The [hardware
 profile](docs/hardware/gowin-profile.md) and [block interfaces](docs/hardware/block-interfaces.md)
 record the source revisions, selected modes, ports, and simulation limits.
 
@@ -78,8 +82,9 @@ mode use the same timed SDRAM controller. SDL displays the pixels actually
 consumed by scanout, including underflow fallback. HDMI/TMDS signaling is outside
 scope. The [system model guide](docs/hardware/system-model.md) separates verified
 device facts from configurable timing assumptions and explains the counters.
-This adds system timing fidelity; the serial rendering datapath still needs
-throughput optimization.
+The system model includes the pipelined rendering datapath. Sustained cache-hit
+throughput and complete-pass throughput are measured separately; SDRAM misses,
+record fetching and tile transfers still introduce waits.
 
 The throughput harness tracks fragment acceptance and retirement on each
 modeled edge, checks ordering and cancellation, and distinguishes sustained
@@ -88,15 +93,23 @@ datapath cadence from complete-pass throughput. It can run without SDL:
 ```bash
 make -j4 throughput
 make throughput-test
+./build/throughput-bench --workload textured-hit --output build/textured-hit.json
 ```
 
 System runs report bounded throughput measurements in their JSON. Add
 `--trace build/edges.csv` to stream a CSV row for every core edge; the trace is
 optional and can be large. The [measurement guide](docs/software-reference.md#fragment-throughput-and-clock-traces)
 explains the counters, controlled benchmarks, and trace format. Bulk system
-staging now has explicit native memory ports and latency, using **29 of 46 BSRAM
+staging now has explicit native memory ports and latency, using **39 of 46 BSRAM
 blocks** in the selected map. This allocation remains subject to synthesis and
 timing qualification.
+
+Warm textured triangles accept and commit 1024 consecutive fragments with
+41-cycle latency; warm sprites do the same with 15-cycle latency. The
+[measurement guide](docs/hardware/throughput.md) separates those local results
+from memory misses and complete-pass costs. The
+[RTL qualification report](docs/hardware/rtl-qualification.md) records the
+shared-reciprocal prototype separately from the complete GPU.
 
 ## Project documentation
 
@@ -120,6 +133,10 @@ timing qualification.
   rendering, and tile/memory views, with scalable figures and a three-page PDF.
 - [Throughput validation](docs/hardware/throughput.md): controlled workloads,
   per-cycle fragment tracking, cadence checks, and JSON/CSV reports.
+- [Reciprocal arithmetic](docs/hardware/reciprocal-pipeline.md): exact shared-reciprocal
+  reconstruction, native partial products, and error bounds.
+- [RTL qualification](docs/hardware/rtl-qualification.md): reproducible simulation,
+  synthesis, and routing of the arithmetic prototype.
 - [Selected storage map](docs/hardware/storage-map.md): native BSRAM allocation,
   synchronous ports, register fields, and resource limits.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
@@ -128,6 +145,6 @@ timing qualification.
 Current status: the M0 specification, initial canonical renderer, CPU setup
 library, conformance tests, demo scenes, and a rendering block backend with
 matching color/depth output, plus a timed GPU system simulation, are available. Independent geometric
-error analysis and command-trace capture remain M0 work. GPU RTL, the packed bus
-ABI, and measured hardware performance remain future milestones. Software frame
+error analysis and command-trace capture remain M0 work. Complete GPU RTL, a
+stable packed bus ABI, and measured board performance remain future milestones. Software frame
 times do not establish FPGA throughput or fit.
