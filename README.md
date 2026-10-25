@@ -100,6 +100,9 @@ the frozen showcase's steady upload/render submission takes 32.4 ms, compared
 with 82.6 ms before these changes. This excludes RP2350 preparation and
 presentation waits; the full FPGA clock and fit remain unqualified. The
 [measurement details](docs/hardware/system-model.md) distinguish these costs.
+The [further optimization review](docs/hardware/optimization-review.md) records
+measured experimental improvements and the hardware and protocol work needed
+before adopting them.
 
 The throughput harness tracks fragment acceptance and retirement on each
 modeled edge, checks ordering and cancellation, and distinguishes sustained

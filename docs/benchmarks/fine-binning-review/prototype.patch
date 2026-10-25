@@ -1,0 +1,24 @@
+--- a/reference/src/renderer.cpp
++++ b/reference/src/renderer.cpp
+@@ -405,6 +405,21 @@
+         }
+         for (int ty = bounds.y0 / tile_size; ty <= (bounds.y1 - 1) / tile_size; ++ty) {
+             for (int tx = bounds.x0 / tile_size; tx <= (bounds.x1 - 1) / tile_size; ++tx) {
++                if (const auto* triangle = std::get_if<Triangle>(&primitives[index])) {
++                    const Bounds window = intersect(bounds, {tx * tile_size, ty * tile_size,
++                        (tx + 1) * tile_size, (ty + 1) * tile_size});
++                    bool rejected = false;
++                    for (const auto& edge : triangle->edges) {
++                        const int px = edge.a >= 0 ? window.x1 - 1 : window.x0;
++                        const int py = edge.b >= 0 ? window.y1 - 1 : window.y0;
++                        const auto maximum = static_cast<std::int64_t>(edge.a) * (16 * px + 8) +
++                            static_cast<std::int64_t>(edge.b) * (16 * py + 8) + edge.c;
++                        if (maximum < 0 || (maximum == 0 && !edge.inclusive)) {
++                            rejected = true; break;
++                        }
++                    }
++                    if (rejected) continue;
++                }
+                 bins[static_cast<std::size_t>(ty * tile_columns + tx)].push_back(index);
+             }
+         }

@@ -1,0 +1,230 @@
+{
+  "schema": "N20K-TEXTURE-ARCHITECTURE-REVIEW-1",
+  "scope": "Temporary system-model experiment, not production implementation or physical FPGA performance. Texture upload bytes and streaming address mapping use implicit8x2 layout for width>=8 andheight>=2; production needs explicit descriptor layout/ABI, small-texturefallback rules and expanded validation.",
+  "prototype_resources": "Same1SDPB1024x16 cache and same2native18x18 address DSPs. Three-stage X metadata grows10to11bits(3extra scalarbits), plus layoutselection/validation. No new data RAM or memoryports.",
+  "prototype_results": [
+    {
+      "scene": "showcase",
+      "core_hz": 100800000,
+      "host_hz": 25200000,
+      "baseline_submission_cycles": 3265525,
+      "prototype_submission_cycles": 3045545,
+      "baseline_submission_ms": 32.39608134920635,
+      "prototype_submission_ms": 30.21374007936508,
+      "baseline_pass_cycles": 2766453,
+      "prototype_pass_cycles": 2546477,
+      "baseline_misses": 26900,
+      "prototype_misses": 19908,
+      "color_fnv1a64": "1d85d76382a08afb",
+      "depth_fnv1a64": "cdb41a22de37f530",
+      "verified_against_other_modes": true,
+      "scanout_underflows": 0
+    },
+    {
+      "scene": "perspective",
+      "core_hz": 100800000,
+      "host_hz": 25200000,
+      "baseline_submission_cycles": 2653173,
+      "prototype_submission_cycles": 2627429,
+      "baseline_submission_ms": 26.321160714285714,
+      "prototype_submission_ms": 26.06576388888889,
+      "baseline_pass_cycles": 2250417,
+      "prototype_pass_cycles": 2224673,
+      "baseline_misses": 16213,
+      "prototype_misses": 15039,
+      "color_fnv1a64": "8a3238862a3b0b9e",
+      "depth_fnv1a64": "86c2615dc2b84f7e",
+      "verified_against_other_modes": true,
+      "scanout_underflows": 0
+    },
+    {
+      "scene": "overdraw",
+      "core_hz": 100800000,
+      "host_hz": 25200000,
+      "baseline_submission_cycles": 4400137,
+      "prototype_submission_cycles": 4361157,
+      "baseline_submission_ms": 43.65215277777778,
+      "prototype_submission_ms": 43.26544642857143,
+      "baseline_pass_cycles": 4000166,
+      "prototype_pass_cycles": 3961192,
+      "baseline_misses": 4486,
+      "prototype_misses": 2645,
+      "color_fnv1a64": "98b7847230519f8",
+      "depth_fnv1a64": "178db08d99fd56f7",
+      "verified_against_other_modes": true,
+      "scanout_underflows": 0
+    }
+  ],
+  "trace_replay": {
+    "scope": "Counterfactual cache trace replay; no modeled cycle or FPGA speedup claim. Actual accepted texel order at time zero. Production cache replay matches reported misses exactly.",
+    "hardware_baseline": "64 direct-mapped lines,16 RGB565 texels/line,1 native SDPB1024x16",
+    "scenes": [
+      {
+        "samples": 153945,
+        "binds": 978,
+        "binding_changes": 159,
+        "misaligned_bindings": 0,
+        "policies": {
+          "current_relative_flush": {
+            "misses": 26900,
+            "hits": 127045
+          },
+          "retain_relative_index": {
+            "misses": 26435,
+            "hits": 127510
+          },
+          "retain_physical_direct": {
+            "misses": 26435,
+            "hits": 127510
+          },
+          "retain_physical_2way": {
+            "misses": 26837,
+            "hits": 127108
+          },
+          "retain_physical_4way": {
+            "misses": 26974,
+            "hits": 126971
+          },
+          "retain_swizzle4x4_direct": {
+            "misses": 18502,
+            "hits": 135443
+          },
+          "flush_swizzle4x4_direct": {
+            "misses": 18917,
+            "hits": 135028
+          },
+          "retain_swizzle8x2_direct": {
+            "misses": 19443,
+            "hits": 134502
+          },
+          "flush_swizzle8x2_direct": {
+            "misses": 19908,
+            "hits": 134037
+          },
+          "retain_swizzle4x4_2way": {
+            "misses": 18778,
+            "hits": 135167
+          }
+        },
+        "scene": "showcase",
+        "reported_misses": 26900
+      },
+      {
+        "samples": 96742,
+        "binds": 821,
+        "binding_changes": 160,
+        "misaligned_bindings": 0,
+        "policies": {
+          "current_relative_flush": {
+            "misses": 16213,
+            "hits": 80529
+          },
+          "retain_relative_index": {
+            "misses": 15486,
+            "hits": 81256
+          },
+          "retain_physical_direct": {
+            "misses": 15486,
+            "hits": 81256
+          },
+          "retain_physical_2way": {
+            "misses": 15963,
+            "hits": 80779
+          },
+          "retain_physical_4way": {
+            "misses": 16160,
+            "hits": 80582
+          },
+          "retain_swizzle4x4_direct": {
+            "misses": 16479,
+            "hits": 80263
+          },
+          "flush_swizzle4x4_direct": {
+            "misses": 17087,
+            "hits": 79655
+          },
+          "retain_swizzle8x2_direct": {
+            "misses": 14343,
+            "hits": 82399
+          },
+          "flush_swizzle8x2_direct": {
+            "misses": 15039,
+            "hits": 81703
+          },
+          "retain_swizzle4x4_2way": {
+            "misses": 17232,
+            "hits": 79510
+          }
+        },
+        "scene": "perspective",
+        "reported_misses": 16213
+      },
+      {
+        "samples": 87555,
+        "binds": 2738,
+        "binding_changes": 100,
+        "misaligned_bindings": 0,
+        "policies": {
+          "current_relative_flush": {
+            "misses": 4486,
+            "hits": 83069
+          },
+          "retain_relative_index": {
+            "misses": 4116,
+            "hits": 83439
+          },
+          "retain_physical_direct": {
+            "misses": 4116,
+            "hits": 83439
+          },
+          "retain_physical_2way": {
+            "misses": 4597,
+            "hits": 82958
+          },
+          "retain_physical_4way": {
+            "misses": 5092,
+            "hits": 82463
+          },
+          "retain_swizzle4x4_direct": {
+            "misses": 2018,
+            "hits": 85537
+          },
+          "flush_swizzle4x4_direct": {
+            "misses": 2218,
+            "hits": 85337
+          },
+          "retain_swizzle8x2_direct": {
+            "misses": 2390,
+            "hits": 85165
+          },
+          "flush_swizzle8x2_direct": {
+            "misses": 2645,
+            "hits": 84910
+          },
+          "retain_swizzle4x4_2way": {
+            "misses": 2131,
+            "hits": 85424
+          }
+        },
+        "scene": "overdraw",
+        "reported_misses": 4486
+      }
+    ]
+  },
+  "combined_finebin_and_8x2_showcase": {
+    "scene": "showcase",
+    "core_hz": 100800000,
+    "host_hz": 25200000,
+    "last_pass_cycles": 2312417,
+    "last_submission_cycles": 2806777,
+    "last_pass_ms": 22.94064484126984,
+    "last_submission_ms": 27.84500992063492,
+    "texture_misses": 19862,
+    "tile_references": 1241,
+    "candidate_positions": 542740,
+    "color_fnv1a64": "1d85d76382a08afb",
+    "depth_fnv1a64": "cdb41a22de37f530",
+    "verified_against_other_modes": true,
+    "scanout_underflows": 0
+  }
+}

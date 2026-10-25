@@ -1,0 +1,43 @@
+--- a/reference/src/hw_texture.cpp
++++ b/reference/src/hw_texture.cpp
+@@ -274,6 +274,7 @@
+     }
+
+     Mult18Cycle low{0, 0, false, false}, high{0, 0, false, false};
++    const bool tiled8x2 = external_memory && descriptor.width >= 8 && descriptor.height >= 2;
+     if (advance) {
+         // A DSP product becomes an OLD registered output before its consumer
+         // captures it here. The matching metadata spends three enabled edges
+@@ -290,12 +291,12 @@
+         }
+         for (unsigned stage = static_cast<unsigned>(multiply_meta.size()) - 1; stage != 0; --stage)
+             multiply_meta[stage] = multiply_meta[stage - 1];
+-        multiply_meta[0] = {input.valid, input.x};
+-        const auto pitch = external_memory ? descriptor.pitch_bytes / 2u :
++        multiply_meta[0] = {input.valid, tiled8x2 ? ((input.x >> 3) << 4) | ((input.y & 1u) << 3) | (input.x & 7u) : input.x};
++        const auto pitch = external_memory ? (tiled8x2 ? descriptor.pitch_bytes : descriptor.pitch_bytes / 2u) :
+             (texture ? static_cast<std::uint32_t>(texture->pitch_bytes() / 2) : 0u);
+-        low = {static_cast<std::int32_t>(input.valid ? input.y : 0),
++        low = {static_cast<std::int32_t>(input.valid ? (tiled8x2 ? input.y >> 1 : input.y) : 0),
+                static_cast<std::int32_t>(pitch & 0x1ffffu), true, false};
+-        high = {static_cast<std::int32_t>(input.valid ? input.y : 0),
++        high = {static_cast<std::int32_t>(input.valid ? (tiled8x2 ? input.y >> 1 : input.y) : 0),
+                 static_cast<std::int32_t>(pitch >> 17), true, false};
+         if (input.valid) ++counters.pipeline_inputs;
+         input = {};
+--- a/reference/src/hw_protocol.cpp
++++ b/reference/src/hw_protocol.cpp
+@@ -391,7 +391,11 @@
+     if (extent > memory_bytes - heap_base)
+         throw std::invalid_argument("texture exceeds the shared GPU heap");
+     auto bytes = std::make_shared<std::vector<std::uint8_t>>(static_cast<std::size_t>(extent), 0);
+-    for (int y = 0; y < image.height(); ++y) for (int x = 0; x < image.width(); ++x)
+-        write_u16(*bytes, static_cast<std::size_t>(y) * image.pitch_bytes() + 2u * x, image.at(x, y));
++    for (int y = 0; y < image.height(); ++y) for (int x = 0; x < image.width(); ++x) {
++        const auto offset = image.width() >= 8 && image.height() >= 2 ?
++            static_cast<std::size_t>(y >> 1) * image.pitch_bytes() * 2u + (x >> 3) * 32u + (y & 1) * 16u + (x & 7) * 2u :
++            static_cast<std::size_t>(y) * image.pitch_bytes() + 2u * x;
++        write_u16(*bytes, offset, image.at(x, y));
++    }
+     return bytes;
+ }

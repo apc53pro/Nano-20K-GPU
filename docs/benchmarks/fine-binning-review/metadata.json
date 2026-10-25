@@ -1,0 +1,46 @@
+{
+  "baseline_commit": "b434df20a15411f17cea24ad860fa413d5c38af1",
+  "prototype": "conservative CPU triangle/tile bin rejection; source copied under /tmp, production repository unchanged",
+  "animation_time": 0,
+  "animation_step": 0,
+  "steady_frames": 2,
+  "verification": "Every cold and two-frame run used --verify; existing CLI compared RGB565 and D24 against tiled, reverse and monolithic canonical modes. Benchmark script also matched committed baseline hashes and rejected scanout underflows.",
+  "results": [
+    {
+      "scene": "showcase",
+      "steady_pass_cycles": 2533263,
+      "steady_submission_cycles": 3027573,
+      "color_fnv1a64": "1d85d76382a08afb",
+      "depth_fnv1a64": "cdb41a22de37f530",
+      "verified_against_other_modes": true,
+      "underflows": 0
+    },
+    {
+      "scene": "perspective",
+      "steady_pass_cycles": 2046474,
+      "steady_submission_cycles": 2445277,
+      "color_fnv1a64": "8a3238862a3b0b9e",
+      "depth_fnv1a64": "86c2615dc2b84f7e",
+      "verified_against_other_modes": true,
+      "underflows": 0
+    },
+    {
+      "scene": "overdraw",
+      "steady_pass_cycles": 3213857,
+      "steady_submission_cycles": 3597741,
+      "color_fnv1a64": "98b7847230519f8",
+      "depth_fnv1a64": "178db08d99fd56f7",
+      "verified_against_other_modes": true,
+      "underflows": 0
+    },
+    {
+      "scene": "opaque",
+      "steady_pass_cycles": 2051327,
+      "steady_submission_cycles": 2171529,
+      "color_fnv1a64": "af59c4be63544c6b",
+      "depth_fnv1a64": "42879846195fd030",
+      "verified_against_other_modes": true,
+      "underflows": 0
+    }
+  ]
+}

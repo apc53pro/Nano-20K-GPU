@@ -1,0 +1,487 @@
+{
+  "schema": "N20K-ARCHITECTURE-REVIEW-PROFILE-1",
+  "baseline_commit": "b434df20a15411f17cea24ad860fa413d5c38af1",
+  "core_hz": 100800000,
+  "host_hz": 25200000,
+  "animation_time": 0,
+  "animation_step": 0,
+  "scope": "Frozen second-frame metrics. Memory and observer deltas span the complete second driver iteration, including uploads, PRESENT and diagnostic scanout observation; they are not isolated rendering-pass occupancy. Concurrent unit counters must not be added as elapsed time.",
+  "results": [
+    {
+      "scene": "showcase",
+      "pass_ms": 27.444970238095237,
+      "submission_ms": 32.396081349206355,
+      "stage_delta": {
+        "idle": 2273580,
+        "transfer": 838435,
+        "setup": 146560,
+        "raster": 1711338,
+        "depth": 0,
+        "perspective_u": 0,
+        "perspective_v": 0,
+        "texture": 0,
+        "shade": 0,
+        "commit": 0,
+        "drain": 70086,
+        "reset": 1
+      },
+      "counters": {
+        "prefetched_records": 1250,
+        "record_prefetch_overlap_cycles": 338195,
+        "record_prefetch_wait_cycles": 78370,
+        "tile_export_cycles": 1575156,
+        "tile_export_overlap_cycles": 1253347,
+        "tile_export_wait_cycles": 316642,
+        "tile_staged_pixels": 307200,
+        "tile_bank_exchanges": 300
+      },
+      "sdram_clients": {
+        "scanout": {
+          "requests": 28801,
+          "completed": 28801,
+          "bytes_read": 1843264,
+          "bytes_written": 0,
+          "queue_wait_cycles": 125028,
+          "service_cycles": 717455,
+          "rejected_busy": 0
+        },
+        "host": {
+          "requests": 1910,
+          "completed": 1910,
+          "bytes_read": 0,
+          "bytes_written": 121256,
+          "queue_wait_cycles": 4895,
+          "service_cycles": 52391,
+          "rejected_busy": 0
+        },
+        "command": {
+          "requests": 9577,
+          "completed": 9577,
+          "bytes_read": 503336,
+          "bytes_written": 0,
+          "queue_wait_cycles": 171686,
+          "service_cycles": 228102,
+          "rejected_busy": 0
+        },
+        "tile": {
+          "requests": 28800,
+          "completed": 28800,
+          "bytes_read": 0,
+          "bytes_written": 1843200,
+          "queue_wait_cycles": 229860,
+          "service_cycles": 692496,
+          "rejected_busy": 0
+        },
+        "texture": {
+          "requests": 26900,
+          "completed": 26900,
+          "bytes_read": 860800,
+          "bytes_written": 0,
+          "queue_wait_cycles": 191536,
+          "service_cycles": 361653,
+          "rejected_busy": 0
+        },
+        "copy": {
+          "requests": 0,
+          "completed": 0,
+          "bytes_read": 0,
+          "bytes_written": 0,
+          "queue_wait_cycles": 0,
+          "service_cycles": 0,
+          "rejected_busy": 0
+        }
+      },
+      "sdram_global": {
+        "refreshes": 3477,
+        "refresh_busy_cycles": 45201,
+        "refresh_late_cycles": 0,
+        "row_hits": 119525,
+        "row_misses": 45105,
+        "physical_read_beats": 814480,
+        "physical_write_beats": 502560,
+        "uninitialized_read_words": 0,
+        "idle_cycles": 2942702,
+        "prepared_submissions": 95988,
+        "legacy_submissions": 0,
+        "legacy_response_reads": 0
+      },
+      "frame_work": {
+        "primitives_binned_references": 1546,
+        "tiles_processed": 300,
+        "candidate_positions": 724477,
+        "covered_fragments": 436019,
+        "depth_rejected": 12284,
+        "keyed_rejected": 15445,
+        "texture_samples": 153945,
+        "color_writes": 408290,
+        "depth_writes": 138954,
+        "hardware_slice_cycles": 2235485,
+        "hardware_slice_stalls": 0,
+        "hardware_slice_setup_cycles": 146560,
+        "hardware_slice_forwarded_reads": 0,
+        "hardware_perspective_cycles": 1054854,
+        "hardware_texture_cycles": 1204289,
+        "hardware_texture_hits": 127045,
+        "hardware_texture_misses": 26900,
+        "hardware_texture_refill_words": 430400
+      }
+    },
+    {
+      "scene": "perspective",
+      "pass_ms": 22.325565476190473,
+      "submission_ms": 26.321160714285714,
+      "stage_delta": {
+        "idle": 2789616,
+        "transfer": 851312,
+        "setup": 112969,
+        "raster": 1230887,
+        "depth": 0,
+        "perspective_u": 0,
+        "perspective_v": 0,
+        "texture": 0,
+        "shade": 0,
+        "commit": 0,
+        "drain": 55215,
+        "reset": 1
+      },
+      "counters": {
+        "prefetched_records": 956,
+        "record_prefetch_overlap_cycles": 290174,
+        "record_prefetch_wait_cycles": 49578,
+        "tile_export_cycles": 1560749,
+        "tile_export_overlap_cycles": 1196576,
+        "tile_export_wait_cycles": 359151,
+        "tile_staged_pixels": 307200,
+        "tile_bank_exchanges": 300
+      },
+      "sdram_clients": {
+        "scanout": {
+          "requests": 28801,
+          "completed": 28801,
+          "bytes_read": 1843264,
+          "bytes_written": 0,
+          "queue_wait_cycles": 111644,
+          "service_cycles": 710051,
+          "rejected_busy": 0
+        },
+        "host": {
+          "requests": 1539,
+          "completed": 1539,
+          "bytes_read": 0,
+          "bytes_written": 97688,
+          "queue_wait_cycles": 3592,
+          "service_cycles": 42106,
+          "rejected_busy": 0
+        },
+        "command": {
+          "requests": 7825,
+          "completed": 7825,
+          "bytes_read": 408728,
+          "bytes_written": 0,
+          "queue_wait_cycles": 158235,
+          "service_cycles": 188114,
+          "rejected_busy": 0
+        },
+        "tile": {
+          "requests": 28800,
+          "completed": 28800,
+          "bytes_read": 0,
+          "bytes_written": 1843200,
+          "queue_wait_cycles": 216422,
+          "service_cycles": 691527,
+          "rejected_busy": 0
+        },
+        "texture": {
+          "requests": 16213,
+          "completed": 16213,
+          "bytes_read": 518816,
+          "bytes_written": 0,
+          "queue_wait_cycles": 133838,
+          "service_cycles": 217911,
+          "rejected_busy": 0
+        },
+        "copy": {
+          "requests": 0,
+          "completed": 0,
+          "bytes_read": 0,
+          "bytes_written": 0,
+          "queue_wait_cycles": 0,
+          "service_cycles": 0,
+          "rejected_busy": 0
+        }
+      },
+      "sdram_global": {
+        "refreshes": 3478,
+        "refresh_busy_cycles": 45214,
+        "refresh_late_cycles": 0,
+        "row_hits": 109673,
+        "row_misses": 40043,
+        "physical_read_beats": 703288,
+        "physical_write_beats": 494440,
+        "uninitialized_read_words": 0,
+        "idle_cycles": 3145077,
+        "prepared_submissions": 83178,
+        "legacy_submissions": 0,
+        "legacy_response_reads": 0
+      },
+      "frame_work": {
+        "primitives_binned_references": 1254,
+        "tiles_processed": 300,
+        "candidate_positions": 625050,
+        "covered_fragments": 387049,
+        "depth_rejected": 1,
+        "keyed_rejected": 13811,
+        "texture_samples": 96742,
+        "color_writes": 373237,
+        "depth_writes": 79571,
+        "hardware_slice_cycles": 1706572,
+        "hardware_slice_stalls": 0,
+        "hardware_slice_setup_cycles": 112969,
+        "hardware_slice_forwarded_reads": 0,
+        "hardware_perspective_cycles": 599807,
+        "hardware_texture_cycles": 747165,
+        "hardware_texture_hits": 80529,
+        "hardware_texture_misses": 16213,
+        "hardware_texture_refill_words": 259408
+      }
+    },
+    {
+      "scene": "overdraw",
+      "pass_ms": 39.68418650793651,
+      "submission_ms": 43.65215277777778,
+      "stage_delta": {
+        "idle": 2719867,
+        "transfer": 825361,
+        "setup": 680591,
+        "raster": 2436535,
+        "depth": 0,
+        "perspective_u": 0,
+        "perspective_v": 0,
+        "texture": 0,
+        "shade": 0,
+        "commit": 0,
+        "drain": 57645,
+        "reset": 1
+      },
+      "counters": {
+        "prefetched_records": 2826,
+        "record_prefetch_overlap_cycles": 776884,
+        "record_prefetch_wait_cycles": 45093,
+        "tile_export_cycles": 1567777,
+        "tile_export_overlap_cycles": 1225522,
+        "tile_export_wait_cycles": 337247,
+        "tile_staged_pixels": 307200,
+        "tile_bank_exchanges": 300
+      },
+      "sdram_clients": {
+        "scanout": {
+          "requests": 38401,
+          "completed": 38401,
+          "bytes_read": 2457664,
+          "bytes_written": 0,
+          "queue_wait_cycles": 138882,
+          "service_cycles": 937214,
+          "rejected_busy": 0
+        },
+        "host": {
+          "requests": 1530,
+          "completed": 1530,
+          "bytes_read": 0,
+          "bytes_written": 97160,
+          "queue_wait_cycles": 3684,
+          "service_cycles": 41840,
+          "rejected_busy": 0
+        },
+        "command": {
+          "requests": 19033,
+          "completed": 19033,
+          "bytes_read": 1013960,
+          "bytes_written": 0,
+          "queue_wait_cycles": 225662,
+          "service_cycles": 448327,
+          "rejected_busy": 0
+        },
+        "tile": {
+          "requests": 28800,
+          "completed": 28800,
+          "bytes_read": 0,
+          "bytes_written": 1843200,
+          "queue_wait_cycles": 223864,
+          "service_cycles": 691113,
+          "rejected_busy": 0
+        },
+        "texture": {
+          "requests": 4486,
+          "completed": 4486,
+          "bytes_read": 143552,
+          "bytes_written": 0,
+          "queue_wait_cycles": 63450,
+          "service_cycles": 65532,
+          "rejected_busy": 0
+        },
+        "copy": {
+          "requests": 0,
+          "completed": 0,
+          "bytes_read": 0,
+          "bytes_written": 0,
+          "queue_wait_cycles": 0,
+          "service_cycles": 0,
+          "rejected_busy": 0
+        }
+      },
+      "sdram_global": {
+        "refreshes": 4638,
+        "refresh_busy_cycles": 60294,
+        "refresh_late_cycles": 0,
+        "row_hits": 133292,
+        "row_misses": 44423,
+        "physical_read_beats": 927456,
+        "physical_write_beats": 494264,
+        "uninitialized_read_words": 0,
+        "idle_cycles": 4475680,
+        "prepared_submissions": 92250,
+        "legacy_submissions": 0,
+        "legacy_response_reads": 0
+      },
+      "frame_work": {
+        "primitives_binned_references": 3122,
+        "tiles_processed": 300,
+        "candidate_positions": 2261491,
+        "covered_fragments": 1266580,
+        "depth_rejected": 909216,
+        "keyed_rejected": 11768,
+        "texture_samples": 87555,
+        "color_writes": 345596,
+        "depth_writes": 72003,
+        "hardware_slice_cycles": 3482272,
+        "hardware_slice_stalls": 0,
+        "hardware_slice_setup_cycles": 680591,
+        "hardware_slice_forwarded_reads": 0,
+        "hardware_perspective_cycles": 499937,
+        "hardware_texture_cycles": 398472,
+        "hardware_texture_hits": 83069,
+        "hardware_texture_misses": 4486,
+        "hardware_texture_refill_words": 71776
+      }
+    },
+    {
+      "scene": "opaque",
+      "pass_ms": 46.684017857142855,
+      "submission_ms": 48.28362103174604,
+      "stage_delta": {
+        "idle": 2014284,
+        "transfer": 771849,
+        "setup": 1073876,
+        "raster": 2856451,
+        "depth": 0,
+        "perspective_u": 0,
+        "perspective_v": 0,
+        "texture": 0,
+        "shade": 0,
+        "commit": 0,
+        "drain": 3539,
+        "reset": 1
+      },
+      "counters": {
+        "prefetched_records": 3320,
+        "record_prefetch_overlap_cycles": 873883,
+        "record_prefetch_wait_cycles": 14933,
+        "tile_export_cycles": 1522613,
+        "tile_export_overlap_cycles": 1177099,
+        "tile_export_wait_cycles": 340465,
+        "tile_staged_pixels": 307200,
+        "tile_bank_exchanges": 300
+      },
+      "sdram_clients": {
+        "scanout": {
+          "requests": 38401,
+          "completed": 38401,
+          "bytes_read": 2457664,
+          "bytes_written": 0,
+          "queue_wait_cycles": 139273,
+          "service_cycles": 936161,
+          "rejected_busy": 0
+        },
+        "host": {
+          "requests": 609,
+          "completed": 609,
+          "bytes_read": 0,
+          "bytes_written": 38668,
+          "queue_wait_cycles": 696,
+          "service_cycles": 16234,
+          "rejected_busy": 0
+        },
+        "command": {
+          "requests": 21535,
+          "completed": 21535,
+          "bytes_read": 1149068,
+          "bytes_written": 0,
+          "queue_wait_cycles": 178758,
+          "service_cycles": 500602,
+          "rejected_busy": 0
+        },
+        "tile": {
+          "requests": 28800,
+          "completed": 28800,
+          "bytes_read": 0,
+          "bytes_written": 1843200,
+          "queue_wait_cycles": 180794,
+          "service_cycles": 689019,
+          "rejected_busy": 0
+        },
+        "texture": {
+          "requests": 0,
+          "completed": 0,
+          "bytes_read": 0,
+          "bytes_written": 0,
+          "queue_wait_cycles": 0,
+          "service_cycles": 0,
+          "rejected_busy": 0
+        },
+        "copy": {
+          "requests": 0,
+          "completed": 0,
+          "bytes_read": 0,
+          "bytes_written": 0,
+          "queue_wait_cycles": 0,
+          "service_cycles": 0,
+          "rejected_busy": 0
+        }
+      },
+      "sdram_global": {
+        "refreshes": 4639,
+        "refresh_busy_cycles": 60307,
+        "refresh_late_cycles": 0,
+        "row_hits": 133829,
+        "row_misses": 41537,
+        "physical_read_beats": 928864,
+        "physical_write_beats": 474064,
+        "uninitialized_read_words": 0,
+        "idle_cycles": 4517677,
+        "prepared_submissions": 89345,
+        "legacy_submissions": 0,
+        "legacy_response_reads": 0
+      },
+      "frame_work": {
+        "primitives_binned_references": 3539,
+        "tiles_processed": 300,
+        "candidate_positions": 2856451,
+        "covered_fragments": 254373,
+        "depth_rejected": 12278,
+        "keyed_rejected": 0,
+        "texture_samples": 0,
+        "color_writes": 242095,
+        "depth_writes": 232175,
+        "hardware_slice_cycles": 4241367,
+        "hardware_slice_stalls": 0,
+        "hardware_slice_setup_cycles": 1073876,
+        "hardware_slice_forwarded_reads": 0,
+        "hardware_perspective_cycles": 0,
+        "hardware_texture_cycles": 0,
+        "hardware_texture_hits": 0,
+        "hardware_texture_misses": 0,
+        "hardware_texture_refill_words": 0
+      }
+    }
+  ]
+}
