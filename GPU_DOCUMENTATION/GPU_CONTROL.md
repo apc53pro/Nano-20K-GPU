@@ -12,6 +12,15 @@ board timing constraints and RP2350 PIO/DMA driver have **not** been finalized.
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
+The current native-RAM/arithmetic area reduction preserves this **0.1 byte
+ABI**: opcodes, capability/status bytes, 320-byte primitive records, numeric
+rules and buffer ownership are unchanged. Coefficients, cache tags and SDRAM
+write masks have different internal storage, but drivers encode the same
+packets and do not compensate for internal pipeline latency or setup clocks.
+The source-matched [area-optimization regression](../docs/benchmarks/rtl-fit-optimized.json)
+records passing command/copy/LOAD/abort checks and two verified frames of each
+demo scene. CPU completion still follows the fence/presentation rules below.
+
 ## 1. What the CPU sends
 
 The CPU sends an ordered stream of packets. It uploads textures and prepared
@@ -32,6 +41,11 @@ the GPU core clock is a separate domain connected through native asynchronous
 FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
+The source-matched [serial-probe route](../docs/hardware/rtl-core-pnr.json) is
+legal but reports a **48.26 MHz core maximum**, failing the 100.8 MHz target;
+the host reports 78.89 MHz and passes its 25.2 MHz target. The capability u32
+at offset 24 remains 100,800,000; it describes the selected profile,
+not timing closure. Production bus pads and electrical timing remain unqualified.
 
 | Signal | Direction at GPU | Current logical meaning |
 | --- | --- | --- |
@@ -92,8 +106,10 @@ blocked. **Packet** `GET_STATUS` and `GET_CAPS` are ordinary ordered commands in
 the current RTL; they cannot overtake a long pass or a pending presentation.
 Use sideband access for emergency fault/ready polling.
 
-Current native capacities are 256 RX bytes, two published command leases,
-three 1024-byte packet banks, and 1024 TX bytes. Honor backpressure rather than
+Current logical capacities are 256 RX bytes, two published command leases,
+three 1024-byte packet leases, and 1024 TX bytes. The three packet leases use
+two physical 2048×8 native RAMs; this sharing does not increase the advertised
+payload limit or queue depth. Honor backpressure rather than
 assuming a whole packet always fits. There is no packet CRC or automatic
 retransmission in this protocol revision.
 
@@ -262,6 +278,15 @@ interpreted as the extra diagnostic counters provided by the older C++ model.
 `busy` includes command processing; a packet `GET_STATUS` snapshot can itself
 show busy. `ready` means initialization/cross-domain link recovery permits the
 core to run; it does **not** alone mean fault-free, idle, or abort-complete.
+
+An ordered `GET_STATUS` reply remains one coherent snapshot during slow reply
+draining. The implementation captures independently changing counters and
+flags, and holds execution state stable until serialization finishes.
+`GET_CAPS` serializes immutable constants directly. This internal storage
+sharing does not make either reply a series of unrelated live register reads.
+Sideband reads use the acknowledged core snapshot bank, which stays unchanged
+until a new refresh request; refresh blocks reads until its acknowledgement.
+There is no second host-domain copy of all 64 bytes.
 
 ### Capability bank
 
@@ -448,6 +473,15 @@ Source/destination clipping preserves their pixel correspondence. Same-buffer
 overlap has snapshot/memmove semantics. Zero-area copies are no-ops. Copies
 do not apply keying, shading, filtering or depth operations. A partial copy
 does not initialize an invalid target; a full destination-covering copy can.
+The current executor validates the prefix one full raw word at a time, then
+refetches 14 COPY parameter words from its immutable packet lease. X and Y
+reuse one signed 33-bit interval/clipping datapath. For a nonempty copy, that
+refetch/clipping phase takes about 128 core clocks before address walking and
+pixel transfers. Completion is determined by the ordered fence/reply rules,
+not a fixed CPU delay. Native coefficient capture adds one setup clock per
+nonempty primitive/tile invocation; the sampler's private exact integer-texel
+pipeline has 18 enabled-edge latency and initiation interval one. Neither
+change modifies prepared records, numeric rules or completion semantics.
 
 ## 9. Generic C99 driver examples
 

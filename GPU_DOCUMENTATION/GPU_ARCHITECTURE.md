@@ -11,10 +11,12 @@ guide describes what the current implementation actually does.
 
 **Current status:** rendering and CPU control execute functional RTL under
 Verilator, with an independent software reference renderer (SRR) checking the
-results. The complete logical core currently exceeds the Tang Nano 20K's LUT
-capacity. Production clock generation, board pin integration and complete
-placement/routing/timing qualification remain unfinished. There is no qualified
-GPU bitstream to upload yet.
+results. The complete logical-core serial probe **places and routes legally**
+on the exact FPGA, using **20,351 of 20,736 physical LUT sites (98.14%)**, all
+46 native RAM banks and 25 multiplier equivalents. **Core timing fails:** its
+routed maximum is **48.26 MHz** against the **100.8 MHz** target; the host
+domain passes its 25.2 MHz target. Production clock/reset, video and board pin
+integration remain unfinished. There is no board-qualified GPU bitstream yet.
 
 Whenever the architecture or CPU control changes, update **both files in
 `GPU_DOCUMENTATION/`** in the same change and push them with the implementation.
@@ -31,7 +33,7 @@ The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 | LUT4 resources | 20,736 |
 | Flip-flops | 15,552 |
 | Native BSRAM blocks | 46, each 18,432 physical bits |
-| Native signed 18×18 multiplier equivalents | 48 |
+| Native 18×18 multiplier equivalents | 48 |
 | PLLs available in QN88 | 2 |
 | In-package SDR SDRAM | 8 MiB, 32-bit data interface |
 
@@ -103,6 +105,13 @@ flowchart LR
 All GPU data enters through the host interface and reaches external memory
 through the SDRAM controller. There is no device-side C++ shortcut for fetching
 textures, records or attachment pixels in the Verilator simulator.
+
+The host retains three logical 1,024-byte packet leases in two physical
+2,048×8 native RAMs, alongside the separate RX/TX FIFO banks. Two leases may
+be published and one staged. Header validation streams complete raw fields
+through one 32-bit word before retaining their bounded metadata. The executor
+uses the queue head's immutable opcode, sequence and length until retirement,
+rather than duplicating those fields or the payload prefix in registers.
 
 The CPU controls an **ordered command processor**, not a bank of persistent
 scene-object registers. A primitive record contains the state for one draw.
@@ -194,15 +203,46 @@ independent rounding of a new plane for every tile.
 | Normalized reciprocal W, `q` | 37 fractional bits |
 | Perspective attributes `U=u*q`, `V=v*q` | 27 fractional bits |
 
+Each plane's seed, X step and Y step are stored in a pair of native
+**512×32 SDPB banks**, for **14 coefficient banks**. Header and edge fields
+remain directly retained registers. Each pair uses addresses 0/1/2 for
+seed/X-step/Y-step and supplies one 64-bit coefficient per plane per clock.
+Registered coefficient reads anticipate
+the next accepted raster step, including row changes and backpressure, rather
+than inserting a read bubble between pixels. The seed capture adds one setup
+clock for a nonempty primitive/tile invocation; it does not change the sustained
+fragment cadence.
+
+One shared 64-bit adder per plane and one 32-bit adder per edge handle the
+mutually exclusive offset, horizontal-step and row-step operations. The
+overflow checks use those same sums. Quantization still implements exact
+round-to-nearest, ties-to-even and saturation while avoiding arithmetic on
+bits that cannot affect the bounded result. Full-width command and address
+validation precedes narrower retained positions and transfer counters; storage
+reduction does not authorize truncating invalid inputs into valid ones.
+
 The current setup domain limits a triangle's W ratio to 64 and vertex UVs to
 `[-1024,1024]` texels. Out-of-domain geometry needs CPU refinement or rejection.
 Range checks precede narrowing; overflow is not permitted to wrap silently.
 
 For textured triangles the FPGA reconstructs `u=U/q` and `v=V/q`. Depth stays
 screen-affine and is not divided by q. The selected shared-reciprocal pipeline
-uses native multiplier/ROM resources, has **26 enabled-edge latency**, and can
-accept one sample per enabled edge. Backpressure holds its retained stages.
-Its corrected result matches the canonical signed-Q16 reconstruction rounding.
+uses native multiplier/ROM resources. The fragment path selects the
+**18-enabled-edge integer-texel pipeline**, with initiation interval one.
+It returns exactly `floor(RNE(U/q in signed Q16)/65536)` and likewise for V,
+including the same invalid-q and signed-Q16 overflow boundaries. It uses a
+coarse reciprocal seed followed by exact residual corrections; it omits the
+Newton step because it computes the consumed texel coordinates directly.
+It does not approximate texture addresses or relax the input domain.
+
+Positive partial-product limbs use native unsigned 18-bit mode; residual
+products use mixed unsigned/signed mode. The private texture-coordinate path
+uses **19 native 18×18 multiplier equivalents** and eight native RAM delay
+banks. Their circular addresses advance with the complete pipeline and hold
+on backpressure, preserving latency and initiation interval without retaining
+all delayed payloads as flip-flops. The generic full signed-Q16 reconstruction
+module remains available with **26 enabled-edge latency**, but is not the
+fragment path instantiated by the complete GPU.
 
 Depth/color conversion uses round-to-nearest, ties-to-even, then clamps to the
 supported code range. The complete equations, clipping rules, numeric bounds
@@ -252,13 +292,19 @@ supported draw configuration.
 ## 8. Texture and fragment pipelines
 
 The texture cache is direct mapped with **64 lines of 16 RGB565 texels**. Data
-uses one native RAM bank. Two registered 18×18 multipliers form pitched texture
+uses one native RAM bank and the 12-bit line tags use a second native bank.
+Tags are read alongside the address pipeline. Refill-tag forwarding avoids a
+same-address RAM collision or a replay bubble for the retained miss.
+Two registered 18×18 multipliers form pitched texture
 addresses. A hit has a seven-edge pipeline and initiation interval one when the
 consumer is ready. One bounded miss transaction is retained at a time; younger
 work stalls while a missing line is refilled through the shared SDRAM service.
 
-The textured fragment path retains up to **64 contexts**, using six native RAM
-banks for metadata, factors and results. Tags preserve correspondence through
+The textured fragment path retains up to **64 contexts**, using three native
+RAM banks: a 512×36 `SDPX9B` bank holds the 34-bit attachment address/depth
+metadata, a 512×32 `SDPB` bank holds the 24-bit RGB factor, and a 1024×16 bank
+holds the shaded result. Retirement and factor lookup retain separate native
+read schedules. Tags preserve correspondence through
 perspective reconstruction, texture fetch and shading. Three native
 multipliers calculate RGB modulation. Raw RGB565 key comparison occurs before
 modulation and before a depth commit.
@@ -284,21 +330,30 @@ All accesses share one service with six logical clients:
 
 The service accepts bounded 1–16-word transactions and maps them onto physical
 sequential BL8 SDRAM commands. Two native RAM banks stage its 32-bit payload
-slot; masked padding preserves bytes outside a short write. The controller
+slot; a third stores the four byte-write masks with the same synchronous read
+schedule. Masked padding preserves bytes outside a short write. The controller
 implements initialization, bank/row timing, read/write turnaround, refresh and
 response backpressure. Its selected physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
 
 Before requesting a heap-write transaction, the executor collects a whole
 bounded **64-byte upload chunk** in a separate native RAM bank. Once accepted,
-it can stream staged words every two core clocks. Slow host byte decoding must
+it streams staged words every **three core clocks**: byte masks occupy otherwise
+unused words 32..47 of that same bank and are read before the two data halves.
+Slow host byte decoding must
 not hold the shared memory owner while the display FIFO drains.
 
 The present RTL serializes foreground upload, fetch, tile transfers and copies;
 it does not implement the C++ system model's overlapping tile writeback or
 primitive prefetch schedule. Color copies use bounded native row staging and
 preserve same-buffer overlap semantics, but their initial external access
-schedule is per pixel.
+schedule is per pixel. The executor retains no 56-byte command-prefix copy:
+it validates complete raw words through one 32-bit accumulator and reuses the
+owned native packet lease until retirement. COPY refetches 14 parameter words,
+clips X then Y through one signed 33-bit interval/subtract/compare datapath,
+and retains only bounded nonempty origins/counts. That refetch/clipping phase
+uses about **128 core setup clocks** before address walking and pixel traffic,
+while preserving signed-coordinate clipping, including `INT32_MIN`.
 
 ## 10. Double buffering and display
 
@@ -341,6 +396,14 @@ A fence after rendering completes only after prior execution and stores.
 Presentation completes at the swap. Refer to the control guide for the exact
 reply identity, sequence and epoch rules.
 
+The area-reduced query serializer retains changing counters and flags at
+query execution, then serializes the other foreground fields while ordered
+execution holds them stable. Immutable capabilities are serialized directly.
+The wire result remains a coherent snapshot. Sideband reads use the
+acknowledged core snapshot bank held unchanged until the next request; refresh
+blocks reads until the cross-domain acknowledgement. Removing duplicate
+512-bit copies does not change status offsets, packet lengths or the command ABI.
+
 An execution fault can leave partial back-buffer or shared-depth contents. The
 GPU marks affected attachments invalid, suppresses later success and drains
 issued memory operations. A valid front keeps displaying. A full clear pass can
@@ -356,48 +419,89 @@ assumptions; it does not promise heap preservation.
 ## 12. Native resource accounting and current fit
 
 Native RAM and DSP operations use the same selected digital interfaces in
-simulation and synthesis. In synthesis, the wrappers bind actual Gowin `SDPB`,
+simulation and synthesis. In synthesis, the wrappers bind actual Gowin `SDPB`, `SDPX9B`,
 `MULT18X18` and related primitives. RAM reads have registered latency; reset
 does not clear stored RAM words; forbidden same-address read/write collisions
 are checked in simulation.
 
-The current 26 native RAM banks are allocated as follows:
+The current **46 native RAM banks** are allocated as follows:
 
 | Allocation | BSRAM banks |
 | --- | ---: |
 | Resident tile color/depth | 3 |
-| Fragment contexts/factors/results | 6 |
+| Seven plane seed/X-step/Y-step coefficient pairs, 512×32 mode | 14 |
+| Fragment metadata/factors/results | 3 |
 | Reciprocal seed ROMs | 4 |
-| Texture-cache data | 1 |
-| Host RX/TX and three packet banks | 5 |
-| Shared SDRAM transaction staging | 2 |
+| Texture-cache data and line tags | 2 |
+| Host RX/TX and two physical packet banks for three logical leases | 4 |
+| Shared SDRAM transaction data and byte-write masks | 3 |
 | Display FIFO | 2 |
 | Diagnostic reply staging | 1 |
 | Copy row staging | 1 |
 | Host upload chunk staging | 1 |
-| **Total** | **26** |
+| UV payload/context delay rings | 8 |
+| **Total** | **46** |
 
-The latest exact-part packing of the complete logical core inside a small
-serial qualification wrapper reports:
+The selected physical modes are **44 `SDPB` and two `SDPX9B`** banks. All 46
+native banks are allocated; additional buffering must reuse or reduce those
+allocations. The arithmetic selection uses **25 of 48 native 18×18 multiplier
+equivalents**: 19 for UV reconstruction, two for texture addresses, three for
+RGB modulation and one for triangle edge setup. RAM and DSP subtotals alone do
+not establish fit; LUT/register mapping must be measured for the complete core.
 
-| Resource | Packed use | Device capacity |
+Exact-part synthesis, packing and routing of the complete logical
+core inside the small serial qualification wrapper report:
+
+| Resource | Use or necessary bound | Device capacity |
 | --- | ---: | ---: |
-| Occupied LUT4 sites | **29,608** | **20,736** |
-| Flip-flops, including wrapper | 13,991 | 15,552 |
-| Native 18×18 multipliers | 43 | 48 |
-| Native BSRAM | 26 | 46 |
+| Routed occupied physical LUT sites | **20,351** | **20,736** |
+| Packed LUT sites before flip-flop input placement | **17,005** | **20,736** |
+| Necessary minimum physical LUT sites | **20,036** | **20,736** |
+| DFF resources, including probe and RAM-reserved slots | 6,830 | 15,552 |
+| Native 18×18 multipliers | 25 | 48 |
+| Native BSRAM | 46 | 46 |
 
-The core probe is **8,872 LUT sites over capacity**, approximately 143% of the
-device limit. Its reported 9,462 ALU functions already occupy sites included in
-the LUT total; do not add them again. The wrapper adds up to 198 registers plus
-small control/checksum logic and cannot explain that excess. These totals do
-not include a finished production board wrapper.
+The packed 17,005 sites include 5,744 ALU functions and the sites occupied by
+eight `RAM16SDP4` cells. Gowin flip-flops also require an input LUT, which can
+sometimes share an already-counted LUT/ALU site. Of 6,782 active flip-flops,
+at most 3,751 can pair with existing sites, requiring **at least 3,031 further
+LUT sites**. Thus 20,036 is a necessary lower bound, not a legal-placement or
+routing result. The DFF inventory also reserves 48 RAM-blocked flip-flop slots.
+
+The current `-nowidelut` mapping's legal route occupies **20,351 physical LUT
+sites (98.14%)**: 14,575 explicit LUTs, including 32 RAM-storage sites, plus 5,744
+ALU sites and 32 further RAM-reserved sites. That union leaves 385 sites in
+this serial probe. Do not subtract the lower bound from device capacity and
+present that difference as proven free physical sites.
+The earlier 19,775-site packed inventory failed placement because required
+flip-flop input LUTs raised its physical demand beyond capacity.
+
+The source-matched route applies independent core and host targets:
+
+| Clock domain | Requested target | Routed maximum | Result |
+| --- | ---: | ---: | --- |
+| Core | 100.8 MHz | **48.26 MHz** | **FAIL** |
+| Host | 25.2 MHz | 78.89 MHz | PASS |
+
+The timing report represents those targets with 1 ps period precision, giving
+100.80645 and 25.20034 MHz respectively. The core's 20.720 ns critical path
+crosses 21 LUT levels through command-controller feedback, SDRAM arbitration
+ready and accepted/pending-memory recovery logic into synchronous state
+control. The next timing work is to pipeline that feedback while preserving
+the accepted-transfer/abort recovery contract. A legal route establishes
+physical resource fit for the serial probe, not operation at 100.8 MHz.
+
+The probe adds up to 198 registers plus small control/checksum logic and does
+not include a production board wrapper. Clock/I/O integration and its resource
+needs must be qualified for that final top.
 
 The source/artifact hashes and tool output are recorded in
-[the resource report](../docs/hardware/rtl-core-pack.json). Synthesis/packing
-counts are tool-flow results; a complete board still requires placement,
-routing and clock/I/O timing closure. Neither a C++ resource allocation nor an
-isolated arithmetic probe establishes whole-GPU fit.
+[the resource report](../docs/hardware/rtl-core-pack.json), with physical-trial
+evidence in [the probe implementation report](../docs/hardware/rtl-core-pnr.json).
+The reports retain source/artifact hashes and validate unchanged inputs.
+Production-board qualification must include the clock/reset and video/pad
+wrappers, final pin constraints and complete clock/I/O timing closure. Neither
+a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -421,13 +525,22 @@ frames consumed during the next upload/render. Per-frame CSV logging preserves
 blackouts rather than hiding them. The scanout-starvation regression fails the
 old RTL and passes the corrected queued-refill/staged-upload implementation.
 
-The current two-frame regression has zero scanout underflows in showcase,
-perspective, overdraw and opaque scenes. Showcase's second submission is
-8,352,676 core cycles, about 82.9 ms at the assumed 100.8 MHz. This includes host
-delivery through the matching fence and excludes RP2350 execution and a board
-frequency guarantee. SDL wall-clock playback is slower because the PC evaluates
-every simulated clock. Full evidence is in
-[the continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json).
+The current area-reduced RTL passes the command/recovery self-test and two
+rendered frames each of showcase, perspective, overdraw and opaque, with zero
+scanout underflows and matching attachment/display pixels. Showcase's second
+submission is **8,375,976 core cycles**, about **83.10 ms** at the assumed
+100.8 MHz. Across the four scenes, submission cycles increase by **0.16% to 0.28%**
+against the earlier baseline; the local warm fragment initiation interval
+remains one. These measurements include host delivery through the matching
+fence and exclude RP2350 execution and a board frequency guarantee. SDL
+wall-clock playback is slower because the PC evaluates every simulated clock.
+The routed core misses 100.8 MHz, so those nominal milliseconds are not an
+achieved FPGA frame time.
+Full source-matched results, including 29 additional COPY oracle cases and 17
+descriptor/LOAD fault cases, are in
+[the area-optimization baseline](../docs/benchmarks/rtl-fit-optimized.json).
+The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
+retains the original blackout regression and pre-area-optimization counts.
 
 ## 14. Build, verify and reach the board
 
@@ -448,13 +561,20 @@ make rtl-gpu-test
 make rtl-block-test
 make rtl-gpu-synth
 make rtl-gpu-pack
+make rtl-gpu-pnr
 ```
 
-The last command intentionally returns status 2 for the current capacity
-rejection and writes the measured report. A future implementation must:
+The pack command returns status 2 when a measured resource or the necessary
+flip-flop input LUT lower bound is over capacity. The physical probe command
+uses `scripts/rtl-core-pnr.py --require-timing`, retaining source-matched
+evidence and checking independent core/host clock targets; a legal route that
+misses timing returns status 2. **The current `make rtl-gpu-pnr` returns 2 for
+the core-clock miss despite a legal route.** Passing the capacity inventory is distinct
+from complete-device placement/routing/timing qualification. The remaining work is:
 
-1. Reduce LUT usage while preserving the command, attachment and continuous
-   scanout regressions.
+1. Retime the measured command/arbitration/recovery feedback path to meet the
+   core-clock target, preserving abort/accepted-transfer races and all rendering
+   and continuous-scanout regressions.
 2. Improve the measured foreground schedule and CPU driver where needed;
    implement and validate the RP2350's real bus/PIO path.
 3. Integrate production clocks, reset crossings, SDRAM timing/pads, video output
@@ -475,11 +595,13 @@ running the software simulator.
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |
 | [`nano_fragment_pipeline.sv`](../rtl/gpu/nano_fragment_pipeline.sv) | Textured contexts, ordered depth/key/shading commits |
-| [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Perspective reconstruction and native multipliers |
+| [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Selected exact integer-texel path, separate generic Q16 path, native delay RAMs and multipliers |
 | [`nano_texture_cache.sv`](../rtl/gpu/nano_texture_cache.sv) | Pitched texture addressing, cache hits and refills |
 | [`nano_sdram_service.sv`](../rtl/gpu/nano_sdram_service.sv) | Physical SDRAM transactions, timing, refresh and arbitration |
 | [`nano_scanout.sv`](../rtl/gpu/nano_scanout.sv) | Independent timing, queued refills and display FIFO consumption |
 | [`nano_sdp16.sv`](../rtl/gpu/nano_sdp16.sv) | Native RAM binding and simulation port contract |
+| [`nano_sdp32.sv`](../rtl/gpu/nano_sdp32.sv) | Native 512×32 coefficient banks and synchronous-port contract |
+| [`nano_sdp36.sv`](../rtl/gpu/nano_sdp36.sv), [`nano_sdp8.sv`](../rtl/gpu/nano_sdp8.sv) | Native 512×36 context/delay and 2048×8 packet banks |
 | [`nano_tmds.sv`](../rtl/gpu/nano_tmds.sv) | Standard TMDS encoding/serialization building block |
 | [`reference/rtl/main.cpp`](../reference/rtl/main.cpp) | CPU-side demo driver, oracle comparison and actual scanout capture |
 | [`reference/rtl/sdram_model.cpp`](../reference/rtl/sdram_model.cpp) | External SDRAM chip model |

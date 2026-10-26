@@ -77,7 +77,8 @@ using the verified Gowin primitive configurations:
 
 Use the `.exe` executable in MSYS2 or the headless executable with `--headless`
 on a server. The backend supports all five shading modes, perspective textures,
-D24, 2D drawing, keyed sprites, and ordered copies. The selected pipeline uses 46 signed 18×18 multiplier equivalents and 14 native
+D24, 2D drawing, keyed sprites, and ordered copies. This older C++ block
+model's selected pipeline uses 46 signed 18×18 multiplier equivalents and 14 native
 BSRAM banks: three tile attachments, one texture cache, six fragment-context
 banks, and four reciprocal-seed ROM banks. Perspective reconstruction shares a
 reciprocal between U and V and corrects the result to exact signed Q16 rounding.
@@ -149,21 +150,40 @@ The executable has the `.exe` suffix on Windows.
 
 The command self-test and two frames of all four scenes pass. Complete
 RGB565/D24 attachment memory and actual RTL scanout match the independent SRR.
+The [current RTL regression](docs/benchmarks/rtl-fit-optimized.json) records
+zero scanout underflows and submission-cycle increases of 0.16% to 0.28%
+after the area reduction.
 This RTL implementation currently uses a
 different, more serialized schedule than the optimized C++ system model;
 the C++ model's 32.4 ms steady result does not describe the RTL. The
 [integrated RTL guide](docs/hardware/rtl-gpu.md) explains build commands,
 verification, cycle measurements and the remaining board integration work.
 
-**The current functional RTL core does not fit the Tang Nano 20K.** An exact-part
-packing check of the core in a small serial probe reports **29,608 of 20,736
-LUT4 resources (143%)**, with 43 of 48 native multipliers and 26 of 46 BSRAMs.
-Run `make rtl-gpu-pack` to reproduce the capacity rejection; the source-matched
+The current RTL uses **46 of 46 native RAM banks** and **25 of 48 18×18
+multiplier equivalents**. Coefficients, texture tags, compact fragment contexts
+and UV delay payloads use native RAM; command execution reads its owned packet
+lease without duplicating the payload prefix. The private exact integer-texel
+UV path has 18 enabled-edge latency and initiation interval one; the generic
+full-Q16 arithmetic module remains separate at 26 edges. Rendering features
+and the `N20K-SYS-0.1` CPU byte ABI are preserved.
+
+The complete logical-core serial probe **places and routes legally** on the
+exact FPGA: **20,351 of 20,736 physical LUT sites (98.14%)**, leaving 385 sites,
+and **6,830 DFF resources**, including 48 RAM-reserved slots. **Core timing
+fails:** the routed maximum is **48.26 MHz** against the 100.8 MHz target.
+The independent host domain reaches 78.89 MHz and passes its 25.2 MHz target.
+The next timing work is to pipeline command/arbitration/recovery feedback while
+preserving abort and accepted-memory behavior. Production clock/reset, video
+and board pin integration still require qualification.
+Native coefficient capture adds one setup clock per nonempty primitive/tile
+invocation; COPY refetch/clipping uses about 128 clocks and upload staging
+streams one u32 every three clocks. Run `make rtl-gpu-pack` for source-matched
+resource evidence and `make rtl-gpu-pnr` for the clock-gated physical probe;
+the latter currently returns **2** for the core timing miss. The
 [resource report](docs/hardware/rtl-core-pack.json) and
-[RTL guide](docs/hardware/rtl-gpu.md#physical-resource-result-current-core-does-not-fit)
-describe the probe overhead and resource accounting. LUT area must be reduced
-before complete routing and timing can qualify. Production clocking, video
-wrapper and board pin integration remain separate work. The older reciprocal/UV
+[physical probe report](docs/hardware/rtl-core-pnr.json), explained in the
+[RTL guide](docs/hardware/rtl-gpu.md#physical-resource-result),
+distinguish packed counts, physical site use and timing. The older reciprocal/UV
 probe's routed result does not establish a clock for this complete core.
 
 The throughput harness tracks fragment acceptance and retirement on each
@@ -180,12 +200,13 @@ System runs report bounded throughput measurements in their JSON. Add
 `--trace build/edges.csv` to stream a CSV row for every core edge; the trace is
 optional and can be large. The [measurement guide](docs/software-reference.md#fragment-throughput-and-clock-traces)
 explains the counters, controlled benchmarks, and trace format. Bulk system
-staging now has explicit native memory ports and latency, using **39 of 46 BSRAM
-blocks** in the selected map. This allocation remains subject to synthesis and
-timing qualification.
+staging in the older C++ system model has explicit native memory ports and
+latency, using **39 of 46 BSRAM blocks** in that model's selected map. This is
+distinct from the current RTL's 46-bank allocation and measured implementation.
 
-Warm textured triangles accept and commit 1024 consecutive fragments with
-41-cycle latency; warm sprites do the same with 15-cycle latency. The
+In the older C++ block model's throughput harness, warm textured triangles
+accept and commit 1024 consecutive fragments with 41-cycle latency; warm
+sprites do the same with 15-cycle latency. The
 [measurement guide](docs/hardware/throughput.md) separates those local results
 from memory misses and complete-pass costs. The
 [RTL qualification report](docs/hardware/rtl-qualification.md) records the
@@ -209,8 +230,8 @@ shared-reciprocal prototype separately from the complete GPU.
   blocks, arithmetic, texture caching, copies, stalls, and resets.
 - [GPU system model](docs/hardware/system-model.md): timed host commands,
   shared SDRAM, scanout, completion, recovery, and provisional simulation ABI.
-- [Current GPU pipeline diagrams](docs/hardware/pipeline.md): detailed system,
-  rendering, and tile/memory views, with scalable figures and a three-page PDF.
+- [Earlier system-model pipeline diagrams](docs/hardware/pipeline.md): detailed
+  system, rendering, and tile/memory views, with scalable figures and a three-page PDF.
 - [Throughput validation](docs/hardware/throughput.md): controlled workloads,
   per-cycle fragment tracking, cadence checks, and JSON/CSV reports.
 - [Reciprocal arithmetic](docs/hardware/reciprocal-pipeline.md): exact shared-reciprocal

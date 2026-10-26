@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test gpu-docs-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl check-rtl-python
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test gpu-docs-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-gpu-pnr rtl-block-test run sanitize clean check-sdl check-rtl-python
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -170,6 +170,11 @@ rtl-gpu-synth: check-rtl-python
 # It retains the functional core but is not a production board pin/clock top.
 rtl-gpu-pack:
 	$(PYTHON) scripts/rtl-core-pack.py --build-dir "$(BUILD_DIR)/rtl-core-pack"
+
+# Scoped serial-probe placement/routing; production board qualification remains
+# separate. A routed result missing either nominal clock target fails this gate.
+rtl-gpu-pnr: rtl-gpu-pack
+	$(PYTHON) scripts/rtl-core-pnr.py --pack-dir "$(BUILD_DIR)/rtl-core-pack" --build-dir "$(BUILD_DIR)/rtl-core-pnr" --require-timing
 
 rtl-gpu-test: rtl-gpu
 	$(PYTHON) scripts/rtl-gpu-check.py --executable "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)" --build-dir "$(BUILD_DIR)/rtl-gpu-tests"

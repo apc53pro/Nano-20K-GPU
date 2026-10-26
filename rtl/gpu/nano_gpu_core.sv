@@ -48,7 +48,9 @@ module nano_gpu_core #(
         S_COPY_WRITE_DATA=59, S_COPY_WRITE_DONE=60,
         S_FAULT=61, S_RECOVER=62,
         S_UPLOAD_STAGE_LOW=63, S_UPLOAD_STAGE_HIGH=64,
-        S_UPLOAD_RAM_LOW=65, S_UPLOAD_RAM_HIGH=66;
+        S_UPLOAD_RAM_LOW=65, S_UPLOAD_RAM_HIGH=66, S_COPY_CLIP=67,
+        S_COPY_FETCH_REQ=68, S_COPY_FETCH_WAIT=69, S_COPY_CLIP_CHECK=70,
+        S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72;
     reg [7:0] state;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
@@ -85,11 +87,18 @@ module nano_gpu_core #(
     reg [9:0] payload_offset;
     reg [7:0] response_data;
     reg [511:0] status_snapshot, capabilities;
-    reg [15:0] opcode;
-    reg [31:0] command_sequence;
-    reg [10:0] payload_length;
-    reg [7:0] captured [0:55];
-    reg [6:0] capture_index, capture_length;
+    // Native packet metadata stays immutable at the queue head until the
+    // command retires and cmd_pop is consumed. No duplicate header FF bank is
+    // needed; recovery abandons the command before flushing its lease.
+    wire [15:0] opcode = host_cmd_opcode;
+    wire [31:0] command_sequence = host_cmd_sequence;
+    wire [10:0] payload_length = host_cmd_length;
+    // The native host packet bank retains the complete payload until command
+    // retirement. Decode one u32 at a time instead of copying a 56-byte prefix.
+    reg [31:0] packet_word;
+    wire [31:0] capture_word_data = {payload_data,packet_word[31:8]};
+    reg capture_invalid, copy_command_invalid;
+    reg [5:0] capture_index, capture_length;
 
     wire scan_cmd_valid, scan_cmd_write, scan_r_ready;
     wire [22:0] scan_cmd_addr;
@@ -120,7 +129,7 @@ module nano_gpu_core #(
     wire [15:0] tile_pix_rcolor;
     wire [23:0] tile_pix_rdepth;
 
-    reg [31:0] descriptor [0:7];
+    reg descriptor_invalid;
     reg target_id, clear_color_enable, clear_depth_enable;
     reg [15:0] clear_color;
     reg [23:0] clear_depth;
@@ -141,51 +150,76 @@ module nano_gpu_core #(
     reg [31:0] packed_word;
     reg [22:0] boot_address;
 
-    reg [31:0] upload_address;
+    reg [22:0] upload_address;
     reg [10:0] upload_length, upload_cursor;
     reg [6:0] upload_chunk, upload_fill;
     reg [1:0] upload_prefix;
     reg [4:0] upload_words;
     reg [3:0] packed_mask;
-    wire [31:0] upload_current = upload_address + {21'd0,upload_cursor};
+    wire [22:0] upload_current = upload_address + {12'd0,upload_cursor};
+    wire [10:0] upload_remaining = upload_length - upload_cursor;
+    wire [6:0] upload_room = 7'd64 - {5'd0,upload_current[1:0]};
+    wire [6:0] upload_next_chunk = upload_remaining > {4'd0,upload_room} ?
+        upload_room : upload_remaining[6:0];
+    wire [6:0] upload_rounded_bytes = {5'd0,upload_current[1:0]} + upload_next_chunk + 7'd3;
     wire [1:0] upload_lane = (upload_prefix + upload_fill) & 2'b11;
     // Finish fetching a bounded host chunk before reserving the shared SDRAM
     // service. Slow byte reads must never hold its sole transaction owner and
     // starve the independent display FIFO. One native bank stores the sixteen
-    // u32 payload words as pairs of u16; byte masks are explicit small state.
-    reg [63:0] upload_masks;
+    // u32 payload words as pairs of u16. Their four-bit masks occupy unused
+    // native words32..47, avoiding a duplicated64-bit register/mux bank.
     reg upload_ram_we, upload_ram_re;
     reg [9:0] upload_ram_waddr, upload_ram_raddr;
     reg [15:0] upload_ram_wdata;
     wire [15:0] upload_ram_rdata;
 
-    reg [31:0] read_address, read_token;
+    reg [22:0] read_address;
     reg [9:0] read_length, read_cursor;
     reg [22:0] read_next_address;
-    reg [8:0] read_words_remaining;
+    reg [7:0] read_words_remaining;
     reg [4:0] read_burst_words;
     reg [31:0] read_word_hold;
-    reg [2:0] read_lane;
+    reg [1:0] read_lane;
+    // Full request bounds are checked before these narrowed transfer counters
+    // are used. A read of 1..512 bytes spans at most 129 aligned u32 words.
+    wire [9:0] read_initial_rounded = read_length + {8'd0,read_address[1:0]} + 10'd3;
+    wire [7:0] read_initial_words = read_initial_rounded[9:2];
+    wire [7:0] read_words_after_burst = read_words_remaining - {3'd0,read_burst_words};
     reg read_first, read_done_hold;
     reg [10:0] reply_index, reply_length;
     reg [31:0] reply_token;
-    reg [511:0] reply_snapshot;
+    reg reply_caps;
+    reg [63:0] reply_cycle_snapshot;
+    reg [31:0] reply_underflow_snapshot;
+    reg [7:0] reply_flags_snapshot, reply_host_fault_snapshot;
     reg reply_has_snapshot, reply_has_readback;
+    wire [10:0] reply_payload_bytes = reply_length - 11'd16;
     reg [7:0] reply_data_hold;
     reg reply_ram_we, reply_ram_re;
     reg [9:0] reply_ram_waddr, reply_ram_raddr;
     reg [15:0] reply_ram_wdata;
     wire [15:0] reply_ram_rdata;
 
-    reg copy_source_kind, copy_source_id, copy_target_id, copy_reverse;
+    reg copy_source_kind, copy_source_id, copy_target_id;
+    reg copy_reverse;
     reg copy_previous_valid;
-    reg [22:0] copy_base, copy_pitch, copy_source_row, copy_destination_row;
+    reg [22:0] copy_base, copy_pitch;
     reg [10:0] copy_image_width, copy_image_height;
-    reg signed [32:0] copy_sx, copy_sy, copy_dx, copy_dy, copy_width, copy_height;
-    reg signed [32:0] copy_x0, copy_x1, copy_y0, copy_y1;
+    reg [22:0] copy_source_row, copy_destination_row;
+    reg signed [32:0] copy_low, copy_high;
+    reg [3:0] copy_setup_step;
+    wire copy_clip_minimum = copy_setup_step==3 || copy_setup_step==4 ||
+        copy_setup_step==10 || copy_setup_step==11;
+    wire signed [32:0] copy_raw_coordinate = {packet_word[31],packet_word};
+    reg signed [32:0] copy_clip_left, copy_clip_right, copy_clip_bound;
+    wire signed [32:0] copy_clip_candidate = copy_clip_left - copy_clip_right;
+    wire copy_clip_less = copy_clip_candidate < copy_clip_bound;
+    wire copy_clip_equal = copy_clip_candidate == copy_clip_bound;
+    wire copy_clip_better = copy_clip_minimum ? copy_clip_less :
+        !(copy_clip_less || copy_clip_equal);
     reg [10:0] copy_count_x, copy_count_y, copy_column, copy_row_number;
     reg [10:0] copy_address_steps, copy_extent_steps;
-    reg [33:0] copy_extent_address;
+    reg [23:0] copy_extent_address;
     reg [15:0] copy_pixel_hold;
     reg copy_ram_we, copy_ram_re;
     reg [9:0] copy_ram_waddr, copy_ram_raddr;
@@ -194,12 +228,33 @@ module nano_gpu_core #(
     wire [22:0] copy_pixel_source_address = copy_source_row + {11'd0,copy_column,1'b0};
     wire [22:0] copy_pixel_destination_address = copy_destination_row + {11'd0,copy_column,1'b0};
 
+    // These bounded origins are retained only after complete signed clipping.
+    // Raw coordinates/extents remain in the owned native packet bank and are
+    // re-read when setup needs them, including INT32_MIN/MAX cases.
+    reg [10:0] copy_first_source_x, copy_first_source_y;
+    reg [9:0] copy_first_destination_x;
+    reg [8:0] copy_first_destination_y;
+    wire [10:0] copy_source_start_y = copy_first_source_y + copy_row_number;
+    wire copy_should_reverse = !copy_source_kind && copy_source_id==copy_target_id &&
+        {2'd0,copy_first_destination_y}>copy_first_source_y;
+    wire [8:0] copy_last_destination_y = copy_first_destination_y + copy_count_y - 11'd1;
+    wire [8:0] copy_destination_start_y = copy_should_reverse ? copy_last_destination_y : copy_first_destination_y;
+    wire [18:0] copy_destination_start_pixel = global_pixel(copy_first_destination_x,copy_destination_start_y);
+    wire [21:0] pass_reference_total = {1'b0,references_seen} + {1'b0,reference_count};
+
     integer i;
-    function automatic [31:0] capture32(input integer at);
-        capture32 = {captured[at+3],captured[at+2],captured[at+1],captured[at]};
-    endfunction
-    function automatic signed [32:0] signed_capture(input integer at);
-        signed_capture = {captured[at+3][7],captured[at+3],captured[at+2],captured[at+1],captured[at]};
+    function automatic [5:0] copy_parameter_offset(input [3:0] step);
+        begin
+            case(step)
+            0: copy_parameter_offset=28; // requested width
+            1,3,5: copy_parameter_offset=12; // source X
+            2,4,6: copy_parameter_offset=20; // destination X
+            7: copy_parameter_offset=32; // requested height
+            8,10,12: copy_parameter_offset=16; // source Y
+            9,11,13: copy_parameter_offset=24; // destination Y
+            default: copy_parameter_offset=0;
+            endcase
+        end
     endfunction
     function automatic [22:0] color_base(input id);
         color_base = id ? COLOR_BYTES : 23'd0;
@@ -208,8 +263,30 @@ module nano_gpu_core #(
         global_pixel = ({14'd0,y} << 9) + ({14'd0,y} << 7) + {13'd0,x};
     endfunction
     function automatic valid_heap(input [31:0] address, input [32:0] length, input aligned);
-        valid_heap = address >= {9'd0,HEAP_BASE} && {1'b0,address}+length <= {1'b0,MEMORY_BYTES} &&
+        // Any accepted range starts above zero, so neither its address nor its
+        // length can reach 8 MiB. Reject high bits before the 24-bit sum: two
+        // 23-bit operands cannot overflow this checked addition.
+        valid_heap = !(|address[31:23]) && address[22:0] >= HEAP_BASE && !(|length[32:23]) &&
+                     {1'b0,address[22:0]}+{1'b0,length[22:0]} <= 24'h800000 &&
                      (!aligned || address[1:0] == 0);
+    endfunction
+    function automatic [7:0] reply_snapshot_byte(input [5:0] index);
+        reg [511:0] held_status;
+        begin
+            // Ordered query execution blocks all foreground state changes.
+            // Capture the independently advancing counters and status flags;
+            // the remaining fields are stable until this reply retires.
+            // Abort/fault abandons an incomplete reply before reusing state.
+            held_status=status_snapshot;
+            held_status[8 +:8]=reply_flags_snapshot;
+            held_status[128 +:64]=reply_cycle_snapshot;
+            held_status[192 +:64]={32'd0,reply_underflow_snapshot};
+            held_status[448 +:8]=reply_host_fault_snapshot;
+            // Serialize each source independently before selecting eight bits;
+            // immutable capabilities never need a duplicated snapshot bank.
+            if(reply_caps) reply_snapshot_byte=capabilities[{index,3'b0} +:8];
+            else reply_snapshot_byte=held_status[{index,3'b0} +:8];
+        end
     endfunction
     function automatic [7:0] reply_byte(input [10:0] index);
         reg [31:0] word_value;
@@ -217,7 +294,7 @@ module nano_gpu_core #(
             word_value=0;
             if (index<4) word_value=32'h5550474e;
             else if(index<8) word_value={opcode|16'h8000,8'd1,8'd0};
-            else if(index<12) word_value={21'd0,reply_length}-16;
+            else if(index<12) word_value={21'd0,reply_payload_bytes};
             else if(index<16) word_value=command_sequence;
             else if(index<20) word_value=epoch;
             else if(index<24) word_value=0;
@@ -225,7 +302,7 @@ module nano_gpu_core #(
             else if(reply_has_readback && index<32) word_value=read_address;
             else if(reply_has_readback && index<36) word_value={22'd0,read_length};
             if(reply_has_snapshot && index>=28 && index<92)
-                reply_byte=reply_snapshot[(index-28)*8 +:8];
+                reply_byte=reply_snapshot_byte(index-11'd28);
             else reply_byte=word_value[(index[1:0])*8 +:8];
         end
     endfunction
@@ -265,6 +342,19 @@ module nano_gpu_core #(
             end
         end
     endtask
+
+    // COPY setup is off the fragment path. Each candidate reuses one signed
+    // subtract/compare datapath and one raw word fetched from native packet RAM.
+    always @* begin
+        copy_clip_left=0; copy_clip_right=copy_raw_coordinate; copy_clip_bound=copy_low;
+        case(copy_setup_step)
+        3: begin copy_clip_left=$signed({22'd0,copy_image_width}); copy_clip_bound=copy_high; end
+        4: begin copy_clip_left=33'sd640; copy_clip_bound=copy_high; end
+        10: begin copy_clip_left=$signed({22'd0,copy_image_height}); copy_clip_bound=copy_high; end
+        11: begin copy_clip_left=33'sd480; copy_clip_bound=copy_high; end
+        default: begin end
+        endcase
+    end
 
     always @* begin
         status_snapshot=0; capabilities=0;
@@ -330,7 +420,7 @@ module nano_gpu_core #(
             mem_w_valid[3]=1; mem_w_data[3*32 +:32]=boot_address>=DEPTH_BASE ? 32'h00ffffff : 0;
             mem_w_strb[3*4 +:4]=15;
         end
-        S_CAPTURE_REQ: begin payload_req=1; payload_offset={3'd0,capture_index}; end
+        S_CAPTURE_REQ,S_COPY_FETCH_REQ: begin payload_req=1; payload_offset={4'd0,capture_index}; end
         S_UPLOAD_CMD: begin
             mem_cmd_valid[1]=1; mem_cmd_write[1]=1;
             mem_cmd_addr[23 +:23]=upload_current[22:0]&23'h7ffffc; mem_cmd_words[5 +:5]=upload_words;
@@ -341,21 +431,26 @@ module nano_gpu_core #(
             upload_ram_we=1; upload_ram_waddr={5'd0,beat[3:0],1'b1};
             upload_ram_wdata=packed_word[31:16];
         end
+        S_UPLOAD_STAGE_MASK: begin
+            upload_ram_we=1; upload_ram_waddr={6'd2,beat[3:0]};
+            upload_ram_wdata={12'd0,packed_mask};
+        end
         S_UPLOAD_RAM_LOW: upload_ram_re=1;
         S_UPLOAD_RAM_HIGH: begin upload_ram_re=1; upload_ram_raddr={5'd0,beat[3:0],1'b1}; end
+        S_UPLOAD_RAM_MASK: begin upload_ram_re=1; upload_ram_raddr={6'd2,beat[3:0]}; end
         S_UPLOAD_WORD: begin
             mem_w_valid[1]=1;
-            mem_w_data[32 +:32]={upload_ram_rdata,packed_word[15:0]};
-            mem_w_strb[4 +:4]=upload_masks[beat[3:0]*4 +:4];
+            mem_w_data[32 +:32]=packed_word;
+            mem_w_strb[4 +:4]=upload_ram_rdata[3:0];
             // A successful handoff frees the read port to prefetch the next
-            // low half. Until then the presented high half remains unchanged.
+            // low half. Until then the native mask and packed word remain stable.
             if(mem_w_ready[1] && beat+1!=upload_words) begin
                 upload_ram_re=1;
                 upload_ram_raddr={5'd0,(beat[3:0]+4'd1),1'b0};
             end
         end
         S_DESC_CMD: begin
-            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=capture32(0); mem_cmd_words[10 +:5]=8;
+            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=upload_address; mem_cmd_words[10 +:5]=8;
         end
         S_ENTRY_CMD: begin
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=table_address+{11'd0,tile_index,3'b0}; mem_cmd_words[10 +:5]=2;
@@ -434,25 +529,28 @@ module nano_gpu_core #(
             cycle_counter<=0; pixel_phase<=0; video_pixel_ce<=0;
             abort_sync1<=0; abort_sync2<=0; abort_previous<=0; abort_pending<=0; fault_pending<=0; fault_code<=0;
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0; pending_memory<=0;
-            opcode<=0; command_sequence<=0; payload_length<=0; capture_index<=0; capture_length<=0;
+            capture_index<=0; capture_length<=0;
+            packet_word<=0; capture_invalid<=0; copy_command_invalid<=0;
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; clear_color<=0; clear_depth<=24'hffffff;
+            descriptor_invalid<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
             held_color<=0; held_depth<=0; packed_word<=0; packed_mask<=0; boot_address<=0;
             upload_address<=0; upload_length<=0; upload_cursor<=0; upload_chunk<=0; upload_fill<=0; upload_prefix<=0; upload_words<=0;
-            upload_masks<=0;
-            read_address<=0; read_token<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
+            read_address<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
             read_words_remaining<=0; read_burst_words<=0; read_word_hold<=0; read_lane<=0; read_first<=0; read_done_hold<=0;
-            reply_index<=0; reply_length<=0; reply_token<=0; reply_snapshot<=0;
+            reply_index<=0; reply_length<=0; reply_token<=0; reply_caps<=0;
+            reply_cycle_snapshot<=0; reply_underflow_snapshot<=0;
+            reply_flags_snapshot<=0; reply_host_fault_snapshot<=0;
             reply_has_snapshot<=0; reply_has_readback<=0; reply_data_hold<=0;
-            copy_source_kind<=0; copy_source_id<=0; copy_target_id<=0; copy_reverse<=0; copy_previous_valid<=0;
-            copy_base<=0; copy_pitch<=0; copy_source_row<=0; copy_destination_row<=0;
-            copy_image_width<=0; copy_image_height<=0; copy_sx<=0; copy_sy<=0; copy_dx<=0; copy_dy<=0;
-            copy_width<=0; copy_height<=0; copy_x0<=0; copy_x1<=0; copy_y0<=0; copy_y1<=0;
+            copy_source_kind<=0; copy_source_id<=0; copy_target_id<=0;
+            copy_base<=0; copy_pitch<=0; copy_image_width<=0; copy_image_height<=0;
+            copy_reverse<=0; copy_previous_valid<=0; copy_source_row<=0; copy_destination_row<=0;
+            copy_low<=0; copy_high<=0; copy_setup_step<=0;
+            copy_first_source_x<=0; copy_first_source_y<=0;
+            copy_first_destination_x<=0; copy_first_destination_y<=0;
             copy_count_x<=0; copy_count_y<=0; copy_column<=0; copy_row_number<=0;
             copy_address_steps<=0; copy_extent_steps<=0; copy_extent_address<=0; copy_pixel_hold<=0;
-            for(i=0;i<56;i=i+1) captured[i]<=0;
-            for(i=0;i<8;i=i+1) descriptor[i]<=0;
         end else begin
             cycle_counter<=cycle_counter+1;
             pixel_phase<=pixel_phase+1; video_pixel_ce<=pixel_tick;
@@ -490,9 +588,7 @@ module nano_gpu_core #(
                     else begin boot_address<=boot_address+64; state<=S_BOOT_CMD; end
                 end
                 S_IDLE: if(initialized && !host_recovering && host_cmd_valid && !host_cmd_pop) begin
-                    opcode<=host_cmd_opcode; command_sequence<=host_cmd_sequence; payload_length<=host_cmd_length;
-                    capture_index<=0;
-                    for(i=0;i<56;i=i+1) captured[i]<=0;
+                    capture_index<=0; capture_invalid<=0; copy_command_invalid<=0;
                     case(host_cmd_opcode)
                     1,2: begin capture_length<=0; if(host_cmd_length!=0) raise_fault(2); else state<=S_EXECUTE; end
                     3: begin capture_length<=8; if(host_cmd_length<=8 || host_cmd_length>1024) raise_fault(2); else state<=S_CAPTURE_REQ; end
@@ -505,56 +601,122 @@ module nano_gpu_core #(
                 end
                 S_CAPTURE_REQ: state<=S_CAPTURE_WAIT;
                 S_CAPTURE_WAIT: if(payload_valid) begin
-                    captured[capture_index]<=payload_data;
+                    packet_word<=capture_word_data;
+                    if(capture_index[1:0]==3) case(opcode)
+                    3: case(capture_index[5:2])
+                        0: begin
+                            upload_address<=capture_word_data[22:0];
+                            if(!valid_heap(capture_word_data,33'd1,0)) capture_invalid<=1;
+                        end
+                        1: begin
+                            upload_length<=capture_word_data[10:0];
+                            if(capture_word_data!={21'd0,payload_length}-32'd8 || capture_word_data==0 ||
+                               {1'b0,upload_address}+{13'd0,capture_word_data[10:0]}>24'h800000) capture_invalid<=1;
+                        end
+                        default: capture_invalid<=1;
+                    endcase
+                    4: begin
+                        upload_address<=capture_word_data[22:0];
+                        if(!valid_heap(capture_word_data,33'd32,1)) capture_invalid<=1;
+                    end
+                    7: if(capture_index[5:2]==0) begin
+                        target_id<=capture_word_data[0];
+                        if(|capture_word_data[31:1]) capture_invalid<=1;
+                    end
+                    8: case(capture_index[5:2])
+                        0: begin
+                            read_address<=capture_word_data[22:0];
+                            if(|capture_word_data[31:23]) capture_invalid<=1;
+                        end
+                        1: begin
+                            read_length<=capture_word_data[9:0];
+                            if(capture_word_data==0 || capture_word_data>512 ||
+                               {1'b0,read_address}+{14'd0,capture_word_data[9:0]}>24'h800000) capture_invalid<=1;
+                        end
+                        default: begin end // token is the final packet_word
+                    endcase
+                    5: case(capture_index[5:2])
+                        0: begin
+                            copy_source_kind<=capture_word_data[0];
+                            if(|capture_word_data[31:1]) copy_command_invalid<=1;
+                        end
+                        1: begin
+                            copy_source_id<=capture_word_data[0];
+                            if((|capture_word_data[31:1]) || (copy_source_kind && capture_word_data!=0)) copy_command_invalid<=1;
+                        end
+                        2: begin
+                            copy_target_id<=capture_word_data[0];
+                            if(|capture_word_data[31:1]) copy_command_invalid<=1;
+                        end
+                        7,8: if(capture_word_data[31]) copy_command_invalid<=1;
+                        9: begin
+                            copy_base<=copy_source_kind ? capture_word_data[22:0] : color_base(copy_source_id);
+                            if(copy_source_kind) begin
+                                if(!valid_heap(capture_word_data,33'd1,1)) capture_invalid<=1;
+                            end else if(capture_word_data!=0) copy_command_invalid<=1;
+                        end
+                        10: begin
+                            copy_image_width<=copy_source_kind ? capture_word_data[10:0] : 11'd640;
+                            if(copy_source_kind) begin
+                                if(capture_word_data==0 || capture_word_data>1024) capture_invalid<=1;
+                            end else if(capture_word_data!=0) copy_command_invalid<=1;
+                        end
+                        11: begin
+                            copy_image_height<=copy_source_kind ? capture_word_data[10:0] : 11'd480;
+                            if(copy_source_kind) begin
+                                if(capture_word_data==0 || capture_word_data>1024) capture_invalid<=1;
+                            end else if(capture_word_data!=0) copy_command_invalid<=1;
+                        end
+                        12: begin
+                            copy_pitch<=copy_source_kind ? capture_word_data[22:0] : 23'd1280;
+                            if(copy_source_kind) begin
+                                if(capture_word_data[1:0]!=0 || (|capture_word_data[31:23]) ||
+                                   capture_word_data[22:0] < {11'd0,copy_image_width,1'b0}) capture_invalid<=1;
+                            end else if(capture_word_data!=0) copy_command_invalid<=1;
+                        end
+                        13: if(capture_word_data!=0) copy_command_invalid<=1;
+                        default: begin end // coordinate words are re-fetched for setup
+                    endcase
+                    default: begin end
+                    endcase
                     if(capture_index+1==capture_length) state<=S_EXECUTE;
                     else begin capture_index<=capture_index+1; state<=S_CAPTURE_REQ; end
                 end
                 S_EXECUTE: case(opcode)
-                    1: begin reply_snapshot<=capabilities; start_reply(0,1,0); end
-                    2: begin reply_snapshot<=status_snapshot; start_reply(0,1,0); end
-                    3: if(capture32(4)!={21'd0,payload_length}-8 || capture32(4)==0 ||
-                            !valid_heap(capture32(0),{1'b0,capture32(4)},0)) raise_fault(3);
-                       else begin upload_address<=capture32(0); upload_length<=capture32(4); upload_cursor<=0; state<=S_UPLOAD_PREP; end
-                    4: if(!valid_heap(capture32(0),33'd32,1)) raise_fault(3);
+                    1: begin reply_caps<=1; start_reply(0,1,0); end
+                    2: begin
+                        reply_caps<=0; reply_cycle_snapshot<=cycle_counter;
+                        reply_underflow_snapshot<=scanout_underflows;
+                        reply_flags_snapshot<=status_snapshot[8 +:8];
+                        reply_host_fault_snapshot<=host_fault;
+                        start_reply(0,1,0);
+                    end
+                    3: if(capture_invalid) raise_fault(3);
+                       else begin upload_cursor<=0; state<=S_UPLOAD_PREP; end
+                    4: if(capture_invalid) raise_fault(3);
                        else begin tex_flush<=1; state<=S_DESC_CMD; end
-                    6: begin fence_token<=capture32(0); start_reply(capture32(0),0,0); end
-                    7: if(capture32(0)>1 || capture32(0)=={31'd0,front_id} || sealed || !color_valid[captured[0][0]]) raise_fault(4);
+                    6: begin fence_token<=packet_word; start_reply(packet_word,0,0); end
+                    7: if(capture_invalid || target_id==front_id || sealed || !color_valid[target_id]) raise_fault(4);
                        else begin sealed<=1; state<=S_PRESENT; end
-                    8: if(capture32(4)==0 || capture32(4)>512 || {1'b0,capture32(0)}+{1'b0,capture32(4)}>{1'b0,MEMORY_BYTES}) raise_fault(3);
+                    8: if(capture_invalid) raise_fault(3);
                        else begin
-                           read_address<=capture32(0); read_length<=capture32(4); read_token<=capture32(8);
-                           read_cursor<=0; read_next_address<=capture32(0)&23'h7ffffc;
-                           read_words_remaining<=({1'b0,captured[0][1:0]}+capture32(4)+3)>>2;
-                           read_burst_words<=(({1'b0,captured[0][1:0]}+capture32(4)+3)>>2)>16 ? 16 :
-                               (({1'b0,captured[0][1:0]}+capture32(4)+3)>>2);
+                           read_cursor<=0; read_next_address<=read_address&23'h7ffffc;
+                           read_words_remaining<=read_initial_words;
+                           read_burst_words<=read_initial_words>8'd16 ? 5'd16 : read_initial_words[4:0];
                            read_first<=1; state<=S_READ_CMD;
                        end
-                    5: begin
-                        if(capture32(0)>1 || capture32(4)>1 || capture32(8)>1 ||
-                           captured[35][7] || captured[31][7] || capture32(52)!=0 || captured[8][0]==front_id || sealed ||
-                           (captured[0][0] && capture32(4)!=0))
-                            raise_fault(4);
-                        else begin
-                            copy_source_kind<=captured[0][0]; copy_source_id<=captured[4][0]; copy_target_id<=captured[8][0];
-                            copy_previous_valid<=color_valid[captured[8][0]];
-                            copy_sx<=signed_capture(12); copy_sy<=signed_capture(16);
-                            copy_dx<=signed_capture(20); copy_dy<=signed_capture(24);
-                            copy_width<=signed_capture(28); copy_height<=signed_capture(32);
-                            copy_base<=captured[0][0] ? capture32(36) : color_base(captured[4][0]);
-                            copy_pitch<=captured[0][0] ? capture32(48) : 23'd1280;
-                            copy_image_width<=captured[0][0] ? capture32(40) : 11'd640;
-                            copy_image_height<=captured[0][0] ? capture32(44) : 11'd480;
-                            copy_extent_steps<=0; copy_extent_address<=captured[0][0] ? {2'd0,capture32(36)} : 0;
-                            state<=S_COPY_VALIDATE;
-                        end
-                    end
+                    5: if(copy_command_invalid || copy_target_id==front_id || sealed) raise_fault(4);
+                       else begin
+                           copy_previous_valid<=color_valid[copy_target_id];
+                           copy_extent_steps<=0; copy_extent_address<=copy_source_kind ? {1'b0,copy_base} : 0;
+                           state<=S_COPY_VALIDATE;
+                       end
                     default: raise_fault(2);
                 endcase
                 S_UPLOAD_PREP: begin
                     upload_prefix<=upload_current[1:0];
-                    upload_chunk<=upload_length-upload_cursor > 64-upload_current[1:0] ? 64-upload_current[1:0] : upload_length-upload_cursor;
-                    upload_words<=((upload_length-upload_cursor > 64-upload_current[1:0] ? 64 :
-                        upload_current[1:0]+upload_length-upload_cursor)+3)>>2;
+                    upload_chunk<=upload_next_chunk;
+                    upload_words<=upload_rounded_bytes[6:2];
                     upload_fill<=0; beat<=0; packed_word<=0; packed_mask<=0; state<=S_UPLOAD_BYTE_REQ;
                 end
                 S_UPLOAD_CMD: if(mem_cmd_ready[1]) state<=S_UPLOAD_RAM_LOW;
@@ -566,14 +728,15 @@ module nano_gpu_core #(
                     else state<=S_UPLOAD_BYTE_REQ;
                 end
                 S_UPLOAD_STAGE_LOW: state<=S_UPLOAD_STAGE_HIGH;
-                S_UPLOAD_STAGE_HIGH: begin
-                    upload_masks[beat[3:0]*4 +:4]<=packed_mask;
+                S_UPLOAD_STAGE_HIGH: state<=S_UPLOAD_STAGE_MASK;
+                S_UPLOAD_STAGE_MASK: begin
                     packed_word<=0; packed_mask<=0; beat<=beat+1;
                     if(upload_fill==upload_chunk) begin beat<=0; state<=S_UPLOAD_CMD; end
                     else state<=S_UPLOAD_BYTE_REQ;
                 end
                 S_UPLOAD_RAM_LOW: state<=S_UPLOAD_RAM_HIGH;
-                S_UPLOAD_RAM_HIGH: begin packed_word[15:0]<=upload_ram_rdata; state<=S_UPLOAD_WORD; end
+                S_UPLOAD_RAM_HIGH: begin packed_word[15:0]<=upload_ram_rdata; state<=S_UPLOAD_RAM_MASK; end
+                S_UPLOAD_RAM_MASK: begin packed_word[31:16]<=upload_ram_rdata; state<=S_UPLOAD_WORD; end
                 S_UPLOAD_WORD: if(mem_w_ready[1]) begin
                     if(beat+1==upload_words) state<=S_UPLOAD_DONE;
                     else begin beat<=beat+1; state<=S_UPLOAD_RAM_HIGH; end
@@ -582,17 +745,35 @@ module nano_gpu_core #(
                     upload_cursor<=upload_cursor+upload_chunk;
                     if(upload_cursor+upload_chunk==upload_length) complete_command(); else state<=S_UPLOAD_PREP;
                 end
-                S_DESC_CMD: if(mem_cmd_ready[2]) begin beat<=0; state<=S_DESC_DATA; end
-                S_DESC_DATA: if(mem_r_valid[2]) begin descriptor[beat[2:0]]<=mem_r_data[64 +:32]; beat<=beat+1; if(mem_r_last[2]) state<=S_DESC_DONE; end
+                S_DESC_CMD: if(mem_cmd_ready[2]) begin beat<=0; descriptor_invalid<=0; state<=S_DESC_DATA; end
+                S_DESC_DATA: if(mem_r_valid[2]) begin
+                    // Validate each full u32 on arrival, retaining only decoded
+                    // pass fields. No attachment is mutated before DONE checks
+                    // all words and ownership/LOAD validity below.
+                    case(beat)
+                    0: if(mem_r_data[64 +:32]!=32'h3153504e) descriptor_invalid<=1;
+                    1: begin target_id<=mem_r_data[64]; if(mem_r_data[64 +:32]>1) descriptor_invalid<=1; end
+                    2: begin
+                        clear_color_enable<=mem_r_data[64]; clear_depth_enable<=mem_r_data[65];
+                        if(mem_r_data[64 +:32]>3) descriptor_invalid<=1;
+                    end
+                    3: begin clear_color<=mem_r_data[64 +:16]; if(|mem_r_data[80 +:16]) descriptor_invalid<=1; end
+                    4: begin clear_depth<=mem_r_data[64 +:24]; if(|mem_r_data[88 +:8]) descriptor_invalid<=1; end
+                    5: begin
+                        table_address<=mem_r_data[64 +:23];
+                        if(!valid_heap(mem_r_data[64 +:32],33'd2400,1)) descriptor_invalid<=1;
+                    end
+                    6: if(mem_r_data[64 +:32]!=300) descriptor_invalid<=1;
+                    7: if(mem_r_data[64 +:32]!=0) descriptor_invalid<=1;
+                    default: descriptor_invalid<=1;
+                    endcase
+                    beat<=beat+1; if(mem_r_last[2]) state<=S_DESC_DONE;
+                end
                 S_DESC_DONE: if(mem_done[2]) begin
-                    if(descriptor[0]!=32'h3153504e || descriptor[1]>1 || descriptor[1]=={31'd0,front_id} || sealed ||
-                       descriptor[2]>3 || descriptor[3]>65535 || descriptor[4]>24'hffffff || descriptor[6]!=300 ||
-                       descriptor[7]!=0 || !valid_heap(descriptor[5],33'd2400,1)) raise_fault(6);
-                    else if((!descriptor[2][0] && !color_valid[descriptor[1][0]]) || (!descriptor[2][1] && !depth_valid)) raise_fault(5);
+                    if(descriptor_invalid || target_id==front_id || sealed) raise_fault(6);
+                    else if((!clear_color_enable && !color_valid[target_id]) || (!clear_depth_enable && !depth_valid)) raise_fault(5);
                     else begin
-                        target_id<=descriptor[1][0]; clear_color_enable<=descriptor[2][0]; clear_depth_enable<=descriptor[2][1];
-                        clear_color<=descriptor[3][15:0]; clear_depth<=descriptor[4][23:0]; table_address<=descriptor[5][22:0];
-                        color_valid[descriptor[1][0]]<=0; depth_valid<=0; pass_active<=1;
+                        color_valid[target_id]<=0; depth_valid<=0; pass_active<=1;
                         tile_index<=0; tile_x_index<=0; tile_y_index<=0; references_seen<=0; state<=S_ENTRY_CMD;
                     end
                 end
@@ -603,10 +784,10 @@ module nano_gpu_core #(
                     beat<=beat+1; if(mem_r_last[2]) state<=S_ENTRY_DONE;
                 end
                 S_ENTRY_DONE: if(mem_done[2]) begin
-                    if((reference_count==0 && list_address!=0) || reference_count>1048576 || references_seen+reference_count>1048576 ||
+                    if((reference_count==0 && list_address!=0) || reference_count>21'd1048576 || pass_reference_total>22'd1048576 ||
                        (reference_count!=0 && !valid_heap({9'd0,list_address},{10'd0,reference_count,2'b0},1))) raise_fault(7);
                     else begin
-                        references_seen<=references_seen+reference_count; reference_index<=0; pixel_index<=0;
+                        references_seen<=pass_reference_total[20:0]; reference_index<=0; pixel_index<=0;
                         if(clear_color_enable && clear_depth_enable) state<=S_TILE_INIT;
                         else if(!clear_color_enable) state<=S_LOAD_COLOR_CMD; else state<=S_LOAD_DEPTH_CMD;
                     end
@@ -659,7 +840,7 @@ module nano_gpu_core #(
                     else if(row!=31) begin row<=row+1; store_kind<=0; state<=S_STORE_CMD; end
                     else next_tile();
                 end
-                S_PRESENT: if(vblank_pulse) begin front_id<=captured[0][0]; present_token<=capture32(4); sealed<=0; start_reply(capture32(4),0,0); end
+                S_PRESENT: if(vblank_pulse) begin front_id<=target_id; present_token<=packet_word; sealed<=0; start_reply(packet_word,0,0); end
                 S_REPLY: if(response_ready) begin
                     if(reply_index+1==reply_length) complete_command();
                     else begin
@@ -671,7 +852,7 @@ module nano_gpu_core #(
                 S_REPLY_RAM_WAIT: begin reply_data_hold<=reply_ram_rdata[7:0]; state<=S_REPLY; end
                 S_READ_CMD: if(mem_cmd_ready[2]) begin beat<=0; read_done_hold<=0; state<=S_READ_DATA; end
                 S_READ_DATA: if(mem_r_valid[2]) begin
-                    read_word_hold<=mem_r_data[64 +:32]; read_lane<=read_first ? {1'b0,read_address[1:0]} : 0;
+                    read_word_hold<=mem_r_data[64 +:32]; read_lane<=read_first ? read_address[1:0] : 0;
                     read_first<=0; beat<=beat+1; state<=S_READ_BYTES;
                 end
                 S_READ_BYTES: begin
@@ -681,52 +862,72 @@ module nano_gpu_core #(
                     end else read_lane<=read_lane+1;
                 end
                 S_READ_DONE: if(mem_done[2] || read_done_hold) begin
-                    if(read_words_remaining==read_burst_words) start_reply(read_token,0,1);
+                    if(read_words_remaining==read_burst_words) start_reply(packet_word,0,1);
                     else begin
-                        read_words_remaining<=read_words_remaining-read_burst_words;
+                        read_words_remaining<=read_words_after_burst;
                         read_next_address<=read_next_address+{16'd0,read_burst_words,2'b0};
-                        read_burst_words<=read_words_remaining-read_burst_words>16 ? 16 : read_words_remaining-read_burst_words;
+                        read_burst_words<=read_words_after_burst>8'd16 ? 5'd16 : read_words_after_burst[4:0];
                         state<=S_READ_CMD;
                     end
                 end
                 S_COPY_VALIDATE: begin
-                    if(copy_source_kind && (capture32(36)<{9'd0,HEAP_BASE} || captured[36][1:0]!=0 || capture32(40)==0 || capture32(40)>1024 ||
-                       capture32(44)==0 || capture32(44)>1024 || captured[48][1:0]!=0 || capture32(48)>=MEMORY_BYTES || capture32(48)<(capture32(40)<<1))) raise_fault(3);
-                    else if(!copy_source_kind && (!color_valid[copy_source_id] || capture32(36)!=0 || capture32(40)!=0 || capture32(44)!=0 || capture32(48)!=0)) raise_fault(4);
+                    if(copy_source_kind && capture_invalid) raise_fault(3);
+                    else if(!copy_source_kind && !color_valid[copy_source_id]) raise_fault(4);
                     else if(copy_source_kind && copy_extent_steps<copy_image_height) begin
-                        copy_extent_address<=copy_extent_address+{11'd0,copy_pitch}; copy_extent_steps<=copy_extent_steps+1;
-                        if(copy_extent_address+{11'd0,copy_pitch}>{2'd0,MEMORY_BYTES}) raise_fault(3);
+                        copy_extent_address<=copy_extent_address+{1'b0,copy_pitch}; copy_extent_steps<=copy_extent_steps+1;
+                        if(copy_extent_address+{1'b0,copy_pitch}>24'h800000) raise_fault(3);
                     end else begin
-                        copy_x0<=0; copy_y0<=0;
-                        if(copy_sx<0 && -copy_sx>0 && -copy_sx>-copy_dx) copy_x0<=-copy_sx;
-                        else if(copy_dx<0) copy_x0<=-copy_dx;
-                        if(copy_sy<0 && -copy_sy>0 && -copy_sy>-copy_dy) copy_y0<=-copy_sy;
-                        else if(copy_dy<0) copy_y0<=-copy_dy;
-                        copy_x1<=copy_width;
-                        if($signed({22'd0,copy_image_width})-copy_sx<copy_width) copy_x1<=$signed({22'd0,copy_image_width})-copy_sx;
-                        if(33'sd640-copy_dx<copy_width && 33'sd640-copy_dx<$signed({22'd0,copy_image_width})-copy_sx) copy_x1<=33'sd640-copy_dx;
-                        copy_y1<=copy_height;
-                        if($signed({22'd0,copy_image_height})-copy_sy<copy_height) copy_y1<=$signed({22'd0,copy_image_height})-copy_sy;
-                        if(33'sd480-copy_dy<copy_height && 33'sd480-copy_dy<$signed({22'd0,copy_image_height})-copy_sy) copy_y1<=33'sd480-copy_dy;
+                        copy_low<=0; copy_setup_step<=0;
                         copy_address_steps<=0; copy_source_row<=copy_base; copy_row_number<=0; copy_column<=0;
-                        state<=S_COPY_INIT_ADDR;
+                        capture_index<=copy_parameter_offset(0); state<=S_COPY_FETCH_REQ;
+                    end
+                end
+                S_COPY_FETCH_REQ: state<=S_COPY_FETCH_WAIT;
+                S_COPY_FETCH_WAIT: if(payload_valid) begin
+                    packet_word<=capture_word_data;
+                    if(capture_index[1:0]==3) state<=S_COPY_CLIP;
+                    else begin capture_index<=capture_index+1; state<=S_COPY_FETCH_REQ; end
+                end
+                S_COPY_CLIP: begin
+                    // Clip X completely, retain bounded X origins/count, then
+                    // reuse the same signed interval for Y. No raw coordinate
+                    // narrowing occurs until that axis has a nonempty interval.
+                    case(copy_setup_step)
+                    0,7: begin copy_high<=copy_raw_coordinate; copy_low<=0; end
+                    1,2,8,9: if(copy_clip_better) copy_low<=copy_clip_candidate;
+                    3,4,10,11: if(copy_clip_better) copy_high<=copy_clip_candidate;
+                    5: copy_first_source_x<=copy_raw_coordinate+copy_low;
+                    6: copy_first_destination_x<=copy_raw_coordinate+copy_low;
+                    12: copy_first_source_y<=copy_raw_coordinate+copy_low;
+                    13: copy_first_destination_y<=copy_raw_coordinate+copy_low;
+                    default: raise_fault(9);
+                    endcase
+                    if(copy_setup_step==4 || copy_setup_step==11) state<=S_COPY_CLIP_CHECK;
+                    else if(copy_setup_step==13) state<=S_COPY_INIT_ADDR;
+                    else begin
+                        copy_setup_step<=copy_setup_step+1;
+                        capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
+                    end
+                end
+                S_COPY_CLIP_CHECK: begin
+                    if(copy_high<=copy_low) complete_command();
+                    else begin
+                        if(copy_setup_step==4) copy_count_x<=copy_high-copy_low;
+                        else copy_count_y<=copy_high-copy_low;
+                        copy_setup_step<=copy_setup_step+1;
+                        capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
                     end
                 end
                 S_COPY_INIT_ADDR: begin
-                    if(copy_x1<=copy_x0 || copy_y1<=copy_y0) complete_command();
-                    else if(copy_address_steps==0) begin
-                        copy_count_x<=copy_x1-copy_x0; copy_count_y<=copy_y1-copy_y0;
-                        copy_reverse<=!copy_source_kind && copy_source_id==copy_target_id && copy_dy>copy_sy;
-                        copy_row_number<=(!copy_source_kind && copy_source_id==copy_target_id && copy_dy>copy_sy) ? copy_y1-copy_y0-1 : 0;
-                        copy_destination_row<=color_base(copy_target_id)+
-                            ((copy_dy+((!copy_source_kind && copy_source_id==copy_target_id && copy_dy>copy_sy) ? copy_y1-1 : copy_y0))<<10)+
-                            ((copy_dy+((!copy_source_kind && copy_source_id==copy_target_id && copy_dy>copy_sy) ? copy_y1-1 : copy_y0))<<8)+
-                            ((copy_dx+copy_x0)<<1);
+                    if(copy_address_steps==0) begin
+                        copy_reverse<=copy_should_reverse;
+                        copy_row_number<=copy_should_reverse ? copy_count_y-11'd1 : 0;
+                        copy_destination_row<=color_base(copy_target_id)+{3'd0,copy_destination_start_pixel,1'b0};
                         copy_address_steps<=1;
-                    end else if(copy_address_steps-1 < copy_sy+copy_y0+copy_row_number) begin
+                    end else if(copy_address_steps-11'd1 < copy_source_start_y) begin
                         copy_source_row<=copy_source_row+copy_pitch; copy_address_steps<=copy_address_steps+1;
                     end else begin
-                        copy_source_row<=copy_source_row+((copy_sx+copy_x0)<<1); copy_column<=0; copy_active<=1;
+                        copy_source_row<=copy_source_row+{11'd0,copy_first_source_x,1'b0}; copy_column<=0; copy_active<=1;
                         color_valid[copy_target_id]<=0; state<=S_COPY_READ_CMD;
                     end
                 end
@@ -744,7 +945,7 @@ module nano_gpu_core #(
                     if(copy_column+1!=copy_count_x) begin copy_column<=copy_column+1; state<=S_COPY_RAM_REQ; end
                     else if((!copy_reverse && copy_row_number+1==copy_count_y) || (copy_reverse && copy_row_number==0)) begin
                         color_valid[copy_target_id]<=copy_previous_valid ||
-                            (copy_dx+copy_x0==0 && copy_dy+copy_y0==0 && copy_dx+copy_x1==640 && copy_dy+copy_y1==480);
+                            (copy_first_destination_x==0 && copy_first_destination_y==0 && copy_count_x==640 && copy_count_y==480);
                         copy_active<=0; complete_command();
                     end else begin
                         copy_row_number<=copy_reverse ? copy_row_number-1 : copy_row_number+1;
@@ -760,6 +961,23 @@ module nano_gpu_core #(
             end
         end
     end
+
+`ifndef SYNTHESIS
+    // Check the storage optimization against a full execution-time snapshot in
+    // simulation. This checker is absent from the synthesized circuit.
+    reg [511:0] checked_status_snapshot;
+    always @(posedge clk) begin
+        if(reset) checked_status_snapshot<=0;
+        else begin
+            if(state==S_EXECUTE && opcode==2) checked_status_snapshot<=status_snapshot;
+            if(state==S_REPLY && reply_has_snapshot && !reply_caps &&
+               reply_index>=28 && reply_index<92 && response_ready &&
+               !abort_pending && !fault_pending && host_fault==0 && !host_recovering)
+                if(response_data !== checked_status_snapshot[(reply_index-28)*8 +:8])
+                    $fatal(1,"GET_STATUS reply lost its execution-time snapshot");
+        end
+    end
+`endif
 
     nano_host_link host_link (
         .clk(clk),.reset(reset),.host_clk(host_clk),.core_abort(host_abort),

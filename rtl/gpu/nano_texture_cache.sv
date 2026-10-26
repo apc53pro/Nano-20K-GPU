@@ -49,8 +49,11 @@ module nano_texture_cache (
     reg [10:0] width, height;
     reg repeat_u, repeat_v;
     reg [23:0] extent;
-    reg [11:0] tags [0:63];
     reg [63:0] line_valid;
+    // Tags use a second native RAM, read alongside the linear-address latch.
+    // A completed refill forwards its tag until that retained miss advances;
+    // this avoids an undefined same-address read/write and a replay bubble.
+    reg refill_forward;
 
     reg [2:0] multiply_valid;
     reg [9:0] multiply_x [0:2];
@@ -78,7 +81,9 @@ module nano_texture_cache (
     wire output_advance = !rsp_valid || rsp_ready;
     wire [5:0] linear_slot = linear_address[9:4];
     wire [11:0] linear_line_tag = linear_address[21:10];
-    wire line_hit = line_valid[linear_slot] && tags[linear_slot] == linear_line_tag;
+    wire [15:0] tag_data;
+    wire [11:0] observed_tag = refill_forward ? miss_tag : tag_data[11:0];
+    wire line_hit = line_valid[linear_slot] && observed_tag == linear_line_tag;
     wire advance = state == RUN && output_advance && (!linear_valid || line_hit);
     wire pipeline_empty = !(|multiply_valid) && !linear_valid && !lookup_valid &&
         !read_pending && !rsp_valid;
@@ -170,12 +175,19 @@ module nano_texture_cache (
         (!hold_valid || high_half);
     wire accepting_word = mem_r_valid && mem_r_ready;
     wire last_cache_write = cache_write_enable && refill_texel == 15;
+    wire publish_tag = ((state == REFILL && last_cache_write) || state == WAIT_DONE) &&
+        (done_seen || mem_done) && !reset && !flush && !mem_error;
+    nano_sdp16 tag_ram (
+        .wclk(clk), .wce(1'b1), .we(publish_tag),
+        .waddr({4'b0,miss_slot}), .wdata({4'b0,miss_tag}),
+        .rclk(clk), .rce(1'b1), .re(advance && multiply_valid[2] && !reset && !flush),
+        .raddr({4'b0,address_sum[9:4]}), .reset_output(reset), .rdata(tag_data));
     integer i;
     always @(posedge clk) begin
         if (reset) begin
             state <= RUN; configured <= 0; base <= 0; pitch <= 0;
             width <= 0; height <= 0; repeat_u <= 0; repeat_v <= 0; extent <= 0;
-            line_valid <= 0; multiply_valid <= 0; linear_valid <= 0;
+            line_valid <= 0; refill_forward <= 0; multiply_valid <= 0; linear_valid <= 0;
             lookup_valid <= 0; read_pending <= 0; rsp_valid <= 0;
             rsp_texel <= 0; rsp_tag <= 0; fault <= 0;
             linear_address <= 0; linear_tag <= 0; lookup_address <= 0; lookup_tag <= 0;
@@ -224,6 +236,7 @@ module nano_texture_cache (
                 end
             end
             if (advance) begin
+                refill_forward <= 0;
                 multiply_valid <= {multiply_valid[1:0],accepting};
                 for (i=2;i>0;i=i-1) begin
                     multiply_x[i] <= multiply_x[i-1];
@@ -264,13 +277,13 @@ module nano_texture_cache (
                 end
                 if (last_cache_write) begin
                     if (done_seen || mem_done) begin
-                        tags[miss_slot] <= miss_tag; line_valid[miss_slot] <= 1;
+                        refill_forward <= 1; line_valid[miss_slot] <= 1;
                         state <= RUN;
                     end else state <= WAIT_DONE;
                 end
             end
             if (state == WAIT_DONE && (done_seen || mem_done)) begin
-                tags[miss_slot] <= miss_tag; line_valid[miss_slot] <= 1;
+                refill_forward <= 1; line_valid[miss_slot] <= 1;
                 state <= RUN;
             end
             if (mem_error && state != RUN) begin

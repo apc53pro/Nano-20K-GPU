@@ -187,7 +187,8 @@ def main():
     if args.synth:
         netlist = build / "gpu-synth.json"
         sources = " ".join(json.dumps(str(path)) for path in rtl)
-        yosys = "read_verilog -sv -D SYNTHESIS {}; synth_gowin -family gw2a -top nano_gpu_core -json {}; stat".format(sources, json.dumps(str(netlist)))
+        yosys = "read_verilog -sv -D SYNTHESIS {}; synth_gowin -family gw2a -top nano_gpu_core -json {} -nowidelut; stat".format(sources, json.dumps(str(netlist)))
+        report["synthesis_options"] = ["-nowidelut"]
         print("Synthesizing the same functional core for Gowin...", flush=True)
         run(HDL.tool("yosys") + ["-Q", "-T", "-p", yosys], build / "gpu-synthesis.log")
         design = json.loads(netlist.read_text())

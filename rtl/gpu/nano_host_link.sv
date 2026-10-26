@@ -102,17 +102,24 @@ module nano_host_link (
         end
     end
 
-    // Packet ownership: two published queue entries, one staging packet. The
-    // packet banks are distinct actual SDPB instances, with one write/read port.
+    // Packet ownership: two published queue entries and one staging packet.
+    // Three logical leases share two SDPB instances; each has one write/read port.
     localparam [1:0] HEADER = 0, CHECK = 1, PAYLOAD = 2, PUBLISH = 3;
     reg [1:0] parser_state;
-    reg [127:0] header;
+    // Validate complete raw words before narrowing, retaining only fields
+    // needed after CHECK. A single rolling word also holds the final sequence.
+    reg [31:0] header_word;
+    reg [3:0] header_bad;
+    reg [3:0] header_opcode;
+    reg [10:0] header_length;
     reg [3:0] header_offset;
     reg [10:0] payload_received;
     reg [31:0] last_sequence;
     reg [1:0] staging_bank;
     reg [1:0] queue_bank [0:1];
-    reg [15:0] bank_opcode [0:2];
+    // CHECK validates the full u16 opcode before publishing a bank. Only
+    // values 1..8 are retained; the public command port remains u16.
+    reg [3:0] bank_opcode [0:2];
     reg [31:0] bank_sequence [0:2];
     reg [10:0] bank_length [0:2];
     reg queue_head, queue_tail;
@@ -132,21 +139,22 @@ module nano_host_link (
             if (!used_banks[scan]) next_staging = scan[1:0];
     end
     assign cmd_valid = queue_count != 0 && !core_flush && fault == 0;
-    assign cmd_opcode = bank_opcode[queue_bank[queue_head]];
+    assign cmd_opcode = {12'b0,bank_opcode[queue_bank[queue_head]]};
     assign cmd_sequence = bank_sequence[queue_bank[queue_head]];
     assign cmd_payload_length = bank_length[queue_bank[queue_head]];
     assign rx_ready = !core_flush && fault == 0 && (parser_state == HEADER || parser_state == PAYLOAD);
     wire consume_rx = rx_valid && rx_ready;
-    wire [15:0] decoded_opcode = header[63:48];
-    wire [31:0] decoded_length = header[95:64];
-    wire [31:0] decoded_sequence = header[127:96];
+    wire [31:0] header_word_next = {rx_data,header_word[31:8]};
+    wire [15:0] decoded_opcode = {12'b0,header_opcode};
+    wire [31:0] decoded_length = {21'b0,header_length};
+    wire [31:0] decoded_sequence = header_word;
     reg [7:0] header_error;
     always @* begin
         header_error = 0;
-        if (header[31:0] != 32'h5550474e) header_error = 7;
-        else if (header[47:32] != 16'h0100) header_error = 8;
-        else if (decoded_opcode < 1 || decoded_opcode > 8) header_error = 9;
-        else if (decoded_length > 1024) header_error = 10;
+        if (header_bad[0]) header_error = 7;
+        else if (header_bad[1]) header_error = 8;
+        else if (header_bad[2]) header_error = 9;
+        else if (header_bad[3]) header_error = 10;
         else if (decoded_sequence == 0 || decoded_sequence <= last_sequence) header_error = 11;
     end
     (* async_reg = "true" *) reg host_error_meta, host_error_sync;
@@ -166,14 +174,16 @@ module nano_host_link (
     integer bank_index;
     always @(posedge clk or posedge reset) begin
         if (reset) begin
-            parser_state <= HEADER; header <= 0; header_offset <= 0; payload_received <= 0;
+            parser_state <= HEADER; header_word <= 0; header_bad <= 0;
+            header_opcode <= 0; header_length <= 0; header_offset <= 0; payload_received <= 0;
             last_sequence <= 0; staging_bank <= 2; queue_head <= 0; queue_tail <= 0; queue_count <= 0;
             queue_bank[0] <= 0; queue_bank[1] <= 0;
             for (bank_index = 0; bank_index < 3; bank_index = bank_index + 1) begin
                 bank_opcode[bank_index] <= 0; bank_sequence[bank_index] <= 0; bank_length[bank_index] <= 0;
             end
         end else if (core_flush) begin
-            parser_state <= HEADER; header <= 0; header_offset <= 0; payload_received <= 0;
+            parser_state <= HEADER; header_word <= 0; header_bad <= 0;
+            header_opcode <= 0; header_length <= 0; header_offset <= 0; payload_received <= 0;
             last_sequence <= 0; staging_bank <= 2; queue_head <= 0; queue_tail <= 0; queue_count <= 0;
         end else begin
             case ({publish, pop})
@@ -189,7 +199,23 @@ module nano_host_link (
             end else if (fault == 0) begin
                 case (parser_state)
                     HEADER: if (consume_rx) begin
-                        header[8*header_offset +: 8] <= rx_data;
+                        header_word <= header_word_next;
+                        if (header_offset == 0) header_bad <= 0;
+                        case (header_offset)
+                            3: header_bad[0] <= header_word_next != 32'h5550474e;
+                            7: begin
+                                header_bad[1] <= header_word_next[15:0] != 16'h0100;
+                                header_bad[2] <= header_word_next[31:16] == 0 ||
+                                    (|header_word_next[31:20]) || header_word_next[19:16] > 4'd8;
+                                header_opcode <= header_word_next[19:16];
+                            end
+                            11: begin
+                                header_bad[3] <= (|header_word_next[31:11]) ||
+                                    (header_word_next[10] && (|header_word_next[9:0]));
+                                header_length <= header_word_next[10:0];
+                            end
+                            default: begin end
+                        endcase
                         if (header_offset == 15) parser_state <= CHECK;
                         else header_offset <= header_offset + 1'b1;
                     end
@@ -210,17 +236,21 @@ module nano_host_link (
         end
     end
 
-    wire [15:0] packet_output [0:2];
-    reg [1:0] payload_bank;
+    wire [7:0] packet_output [0:1];
+    reg payload_bank;
     wire payload_read = payload_req && cmd_valid && !cmd_pop;
     genvar p;
-    generate for (p = 0; p < 3; p = p + 1) begin: packets
-        nano_sdp16 packet (
+    // Three logical 1-KiB leases fit in two native 2-KiB byte RAMs. Banks
+    // zero/one occupy disjoint halves of RAM zero; bank two uses RAM one.
+    // Lease ownership keeps simultaneous read/write addresses distinct.
+    generate for (p = 0; p < 2; p = p + 1) begin: packets
+        nano_sdp8 packet (
             .wclk(clk), .wce(1'b1),
-            .we(consume_rx && parser_state == PAYLOAD && staging_bank == p),
-            .waddr(payload_received[9:0]), .wdata({8'b0, rx_data}),
-            .rclk(clk), .rce(1'b1), .re(payload_read && queue_bank[queue_head] == p),
-            .raddr(payload_offset), .reset_output(core_flush), .rdata(packet_output[p])
+            .we(consume_rx && parser_state == PAYLOAD && staging_bank[1] == (p != 0)),
+            .waddr({(p == 0 ? staging_bank[0] : 1'b0),payload_received[9:0]}), .wdata(rx_data),
+            .rclk(clk), .rce(1'b1), .re(payload_read && queue_bank[queue_head][1] == (p != 0)),
+            .raddr({(p == 0 ? queue_bank[queue_head][0] : 1'b0),payload_offset}),
+            .reset_output(core_flush), .rdata(packet_output[p])
         );
     end endgenerate
     always @(posedge clk or posedge reset) begin
@@ -228,10 +258,10 @@ module nano_host_link (
         else if (core_flush) begin payload_valid <= 0; payload_bank <= 0; end
         else begin
             payload_valid <= payload_read;
-            if (payload_read) payload_bank <= queue_bank[queue_head];
+            if (payload_read) payload_bank <= queue_bank[queue_head][1];
         end
     end
-    assign payload_data = packet_output[payload_bank][7:0];
+    assign payload_data = packet_output[payload_bank];
 
     // A register-1 request captures one complete core-domain snapshot. A
     // synchronized request/acknowledge toggle keeps the 512-bit bundled bus
@@ -241,9 +271,10 @@ module nano_host_link (
     reg snapshot_ack;
     reg [511:0] snapshot_hold;
     (* async_reg = "true" *) reg snapshot_ack_meta, snapshot_ack_sync;
-    reg [511:0] latched_status;
     reg status_latched;
     reg [5:0] status_address;
+    wire [5:0] selected_status_address = status_pending ? status_address : host_reg_addr[5:0];
+    wire [7:0] selected_status_byte = snapshot_hold[8*selected_status_address +: 8];
     always @(posedge clk or posedge reset) begin
         if (reset) begin snapshot_req_meta <= 0; snapshot_req_sync <= 0; snapshot_ack <= 0; snapshot_hold <= 0; end
         else if (core_flush) begin snapshot_req_meta <= 0; snapshot_req_sync <= 0; snapshot_ack <= 0; snapshot_hold <= 0; end
@@ -260,7 +291,7 @@ module nano_host_link (
     always @(posedge host_clk or posedge reset) begin
         if (reset) begin
             snapshot_request <= 0; snapshot_ack_meta <= 0; snapshot_ack_sync <= 0;
-            latched_status <= 0; status_latched <= 0; status_pending <= 0; status_address <= 0;
+            status_latched <= 0; status_pending <= 0; status_address <= 0;
             host_rd_data <= 0; host_rd_valid <= 0;
         end else if (host_flush) begin
             snapshot_request <= 0; snapshot_ack_meta <= 0; snapshot_ack_sync <= 0;
@@ -270,8 +301,8 @@ module nano_host_link (
             host_rd_valid <= 0;
             if (status_pending) begin
                 if (snapshot_ack_sync == snapshot_request) begin
-                    latched_status <= snapshot_hold; status_latched <= 1; status_pending <= 0;
-                    host_rd_data <= snapshot_hold[8*status_address +: 8] |
+                    status_latched <= 1; status_pending <= 0;
+                    host_rd_data <= selected_status_byte |
                         (status_address == 1 ? ((!rx_write_ready ? 8'h40 : 8'h00) |
                             (tx_read_valid ? 8'h10 : 8'h00) | (host_error != 0 ? 8'h80 : 8'h00)) : 8'h00);
                     host_rd_valid <= 1;
@@ -286,7 +317,11 @@ module nano_host_link (
                     snapshot_request <= !snapshot_request; status_pending <= 1;
                     status_address <= host_reg_addr[5:0];
                 end else begin
-                    host_rd_data <= latched_status[8*host_reg_addr[5:0] +: 8]; host_rd_valid <= 1;
+                    // The acknowledged core bank stays unchanged until the
+                    // next snapshot request. status_pending blocks all reads
+                    // during that refresh, so no second wide host copy is
+                    // needed. Reset/recovery invalidates the old session.
+                    host_rd_data <= selected_status_byte; host_rd_valid <= 1;
                 end
             end
         end

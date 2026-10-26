@@ -93,7 +93,6 @@ module nano_sdram_service #(
     reg request_write;
     reg [22:0] request_address;
     reg [4:0] request_words, fill_index, processed;
-    reg [3:0] masks [0:15];
     reg [22:0] burst_base;
     reg [2:0] burst_prefix, burst_beat;
     reg [4:0] burst_useful;
@@ -124,12 +123,22 @@ module nano_sdram_service #(
     reg [9:0] ram_waddr, ram_raddr;
     reg [31:0] ram_wdata;
     wire [31:0] ram_rdata;
+    wire [15:0] mask_rdata;
     nano_sdp16 buffer_low (
         .wclk(clk), .wce(1'b1), .we(ram_we), .waddr(ram_waddr), .wdata(ram_wdata[15:0]),
         .rclk(clk), .rce(1'b1), .re(ram_re), .raddr(ram_raddr), .reset_output(reset), .rdata(ram_rdata[15:0]));
     nano_sdp16 buffer_high (
         .wclk(clk), .wce(1'b1), .we(ram_we), .waddr(ram_waddr), .wdata(ram_wdata[31:16]),
         .rclk(clk), .rce(1'b1), .re(ram_re), .raddr(ram_raddr), .reset_output(reset), .rdata(ram_rdata[31:16]));
+    // Byte masks follow the same synchronous address/enable as write data.
+    // Every accepted write fills all useful entries before CHOOSE reads them;
+    // no reset or combinational read of a mask register array is required.
+    nano_sdp16 buffer_masks (
+        .wclk(clk), .wce(1'b1),
+        .we(state == FILL && !refresh_due && w_valid[owner] && !reset),
+        .waddr({5'b0,fill_index}), .wdata({12'b0,w_strb[owner*4 +: 4]}),
+        .rclk(clk), .rce(1'b1), .re(ram_re && request_write),
+        .raddr(ram_raddr), .reset_output(reset), .rdata(mask_rdata));
 
     reg winner_valid;
     reg [OWNER_BITS-1:0] winner;
@@ -233,7 +242,7 @@ module nano_sdram_service #(
         end
         if (write_beat_active) begin
             sd_dq_oe = 1;
-            sd_dqm = useful_write ? ~masks[write_buffer_index[3:0]] : 4'hf;
+            sd_dqm = useful_write ? ~mask_rdata[3:0] : 4'hf;
             sd_dq_out = useful_write ? ram_rdata : 0;
         end
         if (reset || draining_reset_tail) begin
@@ -265,7 +274,6 @@ module nano_sdram_service #(
                 bank_row[bank] <= 0; rp_wait[bank] <= 0; rcd_wait[bank] <= 0;
                 ras_wait[bank] <= 0; rc_wait[bank] <= 0; wr_wait[bank] <= 0;
             end
-            for (integer k = 0; k < 16; k = k + 1) masks[k] <= 0;
         end else begin
             if (refresh_running && refresh_age < AGE_BITS'(REFRESH_INTERVAL + 1)) refresh_age <= refresh_age + 1'b1;
             if (turnaround != 0) turnaround <= turnaround - 1'b1;
@@ -322,7 +330,6 @@ module nano_sdram_service #(
                 FILL: begin
                     if (refresh_due) begin refresh_resume <= FILL; state <= REFRESH_WAIT; end
                     else if (w_valid[owner]) begin
-                        masks[fill_index[3:0]] <= w_strb[owner*4 +: 4];
                         if (fill_index + 1 == request_words) state <= CHOOSE;
                         else fill_index <= fill_index + 1'b1;
                     end

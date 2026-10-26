@@ -29,7 +29,7 @@ module nano_tile_fault_tb;
   cmd_word_we=0;cmd_valid=1;tick();cmd_valid=0;
  end endtask
  initial begin
-  for(c=0;c<12;c=c+1)begin
+  for(c=0;c<28;c=c+1)begin
    base();
    case(c)
    0:record[19]=1;
@@ -44,6 +44,22 @@ module nano_tile_fault_tb;
    9:begin triangle();record[26]=32'h00020000;end
    10:begin triangle();record[26]=1;record[28]=32'h7fffffff;end
    11:begin triangle();record[38]=32'hffffffff;record[39]=32'h7fffffff;record[40]=1;end
+   12:begin triangle();record[29]=2;end
+   13:begin triangle();record[33]=32'h80000000;end
+   14:begin triangle();record[37]=32'h00010000;end
+   15:begin triangle();record[10]=641;end
+   16:begin triangle();record[10]=32'h80000000;end
+   17:begin triangle();record[11]=481;end
+   18:begin triangle();record[11]=512;end
+   19:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[17]=32'h80000000;end
+   20:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[20]=32'h00010000;end
+   21:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[18]=480;end
+   22:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[21]=512;end
+   23:begin record[0]=32'h00050103;record[1]=32'h00040002;record[12]=32'h258000;record[13]=8;record[14]=8;record[15]=16;record[17]=32'h7fffffff;end
+   24:record[0]=32'h00050104;
+   25:record[1]=5;
+   26:record[1]=32'h00000300;
+   27:record[1]=32'h00008000;
    endcase
    launch();steps=0;while(!fault&&!done&&steps<10000)begin tick();steps=steps+1;end
    if(!fault)$fatal(1,"malformed/numeric case %0d failed to fault",c);
@@ -53,6 +69,6 @@ module nano_tile_fault_tb;
    reset=1;tick();reset=0;tick();pix_re=1;pix_raddr=0;tick();pix_re=0;
    if(!pix_rvalid||pix_rcolor!==16'hbeef||pix_rdepth!==24'h654321)$fatal(1,"fault case%0d modified attachment",c);
   end
-  $display("PASS 12 malformed/numeric records, fault write suppression and reset retention");$finish;
+  $display("PASS 28 malformed/numeric records, fault write suppression and reset retention");$finish;
  end
 endmodule

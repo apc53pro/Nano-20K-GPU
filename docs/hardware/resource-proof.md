@@ -1,4 +1,30 @@
-# Full-GPU resource and fit proof
+# Historical full-GPU resource and fit plan
+
+**Historical pre-integration analysis.** The body below records the earlier
+C++ model's resource plan and the implementation gaps at that time. Complete
+functional GPU RTL now exists, so statements below about missing GPU RTL and
+39-bank/46-multiplier selections are not the current implementation status.
+
+Use [GPU_ARCHITECTURE.md](../../GPU_DOCUMENTATION/GPU_ARCHITECTURE.md) and
+[GPU_CONTROL.md](../../GPU_DOCUMENTATION/GPU_CONTROL.md) for the current
+architecture and command contract. The current source-matched logical-core
+resource evidence is [rtl-core-pack.json](rtl-core-pack.json), with the separate
+physical probe in [rtl-core-pnr.json](rtl-core-pnr.json), explained in
+[the integrated RTL guide](rtl-gpu.md#physical-resource-result). The complete
+logical-core serial probe now legally places and routes using 20,351 of 20,736
+physical LUT sites, 46 RAM banks and 25 DSP equivalents. Its 48.26 MHz core
+maximum **fails the 100.8 MHz target**; the host domain passes 25.2 MHz.
+This is physical fit for the probe, not production-board or clock qualification.
+The current
+[resource-status snapshot](resource-status.json) recognizes the functional RTL;
+the remaining production gaps are clock/reset/CDC and the board top/pins. Its
+39-bank/46-DSP selection is the older C++ model budget, distinct from the
+current RTL's 46-bank/25-DSP mapping. Packing includes a necessary flip-flop
+input LUT allowance; that lower bound does not establish legal physical fit.
+Packing, complete board integration, placement/routing and timing are separate claims;
+an older partial probe or software resource subtotal does not establish them.
+
+## Original pre-integration status
 
 The complete GPU currently has **no exact mapped resource count or full-device
 fit proof**. The native selections are 39 BSRAM blocks and 46 signed 18x18

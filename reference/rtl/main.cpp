@@ -11,6 +11,7 @@
 #include <functional>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -322,6 +323,12 @@ void self_test(Simulation& simulation) {
     Renderer oracle;
     Pass pass; pass.clear_color = 0x18e3;
     pass.primitives.push_back(Rect{{3, 5, 31, 25}, overlay_state({241, 63, 27}), 0});
+    // Give clipped/overlapping copies distinguishable source pixels, including
+    // the far edges and the first two columns used by extreme-origin cases.
+    pass.primitives.push_back(Rect{{0, 0, 1, 480}, overlay_state({17, 221, 83}), 0});
+    pass.primitives.push_back(Rect{{1, 0, 2, 480}, overlay_state({73, 29, 243}), 0});
+    pass.primitives.push_back(Rect{{637, 0, 640, 480}, overlay_state({231, 173, 19}), 0});
+    pass.primitives.push_back(Rect{{0, 477, 640, 480}, overlay_state({29, 137, 241}), 0});
     auto program = hw::compile_pass(pass, sequence); sequence = program.next_sequence;
     simulation.render(program); oracle.render(pass, RenderMode::Monolithic); simulation.compare(oracle);
     hw::CopyCommand copy; copy.source = 1; copy.target = 1;
@@ -344,6 +351,80 @@ void self_test(Simulation& simulation) {
     oracle.copy_image(image, 1, copy.source_origin, copy.destination_origin, copy.width, copy.height, RenderMode::Monolithic);
     simulation.compare(oracle);
 
+    const auto check_copy = [&](const char* name, const hw::CopyCommand& command) {
+        try {
+            simulation.send(hw::encode_packet(hw::Opcode::CopyRect, sequence++, hw::encode_copy_command(command)));
+            (void)simulation.command(hw::Opcode::Fence, sequence++, token);
+            if (command.image_source)
+                oracle.copy_image(image, command.target, command.source_origin, command.destination_origin,
+                                  command.width, command.height, RenderMode::Monolithic);
+            else
+                oracle.copy_rect(command.source, command.target, command.source_origin, command.destination_origin,
+                                 command.width, command.height, RenderMode::Monolithic);
+            // Compare both complete color buffers and every depth word, so a
+            // clipped/no-op copy must also preserve all untouched attachments.
+            simulation.compare(oracle);
+        } catch (const std::exception& error) {
+            throw std::runtime_error(std::string("RTL COPY case ") + name + ": " + error.what());
+        }
+    };
+    struct CopyCase {
+        const char* name;
+        Point source, destination;
+        int width, height;
+    };
+    const auto int_min = std::numeric_limits<std::int32_t>::min();
+    const auto int_max = std::numeric_limits<std::int32_t>::max();
+    const std::vector<CopyCase> framebuffer_copies{
+        {"horizontal right overlap", {3, 5}, {9, 5}, 28, 20},
+        {"horizontal left overlap", {9, 5}, {3, 5}, 28, 20},
+        {"upward overlap", {9, 8}, {3, 2}, 28, 20},
+        {"negative source X", {-2, 4}, {21, 31}, 8, 6},
+        {"negative source Y", {4, -2}, {31, 21}, 8, 6},
+        {"source right edge", {637, 6}, {39, 41}, 7, 3},
+        {"source bottom edge", {5, 477}, {50, 45}, 3, 7},
+        {"negative destination X", {3, 5}, {-2, 9}, 8, 4},
+        {"negative destination Y", {3, 5}, {9, -2}, 8, 4},
+        {"destination right/bottom edge", {3, 5}, {637, 477}, 10, 9},
+        {"INT32_MIN source X", {int_min, 0}, {0, 0}, int_max, 1},
+        {"INT32_MIN source Y", {0, int_min}, {0, 0}, 1, int_max},
+        {"INT32_MAX source X", {int_max, 0}, {0, 0}, int_max, 1},
+        {"INT32_MAX source Y", {0, int_max}, {0, 0}, 1, int_max},
+        {"INT32_MIN destination X", {0, 0}, {int_min, 0}, int_max, 1},
+        {"INT32_MIN destination Y", {0, 0}, {0, int_min}, 1, int_max},
+        {"INT32_MAX destination X", {0, 0}, {int_max, 0}, int_max, 1},
+        {"INT32_MAX destination Y", {0, 0}, {0, int_max}, 1, int_max},
+        {"extreme X offsets with one visible pixel", {-int_max + 2, 5}, {-int_max + 1, 5}, int_max, 2},
+        {"extreme Y offsets with visible pixels", {3, -int_max + 3}, {10, -int_max + 2}, 2, int_max},
+        {"INT32_MAX extents clipped to two pixels", {637, 477}, {638, 478}, int_max, int_max},
+        {"zero width with extreme origins", {int_min, int_max}, {int_max, int_min}, 0, int_max},
+        {"zero height with extreme origins", {int_max, int_min}, {int_min, int_max}, int_max, 0},
+    };
+    copy = {}; copy.source = 1; copy.target = 1;
+    for (const auto& item : framebuffer_copies) {
+        copy.source_origin = item.source; copy.destination_origin = item.destination;
+        copy.width = item.width; copy.height = item.height;
+        check_copy(item.name, copy);
+    }
+    // Reading the displayed front is legal; only the back may be written.
+    copy.source = 0; copy.source_origin = {0, 0}; copy.destination_origin = {101, 103};
+    copy.width = 5; copy.height = 3; check_copy("front-to-back source", copy);
+    const std::vector<CopyCase> image_copies{
+        {"pitched image clipped source", {-2, -1}, {40, 60}, 10, 9},
+        {"pitched image clipped destination", {0, 0}, {-3, -2}, 7, 5},
+        {"pitched image all upper edges", {5, 3}, {639, 479}, 7, 5},
+        {"pitched image huge extents", {6, 4}, {60, 70}, int_max, int_max},
+        {"pitched image extreme visible X", {-int_max + 2, 2}, {-int_max + 1, 7}, int_max, 2},
+    };
+    copy.image_source = true; copy.source = 0; copy.image = {heap, 7, 5, 20};
+    for (const auto& item : image_copies) {
+        copy.source_origin = item.source; copy.destination_origin = item.destination;
+        copy.width = item.width; copy.height = item.height;
+        check_copy(item.name, copy);
+    }
+    std::cout << framebuffer_copies.size() + image_copies.size() + 1
+              << " additional COPY clipping/extreme/overlap oracle cases passed\n";
+
     pass.color_load = LoadOp::Load; pass.depth_load = LoadOp::Load; pass.primitives.clear();
     pass.primitives.push_back(Line{{0, 0}, {639, 479}, overlay_state({17, 191, 97}), 0});
     program = hw::compile_pass(pass, sequence); sequence = program.next_sequence;
@@ -362,6 +443,19 @@ void self_test(Simulation& simulation) {
     }
     std::vector<std::uint8_t> burst(1016);
     for (unsigned i = 0; i < burst.size(); ++i) burst[i] = static_cast<std::uint8_t>(i * 29 + 7);
+    // Maximum upload size, an unaligned three-byte prefix and the final SDRAM
+    // byte all meet in one case. Guard bytes must survive native burst masks.
+    const std::uint32_t end_upload = hw::memory_bytes - 1017;
+    upload(end_upload - 3, {0xa1, 0xb2, 0xc3});
+    upload(hw::memory_bytes - 1, {0xe7});
+    upload(end_upload, burst);
+    require(readback(end_upload, 512) == std::vector<std::uint8_t>(burst.begin(), burst.begin() + 512),
+            "maximum unaligned heap upload first 512 bytes");
+    require(readback(end_upload + 504, 512) == std::vector<std::uint8_t>(burst.begin() + 504, burst.end()),
+            "maximum unaligned READ_MEMORY at heap end");
+    require(readback(end_upload - 3, 3) == std::vector<std::uint8_t>({0xa1, 0xb2, 0xc3}) &&
+            readback(hw::memory_bytes - 1, 1) == std::vector<std::uint8_t>({0xe7}),
+            "maximum upload preserves prefix and final SDRAM byte guards");
     const auto before_stress_frames = simulation.checked_scanout_frames;
     for (unsigned i = 0; i < 520; ++i) upload(heap + i * 1016, burst);
     (void)simulation.command(hw::Opcode::Fence, sequence++, token);
@@ -422,6 +516,84 @@ void self_test(Simulation& simulation) {
         require(static_cast<std::uint16_t>(word >> (16 * (index & 1u))) == oracle.front_color()[index],
                 "active abort preserves every front-buffer pixel");
     }
+    // Bypass the producer's own validation to prove negative extents are
+    // rejected by RTL before any SDRAM write, and can recover over host pins.
+    for (unsigned extent_offset : {28u, 32u}) {
+        hw::CopyCommand invalid_copy; invalid_copy.source = 1; invalid_copy.target = 0;
+        invalid_copy.width = 1; invalid_copy.height = 1;
+        auto payload = hw::encode_copy_command(invalid_copy);
+        hw::write_u32(payload, extent_offset, 0xffffffffu);
+        const auto before_bad_copy_writes = simulation.memory.statistics().write_commands;
+        observed_fault = false;
+        try {
+            simulation.send(hw::encode_packet(hw::Opcode::CopyRect, 2, payload));
+            for (unsigned edge = 0; edge < 10000; ++edge) simulation.tick();
+        } catch (const std::runtime_error&) {
+            if (!simulation.dut.fault) throw;
+            observed_fault = true;
+        }
+        require(observed_fault && simulation.dut.fault_code == 4, "negative COPY extent faults in RTL");
+        require(simulation.memory.statistics().write_commands == before_bad_copy_writes,
+                "negative COPY extent cannot write SDRAM");
+        simulation.recover();
+    }
+    // Submit raw descriptor mutations so the CPU encoder cannot hide a
+    // streaming validator defect. Failed descriptors must never start a tile
+    // store, even when an invalid field would become legal after truncation.
+    struct DescriptorFaultCase {
+        const char* name;
+        unsigned offset;
+        std::uint32_t value, fault;
+        bool invalid_load = false;
+    };
+    const std::vector<DescriptorFaultCase> descriptor_faults{
+        {"magic", 0, 0x3153504f, 6},
+        {"magic before LOAD", 0, 0x3153504f, 6, true},
+        {"target high bit", 4, 2, 6},
+        {"target high bit before LOAD", 4, 2, 6, true},
+        {"front target", 4, 1, 6},
+        {"load flag reserved bit", 8, 4, 6},
+        {"RGB565 upper bit", 12, 0x10000, 6},
+        {"D24 upper bit", 16, 0x1000000, 6},
+        {"unaligned table", 20, heap + 65, 6},
+        {"table below heap", 20, heap - 4, 6},
+        {"table end outside SDRAM", 20, hw::memory_bytes - 2396, 6},
+        {"table high address bit", 20, hw::memory_bytes + heap, 6},
+        {"tile count", 24, 299, 6},
+        {"reserved word", 28, 1, 6},
+        {"invalid color/depth LOAD", 8, 0, 5},
+        {"invalid depth LOAD", 8, 1, 5},
+        {"invalid color LOAD", 8, 2, 5},
+    };
+    for (const auto& item : descriptor_faults) {
+        sequence = 1; // Each preceding soft recovery starts a fresh stream.
+        std::vector<std::uint8_t> descriptor(32, 0), payload(4);
+        hw::write_u32(descriptor, 0, 0x3153504e);
+        hw::write_u32(descriptor, 8, item.invalid_load ? 0 : 3); // target 0; normal case clears both
+        hw::write_u32(descriptor, 16, 0xffffff);
+        hw::write_u32(descriptor, 20, heap + 64);
+        hw::write_u32(descriptor, 24, 300);
+        hw::write_u32(descriptor, item.offset, item.value);
+        upload(heap, descriptor);
+        (void)simulation.command(hw::Opcode::Fence, sequence++, token);
+        hw::write_u32(payload, 0, heap);
+        const auto before_bad_descriptor_writes = simulation.memory.statistics().write_commands;
+        observed_fault = false;
+        try {
+            simulation.send(hw::encode_packet(hw::Opcode::SubmitPass, sequence++, payload));
+            for (unsigned edge = 0; edge < 10000; ++edge) simulation.tick();
+        } catch (const std::runtime_error&) {
+            if (!simulation.dut.fault) throw;
+            observed_fault = true;
+        }
+        if (!observed_fault || simulation.dut.fault_code != item.fault)
+            throw std::runtime_error(std::string("RTL descriptor fault case ") + item.name +
+                                     " expected category " + std::to_string(item.fault));
+        require(simulation.memory.statistics().write_commands == before_bad_descriptor_writes,
+                "invalid descriptor cannot write SDRAM attachments");
+        simulation.recover();
+    }
+    std::cout << descriptor_faults.size() << " raw descriptor/LOAD fault cases passed\n";
     std::cout << "RTL command/copy/LOAD/scanout/recovery self-test passed\n";
 }
 

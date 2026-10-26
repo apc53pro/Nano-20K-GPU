@@ -65,6 +65,9 @@ def main():
     inputs = [ROOT / name for name in (
         "rtl/uv_mult.v", "rtl/uv_pipeline.v", "rtl/uv_probe.v", "rtl/uv_probe.cst",
         "rtl/tests/uv_pipeline_tb.v", "rtl/tests/generate_uv_vectors.cpp",
+        "rtl/tests/native_mult_modes_tb.sv",
+        "rtl/tests/uv_texture_tb.sv", "rtl/tests/generate_texture_vectors.cpp",
+        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv",
         "reference/tests/uv_oracle.hpp", "reference/src/hw_reciprocal.cpp",
         "reference/include/nano_gpu/hw/reciprocal.hpp",
         "reference/include/nano_gpu/hw/reciprocal_seed.hpp",
@@ -84,18 +87,43 @@ def main():
         list(map(str, sources)) + [str(ROOT / "rtl/tests/uv_pipeline_tb.v")], build / "uv-compile.log")
     print(run(tool("vvp") + [str(build / "uv.vvp"), f"+vectors={build / 'uv-vectors.txt'}"],
               build / "uv-simulation.log").strip())
+    run(tool("iverilog") + ["-g2012", "-s", "native_mult_modes_tb", "-o",
+        str(build / "native-mult-modes.vvp"), str(ROOT / "rtl/uv_mult.v"),
+        str(ROOT / "rtl/tests/native_mult_modes_tb.sv")], build / "native-mult-modes-compile.log")
+    multiplier_output = run(tool("vvp") + [str(build / "native-mult-modes.vvp")],
+                            build / "native-mult-modes.log")
+    if "PASS native multiplier: all four sign modes" not in multiplier_output:
+        raise RuntimeError("native multiplier modes did not pass their complete checks")
+    print(multiplier_output.strip())
+    texture_generator = build / ("generate-texture-vectors.exe" if os.name == "nt" else "generate-texture-vectors")
+    run(compiler + ["-std=c++17", "-O2", str(ROOT / "rtl/tests/generate_texture_vectors.cpp"),
+        "-o", str(texture_generator)])
+    print(run([str(texture_generator), str(build / "uv-vectors.txt"),
+        str(build / "texture-vectors.txt")]).strip())
+    texture_sources = sources + [ROOT / "rtl/gpu/nano_sdp32.sv", ROOT / "rtl/gpu/nano_sdp36.sv"]
+    run(tool("iverilog") + ["-g2012", "-s", "uv_texture_tb", "-o", str(build / "texture.vvp")] +
+        list(map(str, texture_sources)) + [str(ROOT / "rtl/tests/uv_texture_tb.sv")],
+        build / "texture-compile.log")
+    print(run(tool("vvp") + [str(build / "texture.vvp"),
+        f"+vectors={build / 'texture-vectors.txt'}"], build / "texture-simulation.log").strip())
     report = {"schema": "N20K-UV-RTL-0.1", "device": "GW2AR-LV18QN88C8/I7",
               "scope": "shared reciprocal/UV core in serial qualification harness",
               "family": "GW2A-18C", "enabled_edge_latency": 26, "initiation_interval": 1,
               "simulation_passed": True, "whole_gpu_validated": False,
               "target_mhz": 100.8, "synthesized": False, "routed": False,
-              "modeled_mult18_equivalents": 40, "modeled_seed_bsram_blocks": 4,
+              "selected_uv_limb_bits": 18,
+              "selected_native_multiplier_modes": ["unsigned_unsigned", "unsigned_signed"],
+              "native_multiplier_modes_test_passed": True,
+              "texture_coordinate_tests": {"passed": True, "enabled_edge_latency": 18,
+                  "initiation_interval": 1, "exact_high16_and_overflow_of_full_q16": True,
+                  "retention_bsram_blocks": 8},
+              "modeled_seed_bsram_blocks": 4,
               "probe_stimulus_bits": 198, "probe_checksum_bits": 32,
               "toolchain_release": "2026-10-24" if SUITE.is_dir() else "user-selected PATH",
               "source_sha256": source_hashes,
               "generated_sha256": {
                   path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                  for path in (build / "seed_rom.v", build / "uv-vectors.txt")}}
+                  for path in (build / "seed_rom.v", build / "uv-vectors.txt", build / "texture-vectors.txt")}}
     if args.synth or args.pnr:
         print("Synthesizing the arithmetic qualification harness...", flush=True)
         files = " ".join(json.dumps(str(path)) for path in sources + [ROOT / "rtl/uv_probe.v"])

@@ -31,6 +31,45 @@ def run(command, logfile, extra_env=None):
                               stderr=subprocess.STDOUT).returncode
 
 
+def physical_lut_lower_bound(cells, capacity=20736):
+    """Include FF input LUTs omitted by the Gowin pack-only inventory.
+
+    In the selected nextpnr Gowin architecture a colocated FF must consume
+    that LUT's F or ALU's SUM. Other FFs need a free LUT, populated with a
+    passthrough after placement. Ignore control-set/cluster restrictions here:
+    this is an optimistic lower bound, never a placement or routing proof.
+    See nextpnr 22c5adf4, gowin.cc slice_valid/create_passthrough_luts.
+    """
+    drivers = {}
+    for name, cell in cells.items():
+        for port, direction in cell.get("port_directions", {}).items():
+            if direction == "output":
+                for bit in cell["connections"][port]:
+                    drivers[bit] = (name, cell["type"], port)
+    ff_inputs = Counter()
+    for cell in cells.values():
+        if cell["type"].startswith("DFF"):
+            ff_inputs[cell["connections"]["D"][0]] += 1
+    pairable = 0
+    for bit in ff_inputs:
+        _, kind, port = drivers.get(bit, (None, None, None))
+        if ((kind in ("LUT1", "LUT2", "LUT3", "LUT4") and port == "F") or
+                (kind == "ALU" and port == "SUM")):
+            pairable += 1
+    active_ff = sum(ff_inputs.values())
+    feed_luts = active_ff - pairable
+    occupied = sum(cell["type"] in ("LUT1", "LUT2", "LUT3", "LUT4", "BLOCKER_LUT")
+                   for cell in cells.values())
+    return {"scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
+            "active_flipflops": active_ff,
+            "maximum_existing_lut_alu_pairs": pairable,
+            "minimum_additional_ff_input_luts": feed_luts,
+            "packed_lut_sites": occupied,
+            "minimum_physical_lut_sites": occupied + feed_luts,
+            "available_lut_sites": capacity,
+            "within_capacity": occupied + feed_luts <= capacity}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=ROOT / "build/rtl-core-pack")
@@ -60,6 +99,7 @@ def main():
         "whole_gpu_fit_qualified": False, "board_pinout_qualified": False,
         "production_pll_tmds_integrated": False, "routed": False,
         "timing_qualified": False, "synthesized": False, "packed": False,
+        "synthesis_options": ["-nowidelut"],
         "probe_input_shift_bits": 50, "probe_output_snapshot_bits": 116,
         "probe_checksum_bits": 32, "probe_maximum_register_overhead": 198,
         "source_sha256": hashes,
@@ -73,7 +113,9 @@ def main():
     if elaboration_status:
         raise RuntimeError("probe elaboration failed; see " + str(build / "probe-elaboration.log"))
     files = " ".join(json.dumps(str(path)) for path in sources)
-    script = "read_verilog -sv -D SYNTHESIS {}; synth_gowin -family gw2a -top nano_gpu_probe -json {}; stat".format(
+    # LUT4-only mapping avoids wide-MUX placement clusters and permits more
+    # register inputs to share the LUT computing their data on this device.
+    script = "read_verilog -sv -D SYNTHESIS {}; synth_gowin -family gw2a -top nano_gpu_probe -json {} -nowidelut; stat".format(
         files, json.dumps(str(netlist)))
     print("Synthesizing the complete logical GPU serial probe...", flush=True)
     synth_log = build / "synthesis.log"
@@ -116,6 +158,8 @@ def main():
             packed_counts = Counter(cell["type"] for cell in top["cells"].values())
             report["packed_cells"] = dict(sorted(packed_counts.items()))
             report["packed_netlist_sha256"] = hashlib.sha256(packed_path.read_bytes()).hexdigest()
+            report["physical_lut_lower_bound"] = physical_lut_lower_bound(top["cells"])
+            print(json.dumps({"physical_lut_lower_bound": report["physical_lut_lower_bound"]}, indent=2), flush=True)
         report["reported_resources_within_capacity"] = bool(utilization) and all(
             item["within_capacity"] for item in utilization.values())
         report["capacity_rejected_resources"] = [
@@ -141,7 +185,8 @@ def main():
     print("Versioned resource result: " + str(args.report.resolve()))
     if not report["packed"]:
         return 1
-    if not report.get("reported_resources_within_capacity", False):
+    if (not report.get("reported_resources_within_capacity", False) or
+            not report.get("physical_lut_lower_bound", {}).get("within_capacity", False)):
         return 2
     return 0
 

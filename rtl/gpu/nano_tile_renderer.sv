@@ -29,47 +29,118 @@ module nano_tile_renderer (
 );
     localparam [4:0] IDLE=0, START=1, CONFIG=2, EDGE_LAUNCH=3,
         EDGE_WAIT=4, EDGE_CAPTURE=5, OFFSET_Y=6, OFFSET_X=7, RASTER=8,
-        DRAIN=17, FAILED=18;
+        SEED_CAPTURE=9, DRAIN=17, FAILED=18;
     reg [4:0] state;
-    reg [31:0] words [0:79];
+    // Header/edge words remain direct registers. The seven seed/dx/dy
+    // triplets use 14 native 512x32 banks instead of 1344 coefficient FFs.
+    // Per-word nonzero flags preserve reserved-field checks and permit command
+    // words to be loaded in arbitrary order, including rewrites to zero.
+    // Retain only semantically live payload bits. Malformed high/reserved
+    // bits become a per-word sentinel, preserving exact validation without
+    // spending one fabric FF (and its physical feed LUT) per discarded bit.
+    wire [31:0] words [0:37];
+    reg [41:0] coefficient_nonzero;
+    wire signed [63:0] coefficient_data [0:6];
     reg [9:0] origin_x;
     reg [8:0] origin_y;
-    reg [1:0] kind;
-    reg [2:0] shade;
-    reg [1:0] depth_func;
-    reg color_write, depth_test, depth_write, key_enable, need_texture;
-    reg [15:0] key_color;
-    reg [23:0] constant_color, constant_depth;
-    reg signed [31:0] x, y, x0, y0, x1, y1;
-    reg signed [31:0] offset_x, offset_y;
-    reg signed [31:0] source_x, source_y, source_start_x;
-    reg signed [31:0] line_end_x, line_end_y;
+    // Header words are immutable while a draw is active. DRAIN waits for
+    // every pending fragment before IDLE accepts another word, so these live
+    // fields need no duplicate fabric FF bank or physical passthrough LUTs.
+    wire [1:0] kind=words[0][1:0];
+    wire [2:0] shade=words[1][2:0];
+    wire [1:0] depth_func=words[1][9:8];
+    wire color_write=words[0][16],depth_test=words[0][17];
+    wire depth_write=words[0][18],key_enable=words[0][19];
+    wire need_texture=(words[0][7:0]==3||(words[0][7:0]==0&&(|words[1][7:1])))&&
+        (words[0][16]||words[0][19]);
+    wire [15:0] key_color=words[3][15:0];
+    wire [23:0] constant_color=words[2][23:0],constant_depth=words[16][23:0];
+    // Raw fields keep their full-width checks below. Retain raster positions
+    // only after viewport intersection; valid nonempty windows are bounded.
+    reg signed [10:0] x, x0, x1, line_end_x;
+    reg signed [9:0] y, y0, y1, line_end_y;
+    reg signed [10:0] offset_x;
+    reg signed [9:0] offset_y;
+    reg signed [11:0] source_x, source_y, source_start_x;
     reg signed [15:0] line_dx, line_dy, line_sx, line_sy, line_error;
     reg signed [31:0] edge_row [0:2], edge_current [0:2];
     reg signed [63:0] plane_row [0:6], plane_current [0:6];
-    reg [6:0] plane_enable;
+    wire [6:0] plane_enable={
+        {3{words[0][7:0]==0&&(|words[1][7:1])&&(words[0][16]||words[0][19])}},
+        {3{words[0][16]&&(words[1][7:0]==1||words[1][7:0]==4)}},
+        (words[0][17]||words[0][18])};
     reg [2:0] edge_term;
     reg [1:0] wait_count;
     reg signed [35:0] edge_a_product;
 
-    function automatic signed [31:0] maximum;
-        input signed [31:0] a,b;
-        begin maximum=(a>b)?a:b; end
+    // Explicit bit predicates avoid carry chains for constant viewport and
+    // small-enum validation. Keep all high raw bits in these checks: a field
+    // must never become valid merely because the retained datapath is narrow.
+    function automatic beyond_x;
+        input [31:0] a;
+        begin beyond_x=(|a[31:10])||(a[9]&&(a[8]||(a[7]&&(|a[6:0])))); end
     endfunction
-    function automatic signed [31:0] minimum;
-        input signed [31:0] a,b;
-        begin minimum=(a<b)?a:b; end
+    function automatic beyond_y;
+        input [31:0] a;
+        begin beyond_y=(|a[31:9])||((&a[8:5])&&(|a[4:0])); end
     endfunction
-    function automatic [23:0] quantize;
-        input signed [63:0] value;
-        input [23:0] limit;
-        reg [48:0] rounded;
+    function automatic outside_x;
+        input [31:0] a;
+        begin outside_x=(|a[31:10])||(a[9]&&(a[8]||a[7])); end
+    endfunction
+    function automatic outside_y;
+        input [31:0] a;
+        begin outside_y=(|a[31:9])||(&a[8:5]); end
+    endfunction
+    // Clamping all interval endpoints into the viewport preserves every
+    // nonempty intersection. Out-of-range lower/upper endpoints still produce
+    // an empty interval. It avoids building chains of 32-bit comparators for
+    // geometry that can only select one of 641/481 screen boundary positions.
+    function automatic signed [10:0] clip_x;
+        input signed [31:0] a;
         begin
-            rounded={1'b0,value[63:16]} +
-                ((value[15:0]>16'h8000)||((value[15:0]==16'h8000)&&value[16]));
-            if(value<=0) quantize=0;
-            else if(rounded>{25'b0,limit}) quantize=limit;
-            else quantize=rounded[23:0];
+            if(a[31]) clip_x=0;
+            else if(beyond_x(a)) clip_x=11'sd640;
+            else clip_x=$signed({1'b0,a[9:0]});
+        end
+    endfunction
+    function automatic signed [9:0] clip_y;
+        input signed [31:0] a;
+        begin
+            if(a[31]) clip_y=0;
+            else if(beyond_y(a)) clip_y=10'sd480;
+            else clip_y=$signed({1'b0,a[8:0]});
+        end
+    endfunction
+    function automatic signed [10:0] maximum_x;
+        input signed [10:0] a,b;
+        begin maximum_x=(a>b)?a:b; end
+    endfunction
+    function automatic signed [10:0] minimum_x;
+        input signed [10:0] a,b;
+        begin minimum_x=(a<b)?a:b; end
+    endfunction
+    function automatic signed [9:0] maximum_y;
+        input signed [9:0] a,b;
+        begin maximum_y=(a>b)?a:b; end
+    endfunction
+    function automatic signed [9:0] minimum_y;
+        input signed [9:0] a,b;
+        begin minimum_y=(a<b)?a:b; end
+    endfunction
+    // Saturate before narrowing. The old generic quantizer built a 49-bit
+    // rounded integer and comparison even though only D24 or RGB8 can escape.
+    // Negative fixed-point values clamp to zero; nonnegative upper bits or a
+    // rounded carry saturate. Guard/sticky/LSB implements exact ties-to-even.
+    function automatic [23:0] quantize_depth;
+        input signed [63:0] value;
+        reg [24:0] rounded;
+        begin
+            rounded={1'b0,value[39:16]}+
+                (value[15]&&((|value[14:0])||value[16]));
+            if(value[63]) quantize_depth=0;
+            else if((|value[62:40])||rounded[24]) quantize_depth=24'hffffff;
+            else quantize_depth=rounded[23:0];
         end
     endfunction
     function automatic [15:0] pack_color;
@@ -78,18 +149,14 @@ module nano_tile_renderer (
     endfunction
     function automatic [7:0] quantize_color;
         input signed [63:0] value;
-        reg [23:0] full_value;
-        begin full_value=quantize(value,24'd255);quantize_color=full_value[7:0];end
-    endfunction
-    function automatic add_overflow;
-        input signed [63:0] a,b;
-        reg signed [63:0] sum;
-        begin sum=a+b;add_overflow=(a[63]==b[63])&&(sum[63]!=a[63]);end
-    endfunction
-    function automatic edge_overflow;
-        input signed [31:0] a,b;
-        reg signed [31:0] sum;
-        begin sum=a+b;edge_overflow=(a[31]==b[31])&&(sum[31]!=a[31]);end
+        reg [8:0] rounded;
+        begin
+            rounded={1'b0,value[23:16]}+
+                (value[15]&&((|value[14:0])||value[16]));
+            if(value[63]) quantize_color=0;
+            else if((|value[62:24])||rounded[8]) quantize_color=8'hff;
+            else quantize_color=rounded[7:0];
+        end
     endfunction
     function automatic depth_pass;
         input [23:0] incoming,stored;
@@ -101,52 +168,109 @@ module nano_tile_renderer (
             endcase
         end
     endfunction
-    function automatic signed [63:0] step_x;
-        input integer index;
-        begin step_x=$signed({words[41+6*index],words[40+6*index]}); end
-    endfunction
-    function automatic signed [63:0] step_y;
-        input integer index;
-        begin step_y=$signed({words[43+6*index],words[42+6*index]}); end
-    endfunction
-    function automatic signed [63:0] seed;
-        input integer index;
-        begin seed=$signed({words[39+6*index],words[38+6*index]}); end
-    endfunction
-    function automatic signed [31:0] edge_a;
-        input integer index;
-        begin edge_a=$signed(words[26+4*index]); end
-    endfunction
-    function automatic signed [31:0] edge_b;
-        input integer index;
-        begin edge_b=$signed(words[27+4*index]); end
-    endfunction
+    // Each bank has its own write enable; no write order is assumed and a
+    // rewrite recomputes its sentinel, including clearing an old error/NZ bit.
+    generate for(genvar w=0;w<38;w=w+1) begin:header_words
+        wire write_word=!reset&&cmd_word_we&&(state==IDLE)&&(cmd_word_index==w);
+        if(w==0) begin:h0
+            reg [6:0] value;
+            always @(posedge clk) if(write_word) value<={
+                (cmd_word_data[15:8]!=1)||(|cmd_word_data[7:2])||(|cmd_word_data[31:20]),
+                cmd_word_data[19:16],cmd_word_data[1:0]};
+            assign words[w]={11'd0,value[6],value[5:2],8'h01,6'd0,value[1:0]};
+        end else if(w==1) begin:h1
+            reg [8:0] value;
+            always @(posedge clk) if(write_word) value<={
+                (|cmd_word_data[31:19])||(|cmd_word_data[15:10])||(&cmd_word_data[9:8])||
+                (|cmd_word_data[7:3])||(cmd_word_data[2]&&(|cmd_word_data[1:0])),
+                cmd_word_data[18:16],cmd_word_data[9:8],cmd_word_data[2:0]};
+            assign words[w]={12'd0,value[8],value[7:5],6'd0,value[4:3],5'd0,value[2:0]};
+        end else if(w==2||w==16) begin:color_depth
+            reg [24:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:24],cmd_word_data[23:0]};
+            assign words[w]={7'd0,value};
+        end else if(w==3) begin:key
+            reg [16:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:16],cmd_word_data[15:0]};
+            assign words[w]={15'd0,value};
+        end else if(w==4||w==6) begin:scissor_x
+            reg [10:0] value;
+            always @(posedge clk) if(write_word) value<=clip_x($signed(cmd_word_data));
+            assign words[w]={21'd0,value};
+        end else if(w==5||w==7) begin:scissor_y
+            reg [9:0] value;
+            always @(posedge clk) if(write_word) value<=clip_y($signed(cmd_word_data));
+            assign words[w]={22'd0,value};
+        end else if(w==12||w==15) begin:texture_address
+            reg [23:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:23],cmd_word_data[22:0]};
+            assign words[w]={8'd0,value};
+        end else if(w==13||w==14) begin:texture_size
+            reg [11:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:11],cmd_word_data[10:0]};
+            assign words[w]={20'd0,value};
+        end else if(w==17||w==18) begin:source_a
+            reg [12:0] value;
+            always @(posedge clk) if(write_word) value<={cmd_word_data[31],|cmd_word_data[30:11],cmd_word_data[10:0]};
+            assign words[w]={value[12],19'd0,value[11:0]};
+        end else if(w==20) begin:line_b_x
+            reg [10:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:10],cmd_word_data[9:0]};
+            assign words[w]={21'd0,value};
+        end else if(w==21) begin:line_b_y
+            reg [9:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:9],cmd_word_data[8:0]};
+            assign words[w]={22'd0,value};
+        end else if(w==19||(w>=22&&w<=25)) begin:unused_nz
+            reg value;
+            always @(posedge clk) if(write_word) value<=|cmd_word_data;
+            assign words[w]={31'd0,value};
+        end else if(w==26||w==27||w==30||w==31||w==34||w==35) begin:edge_coefficient
+            reg [18:0] value;
+            always @(posedge clk) if(write_word) value<={
+                (cmd_word_data[31:18]!={14{cmd_word_data[17]}}),cmd_word_data[17:0]};
+            assign words[w]={{13{value[17]}},value[17]^value[18],value[17:0]};
+        end else if(w==29||w==33||w==37) begin:inclusive
+            reg [1:0] value;
+            always @(posedge clk) if(write_word) value<={|cmd_word_data[31:1],cmd_word_data[0]};
+            assign words[w]={30'd0,value};
+        end else begin:full_word
+            reg [31:0] value;
+            always @(posedge clk) if(write_word) value<=cmd_word_data;
+            assign words[w]=value;
+        end
+    end endgenerate
 
-    wire signed [31:0] a_x=$signed(words[17]), a_y=$signed(words[18]);
-    wire signed [31:0] b_x=$signed(words[20]), b_y=$signed(words[21]);
+    // Line endpoints are separately validated as unsigned viewport pixels.
+    // Truncating them here affects no accepted record and keeps line setup
+    // within the same bounded coordinate domain as the raster walker.
+    wire signed [10:0] a_x=$signed({1'b0,words[17][9:0]});
+    wire signed [9:0] a_y=$signed({1'b0,words[18][8:0]});
+    wire signed [10:0] b_x=$signed({1'b0,words[20][9:0]});
+    wire signed [9:0] b_y=$signed({1'b0,words[21][8:0]});
     wire swap_line=(b_x<a_x)||((b_x==a_x)&&(b_y<a_y));
-    wire signed [31:0] first_x=swap_line?b_x:a_x, first_y=swap_line?b_y:a_y;
-    wire signed [31:0] last_x=swap_line?a_x:b_x, last_y=swap_line?a_y:b_y;
+    wire signed [10:0] first_x=swap_line?b_x:a_x, last_x=swap_line?a_x:b_x;
+    wire signed [9:0] first_y=swap_line?b_y:a_y, last_y=swap_line?a_y:b_y;
     wire line_kind=words[0][7:0]==2;
-    wire signed [31:0] bounds_x0=line_kind?minimum(a_x,b_x):$signed(words[8]);
-    wire signed [31:0] bounds_y0=line_kind?minimum(a_y,b_y):$signed(words[9]);
-    wire signed [31:0] bounds_x1=line_kind?maximum(a_x,b_x)+32'sd1:$signed(words[10]);
-    wire signed [31:0] bounds_y1=line_kind?maximum(a_y,b_y)+32'sd1:$signed(words[11]);
-    wire signed [31:0] window_x0=maximum(maximum(maximum(bounds_x0,$signed(words[4])),
-        $signed({22'b0,origin_x})),32'sd0);
-    wire signed [31:0] window_y0=maximum(maximum(maximum(bounds_y0,$signed(words[5])),
-        $signed({23'b0,origin_y})),32'sd0);
-    wire signed [31:0] window_x1=minimum(minimum(minimum(bounds_x1,$signed(words[6])),
-        $signed({22'b0,origin_x})+32'sd32),32'sd640);
-    wire signed [31:0] window_y1=minimum(minimum(minimum(bounds_y1,$signed(words[7])),
-        $signed({23'b0,origin_y})+32'sd32),32'sd480);
+    wire signed [31:0] bounds_x0=line_kind?minimum_x(a_x,b_x):$signed(words[8]);
+    wire signed [31:0] bounds_y0=line_kind?minimum_y(a_y,b_y):$signed(words[9]);
+    wire signed [31:0] bounds_x1=line_kind?maximum_x(a_x,b_x)+11'sd1:$signed(words[10]);
+    wire signed [31:0] bounds_y1=line_kind?maximum_y(a_y,b_y)+10'sd1:$signed(words[11]);
+    wire signed [10:0] window_x0=maximum_x(maximum_x(clip_x(bounds_x0),clip_x($signed(words[4]))),
+        $signed({1'b0,origin_x}));
+    wire signed [9:0] window_y0=maximum_y(maximum_y(clip_y(bounds_y0),clip_y($signed(words[5]))),
+        $signed({1'b0,origin_y}));
+    wire signed [10:0] window_x1=minimum_x(minimum_x(clip_x(bounds_x1),clip_x($signed(words[6]))),
+        minimum_x($signed({1'b0,origin_x})+11'sd32,11'sd640));
+    wire signed [9:0] window_y1=minimum_y(minimum_y(clip_y(bounds_y1),clip_y($signed(words[7]))),
+        minimum_y($signed({1'b0,origin_y})+10'sd32,10'sd480));
     wire grid_inside=x>=x0&&x<x1&&y>=y0&&y<y1;
     wire triangle_inside=(edge_current[0]>0||(edge_current[0]==0&&words[29][0]))&&
         (edge_current[1]>0||(edge_current[1]==0&&words[33][0]))&&
         (edge_current[2]>0||(edge_current[2]==0&&words[37][0]));
     wire inside_sample=(kind==0)?triangle_inside:grid_inside;
     wire [9:0] sample_addr={y[4:0],x[4:0]};
-    wire [23:0] sample_depth=(kind==0)?quantize(plane_current[0],24'hffffff):constant_depth;
+    wire [23:0] sample_depth=(kind==0)?quantize_depth(plane_current[0]):constant_depth;
     wire use_rgb_planes=(kind==0)&&color_write&&(shade==1||shade==4);
     wire [7:0] sample_r=quantize_color(plane_current[1]);
     wire [7:0] sample_g=quantize_color(plane_current[2]);
@@ -222,7 +346,8 @@ module nano_tile_renderer (
         .in_address(sample_addr),.in_depth(sample_depth),
         .in_factor((kind==3||shade==2)?24'hffffff:sample_color),
         .in_u(plane_current[5]),.in_v(plane_current[6]),.in_q(plane_current[4]),
-        .in_sprite(kind==3),.in_source_x(source_x),.in_source_y(source_y),.stored_depth(stored_depth),
+        .in_sprite(kind==3),.in_source_x({{20{source_x[11]}},source_x}),
+        .in_source_y({{20{source_y[11]}},source_y}),.stored_depth(stored_depth),
         .busy(fragment_busy),.fault(fragment_fault),.retired(fragment_retired),
         .commit_color_write(fragment_color_write),.commit_depth_write(fragment_depth_write),
         .commit_address(fragment_address),.commit_depth(fragment_depth),.commit_color(fragment_color),
@@ -231,12 +356,12 @@ module nano_tile_renderer (
         .tex_rsp_texel(tex_rsp_texel),.tex_rsp_tag(tex_rsp_tag));
 
     integer i;
-    wire signed [31:0] line_abs_x=(last_x>=first_x)?last_x-first_x:first_x-last_x;
-    wire signed [31:0] line_abs_y=(last_y>=first_y)?last_y-first_y:first_y-last_y;
-    wire signed [31:0] line_negative_y=-line_abs_y;
-    wire signed [31:0] line_initial_error=line_abs_x-line_abs_y;
+    wire signed [10:0] line_abs_x=(last_x>=first_x)?last_x-first_x:first_x-last_x;
+    wire signed [9:0] line_abs_y=(last_y>=first_y)?last_y-first_y:first_y-last_y;
+    wire signed [9:0] line_negative_y=-line_abs_y;
+    wire signed [11:0] line_initial_error=line_abs_x-line_abs_y;
     wire record_needs_texture=words[0][7:0]==3||
-        (words[0][7:0]==0&&words[1][7:0]>=2&&(words[0][16]||words[0][19]));
+        (words[0][7:0]==0&&(|words[1][7:1])&&(words[0][16]||words[0][19]));
     wire signed [32:0] sprite_width=$signed({words[10][31],words[10]})-$signed({words[8][31],words[8]});
     wire signed [32:0] sprite_height=$signed({words[11][31],words[11]})-$signed({words[9][31],words[9]});
     wire signed [33:0] sprite_source_end_x=$signed({2'b0,words[17]})+$signed({sprite_width[32],sprite_width});
@@ -244,8 +369,8 @@ module nano_tile_renderer (
     reg record_bad;
     integer check_word;
     always @* begin
-        record_bad=words[0][15:8]!=1||words[0][7:0]>3||words[0][31:20]!=0||
-            words[1][7:0]>4||words[1][15:8]>2||words[1][31:19]!=0||
+        record_bad=words[0][15:8]!=1||(|words[0][7:2])||words[0][31:20]!=0||
+            ((|words[1][7:3])||(words[1][2]&&(|words[1][1:0])))||((|words[1][15:10])||(&words[1][9:8]))||words[1][31:19]!=0||
             words[2][31:24]!=0||words[3][31:16]!=0||words[16][31:24]!=0||
             words[19]!=0||(!words[0][19]&&words[3]!=0)||
             (record_needs_texture&&!words[1][18]);
@@ -257,30 +382,100 @@ module nano_tile_renderer (
         case(words[0][7:0])
         0:begin
             record_bad=record_bad||words[16]!=0||words[17]!=0||words[18]!=0||
-                words[29]>1||words[33]>1||words[37]>1||
+                (|words[29][31:1])||(|words[33][31:1])||(|words[37][31:1])||
                 words[26][31:17]!={15{words[26][17]}}||words[27][31:17]!={15{words[27][17]}}||
                 words[30][31:17]!={15{words[30][17]}}||words[31][31:17]!={15{words[31][17]}}||
                 words[34][31:17]!={15{words[34][17]}}||words[35][31:17]!={15{words[35][17]}}||
-                $signed(words[8])<0||$signed(words[9])<0||words[10]>640||words[11]>480;
+                $signed(words[8])<0||$signed(words[9])<0||beyond_x(words[10])||beyond_y(words[11]);
         end
         1:begin
             record_bad=record_bad||words[17]!=0||words[18]!=0||words[1][7:0]!=0||words[0][19];
-            for(check_word=20;check_word<80;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+            for(check_word=20;check_word<38;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+            record_bad=record_bad||(|coefficient_nonzero);
         end
         2:begin
             record_bad=record_bad||words[8]!=0||words[9]!=0||words[10]!=0||words[11]!=0||
-                words[1][7:0]!=0||words[0][19]||words[17]>=640||words[20]>=640||words[18]>=480||words[21]>=480;
-            for(check_word=22;check_word<80;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+                words[1][7:0]!=0||words[0][19]||outside_x(words[17])||outside_x(words[20])||outside_y(words[18])||outside_y(words[21]);
+            for(check_word=22;check_word<38;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+            record_bad=record_bad||(|coefficient_nonzero);
         end
         3:begin
             record_bad=record_bad||(words[1][7:0]!=0&&words[1][7:0]!=2)||words[17][31]||words[18][31];
             if(sprite_width>0&&sprite_height>0)record_bad=record_bad||
-                sprite_source_end_x>$signed({2'b0,words[13]})||sprite_source_end_y>$signed({2'b0,words[14]});
-            for(check_word=20;check_word<80;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+                (|sprite_source_end_x[33:11])||sprite_source_end_x[10:0]>words[13][10:0]||
+                (|sprite_source_end_y[33:11])||sprite_source_end_y[10:0]>words[14][10:0];
+            for(check_word=20;check_word<38;check_word=check_word+1)record_bad=record_bad||words[check_word]!=0;
+            record_bad=record_bad||(|coefficient_nonzero);
         end
         default:begin end
         endcase
     end
+    // All attachment equations advance in lockstep. OFFSET_X, OFFSET_Y,
+    // horizontal raster steps and row transitions are mutually exclusive;
+    // route their operands through one adder per plane instead of replicating
+    // wide adders for each controller branch. Overflow comes from that same
+    // retained sum, rather than a second hidden function-local addition.
+    wire raster_step_x=(x+1<x1);
+    wire step_from_row=(state!=RASTER)||!raster_step_x;
+    wire step_in_y=(state==OFFSET_Y)||((state==RASTER)&&!raster_step_x);
+    wire signed [63:0] plane_next [0:6];
+    wire [6:0] plane_overflow;
+    wire signed [31:0] edge_next [0:2];
+    wire [2:0] edge_step_overflow;
+    generate for(genvar p=0;p<7;p=p+1) begin:plane_steppers
+        wire signed [63:0] a=(state==SEED_CAPTURE)?64'sd0:
+            (step_from_row?plane_row[p]:plane_current[p]);
+        wire signed [63:0] b=coefficient_data[p];
+        assign plane_next[p]=a+b;
+        assign plane_overflow[p]=(a[63]==b[63])&&(plane_next[p][63]!=a[63]);
+    end endgenerate
+    generate for(genvar e=0;e<3;e=e+1) begin:edge_steppers
+        wire signed [31:0] a=step_from_row?edge_row[e]:edge_current[e];
+        wire signed [31:0] b=(step_in_y?$signed(words[27+4*e]):$signed(words[26+4*e]))<<<4;
+        assign edge_next[e]=a+b;
+        assign edge_step_overflow[e]=(a[31]==b[31])&&(edge_next[e][31]!=a[31]);
+    end endgenerate
+
+    // A native RAM read completes after its active edge, so fetch the
+    // coefficient required by the *next* accepted candidate. An unaccepted
+    // textured candidate keeps the current selection. Row ends prefetch dx;
+    // penultimate samples prefetch dy. A one-pixel-wide span always uses dy.
+    wire advance_raster=(state==RASTER)&&(!inside_sample||!need_texture||fragment_ready);
+    wire first_step_y=(x0+1>=x1);
+    reg [1:0] coefficient_read_address;
+    always @* begin
+        coefficient_read_address=step_in_y?2:1;
+        case(state)
+        START: coefficient_read_address=0;
+        SEED_CAPTURE,CONFIG,EDGE_LAUNCH,EDGE_WAIT,EDGE_CAPTURE:
+            coefficient_read_address=(offset_y!=0)?2:((offset_x!=0)?1:(first_step_y?2:1));
+        OFFSET_Y: if(offset_y==1)
+            coefficient_read_address=(offset_x!=0)?1:(first_step_y?2:1);
+        OFFSET_X: if(offset_x==1) coefficient_read_address=first_step_y?2:1;
+        RASTER: if(advance_raster)
+            coefficient_read_address=(raster_step_x?(x+2>=x1):first_step_y)?2:1;
+        default: begin end
+        endcase
+    end
+    generate for(genvar c=0;c<7;c=c+1) begin:coefficient_banks
+        localparam [6:0] SEED_LO=38+6*c, DX_LO=40+6*c, DY_LO=42+6*c;
+        localparam [6:0] SEED_HI=39+6*c, DX_HI=41+6*c, DY_HI=43+6*c;
+        wire write_ok=cmd_word_we&&(state==IDLE)&&!fault&&!reset;
+        wire write_lo=write_ok&&(cmd_word_index==SEED_LO||cmd_word_index==DX_LO||cmd_word_index==DY_LO);
+        wire write_hi=write_ok&&(cmd_word_index==SEED_HI||cmd_word_index==DX_HI||cmd_word_index==DY_HI);
+        wire [1:0] wa=(cmd_word_index==DY_LO||cmd_word_index==DY_HI)?2:
+            ((cmd_word_index==DX_LO||cmd_word_index==DX_HI)?1:0);
+        wire [31:0] data_lo,data_hi;
+        wire read_coefficient=(state!=IDLE)&&(state!=FAILED);
+        nano_sdp32 low_bank(.wclk(clk),.wce(1'b1),.we(write_lo),.waddr({7'd0,wa}),.wdata(cmd_word_data),
+            .rclk(clk),.rce(1'b1),.re(read_coefficient),.raddr({7'd0,coefficient_read_address}),
+            .reset_output(reset),.rdata(data_lo));
+        nano_sdp32 high_bank(.wclk(clk),.wce(1'b1),.we(write_hi),.waddr({7'd0,wa}),.wdata(cmd_word_data),
+            .rclk(clk),.rce(1'b1),.re(read_coefficient),.raddr({7'd0,coefficient_read_address}),
+            .reset_output(reset),.rdata(data_hi));
+        assign coefficient_data[c]=$signed({data_hi,data_lo});
+    end endgenerate
+
     task automatic advance_candidate;
         reg signed [16:0] twice_error;
         reg signed [16:0] next_error;
@@ -305,25 +500,25 @@ module nano_tile_renderer (
             end else if(x+1<x1) begin
                 x<=x+1; source_x<=source_x+1;
                 for(integer j=0;j<3;j=j+1)begin
-                    overflowed=overflowed||edge_overflow(edge_current[j],edge_a(j)<<<4);
-                    edge_current[j]<=edge_current[j]+(edge_a(j)<<<4);
+                    overflowed=overflowed||edge_step_overflow[j];
+                    edge_current[j]<=edge_next[j];
                 end
                 for(integer j=0;j<7;j=j+1) if(plane_enable[j])begin
-                    overflowed=overflowed||add_overflow(plane_current[j],step_x(j));
-                    plane_current[j]<=plane_current[j]+step_x(j);
+                    overflowed=overflowed||plane_overflow[j];
+                    plane_current[j]<=plane_next[j];
                 end
                 state<=RASTER;
             end else if(y+1<y1) begin
                 x<=x0; y<=y+1; source_x<=source_start_x; source_y<=source_y+1;
                 for(integer j=0;j<3;j=j+1) begin
-                    overflowed=overflowed||edge_overflow(edge_row[j],edge_b(j)<<<4);
-                    edge_row[j]<=edge_row[j]+(edge_b(j)<<<4);
-                    edge_current[j]<=edge_row[j]+(edge_b(j)<<<4);
+                    overflowed=overflowed||edge_step_overflow[j];
+                    edge_row[j]<=edge_next[j];
+                    edge_current[j]<=edge_next[j];
                 end
                 for(integer j=0;j<7;j=j+1) if(plane_enable[j]) begin
-                    overflowed=overflowed||add_overflow(plane_row[j],step_y(j));
-                    plane_row[j]<=plane_row[j]+step_y(j);
-                    plane_current[j]<=plane_row[j]+step_y(j);
+                    overflowed=overflowed||plane_overflow[j];
+                    plane_row[j]<=plane_next[j];
+                    plane_current[j]<=plane_next[j];
                 end
                 state<=RASTER;
             end else state<=DRAIN;
@@ -335,13 +530,10 @@ module nano_tile_renderer (
         if(reset) begin
             state<=IDLE; done<=0; fault<=0; pending<=0; pix_rvalid<=0;
             origin_x<=0; origin_y<=0;
-            kind<=0; shade<=0; depth_func<=0;
-            color_write<=0;depth_test<=0;depth_write<=0;key_enable<=0;need_texture<=0;
-            key_color<=0;constant_color<=0;constant_depth<=0;
             x<=0;y<=0;x0<=0;y0<=0;x1<=0;y1<=0;offset_x<=0;offset_y<=0;
             source_x<=0;source_y<=0;source_start_x<=0;
             line_end_x<=0;line_end_y<=0;line_dx<=0;line_dy<=0;line_sx<=0;line_sy<=0;line_error<=0;
-            edge_term<=0;wait_count<=0;edge_a_product<=0;plane_enable<=0;
+            edge_term<=0;wait_count<=0;edge_a_product<=0;
             pending_addr<=0;pending_depth<=0;pending_color<=0;
             for(i=0;i<3;i=i+1) begin edge_row[i]<=0;edge_current[i]<=0;end
             for(i=0;i<7;i=i+1) begin plane_row[i]<=0;plane_current[i]<=0;end
@@ -349,7 +541,7 @@ module nano_tile_renderer (
             done<=0; pending<=0; pix_rvalid<=external_re;
             if(cmd_word_we) begin
                 if(state!=IDLE||cmd_word_index>=80) begin fault<=1;state<=FAILED;end
-                else words[cmd_word_index]<=cmd_word_data;
+                else if(cmd_word_index>=38) coefficient_nonzero[cmd_word_index-38]<=|cmd_word_data;
             end
             if((tex_flush&&busy)||tex_fault||fragment_fault) begin fault<=1;state<=FAILED;end
             else case(state)
@@ -362,35 +554,37 @@ module nano_tile_renderer (
                     fault<=1;state<=FAILED;
                 end else if((window_x0>=window_x1||window_y0>=window_y1)&&!words[1][18]) state<=DRAIN;
                 else begin
-                    kind<=words[0][1:0];shade<=words[1][2:0];depth_func<=words[1][9:8];
-                    color_write<=words[0][16];depth_test<=words[0][17];depth_write<=words[0][18];
-                    key_enable<=words[0][19];key_color<=words[3][15:0];
-                    constant_color<=words[2][23:0];constant_depth<=words[16][23:0];
-                    need_texture<=(words[0][7:0]==3||(words[0][7:0]==0&&words[1][7:0]>=2))&&
-                        (words[0][16]||words[0][19]);
                     x0<=window_x0;y0<=window_y0;x1<=window_x1;y1<=window_y1;
                     x<=line_kind?first_x:window_x0;y<=line_kind?first_y:window_y0;
                     line_end_x<=last_x;line_end_y<=last_y;
-                    line_dx<=line_abs_x[15:0];
-                    line_dy<=line_negative_y[15:0];
+                    line_dx<=line_abs_x;
+                    line_dy<=line_negative_y;
                     line_sx<=first_x<last_x?16'sd1:-16'sd1;
                     line_sy<=first_y<last_y?16'sd1:-16'sd1;
-                    line_error<=line_initial_error[15:0];
-                    source_x<=$signed(words[17])+window_x0-bounds_x0;
-                    source_start_x<=$signed(words[17])+window_x0-bounds_x0;
-                    source_y<=$signed(words[18])+window_y0-bounds_y0;
+                    line_error<=line_initial_error;
+                    source_x<=$signed({1'b0,words[17][10:0]})+window_x0-$signed(bounds_x0[11:0]);
+                    source_start_x<=$signed({1'b0,words[17][10:0]})+window_x0-$signed(bounds_x0[11:0]);
+                    source_y<=$signed({1'b0,words[18][10:0]})+window_y0-$signed(bounds_y0[11:0]);
                     offset_x<=window_x0-bounds_x0;offset_y<=window_y0-bounds_y0;
-                    for(i=0;i<7;i=i+1) plane_row[i]<=seed(i);
-                    plane_enable<={{3{(words[0][7:0]==0&&words[1][7:0]>=2&&(words[0][16]||words[0][19]))}},
-                        {3{(words[0][16]&&(words[1][7:0]==1||words[1][7:0]==4))}},
-                        (words[0][17]||words[0][18])};
                     edge_term<=0;
-                    // The cache validates every present descriptor, even for
-                    // empty tiles or state whose color path does not sample it.
-                    if(words[1][18]) state<=CONFIG;
-                    else if(words[0][7:0]==0) state<=EDGE_LAUNCH;
-                    else state<=RASTER;
+                    state<=SEED_CAPTURE;
                 end
+            end
+            SEED_CAPTURE: begin
+                // START clocked the native seed read; its registered result
+                // is available now. Seed through 0+seed so every later
+                // row/current write uses the same adder result, rather than
+                // retaining wide data muxes for initialization and row copies.
+                // This also separates a last command write
+                // coincident with cmd_valid from all coefficient RAM reads.
+                for(i=0;i<7;i=i+1) begin
+                    plane_row[i]<=plane_next[i];plane_current[i]<=plane_next[i];
+                end
+                // The cache validates every present descriptor, even for
+                // empty tiles or state whose color path does not sample it.
+                if(words[1][18]) state<=CONFIG;
+                else if(words[0][7:0]==0) state<=EDGE_LAUNCH;
+                else state<=RASTER;
             end
             CONFIG: if(tex_cfg_ready) begin
                 if(window_x0>=window_x1||window_y0>=window_y1)state<=DRAIN;
@@ -407,30 +601,28 @@ module nano_tile_renderer (
                 if(edge_term==5) begin
                     if(offset_y!=0) state<=OFFSET_Y;
                     else if(offset_x!=0) state<=OFFSET_X;
-                    else begin for(i=0;i<7;i=i+1) plane_current[i]<=plane_row[i];state<=RASTER;end
+                    else state<=RASTER;
                 end else begin edge_term<=edge_term+1;state<=EDGE_LAUNCH;end
                 if(edge_term[0]&&edge_sum[37:31]!={7{edge_sum[31]}})begin fault<=1;state<=FAILED;end
             end
             OFFSET_Y: begin
-                for(i=0;i<7;i=i+1) if(plane_enable[i]) plane_row[i]<=plane_row[i]+step_y(i);
+                for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
+                    plane_row[i]<=plane_next[i];plane_current[i]<=plane_next[i];
+                end
                 offset_y<=offset_y-1;
                 if(offset_y==1) begin
                     if(offset_x!=0) state<=OFFSET_X;
-                    else begin
-                        for(i=0;i<7;i=i+1) plane_current[i]<=plane_enable[i]?plane_row[i]+step_y(i):plane_row[i];
-                        state<=RASTER;
-                    end
+                    else state<=RASTER;
                 end
-                for(i=0;i<7;i=i+1)if(plane_enable[i]&&add_overflow(plane_row[i],step_y(i)))begin fault<=1;state<=FAILED;end
+                for(i=0;i<7;i=i+1)if(plane_enable[i]&&plane_overflow[i])begin fault<=1;state<=FAILED;end
             end
             OFFSET_X: begin
-                for(i=0;i<7;i=i+1) if(plane_enable[i]) plane_row[i]<=plane_row[i]+step_x(i);
-                offset_x<=offset_x-1;
-                if(offset_x==1) begin
-                    for(i=0;i<7;i=i+1) plane_current[i]<=plane_enable[i]?plane_row[i]+step_x(i):plane_row[i];
-                    state<=RASTER;
+                for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
+                    plane_row[i]<=plane_next[i];plane_current[i]<=plane_next[i];
                 end
-                for(i=0;i<7;i=i+1)if(plane_enable[i]&&add_overflow(plane_row[i],step_x(i)))begin fault<=1;state<=FAILED;end
+                offset_x<=offset_x-1;
+                if(offset_x==1) state<=RASTER;
+                for(i=0;i<7;i=i+1)if(plane_enable[i]&&plane_overflow[i])begin fault<=1;state<=FAILED;end
             end
             RASTER: if(inside_sample) begin
                 if(need_texture) begin

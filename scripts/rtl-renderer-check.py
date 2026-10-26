@@ -38,10 +38,13 @@ def main():
 
     rtl = [ROOT / name for name in (
         "rtl/gpu/nano_sdp16.sv", "rtl/uv_mult.v", "rtl/uv_pipeline.v",
-        "rtl/gpu/nano_fragment_pipeline.sv", "rtl/gpu/nano_tile_renderer.sv")]
+        "rtl/gpu/nano_fragment_pipeline.sv", "rtl/gpu/nano_tile_renderer.sv",
+        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv")]
     tests = [ROOT / "rtl/tests" / name for name in (
         "generate_tile_vectors.cpp", "tile_renderer_tb.sv",
-        "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv")]
+        "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv",
+        "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
+        "tile_record_compact_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -69,6 +72,10 @@ def main():
         ("nano_tile_testbench", tests[1], ["+vectors=" + str(vectors)]),
         ("nano_tile_fault_tb", tests[2], []),
         ("nano_fragment_throughput_tb", tests[3], []),
+        ("nano_tile_quantize_tb", tests[4], []),
+        ("nano_sdp32_tb", tests[5], []),
+        ("nano_tile_coefficient_throughput_tb", tests[6], []),
+        ("nano_tile_record_compact_tb", tests[7], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -83,12 +90,13 @@ def main():
                       "attachment_samples_compared": 1024 * int(match[1])}
             print(match[0], flush=True)
         elif top == "nano_tile_fault_tb":
-            if "PASS 12 malformed/numeric records" not in output:
+            match = re.search(r"PASS (\d+) malformed/numeric records", output)
+            if not match or int(match[1]) < 28:
                 raise RuntimeError("fault test did not report all records passing")
-            result = {"top": top, "passed": True, "rejected_records": 12,
+            result = {"top": top, "passed": True, "rejected_records": int(match[1]),
                       "fault_write_suppression": True, "reset_preserves_attachments": True}
-            print("12 malformed/numeric, fault suppression and reset cases passed", flush=True)
-        else:
+            print(f"{match[1]} malformed/numeric, fault suppression and reset cases passed", flush=True)
+        elif top == "nano_fragment_throughput_tb":
             matches = re.findall(r"PASS\s+(sprite|triangle):1024 consecutive accepts and commits, elapsed(\d+)", output)
             if {name for name, _ in matches} != {"sprite", "triangle"}:
                 raise RuntimeError("fragment test did not prove both II1 cases")
@@ -98,6 +106,40 @@ def main():
                           for name, edges in matches]}
             for name, edges in matches:
                 print(f"{name}: 1024 consecutive accepts and commits in {edges} edges", flush=True)
+        elif top == "nano_tile_quantize_tb":
+            match = re.search(r"PASS (\d+) full-width/RNE quantizer vectors", output)
+            if not match or int(match[1]) < 1000000:
+                raise RuntimeError("narrow quantizer equivalence cases did not all pass")
+            result = {"top": top, "passed": True,
+                      "quantizer_vectors": int(match[1]),
+                      "converters": ["RGB8", "D24"],
+                      "reference": "Full-width signed saturation and ties-to-even rounding"}
+            print(match[0], flush=True)
+        elif top == "nano_sdp32_tb":
+            if "PASS native SDPB512x32 timing, enables, endpoints and reset retention" not in output:
+                raise RuntimeError("native 32-bit coefficient RAM contract test failed")
+            result = {"top": top, "passed": True, "native_mode": "SDPB512x32",
+                      "independent_clocks": True, "reset_preserves_memory": True}
+            print("Native SDPB512x32 timing, enables and reset cases passed", flush=True)
+        elif top == "nano_tile_coefficient_throughput_tb":
+            matches = re.findall(r"PASS tile\s+(sprite|triangle|minseed):1024 consecutive accepts and commits, elapsed(\d+)", output)
+            if {name for name, _ in matches} != {"sprite", "triangle", "minseed"}:
+                raise RuntimeError("tile coefficient lookahead did not prove all II1/seed cases")
+            result = {"top": top, "passed": True,
+                      "coefficient_streams": [{"kind": name, "accepted_consecutively": 1024,
+                          "retired_consecutively": 1024, "elapsed_edges": int(edges)}
+                          for name, edges in matches], "reverse_command_loading": True,
+                      "last_seed_write_with_command_launch": True}
+            for name, edges in matches:
+                print(f"Tile {name}: 1024 consecutive accepts and commits in {edges} edges", flush=True)
+        else:
+            match = re.search(r"PASS (\d+) raw32/compact record validation and clipping vectors", output)
+            if not match or int(match[1]) < 100000:
+                raise RuntimeError("compact header did not preserve full-width record acceptance")
+            result = {"top": top, "passed": True, "raw_record_vectors": int(match[1]),
+                      "full_width_acceptance_reference": True, "arbitrary_word_order": True,
+                      "error_sentinel_rewrites": True, "viewport_intersections": True}
+            print(match[0], flush=True)
         results.append(result)
 
     if any(digest(path) != hashes[str(path.relative_to(ROOT))] for path in inputs):

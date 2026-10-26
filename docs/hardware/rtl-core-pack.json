@@ -11,27 +11,33 @@
   "timing_qualified": false,
   "synthesized": true,
   "packed": true,
+  "synthesis_options": [
+    "-nowidelut"
+  ],
   "probe_input_shift_bits": 50,
   "probe_output_snapshot_bits": 116,
   "probe_checksum_bits": 32,
   "probe_maximum_register_overhead": 198,
   "source_sha256": {
-    "rtl/uv_mult.v": "f6f24e2e9a3095c9b5b8431181119b185f19935a9e705b403f354f60de854928",
-    "rtl/uv_pipeline.v": "a13bb9c19f901d45a497d72c5eabb63ecffcd4a973cbc10426bc0404e42961f2",
-    "rtl/gpu/nano_fragment_pipeline.sv": "cacfaa23b2b29fb3d4b740499fc6a591dc50dae89c77528751fffa069cbc3c83",
-    "rtl/gpu/nano_gpu_core.sv": "3981d93859759373e7daa960eed58ab7fd2296d0123cdc934e8447db58056f5a",
-    "rtl/gpu/nano_host_link.sv": "d8bcf20bc73c8cc12acab8ff035a7b8f05cd0b1b8e475cd748c655b569fb8f2b",
+    "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
+    "rtl/uv_pipeline.v": "24e3c7bbe9d20a6e4527a08d642f8a845b424c929c02f47e27b73553f0eab3af",
+    "rtl/gpu/nano_fragment_pipeline.sv": "9a6ff66699504792faea5f736ada9754dc6569134a6b6bd55158021bfd0cfce4",
+    "rtl/gpu/nano_gpu_core.sv": "e5caac8dde8882f9741424e36bef29f3dedf8ae0d40f5e95bf791a5c61297be4",
+    "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
-    "rtl/gpu/nano_sdram_service.sv": "f738b718eff050e5935cd8ec91510f6d6335aef9fe40de37f5008853f28e888f",
-    "rtl/gpu/nano_texture_cache.sv": "9916cdef2972261601260524e28862766df7d6b3141aea87fe8db059da3b822f",
-    "rtl/gpu/nano_tile_renderer.sv": "43b1d7b32c62610dd40e0355a3c9b5bf9ce4133afe4683ae89e60c027b3057a2",
+    "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+    "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+    "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+    "rtl/gpu/nano_sdram_service.sv": "4a2ad5681323925b49250f70ebaaafb3ee40751029db8814cc9359b41b11dc2a",
+    "rtl/gpu/nano_texture_cache.sv": "4ea5f6f99bd872cc7181bd4e09b983debe58076c2d3ce0a6e48cf14be0497c7d",
+    "rtl/gpu/nano_tile_renderer.sv": "e95baeec93d3f12c04cacc4cfeaaa5ac2774daeb68023da4152f18e44ec2cd80",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/gpu_probe.sv": "e7a7dc51d274afd1f562bad0bbfac2f8f3d85509e5241108399d9d6b9ed0f705",
     "rtl/gpu_probe.cst": "2beb3831400a9cf5e4fcb71c9df59464ab0084f2eb92446b2d20e1c34af590e0",
-    "scripts/rtl-core-pack.py": "734aec2217f431fe87caede906808c4fe8596cf2f153d22742c5f27cdfbc25d8",
+    "scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
     "scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
-    "scripts/rtl-check.py": "1bdf88d2ccfc2062d3aaafa926aabf651ec47cfa1a215682adf9d1975ac6b7ba",
+    "scripts/rtl-check.py": "d595b8d28981d7b8a1b11dcd408aa208b7edaa0a22c093e9382fc51107eec42c",
     "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
     "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
     "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
@@ -40,7 +46,7 @@
   "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
   "elaboration_passed": true,
   "synthesis_returncode": 0,
-  "netlist_sha256": "86bf3102c28185a90ab610814a95a2522af9cf4d040e111e82c682e2bbb29dd9",
+  "netlist_sha256": "c6a262241a1b4fe31114711112943bb81a997ca61576e85a0a834b87f1169c49",
   "pack_returncode": 0,
   "packer_errors": [],
   "packer_utilization": {
@@ -55,9 +61,9 @@
       "within_capacity": true
     },
     "LUT4": {
-      "used": 29608,
+      "used": 17005,
       "available": 20736,
-      "within_capacity": false
+      "within_capacity": true
     },
     "IOLOGICI": {
       "used": 0,
@@ -70,27 +76,27 @@
       "within_capacity": true
     },
     "MUX2_LUT5": {
-      "used": 2442,
+      "used": 0,
       "available": 10368,
       "within_capacity": true
     },
     "MUX2_LUT6": {
-      "used": 75,
+      "used": 0,
       "available": 5184,
       "within_capacity": true
     },
     "MUX2_LUT7": {
-      "used": 31,
+      "used": 0,
       "available": 2592,
       "within_capacity": true
     },
     "MUX2_LUT8": {
-      "used": 14,
+      "used": 0,
       "available": 2592,
       "within_capacity": true
     },
     "ALU": {
-      "used": 9462,
+      "used": 5744,
       "available": 15552,
       "within_capacity": true
     },
@@ -100,17 +106,17 @@
       "within_capacity": true
     },
     "DFF": {
-      "used": 13991,
+      "used": 6830,
       "available": 15552,
       "within_capacity": true
     },
     "RAM16SDP4": {
-      "used": 20,
+      "used": 8,
       "available": 648,
       "within_capacity": true
     },
     "BSRAM": {
-      "used": 26,
+      "used": 46,
       "available": 46,
       "within_capacity": true
     },
@@ -140,7 +146,7 @@
       "within_capacity": true
     },
     "MULT18X18": {
-      "used": 43,
+      "used": 25,
       "available": 48,
       "within_capacity": true
     },
@@ -210,10 +216,18 @@
       "within_capacity": true
     }
   },
-  "packed_netlist_sha256": "0fa1f3c999d56d2393ec7fcc51a0cdb783df4faa868f4fb607175bab418e91d5",
-  "reported_resources_within_capacity": false,
-  "capacity_rejected_resources": [
-    "LUT4"
-  ],
+  "packed_netlist_sha256": "64c349d42ae5c07073b707000882f6a11fe30e19fac546df1992c18de9a816d9",
+  "physical_lut_lower_bound": {
+    "scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
+    "active_flipflops": 6782,
+    "maximum_existing_lut_alu_pairs": 3751,
+    "minimum_additional_ff_input_luts": 3031,
+    "packed_lut_sites": 17005,
+    "minimum_physical_lut_sites": 20036,
+    "available_lut_sites": 20736,
+    "within_capacity": true
+  },
+  "reported_resources_within_capacity": true,
+  "capacity_rejected_resources": [],
   "inputs_changed_during_run": []
 }

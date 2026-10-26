@@ -45,7 +45,7 @@ def main():
         binary = build / (label + ".vvp")
         files = sources
         if top == "nano_host_link_tb":
-            files = [ROOT / name for name in ("rtl/gpu/nano_sdp16.sv", "rtl/gpu/nano_host_link.sv",
+            files = [ROOT / name for name in ("rtl/gpu/nano_sdp16.sv", "rtl/gpu/nano_sdp8.sv", "rtl/gpu/nano_host_link.sv",
                                                "rtl/tests/nano_host_link_tb.sv")]
         compilation = invoke(HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
                              parameters + [str(path) for path in files], build / (label + "-compile.log"))
