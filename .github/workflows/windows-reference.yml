@@ -83,6 +83,8 @@ jobs:
           ./scripts/setup-sdl2.sh --check
       - name: Build SDL and headless applications and run conformance tests
         run: make -j4 all headless test throughput
+      - name: Compile and exercise the generic C99 GPU control examples
+        run: make gpu-docs-test
       - name: Verify fragment throughput traces and reports
         run: |
           ./build/throughput-bench.exe --output build/throughput/baseline.json

@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl check-rtl-python
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test gpu-docs-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl check-rtl-python
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -126,6 +126,11 @@ system-benchmark: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
 benchmark-test:
 	$(PYTHON) -B -m unittest discover -s scripts/tests -p 'test_*.py'
+
+# Extract the guide's actual C99 listing, compile it and exercise its packets
+# against the cycle-stepped C++ system model. No SDL or HDL tools are required.
+gpu-docs-test: $(CORE_OBJECTS)
+	$(PYTHON) scripts/check-gpu-control-examples.py --skip-core-build --core-build-dir "$(BUILD_DIR)" --build-dir "$(BUILD_DIR)/gpu-docs"
 
 # Inventory reporting is not complete-device qualification. fpga-fit deliberately
 # fails until actual complete RTL, synthesis, routing and timing proof exist.

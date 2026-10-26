@@ -2,6 +2,23 @@
 
 A custom GPU for the RP2350-GP-COMPUTER, built with the Gowin Tang Nano 20K FPGA.
 
+## GPU documentation — start here
+
+The top-level [`GPU_DOCUMENTATION/`](GPU_DOCUMENTATION/) directory contains the
+two authoritative guides for the current GPU:
+
+- [GPU architecture](GPU_DOCUMENTATION/GPU_ARCHITECTURE.md): CPU/GPU responsibilities,
+  rendering pipeline, memory layout, features, resource use and implementation status.
+- [GPU control](GPU_DOCUMENTATION/GPU_CONTROL.md): parallel-bus logical interface,
+  exact command/record formats, synchronization, recovery and generic C99 examples.
+
+Both guides must be updated and pushed with every architecture or control change.
+A documentation check in CI enforces accompanying edits; examples are checked
+with `make gpu-docs-test`. Existing `docs/` files remain supporting specifications
+and historical measurements.
+
+## Project overview
+
 The feature baseline is 640×480 RGB565 video through the HDMI connector,
 hardware triangle rasterization, perspective-correct textures, two color
 framebuffers, at least 24-bit depth, shading, and 2D drawing. The RP2350 performs

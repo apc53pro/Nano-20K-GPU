@@ -1,5 +1,10 @@
 # M0 command and submission model
 
+For the current implemented byte protocol and generic CPU code, start with
+[GPU_CONTROL.md](../../GPU_DOCUMENTATION/GPU_CONTROL.md). This file preserves
+the earlier M0 logical contract; its references to future M1 packing are not a
+description of the already implemented provisional N20K-SYS-0.1 wire format.
+
 Profile: [N20K-M0-0.1](README.md). This specifies logical data, validation, and
 ordering. Binary opcode numbers, primitive field offsets, FIFO capacities,
 transfer timing, and pin assignments are M1 outputs. The provisional envelope

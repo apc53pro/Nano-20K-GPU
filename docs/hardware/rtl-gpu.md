@@ -1,5 +1,10 @@
 # Integrated RTL GPU
 
+The authoritative project guides are now
+[GPU_ARCHITECTURE.md](../../GPU_DOCUMENTATION/GPU_ARCHITECTURE.md) and
+[GPU_CONTROL.md](../../GPU_DOCUMENTATION/GPU_CONTROL.md). This page provides
+additional simulator, regression and qualification details.
+
 The functional GPU core is implemented in SystemVerilog under
 [`rtl/gpu`](../../rtl/gpu). Verilator compiles this RTL into
 `build/nano-gpu-rtl`, a command-to-pixel simulator with optional SDL2 output.
