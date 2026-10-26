@@ -64,6 +64,23 @@ mapping or pin assignments.
 ## Build and run
 
 Follow the [development setup](../development.md#integrated-rtl-simulator).
+On Windows, use **MSYS2 UCRT64**:
+
+```bash
+pacman -Syu
+# If a terminal restart is requested, reopen UCRT64 and run pacman -Syu again.
+./scripts/setup-rtl-sim.sh
+make rtl-gpu-run
+```
+
+The setup installs Verilator, Python, native C++ tools and SDL2, then checks
+them. Pulling the repository does not install dependencies. `make rtl-gpu`
+only compiles the executable; `make rtl-gpu-run` also opens its SDL2 window.
+The Windows executable is `build/nano-gpu-rtl.exe`. See
+[Windows setup and diagnostics](../development.md#windows-rtl-simulator).
+If GCC runtime conflicts persist after a full MSYS2 upgrade, that guide also
+covers the explicit `gcc-libs`/`cc-libs` compatibility-package migration.
+
 On Linux x86_64:
 
 ```bash
@@ -79,6 +96,13 @@ For SDL2 output, install SDL2 before building, then run:
 make rtl-gpu
 ./build/nano-gpu-rtl --scene showcase --verify
 ```
+
+The first build can take several minutes while Verilator and the C++ compiler
+run. Build progress and periodic activity messages appear in the terminal,
+and the full output is written to `build/rtl-gpu/verilator-build.log`. Use the
+builder's `--verbose` option to stream every compiler message. Check tools
+without installing or building the GPU with `./scripts/setup-rtl-sim.sh --check`;
+that check compiles and runs a small RTL/C++/SDL2 smoke test.
 
 The builder detects SDL2 with pkg-config and falls back to a headless executable
 if unavailable. To select that build explicitly, use
@@ -114,8 +138,11 @@ host, tile-renderer, physical SDRAM controller and texture-cache unit checks.
 RTL top with `synth_gowin -family gw2a`.
 
 [`scripts/gpu-rtl.py`](../../scripts/gpu-rtl.py) accepts `--build-dir PATH`,
-`--output PATH`, `--headless-only`, `--synth`, and `--run` followed by simulator
-arguments. The default build directory is `build/rtl-gpu`; its generated files
+`--output PATH`, `--headless-only`, `--require-sdl`, `--check`, `--verbose`,
+`--synth`, and `--run` followed by simulator arguments. `--check` validates the
+toolchain with a small compiled simulation; `--require-sdl` makes missing SDL2
+an error instead of producing a headless-only executable. The default build
+directory is `build/rtl-gpu`; its generated files
 include `verilator-build.log`, `build-report.json`, and, when requested,
 `gpu-synth.json` and `gpu-synthesis.log`. The build report records tool versions,
 source SHA-256 fingerprints, whether SDL2 was enabled and synthesis cell counts

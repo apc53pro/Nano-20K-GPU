@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl check-rtl-python
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -147,11 +147,19 @@ rtl-pnr:
 
 # Functional GPU RTL, compiled to C++ by Verilator. The original SRR remains
 # the independent oracle; none of its C++ device models are linked here.
-rtl-gpu:
-	$(PYTHON) scripts/gpu-rtl.py --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
+check-rtl-python:
+	@command -v "$(PYTHON)" >/dev/null 2>&1 || \
+	    { echo 'RTL simulator needs Python. Run ./scripts/setup-rtl-sim.sh from MSYS2 UCRT64 or Linux.' >&2; exit 1; }
 
-rtl-gpu-synth:
-	$(PYTHON) scripts/gpu-rtl.py --synth --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
+rtl-gpu: check-rtl-python
+	$(PYTHON) -u scripts/gpu-rtl.py --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
+
+# One command to build and open the SDL2 window; rtl-gpu alone only builds.
+rtl-gpu-run: check-rtl-python
+	$(PYTHON) -u scripts/gpu-rtl.py --require-sdl --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)" --run --scene showcase
+
+rtl-gpu-synth: check-rtl-python
+	$(PYTHON) -u scripts/gpu-rtl.py --synth --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
 
 # This intentionally fails when the exact-device packed probe exceeds capacity.
 # It retains the functional core but is not a production board pin/clock top.

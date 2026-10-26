@@ -9,6 +9,56 @@ permissions:
   contents: read
 
 jobs:
+  rtl-ucrt64:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+      - name: Install native RTL dependencies and compile a Verilator/SDL smoke test
+        run: ./scripts/setup-rtl-sim.sh
+      - name: Verify dependency reuse
+        run: ./scripts/setup-rtl-sim.sh --check
+      - name: Build the native RTL simulator with SDL2
+        run: python -u scripts/gpu-rtl.py --require-sdl --verbose
+      - name: Verify the actual RTL scanout through SDL2
+        run: SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/nano-gpu-rtl.exe --scene showcase --frames 1 --verify
+      - name: Verify native command and recovery handling
+        run: ./build/nano-gpu-rtl.exe --self-test
+      - name: Package the Windows simulator and runtime libraries
+        run: |
+          mkdir -p build/windows-rtl
+          cp build/nano-gpu-rtl.exe build/windows-rtl/
+          cp /ucrt64/bin/SDL2.dll /ucrt64/bin/libstdc++-6.dll /ucrt64/bin/libgcc_s_seh-1.dll /ucrt64/bin/libwinpthread-1.dll build/windows-rtl/
+          printf '%s\n' 'Extract all files into one folder and run nano-gpu-rtl.exe.' 'This is a cycle-by-cycle simulator; expect slow playback.' 'Use --headless --frames 1 --verify for a headless comparison.' > build/windows-rtl/README.txt
+      - name: Check the package without MSYS2 on PATH
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          & .\build\windows-rtl\nano-gpu-rtl.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "Standalone simulator could not load its runtime libraries" }
+      - name: Save the runnable Windows simulator
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nano-gpu-rtl-windows
+          path: build/windows-rtl/
+      - name: Save native build diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-rtl-simulator
+          path: |
+            build/rtl-gpu/build-report.json
+            build/rtl-gpu/*.log
+            build/rtl-gpu/toolcheck/*.log
+          if-no-files-found: warn
+
   ucrt64:
     runs-on: windows-latest
     timeout-minutes: 20

@@ -111,12 +111,24 @@ supplies the RP2350-side commands, an external SDRAM chip model, the independent
 SRR oracle and optional SDL2 presentation; no C++ GPU device backend is linked.
 
 ```bash
-./scripts/setup-rtl-tools.sh
-make rtl-gpu
-./build/nano-gpu-rtl --headless --scene showcase --verify --stats build/rtl-showcase.json
-# With SDL2 available when building:
-./build/nano-gpu-rtl --scene showcase --verify
+./scripts/setup-rtl-sim.sh
+make rtl-gpu-run
 ```
+
+On Windows, run these in **MSYS2 UCRT64**. The setup installs the native
+Verilator package, Python, compiler and SDL2; cloning or pulling the repository
+does not install those tools. First finish `pacman -Syu`, reopening UCRT64 and
+running it again if the update requests a terminal restart. `make rtl-gpu` only builds the executable;
+`make rtl-gpu-run` also opens the SDL2 window. See the
+[Windows RTL setup](docs/development.md#windows-rtl-simulator) for checks and
+diagnostics. Linux setup reuses the pinned local OSS CAD Suite. To verify one
+frame without opening a window after building:
+
+```bash
+./build/nano-gpu-rtl --headless --scene showcase --frames 1 --verify
+```
+
+The executable has the `.exe` suffix on Windows.
 
 The command self-test and two frames of all four scenes pass. Complete
 RGB565/D24 attachment memory and actual RTL scanout match the independent SRR.

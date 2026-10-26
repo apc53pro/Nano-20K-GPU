@@ -200,6 +200,81 @@ implementation is SystemVerilog; C++ provides host commands, the external
 SDRAM chip model, an independent SRR oracle and SDL2 presentation. SDL2 is
 optional for a headless RTL run.
 
+### Windows RTL simulator
+
+Open **MSYS2 UCRT64** from the Start menu and return to this checkout. The
+normal SRR and RTL simulator have different prerequisites: SDL2 alone does not
+provide Verilator, and Git does not download system packages.
+
+```bash
+pacman -Syu
+```
+
+If MSYS2 asks you to close the terminal, close it, reopen **MSYS2 UCRT64** and
+run `pacman -Syu` again. Repeat until it reports that the system is current.
+Then run:
+
+```bash
+git pull --ff-only
+./scripts/setup-rtl-sim.sh
+make rtl-gpu-run
+```
+
+The setup installs or reuses `make`, MSYS2 Perl, and the UCRT64 packages for GCC,
+its `gcc-libs`/`cc-libs` compatibility packages, Python, pkgconf, SDL2 and Verilator. The
+[official MSYS2 Verilator package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-verilator?repo=ucrt64)
+provides an extensionless Perl launcher as well as native executables. The
+build helper resolves that launcher through MSYS2's Perl. Do not replace it
+with an unrelated Windows Perl installation or mix compilers from TDM-GCC,
+Git Bash or Visual Studio into this toolchain.
+
+If installing GCC still reports a conflict between `libgcc` and older
+`gcc-libs`/`cc-libs` after a full `pacman -Syu`, explicitly refresh and upgrade
+both compatibility packages in the same full transaction:
+
+```bash
+pacman -Syyu mingw-w64-ucrt-x86_64-gcc-libs mingw-w64-ucrt-x86_64-cc-libs
+```
+
+The current [gcc-libs](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-gcc-libs)
+and [cc-libs](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-cc-libs)
+packages retain the legacy package names and depend on the split runtime
+libraries. They are upgraded together; do not remove them or bypass dependency
+checks. Restart UCRT64 again if that transaction asks, then retry the setup.
+The setup does not perform a full system upgrade automatically and prints
+these recovery commands if dependency installation fails.
+
+Use `./scripts/setup-rtl-sim.sh --check` to verify existing tools without
+installing anything. The check compiles and runs a small RTL/C++/SDL2 smoke
+test. `make rtl-gpu` builds only; `make rtl-gpu-run` builds and launches the
+window. The first build compiles the generated C++ and can take several
+minutes. Build progress and periodic activity messages are printed; full
+output is retained in `build/rtl-gpu/verilator-build.log`. For every compiler
+message in the terminal, run `python -u scripts/gpu-rtl.py --verbose`.
+
+After building, the equivalent direct commands are:
+
+```bash
+./build/nano-gpu-rtl.exe --scene showcase
+./build/nano-gpu-rtl.exe --headless --scene showcase --frames 1 --verify
+```
+
+If a command fails, paste its complete output. These commands also identify
+which installation and tools that terminal is actually using:
+
+```bash
+type -a make python perl verilator g++
+cygpath -w /
+./scripts/setup-rtl-sim.sh --check
+```
+
+The setup checks prerequisites; a successful dependency check alone is not
+evidence that a complete Windows scene regression has passed. Debian/Ubuntu
+under WSL remains an alternative using the Linux setup below. Rebuild on the
+selected platform instead of copying the cloud's Linux executable to Windows.
+
+### Linux RTL simulator
+
 On Linux x86_64, install the pinned, workspace-local OSS CAD Suite and build:
 
 ```bash
@@ -242,11 +317,10 @@ synthesis alone does not qualify the complete GPU's physical fit or clock.
 See the [RTL guide](hardware/rtl-gpu.md) for generated reports and the distinction
 between the integrated GPU and the older UV arithmetic probe.
 
-Automatic RTL tool installation currently supports Linux x86_64 only. For a
-Windows PC, Debian/Ubuntu under WSL follows that path. Alternatively, manually
-install the platform's OSS CAD Suite and set `NANO_GPU_RTL_TOOLS` to its root or
-put its `bin` directory on PATH, alongside a compatible C++ compiler, make and
-Python. The integrated Verilator GPU build has not been validated on native
-Windows; the normal MSYS2 SRR setup above remains a separate supported workflow.
-Rebuild generated simulators on each machine rather than copying binaries or
-`.deps` installations between platforms.
+The full pinned OSS CAD Suite bootstrap in `setup-rtl-tools.sh` remains Linux
+x86_64 only. Windows simulation uses the native MSYS2 package through
+`setup-rtl-sim.sh`; it does not need a Windows OSS CAD Suite installation.
+Synthesis and routing on other platforms still require those separate HDL
+tools. Set `NANO_GPU_RTL_TOOLS` to a custom suite root or put the required tools
+on PATH. Rebuild generated simulators on each machine rather than copying
+binaries or `.deps` installations between platforms.
