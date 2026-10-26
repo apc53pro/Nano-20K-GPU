@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -125,7 +125,15 @@ system-benchmark: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 	$(PYTHON) scripts/benchmark-system.py --executable "$(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)" --verify --baseline docs/benchmarks/system-after-dataflow.json --require-no-regression --output "$(BUILD_DIR)/system-benchmark.json"
 
 benchmark-test:
-	$(PYTHON) -B -m unittest discover -s scripts/tests -p test_benchmark_system.py
+	$(PYTHON) -B -m unittest discover -s scripts/tests -p 'test_*.py'
+
+# Inventory reporting is not complete-device qualification. fpga-fit deliberately
+# fails until actual complete RTL, synthesis, routing and timing proof exist.
+resource-report: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
+	$(PYTHON) scripts/resource-report.py --executable "$(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)" --output "$(BUILD_DIR)/resource-report.json"
+
+fpga-fit: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
+	$(PYTHON) scripts/resource-report.py --executable "$(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)" --output "$(BUILD_DIR)/resource-report.json" --require-full-fit
 
 # Optional arithmetic RTL qualification. Ordinary SRR builds need no HDL tools.
 rtl-test:
@@ -150,7 +158,7 @@ test: $(BUILD_DIR)/reference-tests$(EXEEXT) $(BUILD_DIR)/hardware-tests$(EXEEXT)
 	@set -e; for test_bin in $(SYSTEM_TEST_BINS); do ./$$test_bin; done
 	./$(BUILD_DIR)/throughput-tests$(EXEEXT)
 	@set -e; for test_bin in $(PIPELINE_TEST_BINS); do ./$$test_bin; done
-	$(PYTHON) -B -m unittest discover -s scripts/tests -p test_benchmark_system.py
+	$(PYTHON) -B -m unittest discover -s scripts/tests -p 'test_*.py'
 
 run: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 	./$(BUILD_DIR)/nano-gpu-ref$(EXEEXT)

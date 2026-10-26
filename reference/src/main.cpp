@@ -280,7 +280,14 @@ void show_hardware_profile(const Options& options) {
             << "\n    \"timing_profile\": \"configurable project assumptions\","
             << "\n    \"hdmi_signaling_modeled\": false\n  }";
     } else std::cout << "null";
-    std::cout << ",\n  \"physical_implementation_validated\": false\n}\n";
+    std::cout << ",\n  \"resource_accounting\": {"
+        << "\n    \"selected_fixed_payload_register_bits\": " << hw::SystemStorageMap::fixed_payload_register_bits
+        << ",\n    \"optional_profiling_counter_bits\": " << 8u * 64u
+        << ",\n    \"state_inventory_complete\": false,"
+        << "\n    \"full_gpu_rtl_complete\": false,"
+        << "\n    \"mapped_lut4\": null,\n    \"mapped_flip_flops\": null,"
+        << "\n    \"scope\": \"Selected allocations and payload ledger; exact full-GPU counts require complete RTL synthesis and routing\""
+        << "\n  },\n  \"physical_implementation_validated\": false\n}\n";
 }
 
 std::ofstream output_file(const std::string& name, bool binary = false) {

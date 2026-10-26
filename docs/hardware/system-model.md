@@ -566,11 +566,15 @@ Status snapshots, packet header, executor fields, decoded primitive fields,
 the 92-byte reply source, byte masks and cache tags deliberately remain bounded
 registers. The reply source is distinct from both sideband status snapshots
 and the native reply-serializer bank. Immutable capabilities use logic ROM.
-Eight optimization counters add 512 scalar bits, and fixed-width record-
-lookahead and tile-export control registers are listed in the storage map.
+The eight optimization counters currently exist in host statistics and JSON,
+outside the live GET_STATUS layout. Implementing all eight as hardware
+profiling counters would reserve 512 register bits plus readout/control logic;
+this optional reserve is not a measured physical allocation. Fixed-width
+record-lookahead and tile-export control registers are listed in the storage map.
 The CPU resource cache is excluded from device storage. The storage-map
-header's 6,404-bit register-array subtotal
-does not include all scalar/arithmetic registers and is not a total FF count.
+header's 6,404-bit selected register-array subtotal does not include all
+scalar/arithmetic registers. It is neither a synthesized FF count nor a lower
+bound: equivalent, constant or dead fields may be optimized during RTL mapping.
 The selected renderer uses **46 of 48 native 18×18 multiplier equivalents**:
 one setup, forty perspective, two texture-address and three RGB units. Its
 fourteen native banks are included in the thirty-nine system banks. The serial

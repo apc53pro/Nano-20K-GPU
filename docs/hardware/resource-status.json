@@ -1,0 +1,406 @@
+{
+  "schema": "N20K-RESOURCE-REPORT-1",
+  "device": {
+    "part": "GW2AR-LV18QN88C8/I7",
+    "family": "GW2A-18C",
+    "capacity": {
+      "LUT4": 20736,
+      "DFF": 15552,
+      "BSRAM": 46,
+      "MULT18X18": 48,
+      "PLL": 2
+    }
+  },
+  "allocation_scope": "Selected model native allocations; unknown values are null, not zero or remaining space",
+  "profile_provenance_scope": "Hardware-profile snapshot; current source inventory hashes alone do not prove the executable was built from those sources. The Make target rebuilds its normal dependencies.",
+  "known_allocations": {
+    "BSRAM": 39,
+    "MULT18X18": 46,
+    "LUT4": null,
+    "DFF": null,
+    "PLL": null,
+    "IOB": null
+  },
+  "native_budget_within_capacity": true,
+  "register_inventory": {
+    "selected_fixed_payload_register_bits": 6404,
+    "optional_profiling_counter_bits": 512,
+    "state_inventory_complete": false,
+    "full_gpu_rtl_complete": false,
+    "mapped_lut4": null,
+    "mapped_flip_flops": null,
+    "scope": "Selected payload register ledger only; optional profiling is not established physical DFF use",
+    "complete": false
+  },
+  "implementation_blocks": [
+    {
+      "id": "uv_arithmetic",
+      "description": "Shared reciprocal and exact perspective-correct U/V pipeline, including native multiplier and seed-ROM selection.",
+      "status": "rtl_submodule",
+      "model_sources": [
+        "reference/src/hw_reciprocal.cpp",
+        "reference/include/nano_gpu/hw/reciprocal.hpp",
+        "reference/include/nano_gpu/hw/reciprocal_seed.hpp"
+      ],
+      "rtl_sources": [
+        "rtl/uv_mult.v",
+        "rtl/uv_pipeline.v"
+      ],
+      "qualification": "docs/hardware/rtl-qualification.json",
+      "missing_sources": [],
+      "rtl_source_present": true
+    },
+    {
+      "id": "coverage_interpolation",
+      "description": "Triangle command capture, edge initialization, coverage walking and enabled attribute-plane interpolation.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_tile_pipeline.cpp",
+        "reference/include/nano_gpu/hw/tile_pipeline.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "fragment_depth_shading",
+      "description": "D24 tests, fragment contexts, texture and key handoffs, RGB modulation, ordered retirement and attachment commits.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_fragment_pipeline.cpp",
+        "reference/include/nano_gpu/hw/fragment_pipeline.hpp",
+        "reference/src/hw_tile_pipeline.cpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "texture_cache_addressing",
+      "description": "Texture address pipeline, direct-mapped cache tags and data, synchronous hits and external SDRAM refill controller.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_texture.cpp",
+        "reference/include/nano_gpu/hw/texture.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "tile_storage_export_dma",
+      "description": "Resident and export attachment bank roles, clear/load paths, native-word tile stores and completion ordering.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_system.cpp",
+        "reference/src/hw_tile_pipeline.cpp",
+        "reference/include/nano_gpu/hw/storage_map.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "host_parallel_link",
+      "description": "Eight-bit host data transport, bounded RX/TX and packet banks, parser, backpressure and sideband register access; final physical pin protocol remains to be integrated.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_host_link.cpp",
+        "reference/include/nano_gpu/hw/host_link.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "command_execution",
+      "description": "Device-side command validation, ordered heap uploads, pass submission, fences, presentation and diagnostic replies.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_system.cpp",
+        "reference/include/nano_gpu/hw/system.hpp",
+        "reference/include/nano_gpu/hw/protocol.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "primitive_bin_fetch_prefetch",
+      "description": "Timed descriptor, tile-table, reference and primitive fetching, synchronous field capture and one-record lookahead.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_system.cpp",
+        "reference/include/nano_gpu/hw/storage_map.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "sdram_controller_arbitration",
+      "description": "SDRAM initialization, refresh, physical command/data timing, per-client native slots, arbitration and response ownership.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_sdram.cpp",
+        "reference/include/nano_gpu/hw/sdram.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "scanout_fifo",
+      "description": "Independent display fetch scheduling, bounded scanout FIFO, 640x480 timing, front-buffer ownership and underflow handling.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_scanout.cpp",
+        "reference/include/nano_gpu/hw/scanout.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "two_dimensional_copy",
+      "description": "Rectangle, line and sprite walking plus ordered image/framebuffer copies using native staging and shared SDRAM.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_walker2d.cpp",
+        "reference/include/nano_gpu/hw/walker2d.hpp",
+        "reference/src/hw_system_copy.cpp",
+        "reference/include/nano_gpu/hw/system_copy.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "native_storage_primitives",
+      "description": "Non-UV native BSRAM/DSP instantiation, fixed bank ownership, registered ports and any selected LUT/FF storage needed by the complete GPU.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_bsram.cpp",
+        "reference/include/nano_gpu/hw/bsram.hpp",
+        "reference/src/hw_mult18x18.cpp",
+        "reference/include/nano_gpu/hw/mult18x18.hpp",
+        "reference/include/nano_gpu/hw/device.hpp",
+        "reference/include/nano_gpu/hw/storage_map.hpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "status_recovery_control",
+      "description": "Bounded device status and completion state, exposed hardware counters, ownership faults, abort draining and reset recovery.",
+      "status": "modeled_only",
+      "model_sources": [
+        "reference/src/hw_system.cpp",
+        "reference/include/nano_gpu/hw/system.hpp",
+        "reference/src/hw_host_link.cpp"
+      ],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "board_clock_reset_cdc",
+      "description": "Production oscillator/PLL and reset tree, host/core/display clock domains, asynchronous crossings and board timing constraints.",
+      "status": "not_implemented",
+      "model_sources": [],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "hdmi_output_resources",
+      "description": "Video-only DVI-compatible TMDS encoding, serialization, clocking and output I/O resources for the HDMI connector.",
+      "status": "not_implemented",
+      "model_sources": [],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    },
+    {
+      "id": "production_top_pin_integration",
+      "description": "Complete GPU top-level wiring, package-pin assignment, SDRAM/host/display electrical constraints and all required real output paths.",
+      "status": "not_implemented",
+      "model_sources": [],
+      "rtl_sources": [],
+      "missing_sources": [],
+      "rtl_source_present": false
+    }
+  ],
+  "missing_blocks": [
+    "coverage_interpolation",
+    "fragment_depth_shading",
+    "texture_cache_addressing",
+    "tile_storage_export_dma",
+    "host_parallel_link",
+    "command_execution",
+    "primitive_bin_fetch_prefetch",
+    "sdram_controller_arbitration",
+    "scanout_fifo",
+    "two_dimensional_copy",
+    "native_storage_primitives",
+    "status_recovery_control",
+    "board_clock_reset_cdc",
+    "hdmi_output_resources",
+    "production_top_pin_integration"
+  ],
+  "source_sha256": {
+    "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+    "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+    "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+    "reference/include/nano_gpu/hw/host_link.hpp": "e32576db31779c06940752001c990d6e0bdafee8105e159a47f2412d10ed4876",
+    "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+    "reference/include/nano_gpu/hw/protocol.hpp": "e98d79e1d3c642c67db7c7e40a075830bd3f8feed7d1b3bc0b4d01bff4c91fb5",
+    "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+    "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+    "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+    "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+    "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+    "reference/include/nano_gpu/hw/system.hpp": "b3cbba324bfe45850fde47171f6ff2ac010bda843b8f10f1bedb0be666eba5ec",
+    "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+    "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+    "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+    "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+    "reference/src/hw_bsram.cpp": "6d86b7caa57f11cf1a28e9a3b6e53c0f620f73e165909943b98d30356d7e6724",
+    "reference/src/hw_fragment_pipeline.cpp": "7509d29f2723c4973354e64ac24209505f57e5c5b870599641aa11b428d8060a",
+    "reference/src/hw_host_link.cpp": "fbb6202ef54a94f365364fd9d0264dcb0dae828ecf55c3337d5860a0e84bf04f",
+    "reference/src/hw_mult18x18.cpp": "873182d0231a54ed1dffb8ec98f9e5911379905d80a1c1d3d5a00276e4e9cde1",
+    "reference/src/hw_reciprocal.cpp": "ae1bdc3e8558326573c0449e67558453a93df6a057032829bd4de975b7398162",
+    "reference/src/hw_scanout.cpp": "8b6c5483947ea8441b9afd48e6f7afd0eb084bd20f9dacc4a0f33ccf4b44f7d9",
+    "reference/src/hw_sdram.cpp": "d90f377a46c6605f06fb5ecff67ff6ce6e78ec864891b30b783b9c5f6f7bf492",
+    "reference/src/hw_system.cpp": "b823ff77e8903da722633b1ab9c1af75ace736135bbbf24239c8ba5c618e0bea",
+    "reference/src/hw_system_copy.cpp": "d510a0ffb05766788ff1de5e08efbf841c08b1ad1628891eee9038981545a7c9",
+    "reference/src/hw_texture.cpp": "f39a0e7bbcd95583f14b2b034fd6f661ccb78802525ed514c320a9e39cb5716e",
+    "reference/src/hw_tile_pipeline.cpp": "eaaea06b0942b2e837a2ce019b7cc7d25ad297c938cd7239246a5d28cb842ba3",
+    "reference/src/hw_walker2d.cpp": "f25b2d7b2f367459eb025fd57b359c9590d9076ef3adfd35bb0b6f5a8ae96ac1",
+    "rtl/uv_mult.v": "f6f24e2e9a3095c9b5b8431181119b185f19935a9e705b403f354f60de854928",
+    "rtl/uv_pipeline.v": "a13bb9c19f901d45a497d72c5eabb63ecffcd4a973cbc10426bc0404e42961f2"
+  },
+  "arithmetic_probe": {
+    "scope": "recorded reciprocal/UV arithmetic probe, including serial test harness",
+    "status": "qualified_submodule",
+    "utilization": {
+      "ALU": {
+        "available": 15552,
+        "used": 1844
+      },
+      "BSRAM": {
+        "available": 46,
+        "used": 4
+      },
+      "DFF": {
+        "available": 15552,
+        "used": 4472
+      },
+      "IOB": {
+        "available": 384,
+        "used": 9
+      },
+      "LUT4": {
+        "available": 20736,
+        "used": 8718
+      },
+      "MULT18X18": {
+        "available": 48,
+        "used": 37
+      }
+    },
+    "recorded_utilization": {
+      "ALU": {
+        "available": 15552,
+        "used": 1844
+      },
+      "BSRAM": {
+        "available": 46,
+        "used": 4
+      },
+      "DFF": {
+        "available": 15552,
+        "used": 4472
+      },
+      "IOB": {
+        "available": 384,
+        "used": 9
+      },
+      "LUT4": {
+        "available": 20736,
+        "used": 8718
+      },
+      "MULT18X18": {
+        "available": 48,
+        "used": 37
+      }
+    },
+    "source_mismatches": [],
+    "whole_gpu_evidence": false,
+    "generated_artifacts_revalidated": false,
+    "timing_met": false,
+    "evidence_kind": "Historical arithmetic report with source-hash checks; generated netlist/report artifacts are not regenerated by this audit",
+    "recorded_target_met": false,
+    "recorded_fmax": {
+      "core.clk": {
+        "achieved": 89.17424774169922,
+        "constraint": 100.80000305175781
+      }
+    },
+    "recorded_schema": "N20K-UV-RTL-0.1",
+    "harness_register_bits": 230
+  },
+  "whole_gpu": {
+    "status": "incomplete",
+    "fits": null,
+    "timing_met": null,
+    "rtl_complete": false,
+    "mapped_resource_counts": null,
+    "blockers": [
+      "Missing RTL: coverage_interpolation",
+      "Missing RTL: fragment_depth_shading",
+      "Missing RTL: texture_cache_addressing",
+      "Missing RTL: tile_storage_export_dma",
+      "Missing RTL: host_parallel_link",
+      "Missing RTL: command_execution",
+      "Missing RTL: primitive_bin_fetch_prefetch",
+      "Missing RTL: sdram_controller_arbitration",
+      "Missing RTL: scanout_fifo",
+      "Missing RTL: two_dimensional_copy",
+      "Missing RTL: native_storage_primitives",
+      "Missing RTL: status_recovery_control",
+      "Missing RTL: board_clock_reset_cdc",
+      "Missing RTL: hdmi_output_resources",
+      "Missing RTL: production_top_pin_integration",
+      "Production GPU top is not implemented",
+      "Production pin and external timing constraints are unresolved",
+      "Required physical clocks, resets and crossings are unresolved",
+      "No complete functional GPU RTL integration/co-simulation qualification exists",
+      "No full-GPU synthesis and exact-package placement/routing runner exists",
+      "Full mapped LUT/FF/DSP/BSRAM/clock/I/O totals and all-clock timing are unavailable"
+    ],
+    "required_proof": [
+      "Complete functional RTL, including physical output, clocks and I/O resources; no behavioral stubs",
+      "Functional and cycle comparisons against the SRR under stalls, reset and recovery",
+      "Single integrated synthesis netlist with actual mapped cell/resource totals",
+      "Successful placement and routing on the exact package with real pin and clock constraints",
+      "All required clock and external timing checks passing, with unconstrained paths accounted for",
+      "Matching source, generator, netlist, constraints, device database and tool provenance"
+    ]
+  },
+  "evidence": {
+    "manifest": {
+      "path": "/workspace/Nano-20K-GPU/rtl/full-gpu-manifest.json",
+      "sha256": "0759c60139ce3297069f0dc61fb0192630914d805c990c91e6b70e5d3546d1e2"
+    },
+    "model_profile_executable": {
+      "path": "build/nano-gpu-ref-headless",
+      "sha256": "0b8b17b656062a8b5ece80e2b7df23e2d4e648d8bf248975abed7da1df2e7984"
+    },
+    "recorded_probe_report": {
+      "path": "/workspace/Nano-20K-GPU/docs/hardware/rtl-qualification.json",
+      "sha256": "346e06578a2d11adafc01f00165246dd708d217f0ecce6375b0c16a8673824db"
+    }
+  }
+}

@@ -176,8 +176,12 @@ product is assembled from registered native 18×18 partial products. See the
 
 ## Register and logic-ROM selection
 
-The following fixed arrays deliberately remain registers. Their aggregate is
-**6,404 bits**; this is a subtotal, not a whole-device FF estimate.
+The following fixed arrays are selected for register mapping. Their aggregate
+is **6,404 bits**. This is a planning subtotal, not a synthesized FF count, a
+whole-device estimate, or a lower bound. RTL can eliminate constant/dead fields
+and merge equivalent state; additional datapath and control state remains
+outside this subtotal. The [resource-proof requirements](resource-proof.md)
+define what is needed for a full-device count.
 
 | Register allocation | Selected bits | Access |
 | --- | ---: | --- |
@@ -236,7 +240,7 @@ container metadata do not describe hardware storage:
 | System control | One ordered command/pass/copy descriptor, tile/reference/row counters, front/back validity and seal bits, epoch/sequence/fence/present tokens and recovery state |
 | Record lookahead | One 32-bit record address, two-bit prefetch state and one invalid-address flag; record payload reuses the existing reader and decoded-field bank |
 | Tile export control | Bank-role selector and native-port mux; three-bit export state, five-bit row index, two 23-bit output base addresses; 32-bit word hold, 16-bit color half, five-bit pending read/word indices, six-bit next index, half selector and bounded valid/pending/depth/staging flags |
-| Optimization counters | Eight 64-bit counters: prefetched records, record-fetch overlap/wait cycles, tile-export active/overlap/wait cycles, published tile pixels and bank-role exchanges; 512 additional scalar counter bits |
+| Optional optimization-counter reserve | Eight 64-bit counters would require a 512-bit register reserve if implemented as live hardware profiling counters. Their current statistics/JSON fields are host observations, not proof of 512 physical FFs. |
 
 No blanket alias is assumed between simultaneously live fields. Small address,
 count and state fields can be narrowed only within the documented legal input
@@ -256,6 +260,12 @@ Statistics used only for reporting are host counters. Any counter exposed as a
 live hardware status register or used for device control still requires an
 explicit bounded register implementation; observation does not provide a free
 control signal.
+
+The eight optimization counters are not currently fields of the live
+GET_STATUS register layout. Selecting hardware profiling later must identify
+which counters exist, their widths, clock/reset behavior and readout path, then
+include that implementation in synthesis. The optional 512-bit reserve is not
+added to the 6,404-bit subtotal as a measured or mandatory allocation.
 
 See [the system model](system-model.md) for command/memory sequencing,
 [the hardware profile](gowin-profile.md) for vendor primitive choices, and

@@ -104,6 +104,14 @@ The [further optimization review](docs/hardware/optimization-review.md) records
 measured experimental improvements and the hardware and protocol work needed
 before adopting them.
 
+Exact complete-GPU resource use and physical fit are **not yet established**:
+only the reciprocal/UV arithmetic unit has RTL qualification. Run
+`make resource-report` for the native allocation budget, source-matched
+arithmetic evidence and missing RTL inventory. `make fpga-fit` currently fails
+with an incomplete-proof report; it cannot promote a partial arithmetic result
+to a whole-GPU fit claim. The [resource-proof requirements](docs/hardware/resource-proof.md)
+define the complete RTL, synthesis, routing and timing work still needed.
+
 The throughput harness tracks fragment acceptance and retirement on each
 modeled edge, checks ordering and cancellation, and distinguishes sustained
 datapath cadence from complete-pass throughput. It can run without SDL:

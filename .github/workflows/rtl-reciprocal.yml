@@ -20,6 +20,11 @@ jobs:
         # Timing is reported independently of functional acceptance. The model's
         # 100.8-MHz assumption is not a whole-GPU timing-closure claim.
         run: python3 scripts/rtl-check.py --pnr --build-dir build/rtl
+      - name: Audit full-GPU coverage separately from arithmetic qualification
+        run: |
+          make -j4 headless
+          python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
+          python3 scripts/resource-report.py --probe-report build/rtl/qualification.json --output build/resource-report.json
       - name: Save qualification reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -29,4 +34,5 @@ jobs:
             build/rtl/qualification.json
             build/rtl/uv-timing.json
             build/rtl/*.log
+            build/resource-report.json
           if-no-files-found: warn

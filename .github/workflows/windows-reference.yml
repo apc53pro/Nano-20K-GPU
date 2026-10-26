@@ -65,3 +65,5 @@ jobs:
           SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/nano-gpu-ref.exe --mode system --scene showcase --frames 1 --step 0 --verify
       - name: Check steady system throughput and texture residency
         run: make system-benchmark
+      - name: Report incomplete full-GPU resource coverage
+        run: make resource-report
