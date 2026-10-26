@@ -88,7 +88,9 @@ def preflight(build, headless_only=False, require_sdl=False):
         if isinstance(error, subprocess.CalledProcessError) and error.output:
             details += "\n" + str(error.output)[-4000:]
         raise RuntimeError("Cannot run the RTL toolchain; run ./scripts/setup-rtl-sim.sh\n" + details) from error
-    flags = ["-std=c++17", "-O2", "-DNANO_GPU_ORACLE_ONLY=1", "-I" + (ROOT / "reference/include").as_posix(),
+    # We advance VerilatedContext explicitly. MinGW does not provide the weak
+    # legacy sc_time_stamp hook that ELF builds can leave undefined.
+    flags = ["-std=c++17", "-O2", "-DVL_TIME_CONTEXT=1", "-DNANO_GPU_ORACLE_ONLY=1", "-I" + (ROOT / "reference/include").as_posix(),
              "-I" + (ROOT / "reference/rtl").as_posix()]
     links = []
     sdl = False
@@ -116,9 +118,9 @@ def smoke_check(build, verilator, flags, links, sdl):
     source.write_text("module nano_tools_smoke(input wire clk, input wire a, output reg y); always @(posedge clk) y <= a; endmodule\n")
     cpp = check / "tools_smoke.cpp"
     cpp.write_text('#include "Vnano_tools_smoke.h"\n'
-                   '#ifdef NANO_GPU_RTL_SDL\n#define SDL_MAIN_HANDLED\n#include <SDL.h>\n#endif\n'
+                   '#ifdef NANO_GPU_RTL_SDL\n#include <SDL.h>\n#endif\n'
                    'static_assert(sizeof(__int128) == 16, "compiler must support __int128");\n'
-                   'int main() {\n#ifdef NANO_GPU_RTL_SDL\nSDL_SetMainReady(); if (SDL_Init(0)) return 3; SDL_Quit();\n#endif\n'
+                   'int main(int argc, char** argv) { (void)argc; (void)argv;\n#ifdef NANO_GPU_RTL_SDL\nSDL_SetMainReady(); if (SDL_Init(0)) return 3; SDL_Quit();\n#endif\n'
                    'Vnano_tools_smoke dut; dut.clk=0; dut.a=1; dut.eval(); dut.clk=1; dut.eval(); return dut.y != 1; }\n')
     executable = check / ("tools-smoke.exe" if os.name == "nt" else "tools-smoke")
     command = verilator + ["--cc", "--exe", "--build", "-j", "2", "-Wno-fatal", "--top-module", "nano_tools_smoke",
