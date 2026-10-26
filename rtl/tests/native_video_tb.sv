@@ -1,5 +1,9 @@
 `timescale 1ns/1ps
-module native_video_tb;
+module native_video_tb #(
+    parameter integer CLEAN_FRAMES = 5,
+    parameter integer CONTENTION = 0,
+    parameter integer SWAP_ON_COMPLETION = 0
+);
     reg clk = 0;
     always #5 clk = !clk;
     reg reset = 1, memory_ready = 0, front_id = 0;
@@ -24,7 +28,14 @@ module native_video_tb;
     reg block_commands = 0, held_command = 0;
     reg [22:0] held_address;
     integer swap_countdown = 0;
-    wire command_ready = !memory_busy && !block_commands;
+    integer foreground_wait = 0, scanout_streak = 0;
+    reg completion_swap_armed = 0;
+    integer completion_swaps = 0;
+    // Model the shared service's bounded scanout priority. An offered scanout
+    // command wins up to four times; an empty request slot lets a queued
+    // foreground WRITE hold the service while its payload is staged.
+    wire command_ready = !memory_busy && !block_commands && foreground_wait == 0 &&
+        (!CONTENTION || scanout_streak < 4);
 
     function [15:0] image_pixel;
         input integer absolute_pixel;
@@ -43,13 +54,22 @@ module native_video_tb;
     end
     always @(posedge clk) begin
         memory_done <= 0;
-        if (reset) begin memory_busy <= 0; word_index <= 0; delay_cycles <= 0; end
+        if (reset) begin
+            memory_busy <= 0; word_index <= 0; delay_cycles <= 0;
+            foreground_wait <= 0; scanout_streak <= 0;
+        end
         else begin
+            if (foreground_wait != 0) foreground_wait <= foreground_wait - 1;
             if (cmd_valid && command_ready) begin
                 if (cmd_write || cmd_words != 16 || cmd_addr[1:0] != 0)
                     $fatal(1,"Invalid scanout memory command");
                 memory_busy <= 1; word_address <= cmd_addr >> 2;
                 word_index <= 0; delay_cycles <= 5;
+                scanout_streak <= scanout_streak + 1;
+            end else if (CONTENTION && !memory_busy && foreground_wait == 0 &&
+                         (!cmd_valid || scanout_streak >= 4)) begin
+                foreground_wait <= 220;
+                scanout_streak <= 0;
             end else if (delay_cycles != 0) delay_cycles <= delay_cycles - 1;
             if (response_valid && r_ready) begin
                 if (response_last) begin memory_busy <= 0; memory_done <= 1; end
@@ -80,11 +100,21 @@ module native_video_tb;
         repeat (10) @(negedge clk);
         memory_ready = 1;
     end
+    always @(negedge clk) begin
+        // Precisely combine completion of the old refill, acceptance of the
+        // next queued refill, and a new-front generation flush. Every response
+        // from that just-accepted old-front command must be discarded.
+        if (completion_swap_armed && memory_done && cmd_valid && command_ready) begin
+            front_id = 1;
+            completion_swap_armed = 0;
+            completion_swaps = completion_swaps + 1;
+        end
+    end
     always @(posedge clk) begin
         #1;
         if (!reset) begin
             cycles = cycles + 1;
-            if (cycles > 8000000) $fatal(1,"Scanout test timed out");
+            if (cycles > (CLEAN_FRAMES + 2) * 1680000) $fatal(1,"Scanout test timed out");
             if (swap_countdown != 0) begin
                 swap_countdown = swap_countdown - 1;
                 if (swap_countdown == 5) front_id = 1;
@@ -92,28 +122,37 @@ module native_video_tb;
             end
             if (vblank) begin
                 blank_count = blank_count + 1;
-                if (blank_count == 2) begin block_commands = 1; swap_countdown = 8; end
-                if (blank_count == 3) block_memory = 1;
+                if (blank_count == 2) begin
+                    if (SWAP_ON_COMPLETION) completion_swap_armed = 1;
+                    else begin block_commands = 1; swap_countdown = 8; end
+                end
+                if (blank_count == CLEAN_FRAMES + 1) block_memory = 1;
             end
             if (phase == 0 && de) begin
                 if (blank_count == 0) begin
                     if (pixel != 0) $fatal(1,"Startup did not produce black");
-                end else if (blank_count < 3) begin
+                end else if (blank_count <= CLEAN_FRAMES) begin
                     if (pixel !== image_pixel(y*640 + x + (front_id ? 307200 : 0)))
                         $fatal(1,"FIFO pixel mismatch at (%0d,%0d) got %h expected %h",x,y,pixel,
                             image_pixel(y*640 + x + (front_id ? 307200 : 0)));
                     checked_pixels = checked_pixels + 1;
                     if (x == 639 && y == 479) frames = frames + 1;
                 end else if (underflows != 0 && x == 100 && y == 0) begin
-                    if (pixel != 0 || underflows != 1 || checked_pixels != 614400 || frames != 2)
+                    if (pixel != 0 || underflows != 1 || checked_pixels != CLEAN_FRAMES*307200 || frames != CLEAN_FRAMES)
                         $fatal(1,"Underflow recovery/accounting mismatch");
-                    $display("PASS scanout: two complete native-FIFO frames, front swap, startup and underflow");
+                    if (SWAP_ON_COMPLETION && completion_swaps != 1)
+                        $fatal(1,"Concurrent completion/accept/swap was not exercised");
+                    $display("PASS scanout: %0d consecutive native-FIFO frames, contention=%0d, front swap, unchanged-front repeats, startup and underflow",CLEAN_FRAMES,CONTENTION);
                     $finish;
                 end
                 if (!hsync || !vsync) $fatal(1,"Sync asserted during active video");
             end
         end
     end
+endmodule
+
+module scanout_contention_tb;
+    native_video_tb #(.CLEAN_FRAMES(3),.CONTENTION(1),.SWAP_ON_COMPLETION(1)) scenario();
 endmodule
 
 module sdp16_async_tb;

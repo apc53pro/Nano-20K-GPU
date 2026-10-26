@@ -114,13 +114,14 @@ The executable supports:
 | --- | --- |
 | `--headless` | Run without SDL2; defaults to one frame. |
 | `--scene showcase\|perspective\|overdraw\|opaque` | Select the host-generated workload. |
-| `--verify` | Compare all color/depth attachments and the displayed frame with the independent SRR. |
+| `--verify` | Compare all attachments and every complete scanout frame after the first PRESENT with the independent SRR. |
 | `--self-test` | Run the headless command, copy, attachment LOAD, scanout and recovery checks. |
 | `--frames N` | Limit rendered frames; windowed runs otherwise continue. |
 | `--time S`, `--step S` | Select deterministic animation time and its increment. |
 | `--stats FILE.json` | Save RTL cycle counts, verification state and the displayed color hash. |
 | `--output FILE.ppm` | Save the last complete displayed frame. |
 | `--trace FILE.vcd` | Trace RTL signals; complete-frame traces can be large. |
+| `--scanout-log FILE.csv` | Record every complete scanout frame, including black or mismatched frames, with cycle, phase and color hash. |
 
 For a frozen two-frame differential check:
 
@@ -153,8 +154,11 @@ when available. The script rejects inputs changed during its build.
 With `--verify`, the testbench renders the same prepared pass through the
 canonical monolithic SRR. It compares every pixel of **both** RGB565
 framebuffers and the complete D24 buffer with external SDRAM contents. After
-presentation, it also compares a complete frame captured from the RTL's actual
-scanout pixels. SDL2 and PPM output use those captured pixels, including any
+presentation, it also checks every complete frame captured from the RTL's actual
+scanout pixels, including during the next upload and rendering pass. The expected
+front changes after the PRESENT reply in vertical blank. Frames are published
+at the final active pixel, avoiding the nine-bit Y counter's wrap during blank.
+SDL2 and PPM output use those captured pixels, including any
 scanout failure, rather than reading a framebuffer directly for display.
 
 The command self-test exercises all eight opcodes, a 512-byte unaligned
@@ -164,40 +168,43 @@ partial and malformed packets and an active pass, checks epoch restart and
 attachment validity, and confirms that recovery preserves every front-buffer
 pixel. Separate native-block tests cover RAM collisions, independent host
 clocks, physical SDRAM timing and runtime reset during all eight WRITE beats.
+The command test also checks 44 unaligned/short upload patterns, more than
+512 KiB of sustained uploads while a nonblack front remains visible, and abort
+after an upload reaches the physical SDRAM WRITE pins.
 
-The complete regression passes two frames of each scene, starting at time
-1.25 seconds with a 1/60-second step. Every color/depth attachment and the
-actual scanout frame agrees with the canonical SRR. The initial second-frame
-submission baseline is:
+An earlier scanout bug caused most of a displayed frame to turn black during
+the next upload. The scanout client offered refills too late to benefit from
+arbitration priority, and uploads reserved the service before fetching their
+payload. Queued display refills and a native 64-byte upload staging bank fix
+the starvation. The contested scanout regression fails the old RTL and checks
+consecutive frames, including simultaneous completion, acceptance and swap.
+The integration suite now requires zero scanout underflows and saves per-frame
+CSV logs, so a later correct frame cannot hide an earlier blackout.
 
-| Scene | Core cycles through FENCE |
-| --- | ---: |
-| Showcase | 8,089,756 |
-| Perspective | 7,073,084 |
-| Overdraw | 9,422,928 |
-| Opaque | 9,135,224 |
+The complete regression passes two rendered frames of each scene, starting at
+time 1.25 seconds with a 1/60-second step. Every attachment and every completed
+scanout after the first PRESENT agrees with the canonical SRR:
 
-The [recorded RTL baseline](../benchmarks/rtl-initial.json) includes source
-hashes, tool versions, verified scanout hashes and cycle counts. The SDL2 build
-also passes a one-frame opaque-scene check using `SDL_VIDEODRIVER=dummy`.
+| Scene | Second-frame cycles through FENCE | Verified scanout frames | Underflows |
+| --- | ---: | ---: | ---: |
+| Showcase | 8,352,676 | 7 | 0 |
+| Perspective | 7,401,180 | 7 | 0 |
+| Overdraw | 9,709,072 | 8 | 0 |
+| Opaque | 9,756,096 | 8 | 0 |
+
+The [continuous-scanout baseline](../benchmarks/rtl-scanout-fixed.json) includes
+the reproducible pre-fix failure, source hashes, tool versions and current
+verified hashes/cycles. The older [initial baseline](../benchmarks/rtl-initial.json)
+checked selected post-PRESENT frames and did not catch the intermediate blackout.
 
 These are the initial RTL schedule's counts. It uploads textures on every
 frame, serializes tile transfers, and performs LOAD and COPY as individual
 pixel transactions. The older C++ model's resident-texture cache, primitive
 prefetch and overlapping tile writeback have not been ported to this RTL.
 
-The initial integrated showcase at time zero passes these attachment and
-scanout comparisons. Its initial functional schedule measures:
-
-| Measurement | Core cycles |
-| --- | ---: |
-| Host submission through the matching fence reply | 8,121,142 |
-| Complete simulation including reset/boot, submission and display observation | 11,718,421 |
-
-These counts belong to the integrated RTL implementation's initial serialized
-schedule. They do not describe the optimized C++ system model's resident-texture,
-prefetch and overlapped tile-writeback schedule. For example, dividing the RTL
-submission count by an **assumed** 100.8 MHz gives approximately 80.6 ms;
+These counts belong to the integrated RTL implementation's serialized schedule,
+with continuous scanout maintained. Dividing the showcase submission count by
+an **assumed** 100.8 MHz gives approximately 82.9 ms;
 100.8 MHz is not an achieved whole-GPU clock, and this result does not establish
 30 FPS. Further RTL optimization needs its own measured baseline and must
 preserve the independent oracle comparisons.
@@ -222,16 +229,18 @@ The source-matched [resource report](rtl-core-pack.json) records:
 
 | Resource | Used | Available |
 | --- | ---: | ---: |
-| Occupied LUT4 resources | **29,300** | **20,736** |
-| DFFs, including the serial probe | 13,926 | 15,552 |
-| ALU functions, already included in occupied LUT4 resources | 9,442 | 15,552 |
+| Occupied LUT4 resources | **29,608** | **20,736** |
+| DFFs, including the serial probe | 13,991 | 15,552 |
+| ALU functions, already included in occupied LUT4 resources | 9,462 | 15,552 |
 | Native 18×18 multipliers | 43 | 48 |
-| Native BSRAM blocks | 25 | 46 |
+| Native BSRAM blocks | 26 | 46 |
 
-The occupied LUT4 count is approximately **141%** of capacity, an excess of
-**8,564**. ALU occupancy and distributed RAM are already represented in that
+The occupied LUT4 count is approximately **143%** of capacity, an excess of
+**8,872**. ALU occupancy and distributed RAM are already represented in that
 logic total; adding them again would double-count resources. All 43 native
-multipliers and 25 native RAM blocks remain present in the packed design.
+multipliers and 26 native RAM blocks remain present in the packed design.
+The upload starvation fix adds one native RAM bank for the bounded staging
+buffer; these counts include that fix.
 The serial probe adds at most 198 registers plus its small checksum/control
 logic. That overhead does not explain the large LUT excess. The resource
 failure belongs to the current functional core implementation.

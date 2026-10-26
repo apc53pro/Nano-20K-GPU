@@ -24,7 +24,8 @@ def main():
     results = []
     cases = [("commands", ["--self-test"])]
     cases += [(scene, ["--headless", "--verify", "--scene", scene, "--frames", "2", "--time", "1.25",
-                       "--stats", str(build / (scene + ".json")), "--output", str(build / (scene + ".ppm"))])
+                       "--stats", str(build / (scene + ".json")), "--output", str(build / (scene + ".ppm")),
+                       "--scanout-log", str(build / (scene + "-scanout.csv"))])
               for scene in ("showcase", "perspective", "overdraw", "opaque")]
     for name, options in cases:
         print("RTL integration: " + name, flush=True)
@@ -38,6 +39,8 @@ def main():
             stats = json.loads((build / (name + ".json")).read_text())
             if stats.get("backend") != "verilator" or stats.get("verified") is not True or stats.get("cpp_device_backends_linked") is not False:
                 raise RuntimeError("unexpected simulator/evidence in " + name)
+            if stats.get("checked_scanout_frames", 0) < 2 or stats.get("scanout_underflows") != 0:
+                raise RuntimeError("incomplete continuous-frame verification or scanout underflow in " + name)
             case["statistics"] = stats
         results.append(case)
     if hashlib.sha256(executable.read_bytes()).hexdigest() != binary_hash:

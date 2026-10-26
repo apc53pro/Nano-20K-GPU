@@ -94,11 +94,24 @@ module nano_scanout (
             seen_front <= front_id;
             previous_memory_ready <= memory_ready;
 
-            if (!request_valid && !outstanding && !response_valid && streaming && memory_ready &&
-                    next_fetch < FRAME_PIXELS && fifo_level <= 13'd2016 && !flush_stream) begin
+            // Offer the next refill before the service becomes idle. Waiting
+            // for mem_done to clear outstanding leaves a request bubble in
+            // which a slow foreground WRITE can win every arbitration turn,
+            // defeating the service's bounded scanout priority.
+            // Reserve 32 pixels for the active transaction, two for a retained
+            // response word, and 32 for this queued transaction. The command
+            // remains stable until accepted; no extra memory port is added.
+            if (!request_valid && streaming && memory_ready &&
+                    next_fetch < FRAME_PIXELS && fifo_level <= 13'd1982 && !flush_stream) begin
                 request_valid <= 1;
                 request_discard <= 0;
                 request_address <= (front_id ? 23'h096000 : 23'b0) + {3'b0,next_fetch,1'b0};
+            end
+            // Completion can coincide with acceptance of the queued refill.
+            // The newly accepted owner must remain outstanding in that case.
+            if (mem_done || mem_error) begin
+                outstanding <= 0;
+                discard_response <= 0;
             end
             if (mem_cmd_valid && mem_cmd_ready) begin
                 request_valid <= 0;
@@ -106,10 +119,6 @@ module nano_scanout (
                 discard_response <= request_discard || flush_stream || !streaming;
                 received_words <= 0;
                 if (!request_discard && !flush_stream) next_fetch <= next_fetch + 19'd32;
-            end
-            if (mem_done || mem_error) begin
-                outstanding <= 0;
-                discard_response <= 0;
             end
             if (fifo_push) begin
                 write_pointer <= write_pointer + 11'd1;
@@ -165,7 +174,8 @@ module nano_scanout (
                 response_valid <= 0; response_lane <= 0;
                 next_fetch <= 0;
                 if (request_valid && !mem_cmd_ready) request_discard <= 1;
-                discard_response <= (outstanding || (request_valid && mem_cmd_ready)) && !mem_done && !mem_error;
+                discard_response <= (request_valid && mem_cmd_ready) ||
+                    (outstanding && !mem_done && !mem_error);
             end
             if (enter_blank) begin
                 vblank_pulse <= 1;

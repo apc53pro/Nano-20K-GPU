@@ -139,8 +139,8 @@ the C++ model's 32.4 ms steady result does not describe the RTL. The
 verification, cycle measurements and the remaining board integration work.
 
 **The current functional RTL core does not fit the Tang Nano 20K.** An exact-part
-packing check of the core in a small serial probe reports **29,300 of 20,736
-LUT4 resources (141%)**, with 43 of 48 native multipliers and 25 of 46 BSRAMs.
+packing check of the core in a small serial probe reports **29,608 of 20,736
+LUT4 resources (143%)**, with 43 of 48 native multipliers and 26 of 46 BSRAMs.
 Run `make rtl-gpu-pack` to reproduce the capacity rejection; the source-matched
 [resource report](docs/hardware/rtl-core-pack.json) and
 [RTL guide](docs/hardware/rtl-gpu.md#physical-resource-result-current-core-does-not-fit)

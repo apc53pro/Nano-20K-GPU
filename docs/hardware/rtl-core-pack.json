@@ -19,9 +19,9 @@
     "rtl/uv_mult.v": "f6f24e2e9a3095c9b5b8431181119b185f19935a9e705b403f354f60de854928",
     "rtl/uv_pipeline.v": "a13bb9c19f901d45a497d72c5eabb63ecffcd4a973cbc10426bc0404e42961f2",
     "rtl/gpu/nano_fragment_pipeline.sv": "cacfaa23b2b29fb3d4b740499fc6a591dc50dae89c77528751fffa069cbc3c83",
-    "rtl/gpu/nano_gpu_core.sv": "c0dd743e9ff4c02b2d0584a80029284592013f59c49675eb4e91935ab1b2e9e2",
+    "rtl/gpu/nano_gpu_core.sv": "3981d93859759373e7daa960eed58ab7fd2296d0123cdc934e8447db58056f5a",
     "rtl/gpu/nano_host_link.sv": "d8bcf20bc73c8cc12acab8ff035a7b8f05cd0b1b8e475cd748c655b569fb8f2b",
-    "rtl/gpu/nano_scanout.sv": "67fd0d3616fce9e52bcefc78752a08efafeb528ca42bd7f1a44667f58c2908ad",
+    "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdram_service.sv": "f738b718eff050e5935cd8ec91510f6d6335aef9fe40de37f5008853f28e888f",
     "rtl/gpu/nano_texture_cache.sv": "9916cdef2972261601260524e28862766df7d6b3141aea87fe8db059da3b822f",
@@ -40,7 +40,7 @@
   "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
   "elaboration_passed": true,
   "synthesis_returncode": 0,
-  "netlist_sha256": "4fa584a8cf52faaae77a5fade702939a14fee3ec792a8fde57c1b45b17d8c151",
+  "netlist_sha256": "86bf3102c28185a90ab610814a95a2522af9cf4d040e111e82c682e2bbb29dd9",
   "pack_returncode": 0,
   "packer_errors": [],
   "packer_utilization": {
@@ -55,7 +55,7 @@
       "within_capacity": true
     },
     "LUT4": {
-      "used": 29300,
+      "used": 29608,
       "available": 20736,
       "within_capacity": false
     },
@@ -70,27 +70,27 @@
       "within_capacity": true
     },
     "MUX2_LUT5": {
-      "used": 2457,
+      "used": 2442,
       "available": 10368,
       "within_capacity": true
     },
     "MUX2_LUT6": {
-      "used": 52,
+      "used": 75,
       "available": 5184,
       "within_capacity": true
     },
     "MUX2_LUT7": {
-      "used": 21,
+      "used": 31,
       "available": 2592,
       "within_capacity": true
     },
     "MUX2_LUT8": {
-      "used": 8,
+      "used": 14,
       "available": 2592,
       "within_capacity": true
     },
     "ALU": {
-      "used": 9442,
+      "used": 9462,
       "available": 15552,
       "within_capacity": true
     },
@@ -100,7 +100,7 @@
       "within_capacity": true
     },
     "DFF": {
-      "used": 13926,
+      "used": 13991,
       "available": 15552,
       "within_capacity": true
     },
@@ -110,7 +110,7 @@
       "within_capacity": true
     },
     "BSRAM": {
-      "used": 25,
+      "used": 26,
       "available": 46,
       "within_capacity": true
     },
@@ -210,7 +210,7 @@
       "within_capacity": true
     }
   },
-  "packed_netlist_sha256": "86af890543171288746578937fa0abe43d8885a0f3c8f9182a46453dcadad18f",
+  "packed_netlist_sha256": "0fa1f3c999d56d2393ec7fcc51a0cdb783df4faa868f4fb607175bab418e91d5",
   "reported_resources_within_capacity": false,
   "capacity_rejected_resources": [
     "LUT4"

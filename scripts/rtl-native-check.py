@@ -32,7 +32,7 @@ def main():
     sources = [ROOT / name for name in ("rtl/gpu/nano_sdp16.sv", "rtl/gpu/nano_scanout.sv",
                                       "rtl/gpu/nano_tmds.sv", "rtl/tests/native_video_tb.sv")]
     cases = [(name, [], False) for name in
-             ("sdp16_tb", "sdp16_async_tb", "tmds_encoder_tb", "native_video_tb")]
+             ("sdp16_tb", "sdp16_async_tb", "tmds_encoder_tb", "native_video_tb", "scanout_contention_tb")]
     cases.append(("sdp16_collision_tb", [], True))
     if args.host:
         for half_period, phase in ((13, 3), (5, 0), (3, 0)):

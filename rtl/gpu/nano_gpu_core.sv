@@ -46,7 +46,9 @@ module nano_gpu_core #(
         S_COPY_READ_CMD=53, S_COPY_READ_DATA=54, S_COPY_READ_DONE=55,
         S_COPY_RAM_REQ=56, S_COPY_RAM_WAIT=57, S_COPY_WRITE_CMD=58,
         S_COPY_WRITE_DATA=59, S_COPY_WRITE_DONE=60,
-        S_FAULT=61, S_RECOVER=62;
+        S_FAULT=61, S_RECOVER=62,
+        S_UPLOAD_STAGE_LOW=63, S_UPLOAD_STAGE_HIGH=64,
+        S_UPLOAD_RAM_LOW=65, S_UPLOAD_RAM_HIGH=66;
     reg [7:0] state;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
@@ -147,6 +149,15 @@ module nano_gpu_core #(
     reg [3:0] packed_mask;
     wire [31:0] upload_current = upload_address + {21'd0,upload_cursor};
     wire [1:0] upload_lane = (upload_prefix + upload_fill) & 2'b11;
+    // Finish fetching a bounded host chunk before reserving the shared SDRAM
+    // service. Slow byte reads must never hold its sole transaction owner and
+    // starve the independent display FIFO. One native bank stores the sixteen
+    // u32 payload words as pairs of u16; byte masks are explicit small state.
+    reg [63:0] upload_masks;
+    reg upload_ram_we, upload_ram_re;
+    reg [9:0] upload_ram_waddr, upload_ram_raddr;
+    reg [15:0] upload_ram_wdata;
+    wire [15:0] upload_ram_rdata;
 
     reg [31:0] read_address, read_token;
     reg [9:0] read_length, read_cursor;
@@ -306,6 +317,10 @@ module nano_gpu_core #(
         copy_ram_we=0; copy_ram_re=0; copy_ram_waddr=copy_column[9:0];
         copy_ram_raddr=copy_column[9:0];
         copy_ram_wdata=copy_pixel_source_address[1] ? mem_r_data[5*32+16 +:16] : mem_r_data[5*32 +:16];
+        upload_ram_we=0; upload_ram_re=0;
+        upload_ram_waddr={5'd0,beat[3:0],1'b0};
+        upload_ram_raddr={5'd0,beat[3:0],1'b0};
+        upload_ram_wdata=packed_word[15:0];
         case(state)
         S_BOOT_CMD: begin
             mem_cmd_valid[3]=1; mem_cmd_write[3]=1;
@@ -321,8 +336,23 @@ module nano_gpu_core #(
             mem_cmd_addr[23 +:23]=upload_current[22:0]&23'h7ffffc; mem_cmd_words[5 +:5]=upload_words;
         end
         S_UPLOAD_BYTE_REQ: begin payload_req=1; payload_offset=10'd8+upload_cursor[9:0]+upload_fill; end
+        S_UPLOAD_STAGE_LOW: upload_ram_we=1;
+        S_UPLOAD_STAGE_HIGH: begin
+            upload_ram_we=1; upload_ram_waddr={5'd0,beat[3:0],1'b1};
+            upload_ram_wdata=packed_word[31:16];
+        end
+        S_UPLOAD_RAM_LOW: upload_ram_re=1;
+        S_UPLOAD_RAM_HIGH: begin upload_ram_re=1; upload_ram_raddr={5'd0,beat[3:0],1'b1}; end
         S_UPLOAD_WORD: begin
-            mem_w_valid[1]=1; mem_w_data[32 +:32]=packed_word; mem_w_strb[4 +:4]=packed_mask;
+            mem_w_valid[1]=1;
+            mem_w_data[32 +:32]={upload_ram_rdata,packed_word[15:0]};
+            mem_w_strb[4 +:4]=upload_masks[beat[3:0]*4 +:4];
+            // A successful handoff frees the read port to prefetch the next
+            // low half. Until then the presented high half remains unchanged.
+            if(mem_w_ready[1] && beat+1!=upload_words) begin
+                upload_ram_re=1;
+                upload_ram_raddr={5'd0,(beat[3:0]+4'd1),1'b0};
+            end
         end
         S_DESC_CMD: begin
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=capture32(0); mem_cmd_words[10 +:5]=8;
@@ -410,6 +440,7 @@ module nano_gpu_core #(
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
             held_color<=0; held_depth<=0; packed_word<=0; packed_mask<=0; boot_address<=0;
             upload_address<=0; upload_length<=0; upload_cursor<=0; upload_chunk<=0; upload_fill<=0; upload_prefix<=0; upload_words<=0;
+            upload_masks<=0;
             read_address<=0; read_token<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
             read_words_remaining<=0; read_burst_words<=0; read_word_hold<=0; read_lane<=0; read_first<=0; read_done_hold<=0;
             reply_index<=0; reply_length<=0; reply_token<=0; reply_snapshot<=0;
@@ -524,19 +555,28 @@ module nano_gpu_core #(
                     upload_chunk<=upload_length-upload_cursor > 64-upload_current[1:0] ? 64-upload_current[1:0] : upload_length-upload_cursor;
                     upload_words<=((upload_length-upload_cursor > 64-upload_current[1:0] ? 64 :
                         upload_current[1:0]+upload_length-upload_cursor)+3)>>2;
-                    upload_fill<=0; beat<=0; packed_word<=0; packed_mask<=0; state<=S_UPLOAD_CMD;
+                    upload_fill<=0; beat<=0; packed_word<=0; packed_mask<=0; state<=S_UPLOAD_BYTE_REQ;
                 end
-                S_UPLOAD_CMD: if(mem_cmd_ready[1]) state<=S_UPLOAD_BYTE_REQ;
+                S_UPLOAD_CMD: if(mem_cmd_ready[1]) state<=S_UPLOAD_RAM_LOW;
                 S_UPLOAD_BYTE_REQ: state<=S_UPLOAD_BYTE_WAIT;
                 S_UPLOAD_BYTE_WAIT: if(payload_valid) begin
                     packed_word[upload_lane*8 +:8]<=payload_data; packed_mask[upload_lane]<=1;
                     upload_fill<=upload_fill+1;
-                    if(upload_lane==3 || upload_fill+1==upload_chunk) state<=S_UPLOAD_WORD;
+                    if(upload_lane==3 || upload_fill+1==upload_chunk) state<=S_UPLOAD_STAGE_LOW;
                     else state<=S_UPLOAD_BYTE_REQ;
                 end
-                S_UPLOAD_WORD: if(mem_w_ready[1]) begin
+                S_UPLOAD_STAGE_LOW: state<=S_UPLOAD_STAGE_HIGH;
+                S_UPLOAD_STAGE_HIGH: begin
+                    upload_masks[beat[3:0]*4 +:4]<=packed_mask;
                     packed_word<=0; packed_mask<=0; beat<=beat+1;
-                    if(upload_fill==upload_chunk) state<=S_UPLOAD_DONE; else state<=S_UPLOAD_BYTE_REQ;
+                    if(upload_fill==upload_chunk) begin beat<=0; state<=S_UPLOAD_CMD; end
+                    else state<=S_UPLOAD_BYTE_REQ;
+                end
+                S_UPLOAD_RAM_LOW: state<=S_UPLOAD_RAM_HIGH;
+                S_UPLOAD_RAM_HIGH: begin packed_word[15:0]<=upload_ram_rdata; state<=S_UPLOAD_WORD; end
+                S_UPLOAD_WORD: if(mem_w_ready[1]) begin
+                    if(beat+1==upload_words) state<=S_UPLOAD_DONE;
+                    else begin beat<=beat+1; state<=S_UPLOAD_RAM_HIGH; end
                 end
                 S_UPLOAD_DONE: if(mem_done[1]) begin
                     upload_cursor<=upload_cursor+upload_chunk;
@@ -767,4 +807,6 @@ module nano_gpu_core #(
         .rclk(clk),.rce(1'b1),.re(reply_ram_re),.raddr(reply_ram_raddr),.reset_output(reset),.rdata(reply_ram_rdata));
     nano_sdp16 copy_row_ram (.wclk(clk),.wce(1'b1),.we(copy_ram_we),.waddr(copy_ram_waddr),.wdata(copy_ram_wdata),
         .rclk(clk),.rce(1'b1),.re(copy_ram_re),.raddr(copy_ram_raddr),.reset_output(reset),.rdata(copy_ram_rdata));
+    nano_sdp16 upload_ram (.wclk(clk),.wce(1'b1),.we(upload_ram_we),.waddr(upload_ram_waddr),.wdata(upload_ram_wdata),
+        .rclk(clk),.rce(1'b1),.re(upload_ram_re),.raddr(upload_ram_raddr),.reset_output(reset),.rdata(upload_ram_rdata));
 endmodule

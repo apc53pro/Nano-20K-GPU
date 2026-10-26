@@ -34,6 +34,10 @@ fetch/readback, 3 tile transfers, 4 texture cache, 5 copies. Data-word lane zero
 is the least-significant slice. Its physical interface exposes SDRAM commands,
 bank/address, DQM, DQ input/output/enable and clock/CKE.
 
+The host-upload client assembles each bounded 64-byte chunk in one native SDPB
+before requesting the shared service. Its payload can then advance every two
+core clocks; host byte decoding never holds the SDRAM transaction owner.
+
 ## Texture cache
 
 `nano_texture_cache`: `clk,reset,flush`; configuration handshake
@@ -74,6 +78,11 @@ Replies enter `response_valid,response_ready,response_data[7:0]`.
 `pixel[15:0],hsync,vsync,de,x[9:0],y[8:0],vblank_pulse` and sticky/counted
 underflow diagnostics. It owns memory client zero. Scanout always advances at
 the pixel cadence, independently of rendering or host activity.
+It offers the next refill while the current transaction retires, reserving
+FIFO space for both. This keeps scanout eligible when the arbiter becomes idle.
+An old completion and a new command acceptance may share an edge; the new
+transaction remains outstanding and its generation is discarded if a front
+swap occurs on that edge.
 
 `nano_gpu_core` exposes core `clk,reset`, the host ports above, input `abort_request`,
 physical SDRAM ports, and logical video outputs `video_rgb565[15:0],

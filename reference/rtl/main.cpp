@@ -29,7 +29,7 @@ struct Options {
     unsigned frames = 0;
     DemoScene scene = DemoScene::Showcase;
     long double time = 0, step = 1.0L / 60;
-    std::string stats, output, trace;
+    std::string stats, output, trace, scanout_log;
 };
 
 Options parse(int argc, char** argv) {
@@ -49,6 +49,7 @@ Options parse(int argc, char** argv) {
         else if (arg == "--stats") out.stats = value();
         else if (arg == "--output") out.output = value();
         else if (arg == "--trace") out.trace = value();
+        else if (arg == "--scanout-log") out.scanout_log = value();
         else if (arg == "--scene") {
             const auto name = value();
             if (name == "showcase") out.scene = DemoScene::Showcase;
@@ -60,6 +61,7 @@ Options parse(int argc, char** argv) {
             std::cout << "RTL GPU (Verilator; C++ is host, external SDRAM and independent oracle)\n"
                 "--headless --verify --scene showcase|perspective|overdraw|opaque\n"
                 "--frames N --time S --step S --stats FILE.json --output FILE.ppm --trace FILE.vcd\n"
+                "--scanout-log FILE.csv (every complete displayed frame, including failures)\n"
                 "--self-test (command, copy, LOAD and recovery regressions)\n";
             std::exit(0);
         } else throw std::invalid_argument("unknown argument " + arg);
@@ -77,22 +79,37 @@ std::uint64_t hash(const std::vector<std::uint16_t>& pixels) {
     return result;
 }
 
+std::string hash_string(const std::vector<std::uint16_t>& pixels) {
+    std::ostringstream result;
+    result << std::hex << std::setfill('0') << std::setw(16) << hash(pixels);
+    return result.str();
+}
+
 class Simulation {
 public:
     VerilatedContext context;
     Vnano_gpu_core dut{&context};
     rtl::SdramPinsModel memory;
     std::unique_ptr<VerilatedVcdC> trace;
+    std::ofstream scanout_log;
     std::vector<std::uint16_t> working = std::vector<std::uint16_t>(screen_width * screen_height), display = working;
+    std::vector<std::uint16_t> expected_scanout;
     std::uint64_t cycles = 0, completed_frames = 0, last_submission_cycles = 0;
+    std::uint64_t checked_scanout_frames = 0, black_scanout_frames = 0;
     unsigned active_pixels = 0;
+    std::string phase = "boot";
     bool host_rising = false, host_falling = false, write_accepted = false;
     std::function<void()> pump;
 
-    explicit Simulation(const std::string& trace_path) {
+    explicit Simulation(const std::string& trace_path, const std::string& scanout_path = {}) {
         dut.clk = 0; dut.reset = 1; dut.host_clk = 0; dut.abort_request = 0;
         dut.host_wr_valid = 0; dut.host_wr_data = 0; dut.host_rd_req = 0; dut.host_reg_addr = 0;
         dut.sd_dq_in = 0xcdcdcdcdu;
+        if (!scanout_path.empty()) {
+            scanout_log.open(scanout_path);
+            if (!scanout_log) throw std::runtime_error("cannot open scanout log " + scanout_path);
+            scanout_log << "frame,core_cycle,phase,nonzero_pixels,color_fnv1a64,verified\n";
+        }
         if (!trace_path.empty()) {
             context.traceEverOn(true); trace = std::make_unique<VerilatedVcdC>();
             dut.trace(trace.get(), 8); trace->open(trace_path.c_str());
@@ -100,6 +117,7 @@ public:
         for (unsigned edge = 0; edge < 16; ++edge) tick(false);
         dut.reset = 0;
         wait([&] { return dut.ready; }, "SDRAM initialization and attachment boot");
+        phase = "idle";
     }
     ~Simulation() { if (trace) trace->close(); dut.final(); }
 
@@ -120,13 +138,30 @@ public:
         context.timeInc(1); if (trace) trace->dump(context.time());
         ++cycles;
         if (pixel_tick && !dut.reset) {
-            if (dut.video_x == 0 && dut.video_y == 0) {
-                if (active_pixels == screen_width * screen_height) { display = working; ++completed_frames; }
-                active_pixels = 0;
-            }
             if (dut.video_de && dut.video_x < screen_width && dut.video_y < screen_height) {
+                if (dut.video_x == 0 && dut.video_y == 0) active_pixels = 0;
                 working[dut.video_y * screen_width + dut.video_x] = dut.video_rgb565;
                 ++active_pixels;
+                if (dut.video_x == screen_width - 1 && dut.video_y == screen_height - 1) {
+                    if (active_pixels != screen_width * screen_height)
+                        throw std::runtime_error("incomplete RTL scanout frame");
+                    display = working; ++completed_frames;
+                    const auto nonzero = std::count_if(display.begin(), display.end(), [](auto pixel) { return pixel != 0; });
+                    if (nonzero == 0) ++black_scanout_frames;
+                    const bool checked = !expected_scanout.empty();
+                    const bool matched = !checked || display == expected_scanout;
+                    if (scanout_log) {
+                        scanout_log << completed_frames << ',' << cycles << ',' << phase << ',' << nonzero << ','
+                                    << hash_string(display) << ',' << (checked && matched ? "true" : "false") << '\n';
+                        scanout_log.flush();
+                    }
+                    if (checked) {
+                        ++checked_scanout_frames;
+                        if (!matched) throw std::runtime_error("RTL scanout mismatch frame=" + std::to_string(completed_frames) +
+                            " phase=" + phase + " cycle=" + std::to_string(cycles) +
+                            " expected=" + hash_string(expected_scanout) + " actual=" + hash_string(display));
+                    }
+                }
             }
         }
         if (check_fault && dut.fault)
@@ -174,10 +209,12 @@ public:
         return result;
     }
     void render(const hw::HostProgram& program) {
+        phase = "submit";
         const auto start = cycles; send(program.bytes);
         const auto response = reply(hw::Opcode::Fence, program.fence_sequence);
         if (hw::read_u32(response, 24) != program.fence_token) throw std::runtime_error("wrong RTL fence token");
         last_submission_cycles = cycles - start;
+        phase = "idle";
     }
     std::vector<std::uint8_t> command(hw::Opcode opcode, std::uint32_t sequence,
                                       const std::vector<std::uint8_t>& payload = {}) {
@@ -196,6 +233,13 @@ public:
         dut.host_rd_req = 0; dut.host_reg_addr = 0;
         return value;
     }
+    std::uint32_t scanout_underflows() {
+        (void)read_register(1); // Coherent sideband snapshot; no command queue traffic.
+        std::uint32_t value = 0;
+        for (unsigned byte = 0; byte < 4; ++byte)
+            value |= static_cast<std::uint32_t>(read_register(24 + byte)) << (byte * 8);
+        return value;
+    }
     void recover() {
         // The external chip is deliberately not reset or replaced.
         dut.host_wr_valid = 0; dut.host_rd_req = 0; dut.abort_request = 1;
@@ -207,15 +251,20 @@ public:
             if (cycles - start > 1000000) throw std::runtime_error("abort recovery timed out");
         } while (!dut.ready || dut.busy || dut.fault);
     }
-    void present(int target, std::uint32_t sequence) {
+    void present(int target, std::uint32_t sequence, const std::vector<std::uint16_t>* expected = nullptr) {
+        phase = "present";
         std::vector<std::uint8_t> payload(8);
         hw::write_u32(payload, 0, target); hw::write_u32(payload, 4, sequence);
         send(hw::encode_packet(hw::Opcode::Present, sequence, payload));
         (void)reply(hw::Opcode::Present, sequence);
-        // Capture a complete new-front frame; the first completed observation
-        // after the reply can still belong to active pixels before the swap.
+        // PRESENT replies during vertical blank. Publish at the final active
+        // pixel, so the next completed capture must belong to the new front.
+        // Keep checking that front during every later upload/render/idle frame.
+        if (expected) expected_scanout = *expected;
+        phase = "observe";
         const auto before = completed_frames;
-        wait([&] { return completed_frames >= before + 2; }, "complete actual scanout");
+        wait([&] { return completed_frames >= before + 1; }, "complete actual scanout");
+        phase = "idle";
     }
     void compare(const Renderer& oracle) const {
         for (unsigned target = 0; target < 2; ++target) for (unsigned index = 0; index < screen_width * screen_height; ++index) {
@@ -299,8 +348,27 @@ void self_test(Simulation& simulation) {
     pass.primitives.push_back(Line{{0, 0}, {639, 479}, overlay_state({17, 191, 97}), 0});
     program = hw::compile_pass(pass, sequence); sequence = program.next_sequence;
     simulation.render(program); oracle.render(pass, RenderMode::Monolithic); simulation.compare(oracle);
-    simulation.present(1, sequence++); oracle.queue_present(1); oracle.vertical_blank();
+    simulation.present(1, sequence++, &oracle.color(1)); oracle.queue_present(1); oracle.vertical_blank();
     require(simulation.display == oracle.front_color(), "post-copy/LOAD scanout");
+    const auto before_upload_status = simulation.command(hw::Opcode::GetStatus, sequence++);
+    const auto before_underflows = hw::read_u32(before_upload_status, 52);
+    simulation.phase = "upload-stress";
+    for (unsigned prefix = 0; prefix < 4; ++prefix) for (unsigned length : {1u, 2u, 3u, 4u, 60u, 61u, 62u, 63u, 64u, 65u, 70u}) {
+        std::vector<std::uint8_t> expected(128, 0x5a), patch(length);
+        for (unsigned i = 0; i < length; ++i) patch[i] = static_cast<std::uint8_t>(prefix * 47 + i * 13 + length);
+        upload(heap, expected); upload(heap + prefix, patch);
+        std::copy(patch.begin(), patch.end(), expected.begin() + prefix);
+        require(readback(heap, 128) == expected, "staged upload prefix/tail byte masks");
+    }
+    std::vector<std::uint8_t> burst(1016);
+    for (unsigned i = 0; i < burst.size(); ++i) burst[i] = static_cast<std::uint8_t>(i * 29 + 7);
+    const auto before_stress_frames = simulation.checked_scanout_frames;
+    for (unsigned i = 0; i < 520; ++i) upload(heap + i * 1016, burst);
+    (void)simulation.command(hw::Opcode::Fence, sequence++, token);
+    const auto after_upload_status = simulation.command(hw::Opcode::GetStatus, sequence++);
+    require(hw::read_u32(after_upload_status, 52) == before_underflows, "host uploads cannot starve scanout");
+    require(simulation.checked_scanout_frames > before_stress_frames, "upload stress spans a complete displayed frame");
+    simulation.phase = "idle";
     const auto before = simulation.memory.inspect_word(hw::color_buffer_base(1) + 6 * screen_width * 2);
     // Deliver a partial packet and cancel it without a memory backdoor.
     const auto partial = hw::encode_packet(hw::Opcode::GetStatus, sequence++);
@@ -340,6 +408,15 @@ void self_test(Simulation& simulation) {
     catch (const std::runtime_error&) { if (!simulation.dut.fault) throw; observed_fault = true; }
     require(observed_fault, "invalidated target cannot be presented");
     simulation.recover();
+    const auto before_write_abort = simulation.command(hw::Opcode::GetStatus, 1);
+    sequence = 2;
+    const auto physical_writes = simulation.memory.statistics().write_commands;
+    upload(heap, burst);
+    simulation.wait([&] { return simulation.memory.statistics().write_commands > physical_writes; },
+                    "observe an accepted upload on SDRAM pins before abort");
+    simulation.recover();
+    require(hw::read_u32(simulation.command(hw::Opcode::GetCaps, 1), 16) == hw::read_u32(before_write_abort, 16) + 1,
+            "accepted upload drains and restarts its epoch after abort");
     for (unsigned index = 0; index < screen_width * screen_height; ++index) {
         const auto word = simulation.memory.inspect_word(hw::color_buffer_base(1) + (index & ~1u) * 2);
         require(static_cast<std::uint16_t>(word >> (16 * (index & 1u))) == oracle.front_color()[index],
@@ -400,7 +477,7 @@ int main(int argc, char** argv) {
 #else
         if (!options.headless) throw std::runtime_error("built without SDL2; use --headless or rebuild with SDL2 development files");
 #endif
-        Simulation simulation(options.trace); Renderer oracle;
+        Simulation simulation(options.trace, options.scanout_log); Renderer oracle;
         if (options.self_test) { self_test(simulation); return 0; }
 #ifdef NANO_GPU_RTL_SDL
         if (presenter) simulation.pump = [&] {
@@ -420,7 +497,7 @@ int main(int argc, char** argv) {
             sequence = program.next_sequence;
             simulation.render(program);
             if (options.verify) { oracle.render(pass, RenderMode::Monolithic); simulation.compare(oracle); }
-            simulation.present(target, sequence++);
+            simulation.present(target, sequence++, options.verify ? &oracle.color(target) : nullptr);
             if (options.verify) {
                 oracle.queue_present(target); oracle.vertical_blank();
                 if (simulation.display != oracle.front_color()) throw std::runtime_error("actual RTL scanout differs from the SRR oracle");
@@ -431,13 +508,16 @@ int main(int argc, char** argv) {
             ++frames; target = 1 - target; time += options.step;
         }
         const auto wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-        std::ostringstream image_hash; image_hash << std::hex << std::setfill('0') << std::setw(16) << hash(simulation.display);
+        const auto underflows = simulation.scanout_underflows();
         std::string report = "{\n  \"profile\": \"N20K-RTL-SIM-0.1\",\n  \"backend\": \"verilator\",\n"
             "  \"cpp_device_backends_linked\": false,\n  \"whole_gpu_fit_qualified\": false,\n  \"frames\": " + std::to_string(frames) +
             ",\n  \"verified\": " + (options.verify ? "true" : "false") + ",\n  \"core_cycles\": " + std::to_string(simulation.cycles) +
             ",\n  \"last_submission_cycles\": " + std::to_string(simulation.last_submission_cycles) +
+            ",\n  \"checked_scanout_frames\": " + std::to_string(simulation.checked_scanout_frames) +
+            ",\n  \"black_scanout_frames_including_startup\": " + std::to_string(simulation.black_scanout_frames) +
+            ",\n  \"scanout_underflows\": " + std::to_string(underflows) +
             ",\n  \"wall_seconds_excluding_boot\": " + std::to_string(wall) +
-            ",\n  \"color_fnv1a64\": \"" + image_hash.str() + "\",\n  \"sdram_refreshes\": " +
+            ",\n  \"color_fnv1a64\": \"" + hash_string(simulation.display) + "\",\n  \"sdram_refreshes\": " +
             std::to_string(simulation.memory.statistics().refreshes) + "\n}\n";
         std::cout << report;
         if (!options.stats.empty()) { std::ofstream out(options.stats); if (!out) throw std::runtime_error("cannot write statistics"); out << report; }
