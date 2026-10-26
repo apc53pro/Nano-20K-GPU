@@ -273,6 +273,13 @@ evidence that a complete Windows scene regression has passed. Debian/Ubuntu
 under WSL remains an alternative using the Linux setup below. Rebuild on the
 selected platform instead of copying the cloud's Linux executable to Windows.
 
+Native Windows CI now builds the RTL simulator using the UCRT64 packages and
+checks its SDL showcase against the SRR, followed by command/recovery tests.
+Successful runs of the **Windows reference renderer** workflow provide a
+`nano-gpu-rtl-windows` artifact containing the executable and runtime DLLs.
+Extract the entire ZIP into one folder to run it without installing Verilator.
+The package is also checked with the MSYS2 directories removed from PATH.
+
 ### Linux RTL simulator
 
 On Linux x86_64, install the pinned, workspace-local OSS CAD Suite and build:

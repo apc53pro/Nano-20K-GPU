@@ -41,8 +41,9 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-          & .\build\windows-rtl\nano-gpu-rtl.exe --help
-          if ($LASTEXITCODE -ne 0) { throw "Standalone simulator could not load its runtime libraries" }
+          $program = (Resolve-Path .\build\windows-rtl\nano-gpu-rtl.exe).Path
+          $process = Start-Process -FilePath $program -ArgumentList '--help' -NoNewWindow -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Standalone simulator failed with exit code $($process.ExitCode)" }
       - name: Save the runnable Windows simulator
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
