@@ -1,3 +1,11 @@
 # Keep executable scripts usable in MSYS2 even with Git core.autocrlf enabled.
 *.sh text eol=lf
 Makefile text eol=lf
+# Preserve byte-for-byte qualification hashes across Windows and Unix checkouts.
+*.py text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.sv text eol=lf
+*.v text eol=lf
+*.hex text eol=lf
+*.json text eol=lf

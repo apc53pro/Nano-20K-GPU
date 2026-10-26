@@ -1,5 +1,10 @@
 # Reciprocal/UV RTL qualification
 
+For the integrated host-to-scanout RTL implementation and its Verilator
+simulator, see [Integrated RTL GPU](rtl-gpu.md). The results below qualify the
+separate reciprocal/UV arithmetic probe, including its own wrapper and routing
+constraints; they do not qualify the integrated GPU's fit or frequency.
+
 The prototype in [uv_pipeline.v](../../rtl/uv_pipeline.v) implements the same
 exact corrected reciprocal algorithm and 26-enabled-edge interface as
 [hw_reciprocal.cpp](../../reference/src/hw_reciprocal.cpp). It accepts one U/V/q

@@ -104,13 +104,38 @@ The [further optimization review](docs/hardware/optimization-review.md) records
 measured experimental improvements and the hardware and protocol work needed
 before adopting them.
 
-Exact complete-GPU resource use and physical fit are **not yet established**:
-only the reciprocal/UV arithmetic unit has RTL qualification. Run
-`make resource-report` for the native allocation budget, source-matched
-arithmetic evidence and missing RTL inventory. `make fpga-fit` currently fails
-with an incomplete-proof report; it cannot promote a partial arithmetic result
-to a whole-GPU fit claim. The [resource-proof requirements](docs/hardware/resource-proof.md)
-define the complete RTL, synthesis, routing and timing work still needed.
+The GPU now also has a functional SystemVerilog implementation, compiled with
+Verilator into a separate simulator. The host transport, command execution,
+SDRAM controller, tile renderer, texture cache and scanout execute RTL. C++
+supplies the RP2350-side commands, an external SDRAM chip model, the independent
+SRR oracle and optional SDL2 presentation; no C++ GPU device backend is linked.
+
+```bash
+./scripts/setup-rtl-tools.sh
+make rtl-gpu
+./build/nano-gpu-rtl --headless --scene showcase --verify --stats build/rtl-showcase.json
+# With SDL2 available when building:
+./build/nano-gpu-rtl --scene showcase --verify
+```
+
+The command self-test and two frames of all four scenes pass. Complete
+RGB565/D24 attachment memory and actual RTL scanout match the independent SRR.
+This RTL implementation currently uses a
+different, more serialized schedule than the optimized C++ system model;
+the C++ model's 32.4 ms steady result does not describe the RTL. The
+[integrated RTL guide](docs/hardware/rtl-gpu.md) explains build commands,
+verification, cycle measurements and the remaining board integration work.
+
+**The current functional RTL core does not fit the Tang Nano 20K.** An exact-part
+packing check of the core in a small serial probe reports **29,300 of 20,736
+LUT4 resources (141%)**, with 43 of 48 native multipliers and 25 of 46 BSRAMs.
+Run `make rtl-gpu-pack` to reproduce the capacity rejection; the source-matched
+[resource report](docs/hardware/rtl-core-pack.json) and
+[RTL guide](docs/hardware/rtl-gpu.md#physical-resource-result-current-core-does-not-fit)
+describe the probe overhead and resource accounting. LUT area must be reduced
+before complete routing and timing can qualify. Production clocking, video
+wrapper and board pin integration remain separate work. The older reciprocal/UV
+probe's routed result does not establish a clock for this complete core.
 
 The throughput harness tracks fragment acceptance and retirement on each
 modeled edge, checks ordering and cancellation, and distinguishes sustained
@@ -163,6 +188,8 @@ shared-reciprocal prototype separately from the complete GPU.
   reconstruction, native partial products, and error bounds.
 - [RTL qualification](docs/hardware/rtl-qualification.md): reproducible simulation,
   synthesis, and routing of the arithmetic prototype.
+- [Integrated RTL GPU](docs/hardware/rtl-gpu.md): the Verilator command-to-pixel
+  simulator, independent SRR comparison, native memories and SDRAM pin model.
 - [Selected storage map](docs/hardware/storage-map.md): native BSRAM allocation,
   synchronous ports, register fields, and resource limits.
 - [SDL2 development setup](docs/development.md): reusable installer and headless
@@ -170,7 +197,9 @@ shared-reciprocal prototype separately from the complete GPU.
 
 Current status: the M0 specification, initial canonical renderer, CPU setup
 library, conformance tests, demo scenes, and a rendering block backend with
-matching color/depth output, plus a timed GPU system simulation, are available. Independent geometric
-error analysis and command-trace capture remain M0 work. Complete GPU RTL, a
-stable packed bus ABI, and measured board performance remain future milestones. Software frame
-times do not establish FPGA throughput or fit.
+matching color/depth output, a timed C++ GPU system model, and a functional RTL
+GPU simulator are available. Independent geometric error analysis and
+command-trace capture remain M0 work. A stable packed bus ABI, complete board
+integration, qualified whole-GPU fit/timing and measured board performance
+remain future milestones. Software frame times do not establish FPGA throughput
+or fit.

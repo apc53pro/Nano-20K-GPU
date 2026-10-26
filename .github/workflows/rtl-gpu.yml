@@ -1,0 +1,44 @@
+name: Functional GPU RTL
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install the pinned HDL toolchain
+        run: ./scripts/setup-rtl-tools.sh
+      - name: Native block regressions
+        run: make rtl-block-test
+      - name: Build and synthesize the functional RTL core
+        run: python3 scripts/gpu-rtl.py --headless-only --synth
+      - name: Compare command-to-scanout behavior with the SRR
+        run: python3 scripts/rtl-gpu-check.py
+      - name: Audit implementation and resource evidence
+        run: |
+          make -j4 headless
+          python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
+          python3 scripts/resource-report.py --output build/resource-report.json
+      - name: Save reports and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: functional-gpu-rtl
+          path: |
+            build/rtl-gpu/build-report.json
+            build/rtl-gpu/*.log
+            build/rtl-gpu-tests/*.json
+            build/rtl-gpu-tests/*.log
+            build/rtl-native/*.json
+            build/rtl-renderer/*.json
+            build/rtl-memory/*.json
+            build/resource-report.json
+          if-no-files-found: warn

@@ -1,0 +1,21 @@
+// Nine-pin serial resource qualification probe only. These are the existing
+// uv_probe's legal QN88 package locations, not a GPU board/host/SDRAM pinout.
+// Do not use this qualification CST to program the Tang Nano board.
+IO_LOC "clk" 4;
+IO_LOC "reset" 88;
+IO_LOC "host_clk" 87;
+IO_LOC "stimulus_shift" 15;
+IO_LOC "serial_data" 16;
+IO_LOC "capture_outputs" 17;
+IO_LOC "serial_result" 18;
+IO_LOC "core_ready" 19;
+IO_LOC "core_fault" 20;
+IO_PORT "clk" IO_TYPE=LVCMOS33;
+IO_PORT "reset" IO_TYPE=LVCMOS33;
+IO_PORT "host_clk" IO_TYPE=LVCMOS33;
+IO_PORT "stimulus_shift" IO_TYPE=LVCMOS33;
+IO_PORT "serial_data" IO_TYPE=LVCMOS33;
+IO_PORT "capture_outputs" IO_TYPE=LVCMOS33;
+IO_PORT "serial_result" IO_TYPE=LVCMOS33;
+IO_PORT "core_ready" IO_TYPE=LVCMOS33;
+IO_PORT "core_fault" IO_TYPE=LVCMOS33;

@@ -1,0 +1,243 @@
+# Integrated RTL GPU
+
+The functional GPU core is implemented in SystemVerilog under
+[`rtl/gpu`](../../rtl/gpu). Verilator compiles this RTL into
+`build/nano-gpu-rtl`, a command-to-pixel simulator with optional SDL2 output.
+The existing SRR remains an independent software oracle. Its C++ hardware-block
+and timed-system implementations are not linked into the RTL executable.
+
+This is functional RTL simulation and a synthesis entry point for the
+**GW2AR-LV18QN88C8/I7**. The production board clock/reset wrapper, HDMI/DVI
+serialization integration, pin constraints and complete placed-and-routed
+fit/timing qualification remain separate work.
+
+## Device and testbench boundaries
+
+```mermaid
+flowchart LR
+  HOST["C++: CPU clipping, setup, bins and packet encoding"] --> LINK
+  subgraph RTL["Verilator executes SystemVerilog"]
+    LINK["Host transport and native asynchronous FIFOs"] --> EXEC["Packet and command execution"]
+    EXEC --> TILE["Tile renderer, D24, shading and perspective arithmetic"]
+    TILE <--> TEX["Texture cache"]
+    EXEC --> MEM["SDRAM service and arbitration"]
+    TILE <--> MEM
+    TEX <--> MEM
+    MEM --> SCAN["Independent video scanout"]
+  end
+  MEM <-->|"SDRAM commands, address, DQ and DQM"| CHIP["C++: external SDRAM chip model"]
+  SCAN --> PIXELS["Captured RGB565 scanout / SDL2 / PPM"]
+  ORACLE["C++: independent canonical SRR"] -. "--verify: attachments and displayed pixels" .-> PIXELS
+```
+
+The C++ host performs the tasks intended for the RP2350: scene preparation,
+triangle setup, ordered binning, resource serialization, bus transfers and
+reply handling. GPU storage can change only through RTL memory interfaces.
+The external chip model responds to the controller's physical SDRAM commands
+and data pins; it does not accept device-side C++ memory requests. Testbench
+inspection of memory is used only to check results.
+
+The core implements all eight provisional simulation opcodes:
+`GET_CAPS`, `GET_STATUS`, `WRITE_HEAP`, `SUBMIT_PASS`, `COPY_RECT`, `FENCE`,
+`PRESENT` and `READ_MEMORY`. The rendering path includes triangles, rectangles,
+lines, keyed sprites, the five shading modes, perspective-correct nearest
+textures, RGB565 attachments and D24 depth. The command-to-memory path includes
+packet buffering, fetched descriptors/records/bin lists, attachment transfers,
+copies, SDRAM initialization/refresh/arbitration and independent scanout.
+These are implemented paths; scene comparisons do not by themselves constitute
+exhaustive coverage of every command, malformed packet or recovery sequence.
+
+Native synchronous RAM wrappers preserve registered read latency and bind to
+Gowin `SDPB` primitives in synthesis. The reciprocal arithmetic uses the
+existing native multiplier/ROM implementation. The device's native primitive
+parameters and memory-port contracts apply in both simulation and synthesis.
+See [the module interfaces](../../rtl/gpu/interfaces.md) for ports, handshakes
+and the physical SDRAM boundary.
+
+The RTL host transport has a distinct `host_clk` domain and native asynchronous
+FIFOs. The present full-scene testbench drives that clock at one quarter of the
+core frequency. That test schedule does not characterize all asynchronous
+clock relationships, electrical setup/hold margins, or an RP2350 PIO program.
+The logical host ports also do not finalize the board's shared-data-bus pad
+mapping or pin assignments.
+
+## Build and run
+
+Follow the [development setup](../development.md#integrated-rtl-simulator).
+On Linux x86_64:
+
+```bash
+./scripts/setup-rtl-tools.sh
+make rtl-gpu
+./build/nano-gpu-rtl --headless --scene showcase --verify --stats build/rtl-showcase.json
+```
+
+For SDL2 output, install SDL2 before building, then run:
+
+```bash
+./scripts/setup-sdl2.sh
+make rtl-gpu
+./build/nano-gpu-rtl --scene showcase --verify
+```
+
+The builder detects SDL2 with pkg-config and falls back to a headless executable
+if unavailable. To select that build explicitly, use
+`python3 scripts/gpu-rtl.py --headless-only`.
+
+The executable supports:
+
+| Option | Effect |
+| --- | --- |
+| `--headless` | Run without SDL2; defaults to one frame. |
+| `--scene showcase\|perspective\|overdraw\|opaque` | Select the host-generated workload. |
+| `--verify` | Compare all color/depth attachments and the displayed frame with the independent SRR. |
+| `--self-test` | Run the headless command, copy, attachment LOAD, scanout and recovery checks. |
+| `--frames N` | Limit rendered frames; windowed runs otherwise continue. |
+| `--time S`, `--step S` | Select deterministic animation time and its increment. |
+| `--stats FILE.json` | Save RTL cycle counts, verification state and the displayed color hash. |
+| `--output FILE.ppm` | Save the last complete displayed frame. |
+| `--trace FILE.vcd` | Trace RTL signals; complete-frame traces can be large. |
+
+For a frozen two-frame differential check:
+
+```bash
+./build/nano-gpu-rtl --headless --scene showcase --frames 2 --time 0 --step 0 --verify
+```
+
+`make rtl-gpu-test` runs the command self-test followed by all four scenes,
+with two verified frames per scene starting at time 1.25 seconds. Its
+`build/rtl-gpu-tests/results.json` records the simulator executable's SHA-256,
+per-case logs and scene statistics; a failed run removes any previous passing
+summary. `make rtl-block-test` runs the separate native RAM/video, asynchronous
+host, tile-renderer, physical SDRAM controller and texture-cache unit checks.
+`make rtl-gpu-synth` builds the simulator and synthesizes the same functional
+RTL top with `synth_gowin -family gw2a`.
+
+[`scripts/gpu-rtl.py`](../../scripts/gpu-rtl.py) accepts `--build-dir PATH`,
+`--output PATH`, `--headless-only`, `--synth`, and `--run` followed by simulator
+arguments. The default build directory is `build/rtl-gpu`; its generated files
+include `verilator-build.log`, `build-report.json`, and, when requested,
+`gpu-synth.json` and `gpu-synthesis.log`. The build report records tool versions,
+source SHA-256 fingerprints, whether SDL2 was enabled and synthesis cell counts
+when available. The script rejects inputs changed during its build.
+
+## Verification and cycle evidence
+
+With `--verify`, the testbench renders the same prepared pass through the
+canonical monolithic SRR. It compares every pixel of **both** RGB565
+framebuffers and the complete D24 buffer with external SDRAM contents. After
+presentation, it also compares a complete frame captured from the RTL's actual
+scanout pixels. SDL2 and PPM output use those captured pixels, including any
+scanout failure, rather than reading a framebuffer directly for display.
+
+The command self-test exercises all eight opcodes, a 512-byte unaligned
+readback, masked heap writes, overlapping framebuffer copies, clipped copies
+from a pitched non-power-of-two image, and color/depth LOAD. It also cancels
+partial and malformed packets and an active pass, checks epoch restart and
+attachment validity, and confirms that recovery preserves every front-buffer
+pixel. Separate native-block tests cover RAM collisions, independent host
+clocks, physical SDRAM timing and runtime reset during all eight WRITE beats.
+
+The complete regression passes two frames of each scene, starting at time
+1.25 seconds with a 1/60-second step. Every color/depth attachment and the
+actual scanout frame agrees with the canonical SRR. The initial second-frame
+submission baseline is:
+
+| Scene | Core cycles through FENCE |
+| --- | ---: |
+| Showcase | 8,089,756 |
+| Perspective | 7,073,084 |
+| Overdraw | 9,422,928 |
+| Opaque | 9,135,224 |
+
+The [recorded RTL baseline](../benchmarks/rtl-initial.json) includes source
+hashes, tool versions, verified scanout hashes and cycle counts. The SDL2 build
+also passes a one-frame opaque-scene check using `SDL_VIDEODRIVER=dummy`.
+
+These are the initial RTL schedule's counts. It uploads textures on every
+frame, serializes tile transfers, and performs LOAD and COPY as individual
+pixel transactions. The older C++ model's resident-texture cache, primitive
+prefetch and overlapping tile writeback have not been ported to this RTL.
+
+The initial integrated showcase at time zero passes these attachment and
+scanout comparisons. Its initial functional schedule measures:
+
+| Measurement | Core cycles |
+| --- | ---: |
+| Host submission through the matching fence reply | 8,121,142 |
+| Complete simulation including reset/boot, submission and display observation | 11,718,421 |
+
+These counts belong to the integrated RTL implementation's initial serialized
+schedule. They do not describe the optimized C++ system model's resident-texture,
+prefetch and overlapped tile-writeback schedule. For example, dividing the RTL
+submission count by an **assumed** 100.8 MHz gives approximately 80.6 ms;
+100.8 MHz is not an achieved whole-GPU clock, and this result does not establish
+30 FPS. Further RTL optimization needs its own measured baseline and must
+preserve the independent oracle comparisons.
+
+`core_cycles` includes reset/boot and final display observation;
+`last_submission_cycles` covers sending the last compiled pass through its
+fence response. `wall_seconds_excluding_boot` is PC execution time and also
+includes any enabled software oracle work. None of these reports includes
+measured RP2350 preparation time or proves board performance. The simulator's
+`color_fnv1a64` is a 16-digit hexadecimal hash of the captured RGB565 pixels.
+
+## Physical resource result: current core does not fit
+
+The initial functional RTL core **exceeds the Tang Nano 20K's LUT capacity**.
+An exact-part packing check targets **GW2AR-LV18QN88C8/I7**, using the
+**GW2A-18C** database. It wraps the complete logical GPU in
+[`gpu_probe.sv`](../../rtl/gpu_probe.sv), a nine-pin serial probe that keeps
+external inputs controllable and output cones observable. It does not replace
+any GPU function or supply the production board wrapper.
+
+The source-matched [resource report](rtl-core-pack.json) records:
+
+| Resource | Used | Available |
+| --- | ---: | ---: |
+| Occupied LUT4 resources | **29,300** | **20,736** |
+| DFFs, including the serial probe | 13,926 | 15,552 |
+| ALU functions, already included in occupied LUT4 resources | 9,442 | 15,552 |
+| Native 18×18 multipliers | 43 | 48 |
+| Native BSRAM blocks | 25 | 46 |
+
+The occupied LUT4 count is approximately **141%** of capacity, an excess of
+**8,564**. ALU occupancy and distributed RAM are already represented in that
+logic total; adding them again would double-count resources. All 43 native
+multipliers and 25 native RAM blocks remain present in the packed design.
+The serial probe adds at most 198 registers plus its small checksum/control
+logic. That overhead does not explain the large LUT excess. The resource
+failure belongs to the current functional core implementation.
+
+Reproduce synthesis and exact-part packing with:
+
+```bash
+make rtl-gpu-pack
+```
+
+[`scripts/rtl-core-pack.py`](../../scripts/rtl-core-pack.py) writes full evidence
+and logs under `build/rtl-core-pack` and the compact versioned report at
+`docs/hardware/rtl-core-pack.json`. Source hashes bind the result to its RTL,
+probe, constraints and build scripts. The helper returns status **2** for an
+over-capacity resource result. This failure is the expected result for the
+current implementation; it must not be treated as a passing fit check.
+
+No placement/routing or whole-GPU clock result follows from this packed
+resource inventory. The simulator intentionally reports
+`whole_gpu_fit_qualified=false`. The next implementation step is to reduce
+measured LUT use while preserving command, attachment and actual-scanout
+conformance. Full-device placement, routing and timing follow a successful
+capacity check.
+
+The complete board still needs clock/reset generation, SDRAM clock/pad timing,
+video encoding/serialization integration, the agreed RP2350 bus pads and final
+pin constraints. Complete synthesis, placement, routing and timing must cover
+that final top, followed by board validation. The standard video serializer
+does not need a new GPU rendering proof, but its wrapper and clocks still need
+to be included in physical implementation.
+
+The older [reciprocal/UV qualification](rtl-qualification.md) remains evidence
+for its arithmetic probe only. Its routed frequency, LUT/FF count and probe
+constraints cannot be attributed to the new full functional core. Likewise,
+the C++ [storage map](storage-map.md) is an allocation budget rather than a
+measured complete-RTL resource report.

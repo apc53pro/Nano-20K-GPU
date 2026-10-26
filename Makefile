@@ -41,7 +41,7 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr run sanitize clean check-sdl
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-block-test run sanitize clean check-sdl
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
@@ -144,6 +144,27 @@ rtl-synth:
 
 rtl-pnr:
 	$(PYTHON) scripts/rtl-check.py --pnr --require-timing --build-dir "$(BUILD_DIR)/rtl"
+
+# Functional GPU RTL, compiled to C++ by Verilator. The original SRR remains
+# the independent oracle; none of its C++ device models are linked here.
+rtl-gpu:
+	$(PYTHON) scripts/gpu-rtl.py --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
+
+rtl-gpu-synth:
+	$(PYTHON) scripts/gpu-rtl.py --synth --build-dir "$(BUILD_DIR)/rtl-gpu" --output "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)"
+
+# This intentionally fails when the exact-device packed probe exceeds capacity.
+# It retains the functional core but is not a production board pin/clock top.
+rtl-gpu-pack:
+	$(PYTHON) scripts/rtl-core-pack.py --build-dir "$(BUILD_DIR)/rtl-core-pack"
+
+rtl-gpu-test: rtl-gpu
+	$(PYTHON) scripts/rtl-gpu-check.py --executable "$(BUILD_DIR)/nano-gpu-rtl$(EXEEXT)" --build-dir "$(BUILD_DIR)/rtl-gpu-tests"
+
+rtl-block-test:
+	$(PYTHON) scripts/rtl-native-check.py --host --build-dir "$(BUILD_DIR)/rtl-native"
+	$(PYTHON) scripts/rtl-renderer-check.py --build-dir "$(BUILD_DIR)/rtl-renderer"
+	$(PYTHON) scripts/rtl-memory-check.py --build-dir "$(BUILD_DIR)/rtl-memory"
 
 $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@

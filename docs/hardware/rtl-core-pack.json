@@ -1,0 +1,219 @@
+{
+  "schema": "N20K-CORE-PACK-PROBE-1",
+  "top": "nano_gpu_probe",
+  "device": "GW2AR-LV18QN88C8/I7",
+  "family": "GW2A-18C",
+  "scope": "Complete functional logical GPU in a serial qualification probe, including probe overhead",
+  "whole_gpu_fit_qualified": false,
+  "board_pinout_qualified": false,
+  "production_pll_tmds_integrated": false,
+  "routed": false,
+  "timing_qualified": false,
+  "synthesized": true,
+  "packed": true,
+  "probe_input_shift_bits": 50,
+  "probe_output_snapshot_bits": 116,
+  "probe_checksum_bits": 32,
+  "probe_maximum_register_overhead": 198,
+  "source_sha256": {
+    "rtl/uv_mult.v": "f6f24e2e9a3095c9b5b8431181119b185f19935a9e705b403f354f60de854928",
+    "rtl/uv_pipeline.v": "a13bb9c19f901d45a497d72c5eabb63ecffcd4a973cbc10426bc0404e42961f2",
+    "rtl/gpu/nano_fragment_pipeline.sv": "cacfaa23b2b29fb3d4b740499fc6a591dc50dae89c77528751fffa069cbc3c83",
+    "rtl/gpu/nano_gpu_core.sv": "c0dd743e9ff4c02b2d0584a80029284592013f59c49675eb4e91935ab1b2e9e2",
+    "rtl/gpu/nano_host_link.sv": "d8bcf20bc73c8cc12acab8ff035a7b8f05cd0b1b8e475cd748c655b569fb8f2b",
+    "rtl/gpu/nano_scanout.sv": "67fd0d3616fce9e52bcefc78752a08efafeb528ca42bd7f1a44667f58c2908ad",
+    "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+    "rtl/gpu/nano_sdram_service.sv": "f738b718eff050e5935cd8ec91510f6d6335aef9fe40de37f5008853f28e888f",
+    "rtl/gpu/nano_texture_cache.sv": "9916cdef2972261601260524e28862766df7d6b3141aea87fe8db059da3b822f",
+    "rtl/gpu/nano_tile_renderer.sv": "43b1d7b32c62610dd40e0355a3c9b5bf9ce4133afe4683ae89e60c027b3057a2",
+    "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "rtl/gpu_probe.sv": "e7a7dc51d274afd1f562bad0bbfac2f8f3d85509e5241108399d9d6b9ed0f705",
+    "rtl/gpu_probe.cst": "2beb3831400a9cf5e4fcb71c9df59464ab0084f2eb92446b2d20e1c34af590e0",
+    "scripts/rtl-core-pack.py": "734aec2217f431fe87caede906808c4fe8596cf2f153d22742c5f27cdfbc25d8",
+    "scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
+    "scripts/rtl-check.py": "1bdf88d2ccfc2062d3aaafa926aabf651ec47cfa1a215682adf9d1975ac6b7ba",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
+  },
+  "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+  "elaboration_passed": true,
+  "synthesis_returncode": 0,
+  "netlist_sha256": "4fa584a8cf52faaae77a5fade702939a14fee3ec792a8fde57c1b45b17d8c151",
+  "pack_returncode": 0,
+  "packer_errors": [],
+  "packer_utilization": {
+    "VCC": {
+      "used": 1,
+      "available": 1,
+      "within_capacity": true
+    },
+    "IOB": {
+      "used": 9,
+      "available": 384,
+      "within_capacity": true
+    },
+    "LUT4": {
+      "used": 29300,
+      "available": 20736,
+      "within_capacity": false
+    },
+    "IOLOGICI": {
+      "used": 0,
+      "available": 384,
+      "within_capacity": true
+    },
+    "IOLOGICO": {
+      "used": 0,
+      "available": 384,
+      "within_capacity": true
+    },
+    "MUX2_LUT5": {
+      "used": 2457,
+      "available": 10368,
+      "within_capacity": true
+    },
+    "MUX2_LUT6": {
+      "used": 52,
+      "available": 5184,
+      "within_capacity": true
+    },
+    "MUX2_LUT7": {
+      "used": 21,
+      "available": 2592,
+      "within_capacity": true
+    },
+    "MUX2_LUT8": {
+      "used": 8,
+      "available": 2592,
+      "within_capacity": true
+    },
+    "ALU": {
+      "used": 9442,
+      "available": 15552,
+      "within_capacity": true
+    },
+    "GND": {
+      "used": 1,
+      "available": 1,
+      "within_capacity": true
+    },
+    "DFF": {
+      "used": 13926,
+      "available": 15552,
+      "within_capacity": true
+    },
+    "RAM16SDP4": {
+      "used": 20,
+      "available": 648,
+      "within_capacity": true
+    },
+    "BSRAM": {
+      "used": 25,
+      "available": 46,
+      "within_capacity": true
+    },
+    "ALU54D": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "MULTADDALU18X18": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "MULTALU18X18": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "MULTALU36X18": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "MULT36X36": {
+      "used": 0,
+      "available": 12,
+      "within_capacity": true
+    },
+    "MULT18X18": {
+      "used": 43,
+      "available": 48,
+      "within_capacity": true
+    },
+    "MULT9X9": {
+      "used": 0,
+      "available": 96,
+      "within_capacity": true
+    },
+    "PADD18": {
+      "used": 0,
+      "available": 48,
+      "within_capacity": true
+    },
+    "PADD9": {
+      "used": 0,
+      "available": 96,
+      "within_capacity": true
+    },
+    "GSR": {
+      "used": 1,
+      "available": 1,
+      "within_capacity": true
+    },
+    "OSC": {
+      "used": 0,
+      "available": 1,
+      "within_capacity": true
+    },
+    "rPLL": {
+      "used": 0,
+      "available": 2,
+      "within_capacity": true
+    },
+    "GW_JTAG": {
+      "used": 0,
+      "available": 1,
+      "within_capacity": true
+    },
+    "BUFG": {
+      "used": 2,
+      "available": 24,
+      "within_capacity": true
+    },
+    "DQCE": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "DCS": {
+      "used": 0,
+      "available": 8,
+      "within_capacity": true
+    },
+    "DHCEN": {
+      "used": 0,
+      "available": 24,
+      "within_capacity": true
+    },
+    "CLKDIV": {
+      "used": 0,
+      "available": 8,
+      "within_capacity": true
+    },
+    "CLKDIV2": {
+      "used": 0,
+      "available": 16,
+      "within_capacity": true
+    }
+  },
+  "packed_netlist_sha256": "86af890543171288746578937fa0abe43d8885a0f3c8f9182a46453dcadad18f",
+  "reported_resources_within_capacity": false,
+  "capacity_rejected_resources": [
+    "LUT4"
+  ],
+  "inputs_changed_during_run": []
+}

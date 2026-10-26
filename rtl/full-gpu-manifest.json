@@ -24,112 +24,144 @@
     {
       "id": "coverage_interpolation",
       "description": "Triangle command capture, edge initialization, coverage walking and enabled attribute-plane interpolation.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_tile_pipeline.cpp",
         "reference/include/nano_gpu/hw/tile_pipeline.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_tile_renderer.sv"
+      ]
     },
     {
       "id": "fragment_depth_shading",
       "description": "D24 tests, fragment contexts, texture and key handoffs, RGB modulation, ordered retirement and attachment commits.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_fragment_pipeline.cpp",
         "reference/include/nano_gpu/hw/fragment_pipeline.hpp",
         "reference/src/hw_tile_pipeline.cpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_fragment_pipeline.sv",
+        "rtl/gpu/nano_tile_renderer.sv",
+        "rtl/uv_pipeline.v",
+        "rtl/uv_mult.v"
+      ]
     },
     {
       "id": "texture_cache_addressing",
       "description": "Texture address pipeline, direct-mapped cache tags and data, synchronous hits and external SDRAM refill controller.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_texture.cpp",
         "reference/include/nano_gpu/hw/texture.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_texture_cache.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "tile_storage_export_dma",
-      "description": "Resident and export attachment bank roles, clear/load paths, native-word tile stores and completion ordering.",
-      "status": "modeled_only",
+      "description": "Native resident attachment banks, tile clear/load/store transfers and completion ordering in the serialized logical core; overlapping export DMA is not claimed.",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_system.cpp",
         "reference/src/hw_tile_pipeline.cpp",
         "reference/include/nano_gpu/hw/storage_map.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_tile_renderer.sv",
+        "rtl/gpu/nano_gpu_core.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "host_parallel_link",
-      "description": "Eight-bit host data transport, bounded RX/TX and packet banks, parser, backpressure and sideband register access; final physical pin protocol remains to be integrated.",
-      "status": "modeled_only",
+      "description": "Eight-bit independently clocked host link, bounded native RX/TX and packet storage, parser, backpressure and sideband register access; package pins remain unresolved.",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_host_link.cpp",
         "reference/include/nano_gpu/hw/host_link.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_host_link.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "command_execution",
       "description": "Device-side command validation, ordered heap uploads, pass submission, fences, presentation and diagnostic replies.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_system.cpp",
         "reference/include/nano_gpu/hw/system.hpp",
         "reference/include/nano_gpu/hw/protocol.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_gpu_core.sv"
+      ]
     },
     {
       "id": "primitive_bin_fetch_prefetch",
-      "description": "Timed descriptor, tile-table, reference and primitive fetching, synchronous field capture and one-record lookahead.",
-      "status": "modeled_only",
+      "description": "Descriptor, tile-table, reference and primitive fetch with registered field capture in the serialized logical core; one-record lookahead is not claimed.",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_system.cpp",
         "reference/include/nano_gpu/hw/storage_map.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_gpu_core.sv"
+      ]
     },
     {
       "id": "sdram_controller_arbitration",
       "description": "SDRAM initialization, refresh, physical command/data timing, per-client native slots, arbitration and response ownership.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_sdram.cpp",
         "reference/include/nano_gpu/hw/sdram.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_sdram_service.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "scanout_fifo",
       "description": "Independent display fetch scheduling, bounded scanout FIFO, 640x480 timing, front-buffer ownership and underflow handling.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_scanout.cpp",
         "reference/include/nano_gpu/hw/scanout.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_scanout.sv",
+        "rtl/gpu/nano_gpu_core.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "two_dimensional_copy",
       "description": "Rectangle, line and sprite walking plus ordered image/framebuffer copies using native staging and shared SDRAM.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_walker2d.cpp",
         "reference/include/nano_gpu/hw/walker2d.hpp",
         "reference/src/hw_system_copy.cpp",
         "reference/include/nano_gpu/hw/system_copy.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_tile_renderer.sv",
+        "rtl/gpu/nano_gpu_core.sv",
+        "rtl/gpu/nano_sdp16.sv"
+      ]
     },
     {
       "id": "native_storage_primitives",
       "description": "Non-UV native BSRAM/DSP instantiation, fixed bank ownership, registered ports and any selected LUT/FF storage needed by the complete GPU.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_bsram.cpp",
         "reference/include/nano_gpu/hw/bsram.hpp",
@@ -138,32 +170,40 @@
         "reference/include/nano_gpu/hw/device.hpp",
         "reference/include/nano_gpu/hw/storage_map.hpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_sdp16.sv",
+        "rtl/uv_mult.v"
+      ]
     },
     {
       "id": "status_recovery_control",
       "description": "Bounded device status and completion state, exposed hardware counters, ownership faults, abort draining and reset recovery.",
-      "status": "modeled_only",
+      "status": "rtl_submodule",
       "model_sources": [
         "reference/src/hw_system.cpp",
         "reference/include/nano_gpu/hw/system.hpp",
         "reference/src/hw_host_link.cpp"
       ],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_gpu_core.sv",
+        "rtl/gpu/nano_host_link.sv"
+      ]
     },
     {
       "id": "board_clock_reset_cdc",
-      "description": "Production oscillator/PLL and reset tree, host/core/display clock domains, asynchronous crossings and board timing constraints.",
+      "description": "Production oscillator/PLL, board reset generation, physical core/display clocks and board timing constraints. Logical host/core CDC is implemented by host_parallel_link.",
       "status": "not_implemented",
       "model_sources": [],
       "rtl_sources": []
     },
     {
       "id": "hdmi_output_resources",
-      "description": "Video-only DVI-compatible TMDS encoding, serialization, clocking and output I/O resources for the HDMI connector.",
-      "status": "not_implemented",
+      "description": "Standalone DVI-compatible TMDS encoder, OSER10 serializer and differential output wrapper; not instantiated by nano_gpu_core or included in its mapped synthesis counts.",
+      "status": "rtl_submodule",
       "model_sources": [],
-      "rtl_sources": []
+      "rtl_sources": [
+        "rtl/gpu/nano_tmds.sv"
+      ]
     },
     {
       "id": "production_top_pin_integration",
@@ -176,12 +216,15 @@
   "notes": [
     "The production top, production constraints and required clock list are unresolved. An empty required_clocks list does not mean that the GPU needs no constrained clocks.",
     "This manifest inventories implementation coverage. Source-file presence and hand-written resource budgets are insufficient evidence of complete GPU synthesis, placement, routing or timing closure.",
-    "Only uv_arithmetic has synthesizable datapath RTL. Its qualification uses rtl/uv_probe.v and rtl/uv_probe.cst, which are an arithmetic test harness and constraints, not the production GPU top or board pin assignment.",
+    "Functional command-to-pixel RTL is integrated by rtl/gpu/nano_gpu_core.sv. Its scoped build/synthesis report does not include the production board wrapper, physical clock generation or final pin constraints. Standalone TMDS RTL exists but is not instantiated by this core.",
     "The UV seed-ROM RTL is generated by scripts/rtl-generate-rom.py from the checked-in reciprocal seed data. Qualification provenance must include that generator, all ROM inputs, generated RTL and tool/device-library inputs.",
     "CPU scene construction, transforms, clipping, triangle setup, CPU binning, packet encoding, HostPassCompiler texture residency, framebuffer snapshots, poison tracking and verification/trace observers are outside GPU resource usage. Source files can contain both host and modeled-device code; their C++ object sizes are not FPGA resource counts.",
-    "Every functional device block, live control signal and exposed hardware counter must have an explicit bounded implementation. Functional stubs, tied-off substitutes, unconnected datapaths and serial observation harness state cannot establish production fit.",
+    "Every functional device block, live control signal and exposed hardware counter needs an explicit bounded implementation. This inventory records RTL presence, not complete SRR cycle equivalence or production fit; serialized implementations need not reproduce optional modeled overlap.",
     "Board clock/reset/CDC and HDMI output resources are mandatory for complete-device fit accounting even though proving standard HDMI signaling behavior is outside the requested software reference-renderer scope.",
-    "The current SRR derives host and pixel edges from a common modeled clock. That relationship does not implement or validate the independently clocked physical RP2350 host interface.",
-    "Blocks may share modeled source files. Their entries are coverage obligations, not independently summable resource estimates. Final resource totals must come from the single integrated mapped and routed netlist for the exact selected part."
-  ]
+    "The RTL host link implements independent host/core clocks and CDC. The logical core derives a pixel enable from the core clock; this does not establish production PLL clocks, clock-domain constraints or board timing.",
+    "Blocks may share modeled source files. Their entries are coverage obligations, not independently summable resource estimates. Final resource totals must come from the single integrated mapped and routed netlist for the exact selected part.",
+    "Scoped logical-core synthesis totals must be read from a source-matched build report and matching mapped netlist. They exclude the standalone TMDS wrapper and cannot be added to historical arithmetic-probe totals or treated as whole-board resource usage."
+  ],
+  "logical_core_top": "nano_gpu_core",
+  "logical_core_build_report": "build/rtl-gpu/build-report.json"
 }

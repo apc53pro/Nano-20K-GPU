@@ -21,7 +21,7 @@ def main():
     args = parser.parse_args()
     directory = ROOT / ".deps/rtl"
     suite = directory / "oss-cad-suite"
-    required = [suite / "bin" / name for name in ("iverilog", "vvp", "yosys", "nextpnr-himbaechel")]
+    required = [suite / "bin" / name for name in ("iverilog", "vvp", "verilator", "yosys", "nextpnr-himbaechel")]
     if all(path.is_file() for path in required):
         print(f"rtl-setup: toolchain available at {suite}")
         return

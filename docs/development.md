@@ -192,3 +192,61 @@ sanitizer checks. In environments that prevent LeakSanitizer from running under
 tracing, use `ASAN_OPTIONS=detect_leaks=0 make sanitize`; this disables only leak
 checking. See the [renderer guide](software-reference.md) for the test coverage
 and remaining model limitations.
+
+## Integrated RTL simulator
+
+The [RTL GPU](hardware/rtl-gpu.md) is a separate Verilator build. Its device
+implementation is SystemVerilog; C++ provides host commands, the external
+SDRAM chip model, an independent SRR oracle and SDL2 presentation. SDL2 is
+optional for a headless RTL run.
+
+On Linux x86_64, install the pinned, workspace-local OSS CAD Suite and build:
+
+```bash
+./scripts/setup-rtl-tools.sh
+./scripts/setup-rtl-tools.sh --check
+make rtl-gpu
+./build/nano-gpu-rtl --headless --scene showcase --verify --stats build/rtl-showcase.json
+```
+
+The tool installer downloads OSS CAD Suite **2026-10-24**, verifies its pinned
+SHA-256, and extracts it into the ignored `.deps/rtl` directory. It does not
+modify system files. The suite provides Verilator, Icarus Verilog, Yosys and
+nextpnr; building Verilator's generated C++ still needs the C++ compiler and
+make described above. The approximately 749 MB tool archive is separate from
+the SDL2 setup and is unnecessary for normal SRR builds.
+
+When SDL2 is discoverable through pkg-config during `make rtl-gpu`, run
+`./build/nano-gpu-rtl --scene showcase --verify` for a window. The window displays
+the pixels emitted by RTL scanout. Without SDL2, the same build produces a
+headless executable; pass `--headless` when running it. To require a headless
+build explicitly:
+
+```bash
+python3 scripts/gpu-rtl.py --headless-only
+```
+
+Additional targets:
+
+```bash
+make rtl-gpu-test
+make rtl-block-test
+make rtl-gpu-synth
+```
+
+The first runs command/recovery checks and integrated scene comparisons against
+the independent renderer. `rtl-block-test` runs the separate native RAM/video,
+asynchronous host, tile-renderer, SDRAM and texture-cache regressions. The last
+target synthesizes the functional core for Gowin and reports retained cells;
+synthesis alone does not qualify the complete GPU's physical fit or clock.
+See the [RTL guide](hardware/rtl-gpu.md) for generated reports and the distinction
+between the integrated GPU and the older UV arithmetic probe.
+
+Automatic RTL tool installation currently supports Linux x86_64 only. For a
+Windows PC, Debian/Ubuntu under WSL follows that path. Alternatively, manually
+install the platform's OSS CAD Suite and set `NANO_GPU_RTL_TOOLS` to its root or
+put its `bin` directory on PATH, alongside a compatible C++ compiler, make and
+Python. The integrated Verilator GPU build has not been validated on native
+Windows; the normal MSYS2 SRR setup above remains a separate supported workflow.
+Rebuild generated simulators on each machine rather than copying binaries or
+`.deps` installations between platforms.

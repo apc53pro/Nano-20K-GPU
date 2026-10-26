@@ -1,6 +1,8 @@
 #include "nano_gpu/reference.hpp"
+#ifndef NANO_GPU_ORACLE_ONLY
 #include "nano_gpu/hw/tile_pipeline.hpp"
 #include "nano_gpu/hw/blit.hpp"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -457,10 +459,14 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
             validate_primitive(primitive);
         }
         if (mode == RenderMode::HardwareBlocks) {
+#ifdef NANO_GPU_ORACLE_ONLY
+            throw std::invalid_argument("the RTL oracle build cannot invoke a C++ hardware backend");
+#else
             hw::render_pass(pass, color_[pass.target], depth_, statistics_);
             color_valid_[pass.target] = true;
             depth_valid_ = true;
             return;
+#endif
         }
         const TileBins bins = bin_primitives(pass.primitives);
         for (const auto& bin : bins) {
@@ -556,6 +562,9 @@ void Renderer::copy_rect(int source, int target, Point source_origin,
         return;
     }
     if (mode == RenderMode::HardwareBlocks) {
+#ifdef NANO_GPU_ORACLE_ONLY
+        throw std::invalid_argument("the RTL oracle build cannot invoke a C++ copy backend");
+#else
         const hw::CopyRegion region{
             {static_cast<int>(source_origin.x + window.x0), static_cast<int>(source_origin.y + window.y0)},
             {static_cast<int>(destination_origin.x + window.x0), static_cast<int>(destination_origin.y + window.y0)},
@@ -565,6 +574,7 @@ void Renderer::copy_rect(int source, int target, Point source_origin,
         statistics_.hardware_copy_words = counters.words;
         if (full_destination(window, destination_origin)) color_valid_[target] = true;
         return;
+#endif
     }
     // A host-side snapshot directly defines the specified overlapping-copy result.
     std::vector<std::uint16_t> snapshot;
@@ -604,6 +614,9 @@ void Renderer::copy_image(const Image& source, int target, Point source_origin,
         return;
     }
     if (mode == RenderMode::HardwareBlocks) {
+#ifdef NANO_GPU_ORACLE_ONLY
+        throw std::invalid_argument("the RTL oracle build cannot invoke a C++ copy backend");
+#else
         const hw::CopyRegion region{
             {static_cast<int>(source_origin.x + window.x0), static_cast<int>(source_origin.y + window.y0)},
             {static_cast<int>(destination_origin.x + window.x0), static_cast<int>(destination_origin.y + window.y0)},
@@ -613,6 +626,7 @@ void Renderer::copy_image(const Image& source, int target, Point source_origin,
         statistics_.hardware_copy_words = counters.words;
         if (full_destination(window, destination_origin)) color_valid_[target] = true;
         return;
+#endif
     }
     for (auto j = window.y0; j < window.y1; ++j) {
         for (auto i = window.x0; i < window.x1; ++i) {

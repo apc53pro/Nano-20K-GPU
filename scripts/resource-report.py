@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Audit selected model allocations and missing whole-GPU implementation proof.
+"""Audit model allocations, scoped RTL evidence and whole-GPU proof gaps.
 
 This report is not a synthesis tool. The existing arithmetic qualification is
-always a submodule result. No full-GPU qualification runner exists yet, so a
-full-fit request must fail, including if manifest labels claim RTL completion.
+always a submodule result. The functional logical core has a separate build and
+synthesis scope. Neither qualifies production board integration or full fit.
 """
 
 import argparse
+from collections import Counter
 import copy
 import hashlib
 import json
@@ -28,6 +29,33 @@ UV_REQUIRED_INPUTS = {
     "scripts/generate-reciprocal-rom.py", "scripts/rtl-generate-rom.py", "scripts/rtl-check.py",
     *("rtl/generated/reciprocal_seed_{}.hex".format(index) for index in range(4)),
 }
+CORE_TOP = "nano_gpu_core"
+CORE_REQUIRED_INPUTS = {
+    "rtl/uv_mult.v", "rtl/uv_pipeline.v",
+    *("rtl/gpu/" + name + ".sv" for name in (
+        "nano_fragment_pipeline", "nano_gpu_core", "nano_host_link",
+        "nano_scanout", "nano_sdp16", "nano_sdram_service",
+        "nano_texture_cache", "nano_tile_renderer", "nano_tmds")),
+    *("reference/src/" + name + ".cpp" for name in (
+        "setup", "renderer", "demo", "hw_protocol")),
+    "reference/rtl/main.cpp", "reference/rtl/sdram_model.cpp",
+    "reference/rtl/sdram_model.hpp",
+    "scripts/gpu-rtl.py", "scripts/rtl-generate-rom.py", "scripts/rtl-check.py",
+    *("rtl/generated/reciprocal_seed_{}.hex".format(index) for index in range(4)),
+}
+CORE_PACK_SCOPE = "Complete functional logical GPU in a serial qualification probe, including probe overhead"
+CORE_PACK_OBSERVABILITY = {
+    "probe_input_shift_bits": 50, "probe_output_snapshot_bits": 116,
+    "probe_checksum_bits": 32, "probe_maximum_register_overhead": 198,
+}
+CORE_PACK_CAPACITIES = {
+    "LUT4": 20736, "DFF": 15552, "ALU": 15552,
+    "MULT18X18": 48, "BSRAM": 46, "RAM16SDP4": 648,
+}
+CORE_PACK_REQUIRED_INPUTS = {name for name in CORE_REQUIRED_INPUTS if name.startswith("rtl/")} | {
+    "rtl/gpu_probe.sv", "rtl/gpu_probe.cst", "scripts/rtl-core-pack.py",
+    "scripts/rtl-generate-rom.py", "scripts/rtl-check.py",
+}
 
 
 def digest(path):
@@ -48,6 +76,260 @@ def integer(value, name):
     if type(value) is not int or value < 0:
         raise ValueError(name + " must be a nonnegative integer")
     return value
+
+
+def core_required_inputs(repo):
+    # The runner compiles every GPU module and fingerprints the C++ adapter's
+    # public headers. A newly added source cannot silently disappear from proof.
+    paths = list((repo / "rtl/gpu").glob("*.sv"))
+    paths += list((repo / "reference/include").rglob("*.hpp"))
+    paths += list((repo / "reference/rtl").glob("*.hpp"))
+    return CORE_REQUIRED_INPUTS | {str(path.relative_to(repo)) for path in paths}
+
+
+def valid_digest(value):
+    return (isinstance(value, str) and len(value) == 64 and
+            all(character in "0123456789abcdef" for character in value))
+
+
+def logical_core_summary(repo, report, report_path=None):
+    """Check recorded evidence without rerunning tools or qualifying board fit."""
+    repo = Path(repo).resolve()
+    result = {
+        "scope": "nano_gpu_core functional command-to-pixel logical core",
+        "status": "unavailable", "top": CORE_TOP, "whole_gpu_evidence": False,
+        "simulation_passed": None, "timing_met": None,
+        "source_mismatches": [], "synthesis_status": "unavailable",
+        "synthesis_cells": None, "recorded_synthesis_cells": None,
+        "netlist_hash_verified": False, "netlist_cells_verified": False,
+        "implementation_regenerated": False,
+        "excluded_resources": [
+            "Standalone TMDS encoder, serializers and differential output buffers",
+            "Production clock/PLL and reset generation, board wrapper and package pins",
+        ],
+        "evidence_kind": "Recorded Verilator build; no simulation run is established. Optional mapped cell counts are checked against the recorded netlist, not regenerated.",
+    }
+    if report is None:
+        return result
+    if not isinstance(report, dict):
+        result.update(status="invalid", reason="Logical-core report must be an object")
+        return result
+    result["recorded_synthesis_cells"] = copy.deepcopy(report.get("synthesis_cells"))
+    result["recorded_schema"] = report.get("schema")
+    if (report.get("schema") != "N20K-GPU-RTL-BUILD-1" or
+            report.get("device") != PART or report.get("family") != FAMILY or
+            report.get("top") != CORE_TOP or report.get("simulation_backend") != "verilator" or
+            report.get("cpp_device_backends_linked") is not False or
+            report.get("whole_gpu_fit_qualified") is not False or
+            not isinstance(report.get("verilator_version"), str) or
+            not report["verilator_version"].strip()):
+        result.update(status="invalid", reason="Report does not identify the selected independent logical RTL build")
+        return result
+    hashes = report.get("source_sha256")
+    if (not isinstance(hashes, dict) or
+            not all(isinstance(name, str) and name for name in hashes) or
+            not core_required_inputs(repo).issubset(hashes) or
+            sum(Path(name).name == "seed_rom.v" for name in hashes) != 1 or
+            not all(valid_digest(value) for value in hashes.values())):
+        result.update(status="invalid", reason="Missing or invalid logical-core source/generated-ROM provenance")
+        return result
+    for name, expected in hashes.items():
+        try:
+            path = source_path(repo, name)
+            if not path.is_file() or digest(path) != expected:
+                result["source_mismatches"].append(name)
+        except (TypeError, ValueError):
+            result["source_mismatches"].append(name)
+    if result["source_mismatches"]:
+        result.update(status="stale", reason="Recorded logical-core inputs differ from the current source tree")
+        return result
+    result.update(status="source_matched_build", verilator_version=report["verilator_version"])
+    if not any(key in report for key in ("synthesis_cells", "netlist_sha256", "yosys_version")):
+        return result
+    result["synthesis_status"] = "invalid"
+    counts = report.get("synthesis_cells")
+    if (not isinstance(counts, dict) or not counts or
+            not all(isinstance(name, str) and name and type(count) is int and count >= 0
+                    for name, count in counts.items()) or
+            not valid_digest(report.get("netlist_sha256")) or
+            not isinstance(report.get("yosys_version"), str) or
+            not report["yosys_version"].strip() or report_path is None):
+        result["synthesis_reason"] = "Missing or invalid mapped-netlist provenance/counts"
+        return result
+    netlist_path = Path(report_path).resolve().parent / "gpu-synth.json"
+    try:
+        if digest(netlist_path) != report["netlist_sha256"]:
+            result["synthesis_reason"] = "Mapped netlist hash differs from the recorded synthesis"
+            return result
+        result["netlist_hash_verified"] = True
+        design = json.loads(netlist_path.read_text(encoding="utf-8"))
+        cells = design["modules"][CORE_TOP]["cells"]
+        if not isinstance(cells, dict) or not cells:
+            raise ValueError("logical-core netlist contains no mapped cells")
+        actual = Counter()
+        for cell in cells.values():
+            cell_type = cell["type"]
+            if not isinstance(cell_type, str) or not cell_type:
+                raise ValueError("mapped cell type must be a nonempty string")
+            actual[cell_type] += 1
+        if dict(actual) != counts:
+            result["synthesis_reason"] = "Recorded cell counts differ from the mapped netlist"
+            return result
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        result["synthesis_reason"] = "Cannot validate mapped netlist: " + str(error)
+        return result
+    result.update(synthesis_status="source_matched_recorded_synthesis",
+                  synthesis_cells=dict(sorted(actual.items())), netlist_cells_verified=True,
+                  yosys_version=report["yosys_version"])
+    return result
+
+
+def validate_pack_artifacts(report, build_report_path):
+    """Optional check of retained generated files, without rerunning the packer."""
+    path = Path(build_report_path).resolve()
+    build = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(build, dict):
+        raise ValueError("pack build report must be an object")
+    keys = {"schema", "top", "device", "family", "scope", "source_sha256",
+            "generated_rom_sha256", "netlist_sha256", "packed_netlist_sha256",
+            "synthesized", "packed", "elaboration_passed", "inputs_changed_during_run",
+            "whole_gpu_fit_qualified", "board_pinout_qualified", "production_pll_tmds_integrated",
+            "routed", "timing_qualified", "synthesis_returncode", "pack_returncode"}
+    keys |= CORE_PACK_OBSERVABILITY.keys()
+    if any(build.get(key) != report.get(key) for key in keys):
+        raise ValueError("retained build report differs from the recorded pack evidence")
+    for resource in CORE_PACK_CAPACITIES:
+        recorded = report["packer_utilization"][resource]
+        actual = build["packer_utilization"][resource]
+        if any(actual.get(key) != recorded[key] for key in ("used", "available")):
+            raise ValueError("retained pack utilization differs for " + resource)
+    if digest(path.parent / "seed_rom.v") != report["generated_rom_sha256"]:
+        raise ValueError("generated seed ROM hash differs")
+    for filename, hash_key, count_key, top in (
+            ("gpu-probe-synth.json", "netlist_sha256", "synthesis_cells", "nano_gpu_probe"),
+            ("gpu-probe-packed.json", "packed_netlist_sha256", "packed_cells", "top")):
+        artifact = path.parent / filename
+        if digest(artifact) != report[hash_key]:
+            raise ValueError(filename + " hash differs")
+        cells = json.loads(artifact.read_text(encoding="utf-8"))["modules"][top]["cells"]
+        recorded = build.get(count_key)
+        if (not isinstance(cells, dict) or not cells or not isinstance(recorded, dict) or
+                not all(isinstance(name, str) and name and type(count) is int and count >= 0
+                        for name, count in recorded.items())):
+            raise ValueError("missing or invalid mapped cell inventory")
+        counts = Counter()
+        for cell in cells.values():
+            kind = cell["type"]
+            if not isinstance(kind, str) or not kind:
+                raise ValueError("mapped cell type must be a nonempty string")
+            counts[kind] += 1
+        if dict(counts) != recorded:
+            raise ValueError(count_key + " differs from the retained netlist")
+        if top == "top":
+            occupancy = {
+                "LUT4": sum(counts[name] for name in ("LUT1", "LUT2", "LUT3", "LUT4", "BLOCKER_LUT")),
+                "DFF": sum(value for name, value in counts.items() if name.startswith("DFF")) + counts["BLOCKER_FF"],
+                "ALU": counts["ALU"], "MULT18X18": counts["MULT18X18"],
+                "BSRAM": sum(counts[name] for name in ("SP", "SDP", "DP", "ROM")),
+                "RAM16SDP4": counts["RAM16SDP4"],
+            }
+            if any(occupancy[name] != report["packer_utilization"][name]["used"]
+                   for name in CORE_PACK_CAPACITIES):
+                raise ValueError("packer occupancy differs from retained packed cell sites")
+
+
+def core_pack_summary(repo, report, build_report_path=None):
+    """A source-matched serial probe can reject capacity, never qualify the board."""
+    repo = Path(repo).resolve()
+    result = {
+        "scope": "Exact-part serial logical-core probe, including probe overhead",
+        "status": "unavailable", "source_matched": False, "source_mismatches": [],
+        "whole_gpu_evidence": False, "timing_met": None,
+        "utilization": None, "recorded_utilization": None,
+        "resource_capacity_met": None, "capacity_rejected_resources": [],
+        "capacity_overages": {}, "generated_artifacts_revalidated": False,
+        "implementation_regenerated": False,
+        "tool_provenance_complete": False,
+        "evidence_kind": "Historical exact-part pack report checked against current source hashes; generated ROM/netlist artifacts are not revalidated unless a retained build report is supplied",
+        "accounting_notes": [
+            "LUT4 occupancy already includes ALU and distributed-RAM occupied LUT sites; do not add ALU to LUT4",
+            "Counts include the serial observability probe; no probe-overhead subtraction is inferred",
+            "IOB availability in packer reports is a family limit, not a qualified QN88 board pin budget",
+            "Production PLL/TMDS integration, placement, routing and timing remain unqualified",
+            "Tool and chip-database provenance is not complete physical qualification",
+        ],
+    }
+    if report is None:
+        return result
+    if not isinstance(report, dict):
+        result.update(status="invalid", reason="Pack report must be an object")
+        return result
+    result["recorded_utilization"] = copy.deepcopy(report.get("packer_utilization"))
+    if (report.get("schema") != "N20K-CORE-PACK-PROBE-1" or
+            report.get("device") != PART or report.get("family") != FAMILY or
+            report.get("top") != "nano_gpu_probe" or report.get("scope") != CORE_PACK_SCOPE or
+            any(report.get(key) != value or type(report.get(key)) is not int
+                for key, value in CORE_PACK_OBSERVABILITY.items()) or
+            any(report.get(key) is not False for key in (
+                "whole_gpu_fit_qualified", "board_pinout_qualified", "production_pll_tmds_integrated",
+                "routed", "timing_qualified"))):
+        result.update(status="invalid", reason="Report does not identify the selected serial probe and observability scope")
+        return result
+    hashes = report.get("source_sha256")
+    required = CORE_PACK_REQUIRED_INPUTS | {
+        str(path.relative_to(repo)) for path in (repo / "rtl/gpu").glob("*.sv")}
+    if (not isinstance(hashes, dict) or not required.issubset(hashes) or
+            not all(isinstance(name, str) and name and valid_digest(value)
+                    for name, value in hashes.items()) or
+            not all(valid_digest(report.get(key)) for key in (
+                "generated_rom_sha256", "netlist_sha256", "packed_netlist_sha256"))):
+        result.update(status="invalid", reason="Missing or invalid core/probe/constraint/generated provenance")
+        return result
+    for name, expected in hashes.items():
+        try:
+            path = source_path(repo, name)
+            if not path.is_file() or digest(path) != expected:
+                result["source_mismatches"].append(name)
+        except (TypeError, ValueError):
+            result["source_mismatches"].append(name)
+    if result["source_mismatches"]:
+        result.update(status="stale", reason="Recorded pack inputs differ from the current source tree")
+        return result
+    if (any(report.get(key) is not True for key in ("elaboration_passed", "synthesized", "packed")) or
+            any(type(report.get(key)) is not int or report[key] != 0
+                for key in ("synthesis_returncode", "pack_returncode")) or
+            report.get("inputs_changed_during_run") != [] or report.get("packer_errors") != []):
+        result.update(status="invalid", reason="Stable-input elaboration, synthesis and packing did not complete cleanly")
+        return result
+    reported = report.get("packer_utilization")
+    if not isinstance(reported, dict) or not CORE_PACK_CAPACITIES.keys() <= reported.keys():
+        result.update(status="invalid", reason="Required exact-part occupancy counts are missing")
+        return result
+    utilization = {}
+    for resource, available in CORE_PACK_CAPACITIES.items():
+        row = reported[resource]
+        if (not isinstance(row, dict) or type(row.get("used")) is not int or row["used"] < 0 or
+                type(row.get("available")) is not int or row["available"] != available):
+            result.update(status="invalid", reason="Invalid occupancy or selected-part capacity for " + resource)
+            return result
+        used = row["used"]
+        utilization[resource] = {"used": used, "available": available,
+                                 "within_capacity": used <= available,
+                                 "overage": max(0, used - available)}
+    if build_report_path is not None:
+        try:
+            validate_pack_artifacts(report, build_report_path)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            result.update(status="invalid", reason="Cannot revalidate retained pack artifacts: " + str(error))
+            return result
+        result["generated_artifacts_revalidated"] = True
+    overages = {name: row["overage"] for name, row in utilization.items() if row["overage"]}
+    result.update(status="capacity_rejected" if overages else "source_matched_capacity_check",
+                  source_matched=True, utilization=utilization,
+                  resource_capacity_met=not overages, capacity_overages=overages,
+                  capacity_rejected_resources=sorted(overages),
+                  probe_register_overhead_maximum=CORE_PACK_OBSERVABILITY["probe_maximum_register_overhead"])
+    return result
 
 
 def probe_summary(repo, report):
@@ -105,7 +387,9 @@ def probe_summary(repo, report):
     return result
 
 
-def build_report(repo, model_profile, manifest, probe_report=None):
+def build_report(repo, model_profile, manifest, probe_report=None,
+                 core_report=None, core_report_path=None,
+                 core_pack_report=None, core_pack_build_report_path=None):
     repo = Path(repo).resolve()
     if model_profile.get("part") != PART or manifest.get("device") != PART or manifest.get("family") != FAMILY:
         raise ValueError("resource evidence must target " + PART + " / " + FAMILY)
@@ -164,13 +448,18 @@ def build_report(repo, model_profile, manifest, probe_report=None):
     if not manifest.get("required_clocks"):
         blockers.append("Required physical clocks, resets and crossings are unresolved")
     blockers.extend([
-        "No complete functional GPU RTL integration/co-simulation qualification exists",
-        "No full-GPU synthesis and exact-package placement/routing runner exists",
+        "No production-board GPU qualification including physical clocking, TMDS integration and pins exists",
+        "No production-board integrated synthesis and exact-package placement/routing qualification exists",
         "Full mapped LUT/FF/DSP/BSRAM/clock/I/O totals and all-clock timing are unavailable",
     ])
     for resource in ("BSRAM", "MULT18X18"):
         if allocations[resource] > capacity[resource]:
             blockers.append("Selected model allocation exceeds " + resource + " capacity")
+    packed_core = core_pack_summary(repo, core_pack_report, core_pack_build_report_path)
+    for resource, overage in packed_core["capacity_overages"].items():
+        row = packed_core["utilization"][resource]
+        blockers.append("Source-matched logical-core serial probe exceeds {} capacity: {} / {} (+{}; includes probe overhead)".format(
+            resource, row["used"], row["available"], overage))
     return {
         "schema": "N20K-RESOURCE-REPORT-1",
         "device": {"part": PART, "family": FAMILY, "capacity": capacity},
@@ -187,6 +476,8 @@ def build_report(repo, model_profile, manifest, probe_report=None):
         "missing_blocks": missing,
         "source_sha256": dict(sorted(source_hashes.items())),
         "arithmetic_probe": probe_summary(repo, probe_report),
+        "logical_core": logical_core_summary(repo, core_report, core_report_path),
+        "logical_core_pack": packed_core,
         "whole_gpu": {
             "status": "incomplete", "fits": None, "timing_met": None, "rtl_complete": False,
             "mapped_resource_counts": None,
@@ -209,6 +500,12 @@ def main():
     parser.add_argument("--model-profile", type=Path, help="read a saved system hardware-profile JSON instead")
     parser.add_argument("--manifest", type=Path, default=ROOT / "rtl/full-gpu-manifest.json")
     parser.add_argument("--probe-report", type=Path, default=ROOT / "docs/hardware/rtl-qualification.json")
+    parser.add_argument("--core-report", type=Path, default=ROOT / "build/rtl-gpu/build-report.json",
+                        help="optional scoped logical-core build/synthesis evidence")
+    parser.add_argument("--core-pack-report", type=Path, default=ROOT / "docs/hardware/rtl-core-pack.json",
+                        help="optional historical exact-part serial-core packing evidence")
+    parser.add_argument("--core-pack-build-report", type=Path,
+                        help="also validate retained generated pack artifacts beside this build report")
     parser.add_argument("--output", type=Path, default=ROOT / "build/resource-report.json")
     parser.add_argument("--require-full-fit", action="store_true", help="exit 2 unless whole-GPU fit is proven")
     args = parser.parse_args()
@@ -220,7 +517,10 @@ def main():
         profile = json.loads(result.stdout)
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     probe = json.loads(args.probe_report.read_text(encoding="utf-8")) if args.probe_report.is_file() else None
-    report = build_report(ROOT, profile, manifest, probe)
+    core = json.loads(args.core_report.read_text(encoding="utf-8")) if args.core_report.is_file() else None
+    packed = json.loads(args.core_pack_report.read_text(encoding="utf-8")) if args.core_pack_report.is_file() else None
+    report = build_report(ROOT, profile, manifest, probe, core, args.core_report,
+                          packed, args.core_pack_build_report)
     evidence = {"manifest": {"path": str(args.manifest), "sha256": digest(args.manifest)}}
     if args.model_profile:
         evidence["model_profile"] = {"path": str(args.model_profile), "sha256": digest(args.model_profile)}
@@ -228,10 +528,19 @@ def main():
         evidence["model_profile_executable"] = {"path": str(args.executable), "sha256": digest(args.executable)}
     if args.probe_report.is_file():
         evidence["recorded_probe_report"] = {"path": str(args.probe_report), "sha256": digest(args.probe_report)}
+    if args.core_report.is_file():
+        evidence["recorded_logical_core_report"] = {"path": str(args.core_report), "sha256": digest(args.core_report)}
+    if args.core_pack_report.is_file():
+        evidence["recorded_logical_core_pack"] = {"path": str(args.core_pack_report), "sha256": digest(args.core_pack_report)}
+    if args.core_pack_build_report:
+        evidence["retained_pack_build_report"] = {"path": str(args.core_pack_build_report), "sha256": digest(args.core_pack_build_report)}
     report["evidence"] = evidence
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print("Whole-GPU resource/fit status: INCOMPLETE (fit and timing unknown)")
+    if report["logical_core_pack"]["status"] == "capacity_rejected":
+        print("Whole-GPU qualification: INCOMPLETE (logical-core probe exceeds capacity; production timing unknown)")
+    else:
+        print("Whole-GPU resource/fit status: INCOMPLETE (fit and timing unknown)")
     print("Selected model: {} / {} BSRAM; {} / {} native 18x18 equivalents".format(
         report["known_allocations"]["BSRAM"], CAPACITIES["BSRAM"],
         report["known_allocations"]["MULT18X18"], CAPACITIES["MULT18X18"]))
@@ -241,6 +550,14 @@ def main():
         print("  - " + reason)
     print("Arithmetic probe: " + report["arithmetic_probe"]["status"] + " (never a full-GPU fit result)")
     print("Recorded arithmetic target timing met: " + str(report["arithmetic_probe"]["timing_met"]))
+    print("Logical core: " + report["logical_core"]["status"] + " (production board excluded)")
+    print("Logical-core synthesis: " + report["logical_core"]["synthesis_status"])
+    if report["logical_core"]["synthesis_cells"] is not None:
+        print("Recorded logical-core mapped cells: " + json.dumps(report["logical_core"]["synthesis_cells"], sort_keys=True))
+    print("Exact-part serial-core pack: " + report["logical_core_pack"]["status"])
+    for resource, overage in report["logical_core_pack"]["capacity_overages"].items():
+        row = report["logical_core_pack"]["utilization"][resource]
+        print("  {}: {} / {} (+{}; includes probe overhead)".format(resource, row["used"], row["available"], overage))
     print("Report: " + str(args.output))
     if args.require_full_fit:
         return 2

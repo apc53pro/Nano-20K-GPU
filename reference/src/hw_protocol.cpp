@@ -1,7 +1,5 @@
 #include "nano_gpu/hw/protocol.hpp"
 
-#include "nano_gpu/hw/walker2d.hpp"
-
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -73,8 +71,30 @@ void validate_primitive(const Primitive& primitive) {
         validate_state_fields(item.state);
         if constexpr (std::is_same_v<T, Triangle>) validate_triangle(item);
         else {
-            Walker2D validator;
-            validator.begin(primitive, {0, 0});
+            // This encoder is CPU code. Validate inputs without instantiating
+            // a clocked C++ GPU walker, so the RTL host/oracle binary need not
+            // link any C++ device implementation.
+            if (item.depth > depth_max) throw std::invalid_argument("2D constant depth exceeds D24");
+            if constexpr (std::is_same_v<T, Sprite>) {
+                if ((item.state.shade != ShadeMode::Flat && item.state.shade != ShadeMode::TextureReplace) ||
+                    !item.state.texture || !item.state.texture->texture_compatible())
+                    throw std::invalid_argument("sprite requires raw replacement and a compatible texture");
+                if (item.source_x < 0 || item.source_y < 0)
+                    throw std::invalid_argument("negative sprite source origin");
+                const auto width = static_cast<std::int64_t>(item.bounds.x1) - item.bounds.x0;
+                const auto height = static_cast<std::int64_t>(item.bounds.y1) - item.bounds.y0;
+                if (!item.bounds.empty() &&
+                    (static_cast<std::int64_t>(item.source_x) + width > item.state.texture->width() ||
+                     static_cast<std::int64_t>(item.source_y) + height > item.state.texture->height()))
+                    throw std::invalid_argument("sprite source rectangle exceeds texture");
+            } else {
+                if (item.state.shade != ShadeMode::Flat || item.state.color_key)
+                    throw std::invalid_argument("rectangle/line requires flat unkeyed color");
+                if constexpr (std::is_same_v<T, Line>) {
+                    if (!Bounds{}.contains(item.a.x, item.a.y) || !Bounds{}.contains(item.b.x, item.b.y))
+                        throw std::invalid_argument("line endpoints must be viewport-clipped");
+                }
+            }
         }
     }, primitive);
 }
