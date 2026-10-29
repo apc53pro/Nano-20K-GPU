@@ -7,8 +7,9 @@ documentation and must be updated with architecture or control changes in the
 same change and pushed with those changes to GitHub.
 
 The byte protocol below is implemented, but remains provisional. It is not a
-released RP2350 firmware ABI. The electrical pinout, bidirectional pad wrapper,
-board timing constraints and RP2350 PIO/DMA driver have **not** been finalized.
+released RP2350 firmware ABI. The **Core2350B/Tang Nano 20K wiring allocation
+is fixed below as `N20K-PIN-0.1`**. The bidirectional pad wrapper, board timing
+constraints and RP2350 PIO/DMA driver are **not implemented or qualified**.
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
@@ -77,11 +78,185 @@ integration and measurement. The nominal simulator/capability clock remains
 | `abort_request` | Input to core | Out-of-band soft recovery request; internally synchronized. |
 | `reset` | Input to core | Hard reset and initialization. |
 
-The separate read/write data ports and seven address bits describe the RTL
-boundary. They do **not** establish an eight-data-wire PCB pinout, a final wire
-count, an address-latch scheme, or bus-turnaround timing. A production wrapper
-must map these signals to the agreed physical bus. Do not assign RP2350 pins
-from this logical port table.
+The separate read/write data ports and seven address bits describe the current
+RTL boundary. The physical wiring reservation below shares eight data wires
+and assigns an address-latch control. A future production wrapper must bridge
+the two interfaces. The logical port table is not itself a physical pin map.
+
+### Fixed wiring layout: Core2350B to Tang Nano 20K
+
+**Layout `N20K-PIN-0.1`: 16 signal wires plus common ground, all at 3.3 V.**
+This allocation is for the **Waveshare Core2350B with 16 MiB flash and 8 MiB
+PSRAM**, confirmed by the user, and **Tang Nano 20K hardware 3921**, referenced
+to Sipeed schematic revision 1.30. It reserves the exact connections for the
+future board implementation. This documentation change does not modify the
+RP2350 firmware, FPGA RTL or constraints, and does not make the current
+simulator/probe image a usable board bitstream.
+
+The uploaded `resource_development.7z` confirms HSYNC on GP16, VSYNC on GP17
+and eight RGB outputs on GP18–GP25. Reuse **all ten VGA GPIOs**, with **GP10–GP15**
+as the six additional signals. The eight data GPIOs remain contiguous for PIO;
+ALE_N/RD_N/HCLK/WR_N occupy the contiguous GP14–GP17 control group.
+
+- [Printable A4 wiring and both board-header layouts](../docs/images/core2350b-tang-nano20k-wiring.pdf)
+- [Point-to-point layout](../docs/images/core2350b-tang-nano20k-wiring.svg),
+  [Tang header locator](../docs/images/tang-nano20k-header-map.svg) and
+  [Core2350B header locator](../docs/images/core2350b-header-map.svg)
+- [Pin allocation, resistor values and source fingerprints](../docs/hardware/rp2350-tang20k-pinout.json)
+
+`P1.11` means **contact 11 of Core2350B connector P1**, not GP11. Likewise,
+`J6.8` is Tang connector J6 contact 8; its FPGA package pin is 27. These are
+manufacturer connector positions, not Raspberry Pi Pico/Pico 2 header numbers.
+
+| Signal | RP GPIO | Core2350B contact | Tang contact | FPGA QN88 pin | Direction | Previous VGA use |
+| --- | ---: | --- | --- | ---: | --- | --- |
+| WREADY | GP10 | P1.11 | J6.1 | 73 | Tang → RP | — |
+| RVALID | GP11 | P1.14 | J6.2 | 74 | Tang → RP | — |
+| ABORT | GP12 | P1.13 | J5.17 | 72 | RP → Tang | — |
+| GPU_RESET_N | GP13 | P1.16 | J5.18 | 71 | RP → Tang | — |
+| ALE_N | GP14 | P1.15 | J6.15 | 17 | RP → Tang | — |
+| RD_N | GP15 | P3.2 | J6.7 | 16 | RP → Tang | — |
+| HCLK | GP16 | P3.4 | J6.5 | 77 | RP → Tang | HSYNC |
+| WR_N | GP17 | P3.3 | J6.6 | 15 | RP → Tang | VSYNC |
+| D0 | GP18 | P3.6 | J6.8 | 27 | Bidirectional | RGB bit 0 |
+| D1 | GP19 | P3.5 | J6.9 | 28 | Bidirectional | RGB bit 1 |
+| D2 | GP20 | P3.8 | J6.12 | 29 | Bidirectional | RGB bit 2 |
+| D3 | GP21 | P3.7 | J6.13 | 30 | Bidirectional | RGB bit 3 |
+| D4 | GP22 | P3.10 | J6.14 | 31 | Bidirectional | RGB bit 4 |
+| D5 | GP23 | P3.9 | J5.5 | 42 | Bidirectional | RGB bit 5 |
+| D6 | GP24 | P3.12 | J5.6 | 41 | Bidirectional | RGB bit 6 |
+| D7 | GP25 | P3.11 | J5.10 | 48 | Bidirectional | RGB bit 7 |
+
+Connect Core **P1.1 GND → Tang J5.2 GND**, and **P3.1 GND → Tang J6.20 GND**.
+Also bond **Tang J5.15 GND** to that same ground; it may branch from P3.1.
+Keep a ground return alongside the clock and data bundle. The layout does not
+join the boards' 3.3 V or 5 V outputs. Power each board through its normal power
+connection. Tang **J6.19 3.3 V** supplies only the local pull-up resistors below.
+
+#### Header orientation
+
+View **both boards from the component side**, not the solder side:
+
+- **Tang:** USB-C at the top, HDMI at the bottom. J6 is the left 1×20 header;
+  J5 is the right 1×20 header. Each runs from contact 1 at the USB end to
+  contact 20 at the HDMI end. **J5.1 is 5 V**, not ground.
+- **Core2350B:** the USB FPC connector is at the top. P1 is left, P2 top, P3
+  bottom and P4 right. On P1, the outer column is odd-numbered top to bottom
+  and the inner column even-numbered. On P3, the outer/bottom row is odd-numbered
+  left to right and the inner/top row even-numbered. P1.1 and P3.1 are ground.
+
+The printable locator pages mark every P1/P3 and J5/J6 contact, including
+unused positions. Verify that the received Tang board matches the referenced
+3921 schematic and orientation before following the layout.
+
+#### Resistors, idle levels and board connections
+
+Use **33 Ω series resistors** as initial prototype values: at the RP end of
+HCLK/WR_N/RD_N/ALE_N/ABORT/GPU_RESET_N, at the Tang end of WREADY/RVALID,
+and at **both ends of each D0–D7 wire**. Data therefore has two 33 Ω resistors
+in series. Values and maximum clock rate still need measurement with the real
+wiring; these resistors are not level shifters.
+
+Fit these **external 4.7 kΩ pulls at the Tang-side signal nodes**:
+
+| Signals | Pull | Power-on/default meaning |
+| --- | --- | --- |
+| WR_N, RD_N, ALE_N | To Tang J6.19, 3.3 V | HIGH; inactive |
+| HCLK, ABORT | To common GND | LOW; stopped clock and no abort |
+| GPU_RESET_N | To common GND | LOW; GPU logic held in reset until RP releases it |
+| WREADY, RVALID | To common GND | LOW while FPGA outputs are not configured |
+| D0–D7 | No external pull required | Both drivers released outside a transaction |
+
+High impedance describes the output drivers, not a guaranteed wire voltage:
+the FPGA can bias data pins with weak pull-ups during configuration. The
+defaults above apply once the relevant supplies exist. The passive parts for
+this layout are **24 × 33 Ω** series resistors and **8 × 4.7 kΩ** pulls
+(three pull-ups and five pull-downs).
+
+The three active-low controls deliberately use Tang **LED0/1/2** pins 15/16/17.
+Each has an existing **3.3 V → orange LED → 510 Ω → signal** branch. LOW lights
+the corresponding LED and adds sink current to the RP output; HIGH turns it
+off. The future driver must select **at least 8 mA GPIO drive strength** for
+these three outputs (12 mA is an available setting). Ignoring LED forward
+voltage gives a conservative nominal bound of **7.18 mA per asserted line**
+including its 4.7 kΩ pull-up. The LED branch does not replace a real pull-up.
+No LED needs removal. Configure these FPGA pins strictly as inputs.
+
+**Leave the Tang RGB LCD FPC connector disconnected.** Data pins and HCLK also
+route to that connector. This allocation avoids HDMI CEC/HPD on FPGA pins 25/26,
+DDC on 52/53, the LCD backlight enable on 49, and BL616-driven signals. It keeps
+the Tang flash, SDRAM, SD slot, audio and programming connections available.
+FPGA pins 41/42 are **bank 4**, despite the bank-5 color in Sipeed's pinout
+picture; the Gowin package table and Sipeed power schematic establish their
+bank and 3.3 V supply. The selected banks 1/3/4/5/6 are all 3.3 V on this board.
+HCLK uses **77/GCLKT_1**, a suitable single-ended global-clock input.
+
+Preserve RP **GP0** (startup indicator), **GP2–GP5** (SD SPI), **GP6–GP8**
+(I2S audio), **GP27/GP28** (PS/2), **GP39** (Core onboard LED) and **GP47**
+(PSRAM chip select). GP1/GP9/GP26/GP29 are not allocated by this wiring plan.
+The existing VGA resistor DAC and sync circuitry must be disconnected from
+GP16–GP25; connect at the GPIO-side nodes, not the VGA connector's combined
+analog R/G/B pins.
+
+Assemble with power off. The current VGA firmware and the Tang's factory
+image do not implement this bus or guarantee its pin directions/reset rules.
+The factory image can drive LED/control and LCD-clock pins as well as data.
+Use a removable signal connector or jumpers and keep **all 16 signal links
+isolated during powered operation until compatible firmware and an FPGA
+board image are available**. Series resistors do not make conflicting
+push-pull outputs safe. Do not drive an unpowered board through its GPIOs.
+All signal voltages are 3.3 V; no 5 V signal connects to this interface.
+
+#### Reserved signal meanings for the future pad wrapper
+
+These roles explain the wiring reservation; **the physical adapter is not yet
+RTL or an RP2350 driver**. The implemented packet bytes below remain unchanged.
+
+HCLK is generated by the RP. WR_N offers an address or packet byte; WREADY is
+its pre-rising-edge acceptance indication. With ALE_N LOW, a write latches
+D[6:0] as the native register-bank address, with D7 zero, without adding a
+packet byte. With ALE_N HIGH, a write appends a packet byte at selected address
+0. Address-latch cycles need their own WREADY acceptance independent of native
+`host_wr_ready`: native readiness is LOW at nonzero bank addresses and cannot
+otherwise permit selecting bank 0 again. The selected address resets to 0 and
+stays latched until another address write or reset.
+
+RD_N selects read ownership of D[7:0]. The RP releases all eight data outputs
+before asserting RD_N; only the FPGA drives during a read. RVALID marks the
+registered returned byte. WR_N and RD_N must never be LOW together; ALE_N is
+HIGH for reads. Insert an idle turnaround phase with both strobes HIGH and
+both drivers released before reversing direction. An asserted read can consume
+a reply byte on each valid host edge, so single-byte reads must end before a
+second acceptance. Exact setup/hold and turnaround durations remain future
+board-timing work, not values established by this layout.
+
+ABORT is an active-HIGH soft-recovery request to the existing core semantics;
+GPU_RESET_N is an active-LOW **GPU logic reset**, not Core RUN, Tang RECONFIG_N
+or a configuration/programming button. The wrapper inverts GPU_RESET_N into
+the core's existing active-HIGH reset. It must release the
+data bus and suppress handshakes during reset. Both clocks must continue for
+soft recovery. Reply/status polling uses the existing logical banks; no IRQ,
+separate direction signal or seven extra address wires are reserved.
+
+#### Pinout evidence
+
+The source archive is retained as reference metadata and hashes in the pin
+allocation JSON; its firmware files are not copied into this repository.
+Pin definitions are at `globals.h:69–70`, `resource_development.ino:233` and
+`rgb.pio.h:66,75–84`. The peripheral audit also checked `SDmgr.cpp`,
+`audio_runtime.cpp` and the PS/2 assignments.
+
+Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Core2350B0/Core2350B.pdf),
+[Core component orientation](https://www.waveshare.com/img/devkit/Core2350B0/Core2350B0-details-intro.jpg),
+[Tang schematic rev 1.30](https://dl.sipeed.com/fileList/TANG/Nano_20K/2_Schematic/Tang_Nano_20K_3921_Schematics.pdf)
+(PDF pages 2, 3, 5 and 6),
+[Tang datasheet v1.3](https://dl.sipeed.com/fileList/TANG/Nano_20K/1_Datasheet/Sipeed%20Tang%20nano%2020K%20Datasheet%20V1.3-en_US.pdf)
+(printed page 5), [Gowin UG115](https://cdn.gowinsemi.com.cn/UG115E.pdf)
+(QN88 pins/banks and GCLKT/GCLKC distinction),
+[Gowin UG290](https://cdn.gowinsemi.com.cn/UG290E.pdf)
+(Table A-3, GPIO boot states), and
+[RP2350 datasheet](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf)
+(Table 1683, output drive and current limits).
 
 ### Write and read timing
 

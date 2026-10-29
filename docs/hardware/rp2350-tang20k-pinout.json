@@ -1,0 +1,874 @@
+{
+  "schema": "N20K-WIRING-1",
+  "profile": "N20K-PIN-0.1",
+  "status": "Fixed wiring reservation only; physical bus wrapper, RP2350 driver and board timing are not implemented or qualified",
+  "firmware_modified": false,
+  "rtl_modified": false,
+  "hardware_tested": false,
+  "signal_count": 16,
+  "rp_board": {
+    "model": "Waveshare Core2350B",
+    "flash_mib": 16,
+    "psram_mib": 8,
+    "confirmed_by_user": true,
+    "orientation": "Component side; USB FPC connector at top; P1 left, P2 top, P3 bottom, P4 right"
+  },
+  "tang_board": {
+    "model": "Sipeed Tang Nano 20K",
+    "hardware": "3921",
+    "schematic_revision": "1.30",
+    "device": "GW2AR-LV18QN88C8/I7",
+    "orientation": "Component side; USB-C at top, HDMI bottom; J6 left, J5 right; each pin1 at USB end, pin20 at HDMI end",
+    "lcd_fpc_connected": false
+  },
+  "signals": [
+    {
+      "signal": "WREADY",
+      "rp_gpio": 10,
+      "rp_header": "P1",
+      "rp_header_pin": 11,
+      "tang_header": "J6",
+      "tang_header_pin": 1,
+      "fpga_package_pin": 73,
+      "fpga_bank": 1,
+      "io_voltage_v": 3.3,
+      "direction": "gpu_to_rp",
+      "power_on_default": "low",
+      "pull": {
+        "direction": "down",
+        "ohms": 4700,
+        "rail": "common GND"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "none shown in schematic"
+      }
+    },
+    {
+      "signal": "RVALID",
+      "rp_gpio": 11,
+      "rp_header": "P1",
+      "rp_header_pin": 14,
+      "tang_header": "J6",
+      "tang_header_pin": 2,
+      "fpga_package_pin": 74,
+      "fpga_bank": 1,
+      "io_voltage_v": 3.3,
+      "direction": "gpu_to_rp",
+      "power_on_default": "low",
+      "pull": {
+        "direction": "down",
+        "ohms": 4700,
+        "rail": "common GND"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "none shown in schematic"
+      }
+    },
+    {
+      "signal": "ABORT",
+      "rp_gpio": 12,
+      "rp_header": "P1",
+      "rp_header_pin": 13,
+      "tang_header": "J5",
+      "tang_header_pin": 17,
+      "fpga_package_pin": 72,
+      "fpga_bank": 1,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "low",
+      "pull": {
+        "direction": "down",
+        "ohms": 4700,
+        "rail": "common GND"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "none shown in schematic"
+      }
+    },
+    {
+      "signal": "GPU_RESET_N",
+      "rp_gpio": 13,
+      "rp_header": "P1",
+      "rp_header_pin": 16,
+      "tang_header": "J5",
+      "tang_header_pin": 18,
+      "fpga_package_pin": 71,
+      "fpga_bank": 1,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "low (reset asserted)",
+      "pull": {
+        "direction": "down",
+        "ohms": 4700,
+        "rail": "common GND"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "none shown in schematic"
+      }
+    },
+    {
+      "signal": "ALE_N",
+      "rp_gpio": 14,
+      "rp_header": "P1",
+      "rp_header_pin": 15,
+      "tang_header": "J6",
+      "tang_header_pin": 15,
+      "fpga_package_pin": 17,
+      "fpga_bank": 6,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "high",
+      "pull": {
+        "direction": "up",
+        "ohms": 4700,
+        "rail": "Tang 3.3V"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "active-low orange LED",
+        "path": "Tang 3.3V -> LED -> 510 ohms -> signal",
+        "minimum_rp_drive_ma": 8
+      }
+    },
+    {
+      "signal": "RD_N",
+      "rp_gpio": 15,
+      "rp_header": "P3",
+      "rp_header_pin": 2,
+      "tang_header": "J6",
+      "tang_header_pin": 7,
+      "fpga_package_pin": 16,
+      "fpga_bank": 6,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "high",
+      "pull": {
+        "direction": "up",
+        "ohms": 4700,
+        "rail": "Tang 3.3V"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": null,
+      "onboard_load": {
+        "type": "active-low orange LED",
+        "path": "Tang 3.3V -> LED -> 510 ohms -> signal",
+        "minimum_rp_drive_ma": 8
+      }
+    },
+    {
+      "signal": "HCLK",
+      "rp_gpio": 16,
+      "rp_header": "P3",
+      "rp_header_pin": 4,
+      "tang_header": "J6",
+      "tang_header_pin": 5,
+      "fpga_package_pin": 77,
+      "fpga_bank": 1,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "low",
+      "pull": {
+        "direction": "down",
+        "ohms": 4700,
+        "rail": "common GND"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": "HSYNC",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "WR_N",
+      "rp_gpio": 17,
+      "rp_header": "P3",
+      "rp_header_pin": 3,
+      "tang_header": "J6",
+      "tang_header_pin": 6,
+      "fpga_package_pin": 15,
+      "fpga_bank": 6,
+      "io_voltage_v": 3.3,
+      "direction": "rp_to_gpu",
+      "power_on_default": "high",
+      "pull": {
+        "direction": "up",
+        "ohms": 4700,
+        "rail": "Tang 3.3V"
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver"
+        ]
+      },
+      "reused_vga_function": "VSYNC",
+      "onboard_load": {
+        "type": "active-low orange LED",
+        "path": "Tang 3.3V -> LED -> 510 ohms -> signal",
+        "minimum_rp_drive_ma": 8
+      }
+    },
+    {
+      "signal": "D0",
+      "rp_gpio": 18,
+      "rp_header": "P3",
+      "rp_header_pin": 6,
+      "tang_header": "J6",
+      "tang_header_pin": 8,
+      "fpga_package_pin": 27,
+      "fpga_bank": 5,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 0",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D1",
+      "rp_gpio": 19,
+      "rp_header": "P3",
+      "rp_header_pin": 5,
+      "tang_header": "J6",
+      "tang_header_pin": 9,
+      "fpga_package_pin": 28,
+      "fpga_bank": 5,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 1",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D2",
+      "rp_gpio": 20,
+      "rp_header": "P3",
+      "rp_header_pin": 8,
+      "tang_header": "J6",
+      "tang_header_pin": 12,
+      "fpga_package_pin": 29,
+      "fpga_bank": 5,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 2",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D3",
+      "rp_gpio": 21,
+      "rp_header": "P3",
+      "rp_header_pin": 7,
+      "tang_header": "J6",
+      "tang_header_pin": 13,
+      "fpga_package_pin": 30,
+      "fpga_bank": 5,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 3",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D4",
+      "rp_gpio": 22,
+      "rp_header": "P3",
+      "rp_header_pin": 10,
+      "tang_header": "J6",
+      "tang_header_pin": 14,
+      "fpga_package_pin": 31,
+      "fpga_bank": 5,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 4",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D5",
+      "rp_gpio": 23,
+      "rp_header": "P3",
+      "rp_header_pin": 9,
+      "tang_header": "J5",
+      "tang_header_pin": 5,
+      "fpga_package_pin": 42,
+      "fpga_bank": 4,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 5",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D6",
+      "rp_gpio": 24,
+      "rp_header": "P3",
+      "rp_header_pin": 12,
+      "tang_header": "J5",
+      "tang_header_pin": 6,
+      "fpga_package_pin": 41,
+      "fpga_bank": 4,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 6",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    },
+    {
+      "signal": "D7",
+      "rp_gpio": 25,
+      "rp_header": "P3",
+      "rp_header_pin": 11,
+      "tang_header": "J5",
+      "tang_header_pin": 10,
+      "fpga_package_pin": 48,
+      "fpga_bank": 3,
+      "io_voltage_v": 3.3,
+      "direction": "bidirectional",
+      "power_on_default": "Hi-Z",
+      "pull": {
+        "direction": "none",
+        "ohms": null,
+        "rail": null
+      },
+      "series_resistors": {
+        "ohms": 33,
+        "locations": [
+          "RP driver",
+          "Tang driver"
+        ]
+      },
+      "reused_vga_function": "VGA RGB bit 7",
+      "onboard_load": {
+        "type": "LCD FPC signal; FPC must remain disconnected"
+      }
+    }
+  ],
+  "grounds": [
+    {
+      "rp": "P1.1",
+      "tang": "J5.2"
+    },
+    {
+      "rp": "P3.1",
+      "tang": "J6.20"
+    },
+    {
+      "rp": "P3.1 (same common ground; branch)",
+      "tang": "J5.15"
+    }
+  ],
+  "power": {
+    "common_ground_required": true,
+    "separate_board_power": true,
+    "join_3v3_rails": false,
+    "join_5v_rails": false,
+    "pullup_source": "Tang J6.19 local 3.3V only; never connect to RP 3.3V output"
+  },
+  "preserved_rp_gpio": {
+    "indicator": [
+      0
+    ],
+    "sd_spi": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "audio_i2s": [
+      6,
+      7,
+      8
+    ],
+    "ps2_keyboard": [
+      27,
+      28
+    ],
+    "onboard_led": [
+      39
+    ],
+    "psram_cs": [
+      47
+    ]
+  },
+  "unallocated_by_this_layout": [
+    1,
+    9,
+    26,
+    29
+  ],
+  "tang_headers": {
+    "J6": [
+      {
+        "pin": 1,
+        "fpga_package_pin": 73,
+        "onboard_function": "free",
+        "gpu_signal": "WREADY"
+      },
+      {
+        "pin": 2,
+        "fpga_package_pin": 74,
+        "onboard_function": "free",
+        "gpu_signal": "RVALID"
+      },
+      {
+        "pin": 3,
+        "fpga_package_pin": 75,
+        "onboard_function": "BL616 HSPI DIR",
+        "gpu_signal": null
+      },
+      {
+        "pin": 4,
+        "fpga_package_pin": 85,
+        "onboard_function": "SD DAT1",
+        "gpu_signal": null
+      },
+      {
+        "pin": 5,
+        "fpga_package_pin": 77,
+        "onboard_function": "LCD clock / GCLKT_1",
+        "gpu_signal": "HCLK"
+      },
+      {
+        "pin": 6,
+        "fpga_package_pin": 15,
+        "onboard_function": "LED0",
+        "gpu_signal": "WR_N"
+      },
+      {
+        "pin": 7,
+        "fpga_package_pin": 16,
+        "onboard_function": "LED1",
+        "gpu_signal": "RD_N"
+      },
+      {
+        "pin": 8,
+        "fpga_package_pin": 27,
+        "onboard_function": "LCD B7",
+        "gpu_signal": "D0"
+      },
+      {
+        "pin": 9,
+        "fpga_package_pin": 28,
+        "onboard_function": "LCD B6",
+        "gpu_signal": "D1"
+      },
+      {
+        "pin": 10,
+        "fpga_package_pin": 25,
+        "onboard_function": "HDMI CEC / LCD HS",
+        "gpu_signal": null
+      },
+      {
+        "pin": 11,
+        "fpga_package_pin": 26,
+        "onboard_function": "HDMI HPD / LCD VS",
+        "gpu_signal": null
+      },
+      {
+        "pin": 12,
+        "fpga_package_pin": 29,
+        "onboard_function": "LCD B5",
+        "gpu_signal": "D2"
+      },
+      {
+        "pin": 13,
+        "fpga_package_pin": 30,
+        "onboard_function": "LCD B4",
+        "gpu_signal": "D3"
+      },
+      {
+        "pin": 14,
+        "fpga_package_pin": 31,
+        "onboard_function": "LCD B3",
+        "gpu_signal": "D4"
+      },
+      {
+        "pin": 15,
+        "fpga_package_pin": 17,
+        "onboard_function": "LED2",
+        "gpu_signal": "ALE_N"
+      },
+      {
+        "pin": 16,
+        "fpga_package_pin": 20,
+        "onboard_function": "LED / LCD initialization",
+        "gpu_signal": null
+      },
+      {
+        "pin": 17,
+        "fpga_package_pin": 19,
+        "onboard_function": "LED / LCD initialization",
+        "gpu_signal": null
+      },
+      {
+        "pin": 18,
+        "fpga_package_pin": 18,
+        "onboard_function": "LED / LCD initialization",
+        "gpu_signal": null
+      },
+      {
+        "pin": 19,
+        "fpga_package_pin": null,
+        "onboard_function": "3.3V",
+        "gpu_signal": null
+      },
+      {
+        "pin": 20,
+        "fpga_package_pin": null,
+        "onboard_function": "GND",
+        "gpu_signal": null
+      }
+    ],
+    "J5": [
+      {
+        "pin": 1,
+        "fpga_package_pin": null,
+        "onboard_function": "5V",
+        "gpu_signal": null
+      },
+      {
+        "pin": 2,
+        "fpga_package_pin": null,
+        "onboard_function": "GND",
+        "gpu_signal": null
+      },
+      {
+        "pin": 3,
+        "fpga_package_pin": 76,
+        "onboard_function": "BL616 HSPI DAT / GCLKC_1",
+        "gpu_signal": null
+      },
+      {
+        "pin": 4,
+        "fpga_package_pin": 80,
+        "onboard_function": "SD DAT2 / GCLKT_0",
+        "gpu_signal": null
+      },
+      {
+        "pin": 5,
+        "fpga_package_pin": 42,
+        "onboard_function": "LCD R3",
+        "gpu_signal": "D5"
+      },
+      {
+        "pin": 6,
+        "fpga_package_pin": 41,
+        "onboard_function": "LCD R4",
+        "gpu_signal": "D6"
+      },
+      {
+        "pin": 7,
+        "fpga_package_pin": 56,
+        "onboard_function": "audio I2S BCLK",
+        "gpu_signal": null
+      },
+      {
+        "pin": 8,
+        "fpga_package_pin": 54,
+        "onboard_function": "audio I2S DATA",
+        "gpu_signal": null
+      },
+      {
+        "pin": 9,
+        "fpga_package_pin": 51,
+        "onboard_function": "audio amplifier enable / LCD initialization",
+        "gpu_signal": null
+      },
+      {
+        "pin": 10,
+        "fpga_package_pin": 48,
+        "onboard_function": "LCD data enable",
+        "gpu_signal": "D7"
+      },
+      {
+        "pin": 11,
+        "fpga_package_pin": 55,
+        "onboard_function": "audio I2S LRCLK",
+        "gpu_signal": null
+      },
+      {
+        "pin": 12,
+        "fpga_package_pin": 49,
+        "onboard_function": "LCD backlight enable",
+        "gpu_signal": null
+      },
+      {
+        "pin": 13,
+        "fpga_package_pin": 86,
+        "onboard_function": "BL616 HSPI CS",
+        "gpu_signal": null
+      },
+      {
+        "pin": 14,
+        "fpga_package_pin": 79,
+        "onboard_function": "WS2812 / GCLKC_0",
+        "gpu_signal": null
+      },
+      {
+        "pin": 15,
+        "fpga_package_pin": null,
+        "onboard_function": "GND",
+        "gpu_signal": null
+      },
+      {
+        "pin": 16,
+        "fpga_package_pin": null,
+        "onboard_function": "3.3V",
+        "gpu_signal": null
+      },
+      {
+        "pin": 17,
+        "fpga_package_pin": 72,
+        "onboard_function": "free",
+        "gpu_signal": "ABORT"
+      },
+      {
+        "pin": 18,
+        "fpga_package_pin": 71,
+        "onboard_function": "free",
+        "gpu_signal": "GPU_RESET_N"
+      },
+      {
+        "pin": 19,
+        "fpga_package_pin": 53,
+        "onboard_function": "HDMI DDC clock",
+        "gpu_signal": null
+      },
+      {
+        "pin": 20,
+        "fpga_package_pin": 52,
+        "onboard_function": "HDMI DDC data",
+        "gpu_signal": null
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "user_firmware",
+      "description": "User-supplied resource_development.7z; read-only reference, no firmware build or modification",
+      "archive_sha256": "2fcd65f17cd9c86bfb46c439b2c73bcc562e071f69c3d1815270caaa710552de",
+      "file_sha256": {
+        "resource_development.ino": "25fc949207fb32fa8e037487ab3ad0a3f10e07a16bf7e8f443ca1ed9242ca5ca",
+        "globals.h": "f39900cbdc63c73ef8d3b5e3c0fd355b9e391e206ddc1451253bbbaa7ad05f46",
+        "rgb.pio.h": "117b29fef9b44beb4b61255d340f14a902f0883cdb09d759d6bf76a918fa5c0d",
+        "SDmgr.cpp": "9d622d51b8ec66142183350d5647bb818e3fd9a41321f3db520b7cf7804735f2",
+        "audio_runtime.cpp": "f3b800ebe41ce7f080559ef6c80975ad5b86c2113b2515281ffeb13464c35d88",
+        "native_runtime.h": "7f23d06c78bacecf8ae30f146dc5b1063077d29ed17fcc6bbbd74e9213e3b2a9",
+        "usb_storage_mode.cpp": "00dbad57f7215626b311420741908d04e4775aa4c3f32b8d5a1c15bf84ae984d"
+      },
+      "pin_evidence": {
+        "vga_sync": "globals.h:69-70",
+        "vga_data_base": "resource_development.ino:233",
+        "vga_data_count": "rgb.pio.h:66,75-84",
+        "sd_spi": "SDmgr.cpp:9-12,59-67",
+        "audio": "audio_runtime.cpp:16-17,1347-1348",
+        "keyboard": "resource_development.ino:65-66,325-328",
+        "indicator": "resource_development.ino:197-199"
+      }
+    },
+    {
+      "id": "core_schematic",
+      "url": "https://files.waveshare.com/wiki/Core2350B0/Core2350B.pdf",
+      "sha256": "ea3e5f74072c949a84041436b8b7dd71b78774bd4eb24499581f45b9c8cb9e7b",
+      "evidence": "P1/P3 connector numbering, GPIO routing, GP39 LED and GP47 PSRAM chip select"
+    },
+    {
+      "id": "core_orientation",
+      "url": "https://www.waveshare.com/img/devkit/Core2350B0/Core2350B0-details-intro.jpg",
+      "sha256": "ce0182af4598a3c9e0a6d45b187391dffe1bad874b03c8669cbd2bd445afda0c",
+      "evidence": "Component-side header orientation"
+    },
+    {
+      "id": "tang_schematic",
+      "url": "https://dl.sipeed.com/fileList/TANG/Nano_20K/2_Schematic/Tang_Nano_20K_3921_Schematics.pdf",
+      "sha256": "c3c85c579c446a29cc2bcd77f54c285d8c60f01ecf725a185e2fb1e6a56fdcc5",
+      "revision": "1.30, 2023-07-11; hardware 3921",
+      "evidence": "PDF pages 2 (headers), 3 (HDMI/LCD), 5 (LEDs), and 6 (bank supply rails)."
+    },
+    {
+      "id": "tang_orientation",
+      "url": "https://dl.sipeed.com/fileList/TANG/Nano_20K/1_Datasheet/Sipeed%20Tang%20nano%2020K%20Datasheet%20V1.3-en_US.pdf",
+      "sha256": "f42017e76d252ab164b825cc7a50bc0b858a814620d1dfdd6db8ecc6f4e3337a",
+      "evidence": "PDF page 7 gives physical orientation. Use the Gowin package table for the banks of pins 41/42 rather than the picture colors."
+    },
+    {
+      "id": "gowin_package",
+      "url": "https://cdn.gowinsemi.com.cn/UG115E.pdf",
+      "sha256": "a67ba07252a64efcdffec5005f3b58cf02903c26ee2b179998b8388bc00ce217",
+      "revision": "UG115-1.7.2E",
+      "evidence": "QN88 package pins and banks; pin 77 is GCLKT_1. GCLKC is not a single-ended global-clock input."
+    },
+    {
+      "id": "gpio_boot",
+      "url": "https://cdn.gowinsemi.com.cn/UG290E.pdf",
+      "sha256": "f5b43ee2d790fce73a0621d1480c193b02cee3b52bfb8a1a34e5509b5f806012",
+      "revision": "UG290-2.9.1E",
+      "evidence": "Appendix A, Table A-3, printed page 126 / PDF page 138: GPIO high impedance before POR and weak pull-ups during configuration."
+    },
+    {
+      "id": "rp_electrical",
+      "url": "https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf",
+      "sha256": "a638d6780da919162660691bfa02c6dcf7c2a0b6e9f18e2d7519c80b664a2e39",
+      "evidence": "Table 1683, printed pages 1336-1337: VOL at the selected drive current and 100 mA aggregate GPIO sink limit."
+    },
+    {
+      "id": "gowin_electrical",
+      "url": "https://cdn.gowinsemi.com.cn/DS226E.pdf",
+      "revision": "DS226-2.7E",
+      "evidence": "Table 3-8, printed page 32: 3.3 V I/O supply range. Table 3-11, printed page 34: LVCMOS33 VIL maximum 0.8 V. Use normal LVCMOS33 thresholds for the LED-load calculation."
+    }
+  ],
+  "assembly": {
+    "signal_links_before_compatible_images": "Keep all 16 signal links disconnected during powered operation; the factory FPGA image can drive LED/control and LCD-clock pins as well as data.",
+    "power_off_assembly": true,
+    "series_resistors_protect_against_push_pull_contention": false,
+    "parts": {
+      "33_ohm_series_resistors": 24,
+      "4700_ohm_pullups": 3,
+      "4700_ohm_pulldowns": 5
+    },
+    "gpio_defaults_scope": "Intended pull-biased states once supply rails exist; released data outputs may be biased by FPGA configuration pull-ups."
+  }
+}

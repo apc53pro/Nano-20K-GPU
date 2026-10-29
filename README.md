@@ -12,6 +12,12 @@ two authoritative guides for the current GPU:
 - [GPU control](GPU_DOCUMENTATION/GPU_CONTROL.md): parallel-bus logical interface,
   exact command/record formats, synchronization, recovery and generic C99 examples.
 
+For assembly, use the [Core2350B ↔ Tang Nano 20K wiring PDF](docs/images/core2350b-tang-nano20k-wiring.pdf)
+and [exact GPIO/header table](GPU_DOCUMENTATION/GPU_CONTROL.md#fixed-wiring-layout-core2350b-to-tang-nano-20k).
+The fixed layout reuses all ten VGA GPIOs and adds GP10–GP15. It documents
+wiring reservations only; the physical bus wrapper and RP2350 driver are not
+implemented, and the firmware/RTL remain unchanged by this layout.
+
 Both guides must be updated and pushed with every architecture or control change.
 A documentation check in CI enforces accompanying edits; examples are checked
 with `make gpu-docs-test`. Existing `docs/` files remain supporting specifications

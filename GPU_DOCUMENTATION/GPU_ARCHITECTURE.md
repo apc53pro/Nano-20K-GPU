@@ -44,13 +44,30 @@ achieved whole-GPU FPGA frequencies. The host link has its own clock domain;
 the RP2350 supplies `host_clk`. The integrated demo drives it at one quarter of
 the core clock, and separate link tests exercise other clock ratios/phases.
 
-The logical host interface carries eight-bit data. Its separate read/write
-ports and logical register address in RTL do not define the number or mapping
-of physical connecting wires. The final bidirectional data pads, control
-signals, register-address transport, GPIO assignments, reset wiring and
-electrical timing still need a board-level interface definition. The control
-guide distinguishes that unfinished physical layer from the implemented byte
-protocol.
+The **fixed `N20K-PIN-0.1` wiring reservation** connects a Waveshare Core2350B
+(16 MiB flash, 8 MiB PSRAM) to Tang Nano 20K hardware 3921 using **16 signal
+GPIOs plus common ground**. It reuses VGA GP16/GP17 for HCLK/WR_N and VGA
+GP18–GP25 for the bidirectional data byte; GP10–GP15 add read, address-latch,
+ready/valid, abort and GPU-reset controls. All selected FPGA banks run at 3.3 V.
+The [control guide's exact wiring table](GPU_CONTROL.md#fixed-wiring-layout-core2350b-to-tang-nano-20k)
+and [printable board layouts](../docs/images/core2350b-tang-nano20k-wiring.pdf)
+identify manufacturer header contacts and package pins.
+
+This is a wiring allocation, not an implemented pad wrapper. Current RTL still
+uses separate logical read/write data ports and a seven-bit register address.
+A future wrapper must multiplex those onto the reserved eight data wires,
+invert the active-low controls, implement address latching and safe turnaround,
+and map GPU_RESET_N to logic reset. The source's byte ABI is unchanged. No
+firmware, RTL or constraints were changed for the wiring layout. Production
+I/O timing, clock/reset integration and the RP2350 PIO driver remain unfinished;
+the earlier 68.88 MHz estimate still applies only to the serial probe.
+
+The layout leaves the Tang LCD FPC disconnected and avoids HDMI, flash, SDRAM,
+SD, audio and BL616 signal conflicts. WR_N/RD_N/ALE_N use three existing LED
+pins as FPGA inputs, with their LED loads included in the wiring/current
+instructions. The VGA DAC must be disconnected before its GPIOs become a
+bidirectional GPU bus. Power, pulls, boot isolation and unimplemented-driver
+limits are specified in the control guide.
 
 ## 2. CPU and GPU responsibilities
 

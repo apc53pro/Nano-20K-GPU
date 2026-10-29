@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 1188 1680" role="img" aria-label="Core2350B component-side physical P1 and P3 header locator">
+<title>Core2350B component-side physical P1 and P3 header locator</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs>
+<style>text{font-family:"DejaVu Sans",Arial,sans-serif;fill:#16283d}.mono{font-family:"DejaVu Sans Mono",monospace}</style>
+<rect x="0" y="0" width="1188" height="1680" rx="0" fill="white" stroke="none" stroke-width="1"/>
+<text x="55" y="60" font-size="31" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Core2350B · P1 / P3 physical locator</text>
+<text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">RP2350B · 8 MB PSRAM / 16 MB flash · component side · USB FPC connector toward TOP</text>
+<rect x="55" y="117" width="1078" height="63" rx="4" fill="#fff5e8" stroke="#e6be83" stroke-width="1"/>
+<text x="73" y="142" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Wiring reservation; physical bus wrapper/driver not implemented</text>
+<text x="73" y="166" font-size="20" font-weight="600" style="fill:#b85013" text-anchor="start" class="">3.3V logic; VGA DAC disconnected</text>
+<text x="55" y="220" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Use the Core2350B connector labels below; Pico 2 header numbering does not apply.</text>
+<text x="55" y="270" font-size="24" font-weight="700" style="fill:#16283d" text-anchor="start" class="">P1 · LEFT EDGE · vertical 2×8 header</text>
+<text x="500" y="309" font-size="18" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">Outer / odd</text>
+<text x="650" y="309" font-size="18" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">Inner / even</text>
+<rect x="477" y="329" width="46" height="523" rx="4" fill="#eaf2f3" stroke="#9ab1b5" stroke-width="1"/>
+<rect x="627" y="329" width="46" height="523" rx="4" fill="#eaf2f3" stroke="#9ab1b5" stroke-width="1"/>
+<rect x="55" y="336" width="387" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="357" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">P1.1 · GND</text>
+<text x="68" y="378" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Common ground to Tang</text>
+<line x1="442" y1="361" x2="500" y2="361" stroke="#16283d" stroke-width="2"/>
+<circle cx="500" cy="361" r="15" fill="#16283d" stroke="#16283d" stroke-width="2"/>
+<text x="500" y="366" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">1</text>
+<rect x="706" y="336" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="357" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.2 · GP0</text>
+<text x="719" y="378" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing indicator</text>
+<line x1="650" y1="361" x2="706" y2="361" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="361" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="366" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">2</text>
+<rect x="55" y="402" width="387" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="423" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.3 · GP2</text>
+<text x="68" y="444" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing SD SPI</text>
+<line x1="442" y1="427" x2="500" y2="427" stroke="#77818d" stroke-width="2"/>
+<circle cx="500" cy="427" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="500" y="432" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">3</text>
+<rect x="706" y="402" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="423" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.4 · GP1</text>
+<text x="719" y="444" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Unallocated by this bus layout</text>
+<line x1="650" y1="427" x2="706" y2="427" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="427" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="432" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">4</text>
+<rect x="55" y="468" width="387" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="489" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.5 · GP4</text>
+<text x="68" y="510" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing SD SPI</text>
+<line x1="442" y1="493" x2="500" y2="493" stroke="#77818d" stroke-width="2"/>
+<circle cx="500" cy="493" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="500" y="498" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">5</text>
+<rect x="706" y="468" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="489" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.6 · GP3</text>
+<text x="719" y="510" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing SD SPI</text>
+<line x1="650" y1="493" x2="706" y2="493" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="493" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="498" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">6</text>
+<rect x="55" y="534" width="387" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="555" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.7 · GP6</text>
+<text x="68" y="576" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing audio I2S</text>
+<line x1="442" y1="559" x2="500" y2="559" stroke="#77818d" stroke-width="2"/>
+<circle cx="500" cy="559" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="500" y="564" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">7</text>
+<rect x="706" y="534" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="555" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.8 · GP5</text>
+<text x="719" y="576" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing SD SPI</text>
+<line x1="650" y1="559" x2="706" y2="559" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="559" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="564" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">8</text>
+<rect x="55" y="600" width="387" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="621" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.9 · GP8</text>
+<text x="68" y="642" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing audio I2S</text>
+<line x1="442" y1="625" x2="500" y2="625" stroke="#77818d" stroke-width="2"/>
+<circle cx="500" cy="625" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="500" y="630" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">9</text>
+<rect x="706" y="600" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="621" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.10 · GP7</text>
+<text x="719" y="642" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Existing audio I2S</text>
+<line x1="650" y1="625" x2="706" y2="625" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="625" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="630" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">10</text>
+<rect x="55" y="666" width="387" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="687" font-size="21" font-weight="700" style="fill:#00786f" text-anchor="start" class="">P1.11 · GP10</text>
+<text x="68" y="708" font-size="18" font-weight="400" style="fill:#00786f" text-anchor="start" class="">WREADY · Tang J6.1</text>
+<line x1="442" y1="691" x2="500" y2="691" stroke="#00786f" stroke-width="2"/>
+<circle cx="500" cy="691" r="15" fill="#00786f" stroke="#00786f" stroke-width="2"/>
+<text x="500" y="696" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">11</text>
+<rect x="706" y="666" width="427" height="51" rx="3" fill="#f6f7f8" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="687" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="start" class="">P1.12 · GP9</text>
+<text x="719" y="708" font-size="18" font-weight="400" style="fill:#77818d" text-anchor="start" class="">Unallocated by this bus layout</text>
+<line x1="650" y1="691" x2="706" y2="691" stroke="#77818d" stroke-width="2"/>
+<circle cx="650" cy="691" r="15" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="650" y="696" font-size="15" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">12</text>
+<rect x="55" y="732" width="387" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="753" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">P1.13 · GP12</text>
+<text x="68" y="774" font-size="18" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">ABORT · Tang J5.17</text>
+<line x1="442" y1="757" x2="500" y2="757" stroke="#165bb0" stroke-width="2"/>
+<circle cx="500" cy="757" r="15" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="500" y="762" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">13</text>
+<rect x="706" y="732" width="427" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="753" font-size="21" font-weight="700" style="fill:#00786f" text-anchor="start" class="">P1.14 · GP11</text>
+<text x="719" y="774" font-size="18" font-weight="400" style="fill:#00786f" text-anchor="start" class="">RVALID · Tang J6.2</text>
+<line x1="650" y1="757" x2="706" y2="757" stroke="#00786f" stroke-width="2"/>
+<circle cx="650" cy="757" r="15" fill="#00786f" stroke="#00786f" stroke-width="2"/>
+<text x="650" y="762" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">14</text>
+<rect x="55" y="798" width="387" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="68" y="819" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">P1.15 · GP14</text>
+<text x="68" y="840" font-size="18" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">ALE_N · Tang J6.15</text>
+<line x1="442" y1="823" x2="500" y2="823" stroke="#165bb0" stroke-width="2"/>
+<circle cx="500" cy="823" r="15" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="500" y="828" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">15</text>
+<rect x="706" y="798" width="427" height="51" rx="3" fill="#f3f6f9" stroke="#d4dce5" stroke-width="1"/>
+<text x="719" y="819" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">P1.16 · GP13</text>
+<text x="719" y="840" font-size="18" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">GPU_RESET_N · Tang J5.18</text>
+<line x1="650" y1="823" x2="706" y2="823" stroke="#165bb0" stroke-width="2"/>
+<circle cx="650" cy="823" r="15" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="650" y="828" font-size="15" font-weight="700" style="fill:white" text-anchor="middle" class="">16</text>
+<text x="55" y="914" font-size="19" font-weight="400" style="fill:#536174" text-anchor="start" class="">P1 contacts read TOP → BOTTOM. Outer column is toward the board&#x27;s left edge.</text>
+<text x="55" y="969" font-size="24" font-weight="700" style="fill:#16283d" text-anchor="start" class="">P3 · BOTTOM EDGE · horizontal 2×8 header</text>
+<text x="55" y="1002" font-size="19" font-weight="400" style="fill:#536174" text-anchor="start" class="">Read both rows LEFT → RIGHT. Inner / even row is nearer the board centre.</text>
+<rect x="91" y="1100" width="1038" height="139" rx="4" fill="#eaf2f3" stroke="#9ab1b5" stroke-width="1"/>
+<circle cx="148" cy="1125" r="18" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="148" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">2</text>
+<text x="148" y="1038" font-size="18" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">P3.2</text>
+<text x="148" y="1063" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="middle" class="">GP15</text>
+<text x="148" y="1087" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="middle" class="">RD_N</text>
+<circle cx="148" cy="1214" r="18" fill="#16283d" stroke="#16283d" stroke-width="2"/>
+<text x="148" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">1</text>
+<text x="148" y="1268" font-size="18" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">P3.1</text>
+<text x="148" y="1293" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="middle" class="">GND</text>
+<text x="148" y="1317" font-size="16" font-weight="400" style="fill:#16283d" text-anchor="middle" class="">Common GND</text>
+<circle cx="280" cy="1125" r="18" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="280" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">4</text>
+<text x="280" y="1038" font-size="18" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">P3.4</text>
+<text x="280" y="1063" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="middle" class="">GP16</text>
+<text x="280" y="1087" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="middle" class="">HCLK</text>
+<circle cx="280" cy="1214" r="18" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
+<text x="280" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">3</text>
+<text x="280" y="1268" font-size="18" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">P3.3</text>
+<text x="280" y="1293" font-size="21" font-weight="700" style="fill:#165bb0" text-anchor="middle" class="">GP17</text>
+<text x="280" y="1317" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="middle" class="">WR_N</text>
+<circle cx="412" cy="1125" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="412" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">6</text>
+<text x="412" y="1038" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.6</text>
+<text x="412" y="1063" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP18</text>
+<text x="412" y="1087" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D0</text>
+<circle cx="412" cy="1214" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="412" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">5</text>
+<text x="412" y="1268" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.5</text>
+<text x="412" y="1293" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP19</text>
+<text x="412" y="1317" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D1</text>
+<circle cx="544" cy="1125" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="544" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">8</text>
+<text x="544" y="1038" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.8</text>
+<text x="544" y="1063" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP20</text>
+<text x="544" y="1087" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D2</text>
+<circle cx="544" cy="1214" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="544" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">7</text>
+<text x="544" y="1268" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.7</text>
+<text x="544" y="1293" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP21</text>
+<text x="544" y="1317" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D3</text>
+<circle cx="676" cy="1125" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="676" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">10</text>
+<text x="676" y="1038" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.10</text>
+<text x="676" y="1063" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP22</text>
+<text x="676" y="1087" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D4</text>
+<circle cx="676" cy="1214" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="676" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">9</text>
+<text x="676" y="1268" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.9</text>
+<text x="676" y="1293" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP23</text>
+<text x="676" y="1317" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D5</text>
+<circle cx="808" cy="1125" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="808" y="1131" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">12</text>
+<text x="808" y="1038" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.12</text>
+<text x="808" y="1063" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP24</text>
+<text x="808" y="1087" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D6</text>
+<circle cx="808" cy="1214" r="18" fill="#7543a2" stroke="#7543a2" stroke-width="2"/>
+<text x="808" y="1220" font-size="18" font-weight="700" style="fill:white" text-anchor="middle" class="">11</text>
+<text x="808" y="1268" font-size="18" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">P3.11</text>
+<text x="808" y="1293" font-size="21" font-weight="700" style="fill:#7543a2" text-anchor="middle" class="">GP25</text>
+<text x="808" y="1317" font-size="16" font-weight="400" style="fill:#7543a2" text-anchor="middle" class="">D7</text>
+<circle cx="940" cy="1125" r="18" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="940" y="1131" font-size="18" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">14</text>
+<text x="940" y="1038" font-size="18" font-weight="600" style="fill:#77818d" text-anchor="middle" class="">P3.14</text>
+<text x="940" y="1063" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">GP26</text>
+<text x="940" y="1087" font-size="16" font-weight="400" style="fill:#77818d" text-anchor="middle" class="">Unallocated</text>
+<circle cx="940" cy="1214" r="18" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="940" y="1220" font-size="18" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">13</text>
+<text x="940" y="1268" font-size="18" font-weight="600" style="fill:#77818d" text-anchor="middle" class="">P3.13</text>
+<text x="940" y="1293" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">GP27</text>
+<text x="940" y="1317" font-size="16" font-weight="400" style="fill:#77818d" text-anchor="middle" class="">PS/2 kept</text>
+<circle cx="1072" cy="1125" r="18" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="1072" y="1131" font-size="18" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">16</text>
+<text x="1072" y="1038" font-size="18" font-weight="600" style="fill:#77818d" text-anchor="middle" class="">P3.16</text>
+<text x="1072" y="1063" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">GP28</text>
+<text x="1072" y="1087" font-size="16" font-weight="400" style="fill:#77818d" text-anchor="middle" class="">PS/2 kept</text>
+<circle cx="1072" cy="1214" r="18" fill="white" stroke="#77818d" stroke-width="2"/>
+<text x="1072" y="1220" font-size="18" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">15</text>
+<text x="1072" y="1268" font-size="18" font-weight="600" style="fill:#77818d" text-anchor="middle" class="">P3.15</text>
+<text x="1072" y="1293" font-size="21" font-weight="700" style="fill:#77818d" text-anchor="middle" class="">GP29</text>
+<text x="1072" y="1317" font-size="16" font-weight="400" style="fill:#77818d" text-anchor="middle" class="">Unallocated</text>
+<text x="95" y="1169" font-size="16" font-weight="600" style="fill:#3b6872" text-anchor="start" class="">INNER / EVEN</text>
+<text x="915" y="1169" font-size="16" font-weight="600" style="fill:#3b6872" text-anchor="start" class="">OUTER / ODD</text>
+<rect x="55" y="1370" width="1078" height="223" rx="4" fill="#f8fafc" stroke="#d4dce5" stroke-width="1"/>
+<text x="73" y="1401" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Physical orientation reference</text>
+<text x="73" y="1433" font-size="19" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Component side, USB FPC toward top:</text>
+<text x="73" y="1462" font-size="19" font-weight="400" style="fill:#16283d" text-anchor="start" class="">P1 left · P2 top · P3 bottom · P4 right.</text>
+<text x="73" y="1494" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Only P1/P3 take bus wiring; grey GPIOs keep existing roles.</text>
+<text x="73" y="1521" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Keep ALL 16 signal links OPEN until compatible Core firmware</text>
+<text x="73" y="1545" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">+ FPGA image are installed; old powered images need links open.</text>
+<text x="73" y="1569" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">33Ω does not make contention safe. Power boards separately.</text>
+<rect x="918" y="1424" width="141" height="117" rx="5" fill="#eaf2f3" stroke="#7b9a9f" stroke-width="1"/>
+<rect x="966" y="1415" width="46" height="16" rx="2" fill="#b8c8cc" stroke="#7b9a9f" stroke-width="1"/>
+<text x="989" y="1405" font-size="16" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">USB FPC ↑</text>
+<rect x="910" y="1440" width="13" height="73" rx="0" fill="#31545f" stroke="none" stroke-width="1"/>
+<rect x="1054" y="1440" width="13" height="73" rx="0" fill="#31545f" stroke="none" stroke-width="1"/>
+<rect x="948" y="1422" width="80" height="10" rx="0" fill="#31545f" stroke="none" stroke-width="1"/>
+<rect x="948" y="1534" width="80" height="10" rx="0" fill="#31545f" stroke="none" stroke-width="1"/>
+<text x="899" y="1483" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="end" class="">P1</text>
+<text x="1080" y="1483" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">P4</text>
+<text x="989" y="1454" font-size="16" font-weight="700" style="fill:#16283d" text-anchor="middle" class="">P2</text>
+<text x="989" y="1573" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="middle" class="">P3</text>
+<text x="55" y="1620" font-size="15" font-weight="400" style="fill:#536174" text-anchor="start" class="">Connector locator only. P1/P3 drawings are expanded for legibility and are not a scale board drawing. Do not mirror for solder side.</text>
+<text x="55" y="1648" font-size="16" font-weight="400" style="fill:#536174" text-anchor="start" class="">Source: manufacturer Core2350B schematic and component-side product photograph; full provenance in the pinout JSON.</text>
+</svg>
