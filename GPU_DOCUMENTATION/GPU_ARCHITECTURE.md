@@ -11,10 +11,11 @@ guide describes what the current implementation actually does.
 
 **Current status:** rendering and CPU control execute functional RTL under
 Verilator, with an independent software reference renderer (SRR) checking the
-results. The complete logical-core serial probe **places and routes legally**
-on the exact FPGA, using **20,351 of 20,736 physical LUT sites (98.14%)**, all
-46 native RAM banks and 25 multiplier equivalents. **Core timing fails:** its
-routed maximum is **48.26 MHz** against the **100.8 MHz** target; the host
+results. The current timing-optimized complete logical-core serial
+probe **places and routes legally**
+on the exact FPGA, using **20,305 of 20,736 physical LUT sites (97.92%)**, all
+46 native RAM banks and 25 multiplier equivalents. **Estimated core Fmax is
+68.88 MHz**, below the **100.8 MHz** target in nextpnr's timing model; the host
 domain passes its 25.2 MHz target. Production clock/reset, video and board pin
 integration remain unfinished. There is no board-qualified GPU bitstream yet.
 
@@ -213,6 +214,15 @@ than inserting a read bubble between pixels. The seed capture adds one setup
 clock for a nonempty primitive/tile invocation; it does not change the sustained
 fragment cadence.
 
+Draw setup is split across retained viewport, scissor and tile intersections,
+followed by counter/source preparation. Reusing the interval registers adds
+three setup clocks per valid invocation compared with the area baseline,
+including valid empty windows. Structural and full-width sprite-span checks
+complete before texture configuration or attachment access. A structural fault
+can appear two setup edges later; completion and fault polling remain the CPU
+contract. The registered empty-window flag still permits a present texture
+descriptor to be configured and validated even when there are no pixels.
+
 One shared 64-bit adder per plane and one 32-bit adder per edge handle the
 mutually exclusive offset, horizontal-step and row-step operations. The
 overflow checks use those same sums. Quantization still implements exact
@@ -221,6 +231,22 @@ bits that cannot affect the bounded result. Full-width command and address
 validation precedes narrower retained positions and transfer counters; storage
 reduction does not authorize truncating invalid inputs into valid ones.
 
+Validated non-line tile spans contain 1–32 candidates per axis. Five-bit
+remaining-column/row counters retain the number after the current candidate,
+in `0..31`, and supply row-end and penultimate-sample lookahead directly.
+They advance only with the rasterizer and hold on stalls; the line walker
+retains its separate Bresenham behavior. Full raw bounds validation and
+viewport intersection still precede these bounded counters.
+
+Each of the seven plane adders and three edge adders has a sticky overflow
+flag. Only consumed offset/grid additions can set it; an unused next sum at
+the final sample cannot fault a draw. Their combined public fault asserts on
+the same arithmetic-overflow edge as before, immediately lowering busy and
+suppressing pending attachment writes and new fragment acceptance. The private
+controller enters its failed state on the following edge. This keeps the
+public failure behavior while removing the collective overflow/state decision
+from each adder's retained path, without adding ordinary raster clocks.
+
 The current setup domain limits a triangle's W ratio to 64 and vertex UVs to
 `[-1024,1024]` texels. Out-of-domain geometry needs CPU refinement or rejection.
 Range checks precede narrowing; overflow is not permitted to wrap silently.
@@ -228,7 +254,7 @@ Range checks precede narrowing; overflow is not permitted to wrap silently.
 For textured triangles the FPGA reconstructs `u=U/q` and `v=V/q`. Depth stays
 screen-affine and is not divided by q. The selected shared-reciprocal pipeline
 uses native multiplier/ROM resources. The fragment path selects the
-**18-enabled-edge integer-texel pipeline**, with initiation interval one.
+**19-enabled-edge integer-texel pipeline**, with initiation interval one.
 It returns exactly `floor(RNE(U/q in signed Q16)/65536)` and likewise for V,
 including the same invalid-q and signed-Q16 overflow boundaries. It uses a
 coarse reciprocal seed followed by exact residual corrections; it omits the
@@ -243,6 +269,22 @@ on backpressure, preserving latency and initiation interval without retaining
 all delayed payloads as flip-flops. The generic full signed-Q16 reconstruction
 module remains available with **26 enabled-edge latency**, but is not the
 fragment path instantiated by the complete GPU.
+
+Normalization selects and retains its mantissa and rounding predicate before
+applying rounding and exponent carry correction on the following edge. This
+adds one enabled edge to the private path while preserving initiation interval
+one. The input attribute guard also prepares `q + 32` with its input token;
+the next stage compares against `(q + 32) << 5`, exactly the previous
+`q*32 + 1024` limit, without a limit-adder carry before that comparison.
+
+The final texel rounder registers the q-dependent thresholds one stage before
+the result: `epsilon = q >> 17` uses 21 bits and `q - epsilon` uses 38 bits.
+The two signed result candidates are formed in parallel, with
+bounded range predicates preserving the asymmetric signed endpoints
+`-32768` and `32767`. The final remainder comparison selects a candidate;
+it does not feed a serial increment/negate/range-comparison carry chain.
+The final-round retiming preserves exact results, overflow flags, the 19-edge latency
+and initiation interval one.
 
 Depth/color conversion uses round-to-nearest, ties-to-even, then clamps to the
 supported code range. The complete equations, clipping rules, numeric bounds
@@ -300,6 +342,14 @@ addresses. A hit has a seven-edge pipeline and initiation interval one when the
 consumer is ready. One bounded miss transaction is retained at a time; younger
 work stalls while a missing line is refilled through the shared SDRAM service.
 
+Texture configuration has two preparation edges before the final ready/valid
+acceptance: allocation/field classification, then the bounded allocation-end
+check. The producer holds its descriptor through that handshake. Active
+descriptor fields and cache validity change only after a successful final
+acceptance; withdrawing an unaccepted configuration keeps the old descriptor
+and tags. An explicit flush still invalidates tags. Hit latency, initiation
+interval and refill scheduling are unchanged by configuration preparation.
+
 The textured fragment path retains up to **64 contexts**, using three native
 RAM banks: a 512×36 `SDPX9B` bank holds the 34-bit attachment address/depth
 metadata, a 512×32 `SDPB` bank holds the 24-bit RGB factor, and a 1024×16 bank
@@ -308,6 +358,26 @@ read schedules. Tags preserve correspondence through
 perspective reconstruction, texture fetch and shading. Three native
 multipliers calculate RGB modulation. Raw RGB565 key comparison occurs before
 modulation and before a depth commit.
+
+Input capacity uses the retained depth stage's downstream space rather than
+the current depth comparison. Rejected samples still leave that stage, but
+when the downstream path is blocked a replacement can arrive one edge later.
+Warm passing and rejecting streams retain initiation interval one. This keeps
+the depth-RAM comparison out of the rasterizer's input-ready control path.
+
+The coordinate handoff to the cache is a two-entry elastic buffer: the main
+output register and one spill register each retain coordinates, context tag
+and RGB factor together. Upstream space depends on the registered spill-valid
+bit, breaking the combinational cache-ready path back to the rasterizer's
+step enables. A full spill entry can delay upstream restart by one edge after
+backpressure clears; buffered requests still leave on consecutive ready
+edges. This elastic handoff itself adds no warm output stage and preserves
+initiation interval one.
+
+The tile instance retains signed 16-bit texel coordinates within its validated
+domain; the generic fragment module defaults to signed 32-bit coordinates.
+Prepared command fields and numeric validation retain their existing widths
+and rules. The private UV arithmetic has 19 enabled-edge latency.
 
 Controlled warm tests accept and retire 1,024 consecutive fragments at one per
 core clock. This establishes the resident-tile pipeline cadence. It does not
@@ -336,6 +406,25 @@ implements initialization, bank/row timing, read/write turnaround, refresh and
 response backpressure. Its selected physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
 
+The arbiter computes foreground eligibility from the round-robin cursor in
+parallel, choosing the first request at or after the cursor or wrapping to the
+first earlier request. Its one-hot grant drives `cmd_ready` directly; binary
+owner encoding is used for the selected payload and retained transaction.
+The bounded scanout preference and foreground order are preserved, without
+adding an arbitration cycle.
+
+An aligned 1–16-word transaction spans at most 64 bytes. Only the final
+64-byte line of SDRAM can cross the 8 MiB limit, so its extent check uses a
+six-bit word-offset-plus-count sum there instead of a full byte-address carry
+chain. Raw alignment and count checks remain, and an extent ending exactly
+at 8 MiB is valid. Accepted transactions retain their original range semantics.
+
+The acceptance edge captures owner, address, count and direction. A registered
+`CHECK_REQUEST` stage validates those retained fields before collecting write
+payload or scheduling SDRAM commands. It adds one startup clock per transaction;
+invalid requests report done/error one edge later internally. Ready/valid
+acceptance, client ownership and ordered completion semantics are unchanged.
+
 Before requesting a heap-write transaction, the executor collects a whole
 bounded **64-byte upload chunk** in a separate native RAM bank. Once accepted,
 it streams staged words every **three core clocks**: byte masks occupy otherwise
@@ -354,6 +443,13 @@ clips X then Y through one signed 33-bit interval/subtract/compare datapath,
 and retains only bounded nonempty origins/counts. That refetch/clipping phase
 uses about **128 core setup clocks** before address walking and pixel traffic,
 while preserving signed-coordinate clipping, including `INT32_MIN`.
+
+Primitive-record fetches have a one-word pipeline between the SDRAM read port
+and tile command-word decoding: 32 data bits, a seven-bit word index and valid.
+It accepts one word per clock within a burst. The existing record-completion
+state drains the final word before draw launch, so no extra fetch state is
+needed. Abort, fault, quiescence or renderer reset suppress/cancel a pending
+word rather than allowing it into a later draw or epoch.
 
 ## 10. Double buffering and display
 
@@ -409,6 +505,18 @@ GPU marks affected attachments invalid, suppresses later success and drains
 issued memory operations. A valid front keeps displaying. A full clear pass can
 reinitialize invalid attachments; `LOAD` cannot read them as valid data.
 
+Recovery first registers foreground quiescence. An abort waits for the renderer
+to become idle before stopping new foreground memory commands, including
+texture refills; a fault also establishes this quiescent state. Already
+accepted write payloads, read responses and completions continue to drain,
+and display client 0 remains active. The controller checks the pending-memory
+register on a later edge, so a transaction accepted on the edge that establishes
+quiescence is included. This removes same-cycle SDRAM arbitration from the
+recovery-state decision. Quiescence stays asserted through the renderer reset
+and host flush acknowledgement, and is released only when the recovery state
+returns to idle. These additional recovery control edges add no clocks to
+ordinary rendering.
+
 Soft abort is out of band. The CPU must stop old transfers, keep the required
 clocks running through recovery, discard stale completion assumptions and wait
 for the fresh stream/epoch before sending new work. An interrupted heap write
@@ -454,23 +562,23 @@ core inside the small serial qualification wrapper report:
 
 | Resource | Use or necessary bound | Device capacity |
 | --- | ---: | ---: |
-| Routed occupied physical LUT sites | **20,351** | **20,736** |
-| Packed LUT sites before flip-flop input placement | **17,005** | **20,736** |
-| Necessary minimum physical LUT sites | **20,036** | **20,736** |
-| DFF resources, including probe and RAM-reserved slots | 6,830 | 15,552 |
+| Routed occupied physical LUT sites | **20,305** | **20,736** |
+| Packed LUT sites before flip-flop input placement | **17,134** | **20,736** |
+| Necessary minimum physical LUT sites | **20,104** | **20,736** |
+| DFF resources, including probe and RAM-reserved slots | 7,003 | 15,552 |
 | Native 18×18 multipliers | 25 | 48 |
 | Native BSRAM | 46 | 46 |
 
-The packed 17,005 sites include 5,744 ALU functions and the sites occupied by
+The packed 17,134 sites include 5,494 ALU functions and the sites occupied by
 eight `RAM16SDP4` cells. Gowin flip-flops also require an input LUT, which can
-sometimes share an already-counted LUT/ALU site. Of 6,782 active flip-flops,
-at most 3,751 can pair with existing sites, requiring **at least 3,031 further
-LUT sites**. Thus 20,036 is a necessary lower bound, not a legal-placement or
+sometimes share an already-counted LUT/ALU site. Of 6,955 active flip-flops,
+at most 3,985 can pair with existing sites, requiring **at least 2,970 further
+LUT sites**. Thus 20,104 is a necessary lower bound, not a legal-placement or
 routing result. The DFF inventory also reserves 48 RAM-blocked flip-flop slots.
 
-The current `-nowidelut` mapping's legal route occupies **20,351 physical LUT
-sites (98.14%)**: 14,575 explicit LUTs, including 32 RAM-storage sites, plus 5,744
-ALU sites and 32 further RAM-reserved sites. That union leaves 385 sites in
+The current `-nowidelut` implementation's legal route occupies **20,305 physical LUT
+sites (97.92%)**: 14,779 explicit LUTs, including 32 RAM-storage sites, plus 5,494
+ALU sites and 32 further RAM-reserved sites. That union leaves 431 sites in
 this serial probe. Do not subtract the lower bound from device capacity and
 present that difference as proven free physical sites.
 The earlier 19,775-site packed inventory failed placement because required
@@ -478,17 +586,28 @@ flip-flop input LUTs raised its physical demand beyond capacity.
 
 The source-matched route applies independent core and host targets:
 
-| Clock domain | Requested target | Routed maximum | Result |
+These frequencies are **static timing estimates from nextpnr's device delay
+model**, not measurements of a physical FPGA's maximum clock. Verilator checks
+cycle behavior without establishing propagation delays. After synthesis,
+placement and routing, static timing analysis combines modeled cell and route
+delays with register timing requirements. Its predicted limit can differ from
+silicon behavior. Qualification needs Gowin timing analysis for the final board
+top and its constraints, followed by hardware tests; this probe does not prove
+that hardware cannot exceed the reported frequency.
+
+| Clock domain | Requested target | Estimated routed Fmax | Result |
 | --- | ---: | ---: | --- |
-| Core | 100.8 MHz | **48.26 MHz** | **FAIL** |
-| Host | 25.2 MHz | 78.89 MHz | PASS |
+| Core | 100.8 MHz | **68.88 MHz** | **FAIL** |
+| Host | 25.2 MHz | 118.27 MHz | PASS |
 
 The timing report represents those targets with 1 ps period precision, giving
-100.80645 and 25.20034 MHz respectively. The core's 20.720 ns critical path
-crosses 21 LUT levels through command-controller feedback, SDRAM arbitration
-ready and accepted/pending-memory recovery logic into synchronous state
-control. The next timing work is to pipeline that feedback while preserving
-the accepted-transfer/abort recovery contract. A legal route establishes
+100.80645 and 25.20034 MHz respectively. The core's 14.518 ns critical path
+runs from clipped-window bounds through raster-advancement control to
+interpolation-register enables. The previous area-optimized route estimated
+48.26 MHz; this implementation improves estimated core Fmax by 42.7% while
+preserving warm fragment initiation interval one. Further clock optimization
+is paused by user choice; retain this candidate for production integration and
+board measurements. A legal route establishes
 physical resource fit for the serial probe, not operation at 100.8 MHz.
 
 The probe adds up to 198 registers plus small control/checksum logic and does
@@ -525,12 +644,12 @@ frames consumed during the next upload/render. Per-frame CSV logging preserves
 blackouts rather than hiding them. The scanout-starvation regression fails the
 old RTL and passes the corrected queued-refill/staged-upload implementation.
 
-The current area-reduced RTL passes the command/recovery self-test and two
+The current RTL passes the command/recovery self-test and two
 rendered frames each of showcase, perspective, overdraw and opaque, with zero
 scanout underflows and matching attachment/display pixels. Showcase's second
-submission is **8,375,976 core cycles**, about **83.10 ms** at the assumed
-100.8 MHz. Across the four scenes, submission cycles increase by **0.16% to 0.28%**
-against the earlier baseline; the local warm fragment initiation interval
+submission is **8,468,144 core cycles**, about **84.01 ms** at the assumed
+100.8 MHz. Across the four scenes, submission cycles increase by **1.00% to 1.57%**
+against the area-optimized baseline; the local warm fragment initiation interval
 remains one. These measurements include host delivery through the matching
 fence and exclude RP2350 execution and a board frequency guarantee. SDL
 wall-clock playback is slower because the PC evaluates every simulated clock.
@@ -538,7 +657,9 @@ The routed core misses 100.8 MHz, so those nominal milliseconds are not an
 achieved FPGA frame time.
 Full source-matched results, including 29 additional COPY oracle cases and 17
 descriptor/LOAD fault cases, are in
-[the area-optimization baseline](../docs/benchmarks/rtl-fit-optimized.json).
+[the timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json).
+The earlier [area-optimization baseline](../docs/benchmarks/rtl-fit-optimized.json)
+retains the pre-retiming cycle counts.
 The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
 retains the original blackout regression and pre-area-optimization counts.
 
@@ -572,15 +693,14 @@ misses timing returns status 2. **The current `make rtl-gpu-pnr` returns 2 for
 the core-clock miss despite a legal route.** Passing the capacity inventory is distinct
 from complete-device placement/routing/timing qualification. The remaining work is:
 
-1. Retime the measured command/arbitration/recovery feedback path to meet the
-   core-clock target, preserving abort/accepted-transfer races and all rendering
-   and continuous-scanout regressions.
-2. Improve the measured foreground schedule and CPU driver where needed;
-   implement and validate the RP2350's real bus/PIO path.
-3. Integrate production clocks, reset crossings, SDRAM timing/pads, video output
+1. Implement and validate the RP2350's real bus/PIO path.
+2. Integrate production clocks, reset crossings, SDRAM timing/pads, video output
    and final board constraints.
-4. Synthesize, place, route and close timing for that full top, then generate a
-   bitstream and validate the real board.
+3. Run Gowin implementation and timing analysis for that full top, selecting
+   actual clocks and matching SDRAM/scanout timing parameters.
+4. Generate the board bitstream and measure correctness, clock margin and
+   rendering performance on hardware. The 68.88 MHz estimate is not a board
+   measurement or a clock configuration already programmed into an FPGA.
 
 Programming uses the board's onboard USB-JTAG connection with openFPGALoader
 or a compatible Gowin Programmer. Generating the bitstream uses either the

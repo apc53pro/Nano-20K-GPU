@@ -150,9 +150,10 @@ The executable has the `.exe` suffix on Windows.
 
 The command self-test and two frames of all four scenes pass. Complete
 RGB565/D24 attachment memory and actual RTL scanout match the independent SRR.
-The [current RTL regression](docs/benchmarks/rtl-fit-optimized.json) records
-zero scanout underflows and submission-cycle increases of 0.16% to 0.28%
-after the area reduction.
+The [current RTL regression](docs/benchmarks/rtl-timing-optimized.json) records
+zero scanout underflows and submission-cycle increases of **1.00% to 1.57%**
+against the [area baseline](docs/benchmarks/rtl-fit-optimized.json), including
+the added transaction, configuration, draw-setup and UV control edges.
 This RTL implementation currently uses a
 different, more serialized schedule than the optimized C++ system model;
 the C++ model's 32.4 ms steady result does not describe the RTL. The
@@ -163,21 +164,27 @@ The current RTL uses **46 of 46 native RAM banks** and **25 of 48 18×18
 multiplier equivalents**. Coefficients, texture tags, compact fragment contexts
 and UV delay payloads use native RAM; command execution reads its owned packet
 lease without duplicating the payload prefix. The private exact integer-texel
-UV path has 18 enabled-edge latency and initiation interval one; the generic
+UV path has 19 enabled-edge latency and initiation interval one; the generic
 full-Q16 arithmetic module remains separate at 26 edges. Rendering features
 and the `N20K-SYS-0.1` CPU byte ABI are preserved.
 
-The complete logical-core serial probe **places and routes legally** on the
-exact FPGA: **20,351 of 20,736 physical LUT sites (98.14%)**, leaving 385 sites,
-and **6,830 DFF resources**, including 48 RAM-reserved slots. **Core timing
-fails:** the routed maximum is **48.26 MHz** against the 100.8 MHz target.
-The independent host domain reaches 78.89 MHz and passes its 25.2 MHz target.
-The next timing work is to pipeline command/arbitration/recovery feedback while
-preserving abort and accepted-memory behavior. Production clock/reset, video
-and board pin integration still require qualification.
+The current logical-core serial probe **places and routes legally** on the
+exact FPGA: **20,305 of 20,736 physical LUT sites (97.92%)**, leaving 431 sites,
+and **7,003 DFF resources**, including 48 RAM-reserved slots. The estimated
+core Fmax is **68.88 MHz**, up from 48.26 MHz, and remains below the 100.8 MHz
+target in nextpnr's model. The host estimate is 118.27 MHz, passing its 25.2 MHz
+target. Further clock optimization is paused at this candidate for board
+integration and measurement. Production clock/reset, video and board pin
+integration still require qualification.
+Routed Fmax is nextpnr's static timing estimate from modeled cell and route
+delays, not a measured physical clock limit. Verilator checks cycle behavior;
+the final board still needs Gowin timing analysis and hardware testing.
 Native coefficient capture adds one setup clock per nonempty primitive/tile
-invocation; COPY refetch/clipping uses about 128 clocks and upload staging
-streams one u32 every three clocks. Run `make rtl-gpu-pack` for source-matched
+invocation. Draw validation/clipping adds three setup clocks per valid draw;
+cache configuration has two preparation edges, and the private UV path adds one
+normalization edge while retaining one-fragment-per-clock throughput. COPY
+refetch/clipping uses about 128 clocks and upload staging streams one u32 every
+three clocks. Run `make rtl-gpu-pack` for source-matched
 resource evidence and `make rtl-gpu-pnr` for the clock-gated physical probe;
 the latter currently returns **2** for the core timing miss. The
 [resource report](docs/hardware/rtl-core-pack.json) and

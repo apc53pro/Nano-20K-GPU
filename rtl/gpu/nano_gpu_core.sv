@@ -59,6 +59,7 @@ module nano_gpu_core #(
     reg [1:0] pixel_phase;
     wire pixel_tick = pixel_phase == 2'd3;
     reg abort_sync1, abort_sync2, abort_previous, abort_pending, fault_pending;
+    reg foreground_quiet;
     reg renderer_reset, host_abort;
     reg [5:0] pending_memory;
 
@@ -70,10 +71,10 @@ module nano_gpu_core #(
     reg [191:0] mem_w_data;
     reg [23:0] mem_w_strb;
     wire memory_initialized;
-    // pending_memory records only commands accepted on earlier edges. A cache
-    // miss may be accepted on the very edge that recovery observes it empty;
-    // do not reset that client until this new physical transaction drains.
-    wire foreground_command_accepted = |(mem_cmd_valid[5:1] & mem_cmd_ready[5:1]);
+    // Recovery first registers that all foreground command ports are quiet.
+    // A transaction accepted on that entry edge is recorded by pending_memory
+    // before a later edge may reset its client. This keeps the SDRAM arbiter's
+    // combinational ready path out of the controller's recovery decision.
 
     wire host_cmd_valid, payload_valid, response_ready, host_recovering;
     wire [15:0] host_cmd_opcode;
@@ -122,6 +123,9 @@ module nano_gpu_core #(
     reg tile_cmd_word_we, tile_cmd_valid, tile_pix_we, tile_pix_re;
     reg [6:0] tile_cmd_word_index;
     reg [31:0] tile_cmd_word_data;
+    reg record_load_valid;
+    reg [6:0] record_load_index;
+    reg [31:0] record_load_data;
     wire tile_cmd_ready, tile_busy, tile_done, tile_fault, tile_pix_rvalid;
     reg [9:0] tile_pix_addr, tile_pix_raddr;
     reg [15:0] tile_pix_color;
@@ -398,7 +402,12 @@ module nano_gpu_core #(
         mem_w_valid[4]=tex_w_valid; mem_w_data[4*32 +:32]=tex_w_data; mem_w_strb[4*4 +:4]=tex_w_strb;
         mem_r_ready[4]=tex_r_ready;
         payload_req=0; payload_offset=0; response_valid=0; response_data=0;
-        tile_cmd_word_we=0; tile_cmd_word_index=record_word+{2'd0,beat}; tile_cmd_word_data=mem_r_data[2*32 +:32];
+        // Native SDRAM output feeds one retained word before the distributed
+        // record/header decoders. The stage accepts and publishes one word per
+        // clock; the final word retires in S_RECORD_DONE before draw launch.
+        tile_cmd_word_we=record_load_valid && (state==S_RECORD_DATA || state==S_RECORD_DONE) &&
+            !abort_pending && !fault_pending && !foreground_quiet && !renderer_reset;
+        tile_cmd_word_index=record_load_index; tile_cmd_word_data=record_load_data;
         tile_cmd_valid=0; tile_pix_we=0; tile_pix_addr=pixel_index[9:0];
         tile_pix_color=clear_color; tile_pix_depth=clear_depth;
         tile_pix_re=0; tile_pix_raddr=store_pixel_address;
@@ -462,7 +471,7 @@ module nano_gpu_core #(
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=record_address+{14'd0,record_word,2'b0}; mem_cmd_words[10 +:5]=16;
         end
         S_DESC_DATA,S_ENTRY_DATA,S_REF_DATA: mem_r_ready[2]=1;
-        S_RECORD_DATA: begin mem_r_ready[2]=1; tile_cmd_word_we=mem_r_valid[2]; end
+        S_RECORD_DATA: mem_r_ready[2]=1;
         S_TILE_INIT: tile_pix_we=1;
         S_LOAD_COLOR_CMD: begin
             mem_cmd_valid[3]=1; mem_cmd_addr[69 +:23]=(color_base(target_id)+(current_global_pixel<<1))&23'h7ffffc;
@@ -520,6 +529,24 @@ module nano_gpu_core #(
             mem_cmd_valid[1]=0; mem_cmd_valid[2]=0; mem_cmd_valid[3]=0; mem_cmd_valid[5]=0;
             tile_cmd_valid=0;
         end
+        if(foreground_quiet) begin
+            mem_cmd_valid[5:1]=0;
+            tile_cmd_valid=0;
+        end
+    end
+
+    // This word stage is always drained by the idle renderer while fetching a
+    // primitive. Recovery cancels its valid bit and suppresses its write port,
+    // so a word accepted on the abort/fault edge cannot leak into a later draw.
+    wire record_load_accept = state==S_RECORD_DATA && mem_r_valid[2] && mem_r_ready[2] &&
+        !reset && !renderer_reset && !abort_pending && !fault_pending && !foreground_quiet;
+    always @(posedge clk) begin
+        if(reset || renderer_reset) record_load_valid<=0;
+        else record_load_valid<=record_load_accept;
+        if(record_load_accept) begin
+            record_load_index<=record_word+{2'd0,beat};
+            record_load_data<=mem_r_data[2*32 +:32];
+        end
     end
 
     always @(posedge clk) begin
@@ -528,6 +555,7 @@ module nano_gpu_core #(
             pass_active<=0; copy_active<=0; epoch<=1; completed_sequence<=0; fence_token<=0; present_token<=0;
             cycle_counter<=0; pixel_phase<=0; video_pixel_ce<=0;
             abort_sync1<=0; abort_sync2<=0; abort_previous<=0; abort_pending<=0; fault_pending<=0; fault_code<=0;
+            foreground_quiet<=0;
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0; pending_memory<=0;
             capture_index<=0; capture_length<=0;
             packet_word<=0; capture_invalid<=0; copy_command_invalid<=0;
@@ -567,16 +595,21 @@ module nano_gpu_core #(
                 if(mem_cmd_valid[i] && mem_cmd_ready[i]) pending_memory[i]<=1;
             end
             if(mem_done[2]) read_done_hold<=1;
+            // Abort lets the active primitive finish before stopping texture
+            // fetches. A fault may cancel that work once accepted memory has
+            // drained. Keep quiet asserted through the renderer reset and the
+            // host-link flush, so an unaccepted cache miss cannot sneak out.
+            if(fault_pending || (abort_pending && !tile_busy)) foreground_quiet<=1;
             if(!abort_pending && state!=S_RECOVER && !host_abort && ((|mem_error) || host_fault!=0 || tile_fault || tex_fault))
                 raise_fault(host_fault!=0 ? 8'd1 : ((|mem_error) ? 8'd8 : 8'd6));
-            if(abort_pending && !tile_busy && pending_memory[5:1]==0 && !foreground_command_accepted) begin
+            if(abort_pending && !tile_busy && foreground_quiet && pending_memory[5:1]==0) begin
                 state<=S_RECOVER; renderer_reset<=1; host_abort<=1;
                 abort_pending<=0; fault_pending<=0; fault_code<=0;
                 completed_sequence<=0; fence_token<=0; present_token<=0;
                 pass_active<=0; copy_active<=0; sealed<=0;
                 if(epoch==32'hffffffff) begin fault_pending<=1; fault_code<=8'hff; state<=S_FAULT; host_abort<=0; end
                 else epoch<=epoch+1;
-            end else if(fault_pending && pending_memory[5:1]==0 && !foreground_command_accepted) begin
+            end else if(fault_pending && foreground_quiet && pending_memory[5:1]==0) begin
                 state<=S_FAULT; renderer_reset<=1;
             end else begin
                 case(state)
@@ -954,7 +987,10 @@ module nano_gpu_core #(
                         copy_column<=0; state<=S_COPY_READ_CMD;
                     end
                 end
-                S_RECOVER: if(!host_recovering) begin if(initialized) state<=S_IDLE; else state<=S_BOOT_WAIT; end
+                S_RECOVER: if(!host_abort && !host_recovering) begin
+                    foreground_quiet<=0;
+                    if(initialized) state<=S_IDLE; else state<=S_BOOT_WAIT;
+                end
                 S_FAULT: begin end
                 default: raise_fault(9);
                 endcase

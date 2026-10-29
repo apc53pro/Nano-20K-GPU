@@ -3,10 +3,10 @@
 // reconstructing expected fields from the compact representation. Mutations
 // cover every record word, arbitrary write order and clearing old sentinels.
 module nano_tile_record_compact_tb;
- reg clk=0,reset=0,cmd_word_we=0;
+ reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0;
  reg [6:0]cmd_word_index=0;reg[31:0]cmd_word_data=0;
  nano_tile_renderer dut(.clk(clk),.reset(reset),.cmd_word_we(cmd_word_we),
-  .cmd_word_index(cmd_word_index),.cmd_word_data(cmd_word_data),.cmd_valid(1'b0),
+  .cmd_word_index(cmd_word_index),.cmd_word_data(cmd_word_data),.cmd_valid(cmd_valid),
   .cmd_tile_x(10'd0),.cmd_tile_y(9'd0),.pix_we(1'b0),.pix_addr(10'd0),
   .pix_color(16'd0),.pix_depth(24'd0),.pix_re(1'b0),.pix_raddr(10'd0),
   .tex_flush(1'b0),.tex_cfg_ready(1'b1),.tex_req_ready(1'b1),.tex_rsp_valid(1'b0),
@@ -14,7 +14,7 @@ module nano_tile_record_compact_tb;
  reg [31:0] raw[0:79],base[0:79];
  reg [63:0] rng=64'hb52d89a364017cef;
  reg [31:0] sample;
- integer variant,kind,w,n,i,checked=0;
+ integer variant,kind,w,n,i,checkpoint,checked=0,setup_checked=0;
 
  function automatic signed [31:0] minimum;
   input signed [31:0] a,b;
@@ -96,6 +96,29 @@ module nano_tile_record_compact_tb;
        wx1!=$signed(dut.window_x1)||wy1!=$signed(dut.window_y1)))
      $fatal(1,"compact clipping changed nonempty interval variant%0d word%0d",variant,w);
    end
+   // Launch a deterministic subset through the actual registered setup.
+   // Header words remain immutable until reset, so this also tests arbitrary
+   // write order, high-bit sentinels and rewritten values in the new stages.
+   if((checked%97)==0)begin
+    cmd_valid=1;tick();cmd_valid=0;
+    for(checkpoint=0;checkpoint<3;checkpoint=checkpoint+1)begin
+     tick();
+     if(dut.color_we||dut.depth_we||dut.tex_cfg_valid)
+      $fatal(1,"staged validation exposed a side effect before acceptance");
+    end
+    if(dut.fault!==bad||(bad&&dut.state!=18)||(!bad&&dut.state!=12))
+     $fatal(1,"staged raw32 validation variant%0d word%0d value%h rawbad%b fault%b state%0d",
+       variant,w,raw[w],bad,dut.fault,dut.state);
+    if(!bad)begin
+     if(empty!==((dut.x0>=dut.x1)||(dut.y0>=dut.y1)))
+      $fatal(1,"staged clipping changed empty raw32 interval");
+     if(!empty&&(wx0!=$signed(dut.x0)||wy0!=$signed(dut.y0)||
+        wx1!=$signed(dut.x1)||wy1!=$signed(dut.y1)))
+      $fatal(1,"staged clipping changed nonempty raw32 interval");
+    end
+    setup_checked=setup_checked+1;
+    reset=1;tick();reset=0;tick();
+   end
    checked=checked+1;
   end
  endtask
@@ -141,6 +164,7 @@ module nano_tile_record_compact_tb;
     end
    end
   end
+  $display("PASS %0d staged raw32 clipping/validation checkpoints",setup_checked);
   $display("PASS %0d raw32/compact record validation and clipping vectors",checked);$finish;
  end
 endmodule

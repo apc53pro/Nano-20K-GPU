@@ -114,7 +114,7 @@ def main():
               "selected_uv_limb_bits": 18,
               "selected_native_multiplier_modes": ["unsigned_unsigned", "unsigned_signed"],
               "native_multiplier_modes_test_passed": True,
-              "texture_coordinate_tests": {"passed": True, "enabled_edge_latency": 18,
+              "texture_coordinate_tests": {"passed": True, "enabled_edge_latency": 19,
                   "initiation_interval": 1, "exact_high16_and_overflow_of_full_q16": True,
                   "retention_bsram_blocks": 8},
               "modeled_seed_bsram_blocks": 4,

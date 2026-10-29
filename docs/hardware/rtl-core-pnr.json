@@ -15,72 +15,73 @@
     "clk": 100.8,
     "host_clk": 25.2
   },
+  "error_stage": null,
   "source_sha256": {
     "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
-    "rtl/uv_pipeline.v": "24e3c7bbe9d20a6e4527a08d642f8a845b424c929c02f47e27b73553f0eab3af",
-    "rtl/gpu/nano_fragment_pipeline.sv": "9a6ff66699504792faea5f736ada9754dc6569134a6b6bd55158021bfd0cfce4",
-    "rtl/gpu/nano_gpu_core.sv": "e5caac8dde8882f9741424e36bef29f3dedf8ae0d40f5e95bf791a5c61297be4",
+    "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
     "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
     "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
     "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
-    "rtl/gpu/nano_sdram_service.sv": "4a2ad5681323925b49250f70ebaaafb3ee40751029db8814cc9359b41b11dc2a",
-    "rtl/gpu/nano_texture_cache.sv": "4ea5f6f99bd872cc7181bd4e09b983debe58076c2d3ce0a6e48cf14be0497c7d",
-    "rtl/gpu/nano_tile_renderer.sv": "e95baeec93d3f12c04cacc4cfeaaa5ac2774daeb68023da4152f18e44ec2cd80",
+    "rtl/gpu/nano_sdram_service.sv": "9bd4121d971f212560f987524dddef2773de5b06568d7c2303009b2ac74a1a62",
+    "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+    "rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/gpu_probe.sv": "e7a7dc51d274afd1f562bad0bbfac2f8f3d85509e5241108399d9d6b9ed0f705",
     "rtl/gpu_probe.cst": "2beb3831400a9cf5e4fcb71c9df59464ab0084f2eb92446b2d20e1c34af590e0",
     "scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
     "scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
-    "scripts/rtl-check.py": "d595b8d28981d7b8a1b11dcd408aa208b7edaa0a22c093e9382fc51107eec42c",
+    "scripts/rtl-check.py": "ce10cd7a0793324e34c298d66680959a0a4bfae86e3e6bf2f8f8290f53b318f5",
     "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
     "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
     "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
     "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
   },
-  "netlist_sha256": "c6a262241a1b4fe31114711112943bb81a997ca61576e85a0a834b87f1169c49",
+  "netlist_sha256": "57be0025721e48e42a1f5f8184831622871b4c16bc64f6bbc63c312fc93f9796",
   "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-  "pack_report_sha256": "08c979b42682bb3c0e18161c09341aa9e48c3b727ad1ab306b2389548d53b048",
-  "runner_sha256": "d0d74a3acb8cb68199d86648dffc1f3801cfb4058823575ecb776c57438a41b3",
+  "pack_report_sha256": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4",
+  "runner_sha256": "3daeae29c79596f525560ed13c80b3d74fd6de9ce09863cccbf6f3d74c8c5bcc",
   "snapshot_sha256": {
-    "source_snapshot/rtl/uv_pipeline.v": "24e3c7bbe9d20a6e4527a08d642f8a845b424c929c02f47e27b73553f0eab3af",
+    "source_snapshot/rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
     "source_snapshot/rtl/gpu_probe.sv": "e7a7dc51d274afd1f562bad0bbfac2f8f3d85509e5241108399d9d6b9ed0f705",
     "source_snapshot/rtl/gpu_probe.cst": "2beb3831400a9cf5e4fcb71c9df59464ab0084f2eb92446b2d20e1c34af590e0",
     "source_snapshot/rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
-    "source_snapshot/scripts/rtl-check.py": "d595b8d28981d7b8a1b11dcd408aa208b7edaa0a22c093e9382fc51107eec42c",
+    "source_snapshot/scripts/rtl-check.py": "ce10cd7a0793324e34c298d66680959a0a4bfae86e3e6bf2f8f8290f53b318f5",
     "source_snapshot/scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
     "source_snapshot/scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
     "source_snapshot/rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "source_snapshot/rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
-    "source_snapshot/rtl/gpu/nano_gpu_core.sv": "e5caac8dde8882f9741424e36bef29f3dedf8ae0d40f5e95bf791a5c61297be4",
+    "source_snapshot/rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
     "source_snapshot/rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
-    "source_snapshot/rtl/gpu/nano_texture_cache.sv": "4ea5f6f99bd872cc7181bd4e09b983debe58076c2d3ce0a6e48cf14be0497c7d",
-    "source_snapshot/rtl/gpu/nano_fragment_pipeline.sv": "9a6ff66699504792faea5f736ada9754dc6569134a6b6bd55158021bfd0cfce4",
+    "source_snapshot/rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+    "source_snapshot/rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
     "source_snapshot/rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "source_snapshot/rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
-    "source_snapshot/rtl/gpu/nano_tile_renderer.sv": "e95baeec93d3f12c04cacc4cfeaaa5ac2774daeb68023da4152f18e44ec2cd80",
-    "source_snapshot/rtl/gpu/nano_sdram_service.sv": "4a2ad5681323925b49250f70ebaaafb3ee40751029db8814cc9359b41b11dc2a",
+    "source_snapshot/rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
+    "source_snapshot/rtl/gpu/nano_sdram_service.sv": "9bd4121d971f212560f987524dddef2773de5b06568d7c2303009b2ac74a1a62",
     "source_snapshot/rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
     "source_snapshot/rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "source_snapshot/rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
     "source_snapshot/rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
     "source_snapshot/rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
     "source_snapshot/rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
-    "synth.json": "c6a262241a1b4fe31114711112943bb81a997ca61576e85a0a834b87f1169c49",
+    "synth.json": "57be0025721e48e42a1f5f8184831622871b4c16bc64f6bbc63c312fc93f9796",
     "seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-    "pack-proof.json": "08c979b42682bb3c0e18161c09341aa9e48c3b727ad1ab306b2389548d53b048",
+    "pack-proof.json": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4",
     "clocks.py": "eefe7abae5b34245329e75093a6b8e42e69b775a66f22d8dea7e3b06ce55d759"
   },
   "initial_packed_resources": {
     "LUT4": {
-      "used": 17005,
+      "used": 17134,
       "available": 20736,
       "within_capacity": true
     },
     "DFF": {
-      "used": 6830,
+      "used": 7003,
       "available": 15552,
       "within_capacity": true
     },
@@ -113,13 +114,13 @@
     "-o",
     "family=GW2A-18C",
     "-o",
-    "cst=/workspace/Nano-20K-GPU/build/rtl-core-pnr/source_snapshot/rtl/gpu_probe.cst",
+    "cst=/workspace/Nano-20K-GPU/build/timing05-pnr/source_snapshot/rtl/gpu_probe.cst",
     "--json",
-    "/workspace/Nano-20K-GPU/build/rtl-core-pnr/synth.json",
+    "/workspace/Nano-20K-GPU/build/timing05-pnr/synth.json",
     "--write",
-    "/workspace/Nano-20K-GPU/build/rtl-core-pnr/routed.json",
+    "/workspace/Nano-20K-GPU/build/timing05-pnr/routed.json",
     "--pre-place",
-    "/workspace/Nano-20K-GPU/build/rtl-core-pnr/clocks.py",
+    "/workspace/Nano-20K-GPU/build/timing05-pnr/clocks.py",
     "--freq",
     "100.8",
     "--threads",
@@ -128,23 +129,28 @@
     "1",
     "--timing-allow-fail",
     "--report",
-    "/workspace/Nano-20K-GPU/build/rtl-core-pnr/timing.json",
+    "/workspace/Nano-20K-GPU/build/timing05-pnr/timing.json",
     "--detailed-timing-report",
     "--chipdb",
     "/workspace/Nano-20K-GPU/.deps/rtl/oss-cad-suite/share/nextpnr/himbaechel/gowin/chipdb-GW2A-18C.bin"
   ],
   "returncode": 0,
   "tool_errors": [],
+  "raw_artifact_sha256": {
+    "pnr.log": "aec69128e670b2594598b67e4a1170509fee04646068787330ca07e0d98d0156",
+    "timing.json": "03e71d53f355aa4b1b0c74abe91324353eb26e611ad5bf20ad1e5a74ac87a6aa",
+    "routed.json": "1dc01b9c0913f74fa9daf8a3a77581a49018ad7b75e2c41adcf19d44c58e552c"
+  },
   "inputs_changed_during_run": [],
-  "routed_netlist_sha256": "71fe0d4f03a7d9bc748f7b376262f16c35fce8b5b87fce81ca6d79fe64986cb2",
+  "routed_netlist_sha256": "1dc01b9c0913f74fa9daf8a3a77581a49018ad7b75e2c41adcf19d44c58e552c",
   "post_route_physical_resources": {
     "LUT4": {
-      "used": 20351,
+      "used": 20305,
       "available": 20736,
       "within_capacity": true
     },
     "DFF": {
-      "used": 6830,
+      "used": 7003,
       "available": 15552,
       "within_capacity": true
     },
@@ -163,73 +169,45 @@
   "post_route_counts_include_passthrough_luts": true,
   "post_route_resource_scope": "Occupied BEL union, including ALU-reserved LUTs and RAM16 LUT/FF reservations",
   "post_route_explicit_cell_types": {
-    "ALU": 5744,
+    "ALU": 5494,
     "BUFG": 2,
-    "DFF": 8,
+    "DFF": 11,
     "DFFC": 176,
     "DFFCE": 544,
-    "DFFE": 1696,
+    "DFFE": 1822,
     "DFFP": 1,
     "DFFPE": 1,
-    "DFFR": 337,
-    "DFFRE": 3961,
+    "DFFR": 339,
+    "DFFRE": 4003,
     "DFFSE": 58,
     "DUMMY_CELL": 100,
     "GOWIN_GND": 1,
     "GOWIN_VCC": 1,
     "GSR": 1,
     "IBUF": 6,
-    "LUT1": 65,
-    "LUT2": 2528,
-    "LUT3": 3812,
-    "LUT4": 8170,
+    "LUT1": 74,
+    "LUT2": 2546,
+    "LUT3": 4158,
+    "LUT4": 8001,
     "MULT18X18": 25,
     "OBUF": 3,
     "RAM16SDP4": 8,
     "SDP": 46
   },
-  "post_route_lut_site_delta": 3346,
-  "elapsed_seconds": 752.935,
-  "analysis_of_existing_run": true,
-  "analysis_runner_sha256": "3daeae29c79596f525560ed13c80b3d74fd6de9ce09863cccbf6f3d74c8c5bcc",
-  "producer_runner_sha256": "d0d74a3acb8cb68199d86648dffc1f3801cfb4058823575ecb776c57438a41b3",
-  "producer_report_sha256": "1fa78b7f9bc0218ffcaf75225eb04da88ab0a87f5990e7f6e86ef38d71dab798",
-  "retained_evidence_sha256": "e18c89b96ad81b7f0a81430d0ea94c8573ecd11b6a08828d57e6a97d73ba1790",
-  "retained_evidence_hashes_captured_by": "recovery_analysis_before_parser_change",
-  "retained_artifact_sha256": {
-    "producer-runner.py": "d0d74a3acb8cb68199d86648dffc1f3801cfb4058823575ecb776c57438a41b3",
-    "producer-qualification.json": "1fa78b7f9bc0218ffcaf75225eb04da88ab0a87f5990e7f6e86ef38d71dab798",
-    "routed.json": "71fe0d4f03a7d9bc748f7b376262f16c35fce8b5b87fce81ca6d79fe64986cb2",
-    "timing.json": "d31acee5d34cbfb87e79bda0a04980434507cdb8f91c8f19adab1d4f92a7d10e",
-    "pnr.log": "0f1bbaa703104e3cc5232ed02bb4e18ca4519392606fd24f8d22d29359c2c925",
-    "synth.json": "c6a262241a1b4fe31114711112943bb81a997ca61576e85a0a834b87f1169c49",
-    "seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-    "pack-proof.json": "08c979b42682bb3c0e18161c09341aa9e48c3b727ad1ab306b2389548d53b048",
-    "clocks.py": "eefe7abae5b34245329e75093a6b8e42e69b775a66f22d8dea7e3b06ce55d759"
-  },
-  "producer_command_validated": true,
-  "producer_attested_artifact_sha256": {
-    "routed.json": "71fe0d4f03a7d9bc748f7b376262f16c35fce8b5b87fce81ca6d79fe64986cb2"
-  },
-  "recovery_captured_artifact_sha256": {
-    "timing.json": "d31acee5d34cbfb87e79bda0a04980434507cdb8f91c8f19adab1d4f92a7d10e",
-    "pnr.log": "0f1bbaa703104e3cc5232ed02bb4e18ca4519392606fd24f8d22d29359c2c925"
-  },
-  "retained_evidence_note": "Timing and log hashes were not recorded by the old producer before its timing-parser rejection; captured transparently during recovery, not retroactively attributed to it.",
-  "error_stage": null,
+  "post_route_lut_site_delta": 3171,
   "fmax": {
     "core.host_clk": {
-      "achieved": 78.88924407958984,
+      "achieved": 118.27320861816406,
       "constraint": 25.20034408569336
     },
     "core_outputs[105]": {
-      "achieved": 48.262550354003906,
+      "achieved": 68.88001251220703,
       "constraint": 100.80644989013672
     }
   },
   "clocks": {
     "clk": {
-      "achieved": 48.262550354003906,
+      "achieved": 68.88001251220703,
       "constraint": 100.80644989013672,
       "reported_clock": "core_outputs[105]",
       "requested_mhz": 100.8,
@@ -239,7 +217,7 @@
       "target_met": false
     },
     "host_clk": {
-      "achieved": 78.88924407958984,
+      "achieved": 118.27320861816406,
       "constraint": 25.20034408569336,
       "reported_clock": "core.host_clk",
       "requested_mhz": 25.2,
@@ -254,36 +232,36 @@
     {
       "from_clock": "posedge core.host_clk",
       "to_clock": "posedge core.host_clk",
-      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT3_I1_F_LUT3_F_I2_LUT4_F_I3_LUT2_I1_F_LUT2_F_I1_DFFCE_Q",
+      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT4_I2_F_LUT2_F_I1_LUT3_I2_F_LUT4_I3_F_DFFC_D",
       "to_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_DFFCE_Q",
-      "delay_ns": 12.676000196486712
+      "delay_ns": 8.455000128597021
     },
     {
       "from_clock": "posedge core_outputs[105]",
       "to_clock": "posedge core_outputs[105]",
-      "from_cell": "core.state_DFFR_Q_5",
-      "to_cell": "core.state_DFFR_Q_5",
-      "delay_ns": 20.720000196248293
+      "from_cell": "core.tile_renderer.y0_DFFRE_Q_8",
+      "to_cell": "core.tile_renderer.fragments.in_u_DFFRE_Q_40",
+      "delay_ns": 14.518000189214945
     },
     {
       "from_clock": "posedge core.host_clk",
       "to_clock": "posedge core_outputs[105]",
-      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT3_I1_F_LUT3_F_I2_LUT4_F_I3_LUT2_I1_F_LUT2_F_I1_DFFCE_Q",
+      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT4_I2_F_LUT2_F_I1_LUT4_F_I2_DFFCE_Q_D_LUT2_F_I1_DFFCE_Q",
       "to_cell": "observed_DFFR_Q_2",
       "delay_ns": 2.9710000343620777
     },
     {
       "from_clock": "posedge core_outputs[105]",
       "to_clock": "posedge core.host_clk",
-      "from_cell": "core.host_link.host_reg_addr_DFFRE_Q_4",
-      "to_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_DFFCE_Q",
-      "delay_ns": 13.995000217109919
+      "from_cell": "core.host_link.host_reg_addr_DFFRE_Q_2",
+      "to_cell": "observed_DFFR_Q_2_D_LUT3_F_I2_LUT2_F_I1_LUT4_F_I1_DFFC_Q",
+      "delay_ns": 9.539000153541565
     }
   ],
   "utilization": {
     "ALU": {
       "available": 15552,
-      "used": 5744
+      "used": 5494
     },
     "ALU54D": {
       "available": 24,
@@ -311,7 +289,7 @@
     },
     "DFF": {
       "available": 15552,
-      "used": 6782
+      "used": 6955
     },
     "DHCEN": {
       "available": 24,
@@ -351,7 +329,7 @@
     },
     "LUT4": {
       "available": 20736,
-      "used": 14575
+      "used": 14779
     },
     "MULT18X18": {
       "available": 48,
@@ -418,8 +396,8 @@
       "used": 0
     }
   },
-  "timing_report_sha256": "d31acee5d34cbfb87e79bda0a04980434507cdb8f91c8f19adab1d4f92a7d10e",
-  "log_sha256": "0f1bbaa703104e3cc5232ed02bb4e18ca4519392606fd24f8d22d29359c2c925",
+  "timing_report_sha256": "03e71d53f355aa4b1b0c74abe91324353eb26e611ad5bf20ad1e5a74ac87a6aa",
+  "log_sha256": "aec69128e670b2594598b67e4a1170509fee04646068787330ca07e0d98d0156",
   "clock_constraints_confirmed": true,
-  "analysis_elapsed_seconds": 1.221
+  "elapsed_seconds": 667.098
 }

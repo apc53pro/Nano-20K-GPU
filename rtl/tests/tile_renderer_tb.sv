@@ -15,11 +15,15 @@ module nano_tile_testbench;
  wire tex_cfg_ready=cycles%7!=0;
  wire tex_req_ready=!active&&!tex_rsp_valid&&(cycles%3!=0);
  nano_tile_renderer dut(.*);
- integer ix,iy;
+ integer ix,iy,penultimate_stalls=0,row_end_stalls=0;
  always@(posedge clk)begin
   cycles<=cycles+1;
   if(reset)begin tex_rsp_valid<=0;active<=0;delay_count<=0;end
   else begin
+   if(dut.state==8&&dut.kind!=2&&dut.inside_sample&&dut.need_texture&&!dut.fragment_ready)begin
+    if(dut.x+32'sd1==dut.x1)row_end_stalls=row_end_stalls+1;
+    else if(dut.x+32'sd2==dut.x1)penultimate_stalls=penultimate_stalls+1;
+   end
    if(tex_cfg_valid&&tex_cfg_ready)begin repeat_u<=tex_cfg_repeat_u;repeat_v<=tex_cfg_repeat_v;end
    if(tex_rsp_valid&&tex_rsp_ready)tex_rsp_valid<=0;
    if(active)begin
@@ -69,6 +73,8 @@ module nano_tile_testbench;
    end
    pix_re=0;tick();$display("PASS tile case %0d",c);
   end
+  if(penultimate_stalls==0||row_end_stalls==0)$fatal(1,"tile oracle did not exercise row-boundary backpressure");
+  $display("PASS coefficient row-boundary stalls: %0d penultimate, %0d row-end",penultimate_stalls,row_end_stalls);
   $fclose(fd);$display("%0d/%0d tile oracle cases passed",ncases,ncases);$finish;
  end
 endmodule

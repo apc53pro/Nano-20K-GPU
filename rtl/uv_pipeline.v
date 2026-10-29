@@ -244,7 +244,7 @@ module nano_uv_pipeline (
 endmodule
 
 
-// Exact nearest-texel reconstruction, 18 enabled edges and initiation interval1.
+// Exact nearest-texel reconstruction, 19 enabled edges and initiation interval1.
 // This private rendering path returns signed integer coordinates equal to
 // floor(RNE(attribute*2^26/q)/2^16), including the full Q16 overflow boundary.
 // The independent full-Q16 module above retains its exact fractional result.
@@ -274,34 +274,35 @@ module nano_uv_texture_pipeline (
     output out_valid, input out_ready,
     output signed [31:0] out_u, output signed [31:0] out_v,
     output [5:0] out_tag, output out_overflow, output out_invalid_q);
-    localparam LATENCY = 18;
+    localparam LATENCY = 19;
     reg [LATENCY-1:0] valid;
     wire advance = ce && (!valid[LATENCY-1] || out_ready);
     assign in_ready = advance;
     assign out_valid = valid[LATENCY-1];
-    reg [5:0] tag [0:17];
-    reg [17:0] invalid_q, overflow, negative_u, negative_v;
+    reg [5:0] tag [0:18];
+    reg [18:0] invalid_q, overflow, negative_u, negative_v;
     reg [37:0] q [0:16];
     reg [3:0] delay_pointer;
-    wire [47:0] delayed_context10;
-    wire [91:0] delayed_magnitude6;
-    wire [57:0] delayed_magnitude13;
-    wire [33:0] delayed_estimate14;
+    wire [47:0] delayed_context11;
+    wire [91:0] delayed_magnitude7;
+    wire [57:0] delayed_magnitude14;
+    wire [33:0] delayed_estimate15;
     reg [42:0] mag_u [0:1], mag_v [0:1];
-    reg [5:0] exponent [0:9];
-    reg [32:0] normalized [0:1];
-    reg signed [17:0] delta [0:2];
-    reg [34:0] seed_base [2:5], reciprocal;
-    reg [16:0] estimate_u [10:16], estimate_v [10:16];
+    reg [5:0] exponent [0:10];
+    reg [32:0] normalized [0:2];
+    reg signed [17:0] delta [0:3];
+    reg [34:0] seed_base [3:6], reciprocal;
+    reg [16:0] estimate_u [11:17], estimate_v [11:17];
     // A bounded seed estimate followed by exact residual corrections.
-    reg signed [38:0] remainder_u [14:16], remainder_v [14:16];
+    reg signed [38:0] remainder_u [15:17], remainder_v [15:17];
     reg signed [31:0] result_u, result_v;
     reg result_overflow;
+    reg [5:0] rounded_exponent;
     assign out_u = result_u;
     assign out_v = result_v;
-    assign out_tag = tag[17];
+    assign out_tag = tag[18];
     assign out_overflow = result_overflow;
-    assign out_invalid_q = invalid_q[17];
+    assign out_invalid_q = invalid_q[18];
 
     function [16:0] integer_estimate;
         input [77:0] value; input [5:0] exp;
@@ -331,26 +332,29 @@ module nano_uv_texture_pipeline (
     wire bad_upper_u = in_u[63] ? ((~&in_u[63:43]) || (in_u[42:0] == 0)) : (|in_u[63:43]);
     wire bad_upper_v = in_v[63] ? ((~&in_v[63:43]) || (in_v[42:0] == 0)) : (|in_v[63:43]);
     wire bad_upper = bad_upper_u || bad_upper_v;
-    wire [42:0] attribute_limit = {q[0],5'b0} + 43'd1024;
+    // q*32+1024 is (q+32)<<5. Capture that independent addition with
+    // the stage0 token so stage1 only compares its retained magnitude/limit.
+    reg [37:0] attribute_limit_hi;
+    wire [42:0] attribute_limit = {attribute_limit_hi,5'b0};
     wire bad_attribute = mag_u[0] > attribute_limit || mag_v[0] > attribute_limit;
     // Four independent native-RAM schedules, eight physical BSRAM blocks.
     // Bad-attribute validation occurs at edge1, so its combinational predicate
     // accompanies stage0 metadata written at that same edge.
     wire [47:0] context_input={overflow[0]||bad_attribute,invalid_q[0],
         negative_v[0],negative_u[0],tag[0],q[0]};
-    nano_uv_bsram_delay #(.WIDTH(48),.DELAY(10)) context_delay(
-        clk,reset,advance,delay_pointer,context_input,delayed_context10);
-    nano_uv_bsram_delay #(.WIDTH(92),.DELAY(5)) magnitude_first(
-        clk,reset,advance,delay_pointer,{exponent[1],mag_v[1],mag_u[1]},delayed_magnitude6);
+    nano_uv_bsram_delay #(.WIDTH(48),.DELAY(11)) context_delay(
+        clk,reset,advance,delay_pointer,context_input,delayed_context11);
+    nano_uv_bsram_delay #(.WIDTH(92),.DELAY(6)) magnitude_first(
+        clk,reset,advance,delay_pointer,{rounded_exponent,mag_v[1],mag_u[1]},delayed_magnitude7);
     nano_uv_bsram_delay #(.WIDTH(58),.DELAY(7)) magnitude_second(
-        clk,reset,advance,delay_pointer,{delayed_magnitude6[71:43],delayed_magnitude6[28:0]},delayed_magnitude13);
+        clk,reset,advance,delay_pointer,{delayed_magnitude7[71:43],delayed_magnitude7[28:0]},delayed_magnitude14);
     nano_uv_bsram_delay #(.WIDTH(34),.DELAY(4),.BANK_WIDTH(36)) estimate_delay(
-        clk,reset,advance,delay_pointer,{estimate_v[10],estimate_u[10]},delayed_estimate14);
-    wire [16:0] previous_estimate_u [14:15],previous_estimate_v [14:15];
-    assign previous_estimate_u[14]=delayed_estimate14[16:0];
-    assign previous_estimate_v[14]=delayed_estimate14[33:17];
-    assign previous_estimate_u[15]=estimate_u[15];
-    assign previous_estimate_v[15]=estimate_v[15];
+        clk,reset,advance,delay_pointer,{estimate_v[11],estimate_u[11]},delayed_estimate15);
+    wire [16:0] previous_estimate_u [15:16],previous_estimate_v [15:16];
+    assign previous_estimate_u[15]=delayed_estimate15[16:0];
+    assign previous_estimate_v[15]=delayed_estimate15[33:17];
+    assign previous_estimate_u[16]=estimate_u[16];
+    assign previous_estimate_v[16]=estimate_v[16];
     wire [37:0] normalized_q = q[0];
     reg [5:0] exponent_in;
     reg [32:0] normalized_mantissa;
@@ -391,17 +395,23 @@ module nano_uv_texture_pipeline (
             37:normalize_round=normalized_q[4]&&((|normalized_q[3:0])||normalized_q[5]);
             default:begin end
         endcase
-        normalized_in={1'b0,normalized_mantissa}+normalize_round;
-        if (normalized_in == 34'h200000000) begin
-            normalized_in = normalized_in >> 1; exponent_in = exponent_in + 1'b1;
+    end
+    reg [32:0] normalize_mantissa1;
+    reg normalize_round1;
+    always @* begin
+        normalized_in={1'b0,normalize_mantissa1}+normalize_round1;
+        rounded_exponent=exponent[1];
+        if ((&normalize_mantissa1)&&normalize_round1) begin
+            normalized_in=34'h100000000;
+            rounded_exponent=exponent[1]+1'b1;
         end
     end
     always @* begin
-        // OLD stage1 normalization feeds the independent stage2 residual
+        // OLD stage2 normalization feeds the independent stage3 residual
         // rounder, in parallel with the ROM read. Both establish their values
-        // before the seed DSP captures them onedge3. Subtracting the selected
+        // before the seed DSP captures them onedge4. Subtracting the selected
         // segment center simply flips residualbit23.
-        delta_raw={~normalized[1][23],normalized[1][22:0]};
+        delta_raw={~normalized[2][23],normalized[2][22:0]};
         // Extend the signed residual BEFORE adding its unsigned rounding
         // predicate. Otherwise Verilog zero-extends the17-bit negative slice
         // to the18-bit destination and reverses negative segment offsets.
@@ -411,57 +421,77 @@ module nano_uv_texture_pipeline (
     end
 
     wire [15:0] rom0, rom1, rom2, rom3;
-    nano_uv_seed_rom rom(clk, reset, advance && valid[1], normalized[1][31:24],
+    nano_uv_seed_rom rom(clk, reset, advance && valid[2], normalized[2][31:24],
         rom0, rom1, rom2, rom3);
     wire signed [33:0] seed_product;
     nano_uv_mul #(.AW(16),.BW(18),.SIGNED_B(1)) seed_mul(
-        clk,advance,reset,rom3,delta[2],seed_product);
+        clk,advance,reset,rom3,delta[3],seed_product);
     wire signed [77:0] u_product,v_product;
     nano_uv_mul #(.AW(43),.BW(35)) uv_mul_u(
-        clk,advance,reset,delayed_magnitude6[42:0],reciprocal,u_product);
+        clk,advance,reset,delayed_magnitude7[42:0],reciprocal,u_product);
     nano_uv_mul #(.AW(43),.BW(35)) uv_mul_v(
-        clk,advance,reset,delayed_magnitude6[85:43],reciprocal,v_product);
+        clk,advance,reset,delayed_magnitude7[85:43],reciprocal,v_product);
     wire signed [54:0] correction_u_product,correction_v_product;
     nano_uv_mul #(.AW(38),.BW(17)) exact_mul_u(
-        clk,advance,reset,delayed_context10[37:0],estimate_u[10],correction_u_product);
+        clk,advance,reset,delayed_context11[37:0],estimate_u[11],correction_u_product);
     nano_uv_mul #(.AW(38),.BW(17)) exact_mul_v(
-        clk,advance,reset,delayed_context10[37:0],estimate_v[10],correction_v_product);
+        clk,advance,reset,delayed_context11[37:0],estimate_v[11],correction_v_product);
     wire signed [26:0] rounded_seed = $signed(seed_product[33:7])+
         (seed_product[6]&&((|seed_product[5:0])||seed_product[7]));
-    wire [37:0] epsilon=q[16]>>17;
-    wire [37:0] positive_threshold=q[16]-epsilon;
-    wire round_u=negative_u[16]?(remainder_u[16]>$signed({1'b0,epsilon})):
-        (remainder_u[16]>=$signed({1'b0,positive_threshold}));
-    wire round_v=negative_v[16]?(remainder_v[16]>$signed({1'b0,epsilon})):
-        (remainder_v[16]>=$signed({1'b0,positive_threshold}));
-    wire [17:0] magnitude_u={1'b0,estimate_u[16]}+round_u;
-    wire [17:0] magnitude_v={1'b0,estimate_v[16]}+round_v;
-    wire over_u=negative_u[16]?magnitude_u>18'd32768:magnitude_u>18'd32767;
-    wire over_v=negative_v[16]?magnitude_v>18'd32768:magnitude_v>18'd32767;
-    wire signed [31:0] signed_u=negative_u[16]?-$signed({14'b0,magnitude_u}):$signed({14'b0,magnitude_u});
-    wire signed [31:0] signed_v=negative_v[16]?-$signed({14'b0,magnitude_v}):$signed({14'b0,magnitude_v});
-    wire signed [38:0] negative_q [14:15];
-    assign negative_q[14]=-$signed({1'b0,q[14]});
+    reg [20:0] epsilon;
+    // Replace the final full-q delay with its two rounding thresholds.
+    // They are captured from stage16 alongside residual stage17, preserving
+    // the enabled-edge latency while keeping subtraction out of the round path.
+    reg [37:0] positive_threshold;
+    wire [37:0] next_positive_threshold=q[16]-(q[16]>>17);
+    wire round_u=negative_u[17]?(remainder_u[17]>$signed({1'b0,epsilon})):
+        (remainder_u[17]>=$signed({1'b0,positive_threshold}));
+    wire round_v=negative_v[17]?(remainder_v[17]>$signed({1'b0,epsilon})):
+        (remainder_v[17]>=$signed({1'b0,positive_threshold}));
+    // Exact signed16 range predicates and both round candidates are formed
+    // independently of the remainder comparison. Round selects only the final
+    // candidate; it does not feed an increment/negate/comparison carry chain.
+    // Negative candidates are -k and ~(k), exactly -(k+1). The range tests
+    // account separately for the allowed negative endpoint -32768.
+    wire [16:0] positive_u=round_u?estimate_u[17]+17'd1:estimate_u[17];
+    wire [16:0] positive_v=round_v?estimate_v[17]+17'd1:estimate_v[17];
+    wire [16:0] negative_result_u=round_u?~estimate_u[17]:-estimate_u[17];
+    wire [16:0] negative_result_v=round_v?~estimate_v[17]:-estimate_v[17];
+    wire over_u=negative_u[17]?
+        (estimate_u[17][16]||(estimate_u[17][15]&&((|estimate_u[17][14:0])||round_u))):
+        ((|estimate_u[17][16:15])||((&estimate_u[17][14:0])&&round_u));
+    wire over_v=negative_v[17]?
+        (estimate_v[17][16]||(estimate_v[17][15]&&((|estimate_v[17][14:0])||round_v))):
+        ((|estimate_v[17][16:15])||((&estimate_v[17][14:0])&&round_v));
+    wire signed [16:0] selected_u=negative_u[17]?$signed(negative_result_u):$signed(positive_u);
+    wire signed [16:0] selected_v=negative_v[17]?$signed(negative_result_v):$signed(positive_v);
+    wire signed [31:0] signed_u={{15{selected_u[16]}},selected_u};
+    wire signed [31:0] signed_v={{15{selected_v[16]}},selected_v};
+    wire signed [38:0] negative_q [15:16];
     assign negative_q[15]=-$signed({1'b0,q[15]});
+    assign negative_q[16]=-$signed({1'b0,q[16]});
     always @(posedge clk) begin
         if (reset) begin
             valid <= 0; invalid_q <= 0; overflow <= 0; delay_pointer <= 0;
             negative_u <= 0; negative_v <= 0;
             result_u <= 0; result_v <= 0; result_overflow <= 0;
         end else if (advance) begin
-            valid <= {valid[16:0],in_valid};
+            valid <= {valid[17:0],in_valid};
             delay_pointer <= delay_pointer+1'b1;
             invalid_q[0] <= bad_q; overflow[0] <= bad_upper;
             negative_u[0] <= in_u[63]; negative_v[0] <= in_v[63];
             tag[0] <= in_tag; q[0] <= safe_q;
-            q[11] <= delayed_context10[37:0];
-            tag[11] <= delayed_context10[43:38];
-            negative_u[11] <= delayed_context10[44];
-            negative_v[11] <= delayed_context10[45];
-            invalid_q[11] <= delayed_context10[46];
-            overflow[11] <= delayed_context10[47];
-            for(n=12;n<17;n=n+1)q[n] <= q[n-1];
-            for(n=12;n<18;n=n+1)begin
+            attribute_limit_hi <= safe_q+38'd32;
+            q[12] <= delayed_context11[37:0];
+            positive_threshold <= next_positive_threshold;
+            epsilon <= q[16][37:17];
+            tag[12] <= delayed_context11[43:38];
+            negative_u[12] <= delayed_context11[44];
+            negative_v[12] <= delayed_context11[45];
+            invalid_q[12] <= delayed_context11[46];
+            overflow[12] <= delayed_context11[47];
+            for(n=13;n<17;n=n+1)q[n] <= q[n-1];
+            for(n=13;n<19;n=n+1)begin
                 tag[n] <= tag[n-1];
                 negative_u[n] <= negative_u[n-1];negative_v[n] <= negative_v[n-1];
                 invalid_q[n] <= invalid_q[n-1];overflow[n] <= overflow[n-1];
@@ -471,18 +501,19 @@ module nano_uv_texture_pipeline (
             mag_u[1] <= invalid_q[0] || overflow[0] || bad_attribute ? 0 : mag_u[0];
             mag_v[1] <= invalid_q[0] || overflow[0] || bad_attribute ? 0 : mag_v[0];
             exponent[1] <= exponent_in;
-            exponent[7]<=delayed_magnitude6[91:86];
-            for(n=8;n<10;n=n+1) exponent[n]<=exponent[n-1];
-            normalized[1] <= normalized_in[32:0];
-            delta[2]<=delta_in;
-            seed_base[3] <= {rom2[2:0],rom1,rom0};
-            for(n=4;n<6;n=n+1) seed_base[n]<=seed_base[n-1];
-            reciprocal <= $signed({1'b0,seed_base[5]})-rounded_seed;
-            estimate_u[10] <= integer_estimate(u_product,exponent[9]);
-            estimate_v[10] <= integer_estimate(v_product,exponent[9]);
-            remainder_u[14] <= $signed({1'b0,delayed_magnitude13[28:0],10'b0})-$signed({1'b0,correction_u_product});
-            remainder_v[14] <= $signed({1'b0,delayed_magnitude13[57:29],10'b0})-$signed({1'b0,correction_v_product});
-            for(n=15;n<17;n=n+1) begin
+            exponent[8]<=delayed_magnitude7[91:86];
+            for(n=9;n<11;n=n+1) exponent[n]<=exponent[n-1];
+            normalized[2] <= normalized_in[32:0];
+            normalize_mantissa1 <= normalized_mantissa; normalize_round1 <= normalize_round;
+            delta[3]<=delta_in;
+            seed_base[4] <= {rom2[2:0],rom1,rom0};
+            for(n=5;n<7;n=n+1) seed_base[n]<=seed_base[n-1];
+            reciprocal <= $signed({1'b0,seed_base[6]})-rounded_seed;
+            estimate_u[11] <= integer_estimate(u_product,exponent[10]);
+            estimate_v[11] <= integer_estimate(v_product,exponent[10]);
+            remainder_u[15] <= $signed({1'b0,delayed_magnitude14[28:0],10'b0})-$signed({1'b0,correction_u_product});
+            remainder_v[15] <= $signed({1'b0,delayed_magnitude14[57:29],10'b0})-$signed({1'b0,correction_v_product});
+            for(n=16;n<18;n=n+1) begin
                 estimate_u[n]<=previous_estimate_u[n-1];
                 estimate_v[n]<=previous_estimate_v[n-1];
                 if(remainder_u[n-1]<0||remainder_u[n-1]>=$signed({1'b0,q[n-1]})) begin
@@ -498,7 +529,7 @@ module nano_uv_texture_pipeline (
             end
             result_u <= over_u ? 0 : signed_u;
             result_v <= over_v ? 0 : signed_v;
-            result_overflow <= overflow[16] || over_u || over_v;
+            result_overflow <= overflow[17] || over_u || over_v;
         end
     end
 endmodule

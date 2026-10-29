@@ -192,8 +192,10 @@ int main(int argc, char** argv) {
 
         for (const auto item : std::array<std::array<unsigned, 2>, 4>{{
                 {{0x101, 1}}, {{0x100, 0}}, {{0x100, 17}}, {{0x7ffffc, 2}}}}) {
-            const auto event = test.command(5, false, item[0], item[1]);
-            require((event.done & 32u) && (event.error & 32u), "invalid memory command did not complete with error");
+            auto event = test.command(5, false, item[0], item[1]);
+            require(!(event.done & 32u) && !(event.error & 32u), "registered validation completed before its edge");
+            do event = test.step(); while (!(event.done & 32u));
+            require(event.error & 32u, "invalid memory command did not complete with error");
         }
 
         // Continuous scanout demand cannot starve the five other clients.

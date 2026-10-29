@@ -44,7 +44,8 @@ def main():
         "generate_tile_vectors.cpp", "tile_renderer_tb.sv",
         "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv",
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
-        "tile_record_compact_tb.sv")]
+        "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
+        "fragment_conservative_ready_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -76,6 +77,10 @@ def main():
         ("nano_sdp32_tb", tests[5], []),
         ("nano_tile_coefficient_throughput_tb", tests[6], []),
         ("nano_tile_record_compact_tb", tests[7], []),
+        ("nano_fragment_coordinate_skid_tb", tests[8], []),
+        ("nano_tile_step_control_tb", tests[9], []),
+        ("nano_tile_setup_tb", tests[10], []),
+        ("nano_fragment_conservative_ready_tb", tests[11], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -132,13 +137,65 @@ def main():
                       "last_seed_write_with_command_launch": True}
             for name, edges in matches:
                 print(f"Tile {name}: 1024 consecutive accepts and commits in {edges} edges", flush=True)
-        else:
+        elif top == "nano_tile_record_compact_tb":
             match = re.search(r"PASS (\d+) raw32/compact record validation and clipping vectors", output)
             if not match or int(match[1]) < 100000:
                 raise RuntimeError("compact header did not preserve full-width record acceptance")
+            setup_match = re.search(r"PASS (\d+) staged raw32 clipping/validation checkpoints", output)
+            if not setup_match or int(setup_match[1]) < 1000:
+                raise RuntimeError("registered setup did not preserve full-width validation and clipping")
             result = {"top": top, "passed": True, "raw_record_vectors": int(match[1]),
+                      "staged_setup_checkpoints": int(setup_match[1]),
+                      "no_side_effects_before_validation": True,
                       "full_width_acceptance_reference": True, "arbitrary_word_order": True,
                       "error_sentinel_rewrites": True, "viewport_intersections": True}
+            print(match[0], flush=True)
+        elif top == "nano_fragment_coordinate_skid_tb":
+            matches = re.findall(r"PASS coordinate skid bits(16|32):(\d+) ordered requests/commits", output)
+            if {bits for bits, _ in matches} != {"16", "32"} or any(int(count) < 1088 for _, count in matches):
+                raise RuntimeError("coordinate skid did not preserve both signed coordinate contracts under stalls")
+            result = {"top": top, "passed": True,
+                      "coordinate_contracts": [{"bits": int(bits), "ordered_requests_and_commits": int(count)}
+                                               for bits, count in matches],
+                      "registered_upstream_credit": True, "signed_endpoints": True,
+                      "held_request_identity": True, "factor_tag_order": True,
+                      "reset_cancels_full_skid": True}
+            print("Full32/tile16 coordinate skid stalls, identities, factors and reset cases passed", flush=True)
+        elif top == "nano_tile_step_control_tb":
+            match = re.search(r"PASS (\d+) signed plane/edge overflow timing cases and (\d+) clipped span traces", output)
+            if not match or int(match[1]) != 44 or int(match[2]) != 32:
+                raise RuntimeError("tile step control did not preserve overflow edges and every clipped width")
+            result = {"top": top, "passed": True, "overflow_and_final_sample_cases": int(match[1]),
+                      "clipped_span_traces": int(match[2]), "exact_fault_edge": True,
+                      "same_edge_busy_clear": True, "pending_sample_write_suppression": True,
+                      "unconsumed_final_overflow_ignored": True,
+                      "all_plane_edge_sign_and_direction_combinations": True,
+                      "clipped_origin": [608, 448], "height_per_span": 32}
+            print(match[0], flush=True)
+        elif top == "nano_fragment_conservative_ready_tb":
+            matches = re.findall(r"PASS conservative ready bits(16|32):(\d+) cases,.*checks(\d+)/(\d+)/(\d+)/(\d+)", output)
+            if ({bits for bits, *_ in matches} != {"16", "32"} or
+                    any(int(cases) != 9 or int(safe) < 200 or int(isolation) != 10 or int(holds) != 10 or int(ordered) != 80
+                        for _, cases, safe, isolation, holds, ordered in matches)):
+                raise RuntimeError("conservative fragment readiness did not preserve both coordinate contracts")
+            result = {"top": top, "passed": True,
+                      "coordinate_contracts": [{"bits": int(bits), "cases": int(cases),
+                          "safe_occupied_stage_acceptance_checks": int(safe), "compare_isolation_checks": int(isolation),
+                          "blocked_payload_hold_checks": int(holds), "blocked_head_order_checks": int(ordered)}
+                          for bits, cases, safe, isolation, holds, ordered in matches],
+                      "warm_consecutive_accepts_and_retirements_per_stream": 128,
+                      "passing_and_rejecting_sprites_and_triangles": True,
+                      "texture_requests_may_reorder_by_tag": True, "retirement_is_ordered": True,
+                      "blocked_rejection_cannot_overwrite_depth_stage": True}
+            print("Conservative readiness: full32/tile16 warm II1, blocked holds and ordered rejection cases passed", flush=True)
+        else:
+            match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)
+            if not match or int(match[1]) != 4 or int(match[2]) != 20:
+                raise RuntimeError("registered setup did not retain empty-descriptor validation under stalls")
+            result = {"top": top, "passed": True, "empty_descriptor_cases": int(match[1]),
+                      "held_configuration_edges": int(match[2]), "signed_raw_bounds": True,
+                      "cache_rejection_after_empty_configuration": True,
+                      "no_attachment_or_texture_requests": True}
             print(match[0], flush=True)
         results.append(result)
 

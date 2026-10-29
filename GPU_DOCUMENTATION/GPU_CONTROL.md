@@ -12,14 +12,24 @@ board timing constraints and RP2350 PIO/DMA driver have **not** been finalized.
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
-The current native-RAM/arithmetic area reduction preserves this **0.1 byte
+The current native implementation and timing changes preserve this **0.1 byte
 ABI**: opcodes, capability/status bytes, 320-byte primitive records, numeric
 rules and buffer ownership are unchanged. Coefficients, cache tags and SDRAM
 write masks have different internal storage, but drivers encode the same
 packets and do not compensate for internal pipeline latency or setup clocks.
-The source-matched [area-optimization regression](../docs/benchmarks/rtl-fit-optimized.json)
+The source-matched [timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json)
 records passing command/copy/LOAD/abort checks and two verified frames of each
 demo scene. CPU completion still follows the fence/presentation rules below.
+
+Control and coordinate-buffer timing changes preserve prepared-field widths,
+numeric overflow behavior, reply ordering and completion checks. Drivers still
+honor backpressure and wait for replies/status; they do not adjust commands for
+the buffer's internal coordinate widths or infer completion from clock counts.
+
+An accepted SDRAM transaction now has one internal validation/startup clock
+before transfer scheduling. This also delays an invalid transaction's internal
+error indication by one edge. CPU packet acceptance and fence/reply ordering
+are unchanged; drivers do not insert a matching delay between commands.
 
 ## 1. What the CPU sends
 
@@ -41,11 +51,18 @@ the GPU core clock is a separate domain connected through native asynchronous
 FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
-The source-matched [serial-probe route](../docs/hardware/rtl-core-pnr.json) is
-legal but reports a **48.26 MHz core maximum**, failing the 100.8 MHz target;
-the host reports 78.89 MHz and passes its 25.2 MHz target. The capability u32
+The current [serial-probe route](../docs/hardware/rtl-core-pnr.json) is
+legal but estimates **68.88 MHz core Fmax**, below the 100.8 MHz target;
+the host reports 118.27 MHz and passes its 25.2 MHz target. The capability u32
 at offset 24 remains 100,800,000; it describes the selected profile,
 not timing closure. Production bus pads and electrical timing remain unqualified.
+The routed frequencies are nextpnr static timing estimates using modeled cell
+and interconnect delays; they are not measured hardware limits. Verilator's
+cycle simulation does not establish those delays. Final clock selection needs
+timing analysis for the production board top and hardware testing.
+Further clock optimization is paused at this implementation for board
+integration and measurement. The nominal simulator/capability clock remains
+100.8 MHz; no production PLL or bus-clock configuration has been changed.
 
 | Signal | Direction at GPU | Current logical meaning |
 | --- | --- | --- |
@@ -340,6 +357,15 @@ Recovery procedure:
 5. If back/depth validity was lost, submit a full CLEAR/CLEAR pass before LOAD
    or presentation. Preserve the front until valid new work completes.
 
+Internally, recovery first registers a quiescent foreground state and stops
+new foreground memory commands, including texture refills. It then waits for
+accepted work to drain before resetting the renderer and flushing the host
+stream. A command accepted on the edge that establishes quiescence is still
+tracked and drained. Quiescence remains asserted through host flush acknowledgement before
+the executor returns to idle. These internal control edges can extend recovery;
+drivers must use the epoch/status checks above rather than a fixed delay.
+The display memory client remains active throughout soft recovery.
+
 Soft recovery increments the 32-bit epoch. It cannot recover past
 `0xFFFFFFFF`; hard reset is then required. **Hard reset sets epoch to 1 again**,
 reinitializes attachments, and invalidates heap assumptions. Therefore epoch
@@ -479,9 +505,12 @@ reuse one signed 33-bit interval/clipping datapath. For a nonempty copy, that
 refetch/clipping phase takes about 128 core clocks before address walking and
 pixel transfers. Completion is determined by the ordered fence/reply rules,
 not a fixed CPU delay. Native coefficient capture adds one setup clock per
-nonempty primitive/tile invocation; the sampler's private exact integer-texel
-pipeline has 18 enabled-edge latency and initiation interval one. Neither
-change modifies prepared records, numeric rules or completion semantics.
+nonempty primitive/tile invocation. Staged draw validation/clipping adds three
+setup clocks per valid invocation, including valid empty windows; texture
+configuration has two preparation edges before final acceptance. The sampler's
+private exact integer-texel pipeline has 19 enabled-edge latency and initiation
+interval one. These internal latencies do not modify prepared records, numeric
+rules or completion semantics.
 
 ## 9. Generic C99 driver examples
 

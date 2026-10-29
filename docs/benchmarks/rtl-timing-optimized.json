@@ -1,0 +1,206 @@
+{
+  "schema": "N20K-RTL-TIMING-OPTIMIZATION-1",
+  "scope": "Functional command-to-scanout RTL regressions; routed serial-probe evidence is separate from production board qualification",
+  "whole_gpu_fit_qualified": false,
+  "nominal_core_hz": 100800000,
+  "source_sha256": {
+    "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
+    "build/timing05-gpu/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+    "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
+    "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
+    "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
+    "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+    "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+    "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+    "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+    "rtl/gpu/nano_sdram_service.sv": "9bd4121d971f212560f987524dddef2773de5b06568d7c2303009b2ac74a1a62",
+    "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+    "rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
+    "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "reference/src/setup.cpp": "7994c74412e6496dcb10205f1ede388a6d059d330e8ca19c71049d2f0a9da733",
+    "reference/src/renderer.cpp": "088c82b3fb3567da69036f0c1dfd4e6da96c88c001add430138694e4d8b689e1",
+    "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+    "reference/src/hw_protocol.cpp": "0c5bdee4d7fb9fa31b19ef7b39b2c7d191d26e3269e9af1ac03531230caf1be5",
+    "reference/rtl/main.cpp": "4259fe6dcf72b65b41b3d229bf7ca700cdcd24b7c46e9a3439a0799bc0385b63",
+    "reference/rtl/sdram_model.cpp": "e748f8f958d95218b7cc8b365cc7b6ace332ab03919fd9869443603fd9ca49bc",
+    "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+    "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+    "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+    "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+    "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+    "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+    "reference/include/nano_gpu/hw/host_link.hpp": "e32576db31779c06940752001c990d6e0bdafee8105e159a47f2412d10ed4876",
+    "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+    "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+    "reference/include/nano_gpu/hw/protocol.hpp": "e98d79e1d3c642c67db7c7e40a075830bd3f8feed7d1b3bc0b4d01bff4c91fb5",
+    "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+    "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+    "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+    "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+    "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+    "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+    "reference/include/nano_gpu/hw/system.hpp": "b3cbba324bfe45850fde47171f6ff2ac010bda843b8f10f1bedb0be666eba5ec",
+    "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+    "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+    "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+    "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+    "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+    "reference/include/nano_gpu/reference.hpp": "ae3bccc742cd427ad91fc02614814211d4aae216cebe963b3662203df152cee6",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+    "scripts/gpu-rtl.py": "e25c2dbb940430bb47e229dfb56c465e25d9fc4c71a4ee24b233c1d4b2873a59",
+    "scripts/rtl-generate-rom.py": "2032d8984a690272a5a0a36760ae3aea3da6bb783b02e09008267bee84a8d891",
+    "scripts/rtl-check.py": "ce10cd7a0793324e34c298d66680959a0a4bfae86e3e6bf2f8f8290f53b318f5"
+  },
+  "executable_sha256": "5d54babb9b1f9573c03c10fec050a058615049cc3af0504af9d5325d63ed8b48",
+  "command_upload_copy_load_abort_tests_passed": true,
+  "scene_start_seconds": 1.25,
+  "scene_step_seconds": "1/60",
+  "frames_per_scene": 2,
+  "prior_baseline": "docs/benchmarks/rtl-fit-optimized.json",
+  "scenes": {
+    "showcase": {
+      "profile": "N20K-RTL-SIM-0.1",
+      "backend": "verilator",
+      "cpp_device_backends_linked": false,
+      "whole_gpu_fit_qualified": false,
+      "frames": 2,
+      "verified": true,
+      "core_cycles": 25055409,
+      "last_submission_cycles": 8468144,
+      "checked_scanout_frames": 8,
+      "black_scanout_frames_including_startup": 7,
+      "scanout_underflows": 0,
+      "wall_seconds_excluding_boot": 50.414338,
+      "color_fnv1a64": "d9644de9ed405e88",
+      "sdram_refreshes": 17293
+    },
+    "perspective": {
+      "profile": "N20K-RTL-SIM-0.1",
+      "backend": "verilator",
+      "cpp_device_backends_linked": false,
+      "whole_gpu_fit_qualified": false,
+      "frames": 2,
+      "verified": true,
+      "core_cycles": 21695409,
+      "last_submission_cycles": 7538752,
+      "checked_scanout_frames": 7,
+      "black_scanout_frames_including_startup": 6,
+      "scanout_underflows": 0,
+      "wall_seconds_excluding_boot": 34.014245,
+      "color_fnv1a64": "9df8090c6f9d95e7",
+      "sdram_refreshes": 14973
+    },
+    "overdraw": {
+      "profile": "N20K-RTL-SIM-0.1",
+      "backend": "verilator",
+      "cpp_device_backends_linked": false,
+      "whole_gpu_fit_qualified": false,
+      "frames": 2,
+      "verified": true,
+      "core_cycles": 25055409,
+      "last_submission_cycles": 9821420,
+      "checked_scanout_frames": 8,
+      "black_scanout_frames_including_startup": 7,
+      "scanout_underflows": 0,
+      "wall_seconds_excluding_boot": 40.066066,
+      "color_fnv1a64": "4ab23a6c05d8e2b8",
+      "sdram_refreshes": 17293
+    },
+    "opaque": {
+      "profile": "N20K-RTL-SIM-0.1",
+      "backend": "verilator",
+      "cpp_device_backends_linked": false,
+      "whole_gpu_fit_qualified": false,
+      "frames": 2,
+      "verified": true,
+      "core_cycles": 25055409,
+      "last_submission_cycles": 9872404,
+      "checked_scanout_frames": 8,
+      "black_scanout_frames_including_startup": 7,
+      "scanout_underflows": 0,
+      "wall_seconds_excluding_boot": 40.04776,
+      "color_fnv1a64": "c847f4fde6907f38",
+      "sdram_refreshes": 17294
+    }
+  },
+  "submission_cycle_comparison": {
+    "showcase": {
+      "before": 8375976,
+      "after": 8468144,
+      "delta": 92168,
+      "percent_change": 1.100385
+    },
+    "perspective": {
+      "before": 7422004,
+      "after": 7538752,
+      "delta": 116748,
+      "percent_change": 1.572998
+    },
+    "overdraw": {
+      "before": 9724304,
+      "after": 9821420,
+      "delta": 97116,
+      "percent_change": 0.998694
+    },
+    "opaque": {
+      "before": 9773996,
+      "after": 9872404,
+      "delta": 98408,
+      "percent_change": 1.006835
+    }
+  },
+  "capacity_report": "docs/hardware/rtl-core-pack.json",
+  "physical_report": "docs/hardware/rtl-core-pnr.json",
+  "implementation_notes": [
+    "Feature set and N20K-SYS-0.1 byte ABI are unchanged.",
+    "Three additional clipping/validation setup edges per executed draw; two texture-configuration preparation edges; one retained-command validation edge per SDRAM transaction.",
+    "A registered record-word boundary adds one internal edge, hidden by the existing record-completion state before draw launch.",
+    "Conservative fragment input readiness may add bubbles when depth rejects coincide with blocked downstream capacity; warm passing and rejecting streams still accept one fragment per core cycle.",
+    "Private integer-texel reconstruction uses 19 enabled edges and initiation interval one. The separate generic full-Q16 UV reference retains 26 enabled edges.",
+    "Nominal simulation milliseconds are not a timing-qualified FPGA frame rate. Physical route timing is reported separately."
+  ],
+  "extra_copy_oracle_cases": 29,
+  "extra_descriptor_load_fault_cases": 17,
+  "integration_cases": [
+    {
+      "name": "commands",
+      "passed": true
+    },
+    {
+      "name": "showcase",
+      "passed": true
+    },
+    {
+      "name": "perspective",
+      "passed": true
+    },
+    {
+      "name": "overdraw",
+      "passed": true
+    },
+    {
+      "name": "opaque",
+      "passed": true
+    }
+  ],
+  "physical_timing_estimate": {
+    "tool": "nextpnr-himbaechel",
+    "hardware_measured": false,
+    "estimated_core_fmax_mhz": 68.88001251220703,
+    "prior_estimated_core_fmax_mhz": 48.262550354003906,
+    "estimated_host_fmax_mhz": 118.27320861816406,
+    "core_critical_path_ns": 14.518000189214945,
+    "physical_lut_sites": 20305,
+    "dff_resources_including_reserved": 7003,
+    "native_bsram": 46,
+    "native_mult18x18": 25,
+    "further_clock_optimization": "paused by user choice; retain this candidate for board integration and measurement"
+  },
+  "physical_report_sha256": "dc2f47771157134088e85ae34fc97c7401728c73b74fa0bcdfaced13e903a48c",
+  "capacity_report_sha256": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4"
+}

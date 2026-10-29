@@ -79,7 +79,8 @@ module nano_sdram_service #(
         IDLE = 9, FILL = 10, CHOOSE = 11, PREPARE = 12,
         READ_WAIT = 13, READ_DATA = 14, WRITE_DATA = 15,
         WRITE_RECOVERY = 16, DRAIN = 17, REFRESH_WAIT = 18,
-        REFRESH_PRE_WAIT = 19, REFRESH_COMMAND = 20, REFRESH_RECOVERY = 21;
+        REFRESH_PRE_WAIT = 19, REFRESH_COMMAND = 20, REFRESH_RECOVERY = 21,
+        CHECK_REQUEST = 22;
     reg [4:0] state, refresh_resume;
     reg [POWER_BITS-1:0] power_count;
     reg [WAIT_BITS-1:0] wait_count;
@@ -140,24 +141,39 @@ module nano_sdram_service #(
         .rclk(clk), .rce(1'b1), .re(ram_re && request_write),
         .raddr(ram_raddr), .reset_output(reset), .rdata(mask_rdata));
 
-    reg winner_valid;
-    reg [OWNER_BITS-1:0] winner;
-    integer attempt, candidate;
-    always @* begin
-        winner_valid = 0; winner = 0; candidate = 0;
-        if (cmd_valid[0] && scanout_streak < STREAK_BITS'(SCANOUT_PRIORITY_LIMIT)) begin
-            winner_valid = 1; winner = 0;
-        end else begin
-            for (attempt = 0; attempt < CLIENTS - 1; attempt = attempt + 1) begin
-                candidate = int'(round_robin) + attempt;
-                if (candidate >= CLIENTS) candidate = candidate - (CLIENTS - 1);
-                if (!winner_valid && cmd_valid[candidate]) begin
-                    winner_valid = 1; winner = candidate[OWNER_BITS-1:0];
-                end
-            end
-            if (!winner_valid && cmd_valid[0]) begin winner_valid = 1; winner = 0; end
+    // The round-robin cursor is initialized to one and advances only after a
+    // foreground grant, wrapping CLIENTS-1 back to one. Decode that bounded
+    // cursor before selecting requests. Masked and wraparound priorities are
+    // computed in parallel; no integer candidate arithmetic or dynamic request
+    // indexing is on the ready path. Keep the grant one-hot through cmd_ready,
+    // encoding it only for the retained owner and selected command payload.
+    wire winner_valid = |cmd_valid;
+    wire [OWNER_BITS-1:0] winner;
+    wire [CLIENTS-1:0] foreground_requested, cursor_decode, foreground_eligible;
+    wire [CLIENTS-1:0] arbitration_grant;
+    wire scanout_first = cmd_valid[0] &&
+        scanout_streak < STREAK_BITS'(SCANOUT_PRIORITY_LIMIT);
+    wire foreground_any = |foreground_requested;
+    wire eligible_any = |foreground_eligible;
+    assign foreground_requested[0] = 1'b0;
+    assign cursor_decode[0] = 1'b0;
+    assign foreground_eligible[0] = 1'b0;
+    assign arbitration_grant[0] = cmd_valid[0] && (scanout_first || !foreground_any);
+    generate for (genvar client = 1; client < CLIENTS; client = client + 1) begin: arbiter_clients
+        assign foreground_requested[client] = cmd_valid[client];
+        assign cursor_decode[client] = round_robin == OWNER_BITS'(client);
+        assign foreground_eligible[client] = cmd_valid[client] && (|cursor_decode[client:1]);
+        assign arbitration_grant[client] = !scanout_first &&
+            ((foreground_eligible[client] && !(|foreground_eligible[client-1:0])) ||
+             (!eligible_any && foreground_requested[client] && !(|foreground_requested[client-1:0])));
+    end endgenerate
+    generate for (genvar bit_index = 0; bit_index < OWNER_BITS; bit_index = bit_index + 1) begin: arbiter_owner
+        wire [CLIENTS-1:0] encoded_sources;
+        for (genvar client = 0; client < CLIENTS; client = client + 1) begin: clients
+            assign encoded_sources[client] = arbitration_grant[client] && ((client & (1 << bit_index)) != 0);
         end
-    end
+        assign winner[bit_index] = |encoded_sources;
+    end endgenerate
 
     reg refresh_safe;
     integer bank;
@@ -188,14 +204,26 @@ module nano_sdram_service #(
     wire [4:0] remaining_words = request_words - processed;
     wire [22:0] winner_address = cmd_addr[winner*23 +: 23];
     wire [4:0] winner_words = cmd_words[winner*5 +: 5];
-    wire [23:0] winner_end = {1'b0, winner_address} + {17'b0, winner_words, 2'b0};
+    // With an aligned address and 1..16 words, only the final 64-byte line
+    // can cross the 8 MiB boundary. Keep malformed alignment/count rejection,
+    // but check that last line with a six-bit sum instead of carrying through
+    // the complete byte address. Ending exactly at 8 MiB remains valid.
+    wire [5:0] winner_last_line_end = {2'b0, winner_address[5:2]} + {1'b0, winner_words};
+    wire winner_past_end = (&winner_address[22:6]) && winner_last_line_end > 6'd16;
     wire winner_invalid = winner_address[1:0] != 0 || winner_words == 0 ||
-        winner_words > 16 || winner_end > 24'h800000;
+        winner_words > 16 || winner_past_end;
+
+    // Capture command fields on the handshake before evaluating their range.
+    // This stage consumes only the retained request, never live client inputs.
+    wire [5:0] request_last_line_end = {2'b0, request_address[5:2]} + {1'b0, request_words};
+    wire request_past_end = (&request_address[22:6]) && request_last_line_end > 6'd16;
+    wire request_invalid = request_address[1:0] != 0 || request_words == 0 ||
+        request_words > 16 || request_past_end;
 
     assign sd_clk = clk;
     always @* begin
         cmd_ready = 0; w_ready = 0; r_valid = 0; r_data = 0; r_last = 0;
-        if (state == IDLE && initialized && !refresh_due && winner_valid) cmd_ready[winner] = 1;
+        if (state == IDLE && initialized && !refresh_due) cmd_ready = arbitration_grant;
         if (state == FILL && !refresh_due) w_ready[owner] = 1;
         if (read_stream_active && read_output_valid) begin
             r_valid[owner] = 1;
@@ -317,15 +345,17 @@ module nano_sdram_service #(
                             scanout_streak <= 0;
                             round_robin <= winner == OWNER_BITS'(CLIENTS - 1) ? 1 : winner + 1'b1;
                         end
-                        if (winner_invalid) begin done[winner] <= 1; error[winner] <= 1; end
-                        else begin
-                            owner <= winner; request_address <= winner_address;
-                            request_words <= winner_words; request_write <= cmd_write[winner];
-                            fill_index <= 0; processed <= 0;
-                            read_stream_active <= 0; read_output_valid <= 0;
-                            state <= cmd_write[winner] ? FILL : CHOOSE;
-                        end
+                        owner <= winner; request_address <= winner_address;
+                        request_words <= winner_words; request_write <= cmd_write[winner];
+                        fill_index <= 0; processed <= 0;
+                        read_stream_active <= 0; read_output_valid <= 0;
+                        state <= CHECK_REQUEST;
                     end
+                end
+                CHECK_REQUEST: begin
+                    if (refresh_due) begin refresh_resume <= CHECK_REQUEST; state <= REFRESH_WAIT; end
+                    else if (request_invalid) begin done[owner] <= 1; error[owner] <= 1; state <= IDLE; end
+                    else state <= request_write ? FILL : CHOOSE;
                 end
                 FILL: begin
                     if (refresh_due) begin refresh_resume <= FILL; state <= REFRESH_WAIT; end

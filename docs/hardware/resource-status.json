@@ -305,17 +305,17 @@
     "reference/src/hw_texture.cpp": "f39a0e7bbcd95583f14b2b034fd6f661ccb78802525ed514c320a9e39cb5716e",
     "reference/src/hw_tile_pipeline.cpp": "eaaea06b0942b2e837a2ce019b7cc7d25ad297c938cd7239246a5d28cb842ba3",
     "reference/src/hw_walker2d.cpp": "f25b2d7b2f367459eb025fd57b359c9590d9076ef3adfd35bb0b6f5a8ae96ac1",
-    "rtl/gpu/nano_fragment_pipeline.sv": "9a6ff66699504792faea5f736ada9754dc6569134a6b6bd55158021bfd0cfce4",
-    "rtl/gpu/nano_gpu_core.sv": "e5caac8dde8882f9741424e36bef29f3dedf8ae0d40f5e95bf791a5c61297be4",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
     "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
-    "rtl/gpu/nano_sdram_service.sv": "4a2ad5681323925b49250f70ebaaafb3ee40751029db8814cc9359b41b11dc2a",
-    "rtl/gpu/nano_texture_cache.sv": "4ea5f6f99bd872cc7181bd4e09b983debe58076c2d3ce0a6e48cf14be0497c7d",
-    "rtl/gpu/nano_tile_renderer.sv": "e95baeec93d3f12c04cacc4cfeaaa5ac2774daeb68023da4152f18e44ec2cd80",
+    "rtl/gpu/nano_sdram_service.sv": "9bd4121d971f212560f987524dddef2773de5b06568d7c2303009b2ac74a1a62",
+    "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+    "rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
-    "rtl/uv_pipeline.v": "24e3c7bbe9d20a6e4527a08d642f8a845b424c929c02f47e27b73553f0eab3af"
+    "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784"
   },
   "arithmetic_probe": {
     "scope": "recorded reciprocal/UV arithmetic probe, including serial test harness",
@@ -398,19 +398,19 @@
     "timing_met": null,
     "utilization": {
       "LUT4": {
-        "used": 17005,
+        "used": 17134,
         "available": 20736,
         "within_capacity": true,
         "overage": 0
       },
       "DFF": {
-        "used": 6830,
+        "used": 7003,
         "available": 15552,
         "within_capacity": true,
         "overage": 0
       },
       "ALU": {
-        "used": 5744,
+        "used": 5494,
         "available": 15552,
         "within_capacity": true,
         "overage": 0
@@ -446,7 +446,7 @@
         "within_capacity": true
       },
       "LUT4": {
-        "used": 17005,
+        "used": 17134,
         "available": 20736,
         "within_capacity": true
       },
@@ -481,7 +481,7 @@
         "within_capacity": true
       },
       "ALU": {
-        "used": 5744,
+        "used": 5494,
         "available": 15552,
         "within_capacity": true
       },
@@ -491,7 +491,7 @@
         "within_capacity": true
       },
       "DFF": {
-        "used": 6830,
+        "used": 7003,
         "available": 15552,
         "within_capacity": true
       },
@@ -656,16 +656,16 @@
       "sha256": "346e06578a2d11adafc01f00165246dd708d217f0ecce6375b0c16a8673824db"
     },
     "recorded_logical_core_report": {
-      "path": "/workspace/Nano-20K-GPU/build/rtl-gpu/build-report.json",
-      "sha256": "2248f9410fd378026d4a1357222b5c033864234f4943e14b5db183ca18d64afa"
+      "path": "build/timing05-gpu/build-report.json",
+      "sha256": "255e048cda6e11b9a57c57b4a850b5f6085cd281eff1032974c242ecb9efe9b4"
     },
     "recorded_logical_core_pack": {
-      "path": "/workspace/Nano-20K-GPU/docs/hardware/rtl-core-pack.json",
-      "sha256": "f2d6efa44f21acc6fc00bff0d328b45e110c83ef726225a513a0f54168f99caa"
+      "path": "docs/hardware/rtl-core-pack.json",
+      "sha256": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4"
     },
     "retained_pack_build_report": {
-      "path": "build/rtl-core-pack/qualification.json",
-      "sha256": "08c979b42682bb3c0e18161c09341aa9e48c3b727ad1ab306b2389548d53b048"
+      "path": "build/timing05-pack/qualification.json",
+      "sha256": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4"
     }
   }
 }

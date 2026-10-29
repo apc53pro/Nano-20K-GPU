@@ -50,6 +50,13 @@ module nano_texture_cache (
     reg repeat_u, repeat_v;
     reg [23:0] extent;
     reg [63:0] line_valid;
+    // Configuration is held by its producer until cfg_ready. First retain the
+    // shifted allocation and independent field checks, then check its end in
+    // a separate clock. Activation still occurs only on the ready/valid edge.
+    localparam [1:0] CFG_IDLE=0, CFG_RANGE=1, CFG_READY=2;
+    reg [1:0] cfg_phase;
+    reg [20:0] cfg_extent_words;
+    reg cfg_fields_ok, cfg_range_ok, cfg_changed;
     // Tags use a second native RAM, read alongside the linear-address latch.
     // A completed refill forwards its tag until that retained miss advances;
     // this avoids an undefined same-address read/write and a replay bubble.
@@ -87,7 +94,8 @@ module nano_texture_cache (
     wire advance = state == RUN && output_advance && (!linear_valid || line_hit);
     wire pipeline_empty = !(|multiply_valid) && !linear_valid && !lookup_valid &&
         !read_pending && !rsp_valid;
-    assign cfg_ready = state == RUN && pipeline_empty && !flush;
+    assign cfg_ready = state == RUN && pipeline_empty && !flush &&
+        (!cfg_valid || cfg_phase == CFG_READY);
     assign req_ready = configured && !fault && !reset && !flush && !cfg_valid && advance;
     wire accepting = req_valid && req_ready;
 
@@ -125,10 +133,28 @@ module nano_texture_cache (
     wire [33:0] new_extent = allocation_extent(cfg_pitch,cfg_height);
     wire width_pot = cfg_width != 0 && (cfg_width & (cfg_width-11'd1)) == 0;
     wire height_pot = cfg_height != 0 && (cfg_height & (cfg_height-11'd1)) == 0;
-    wire descriptor_ok = width_pot && height_pot && cfg_width <= 1024 &&
+    wire descriptor_fields_ok = width_pot && height_pot && cfg_width <= 1024 &&
         cfg_height <= 1024 && cfg_base >= 23'h258000 && cfg_base[1:0] == 0 &&
-        cfg_pitch[1:0] == 0 && cfg_pitch >= ({12'd0,cfg_width} << 1) &&
-        ({12'd0,cfg_base} + {1'b0,new_extent}) <= 35'd8388608;
+        cfg_pitch[1:0] == 0 && cfg_pitch >= ({12'd0,cfg_width} << 1);
+    // A valid base is nonzero, so an allocation of 8 MiB or more cannot fit.
+    // Retain that full-width rejection before reducing the aligned end check
+    // to words. Low address/stride bits are checked above, never truncated
+    // into validity. Equality at the final 8-MiB boundary remains accepted.
+    wire [21:0] cfg_allocation_end_words =
+        {1'b0,cfg_base[22:2]} + {1'b0,cfg_extent_words};
+`ifndef SYNTHESIS
+    // The producer owns the tuple until the eventual ready/valid edge. A
+    // withdrawn request may change immediately; a held request may not.
+    reg [69:0] cfg_held_tuple;
+    always @(posedge clk) begin
+        if(!reset && !flush && cfg_valid && state == RUN && pipeline_empty) begin
+            if(cfg_phase == CFG_IDLE)
+                cfg_held_tuple <= {cfg_base,cfg_pitch,cfg_width,cfg_height,cfg_repeat_u,cfg_repeat_v};
+            else if(cfg_held_tuple !== {cfg_base,cfg_pitch,cfg_width,cfg_height,cfg_repeat_u,cfg_repeat_v})
+                $fatal(1,"texture descriptor changed before configuration acceptance");
+        end
+    end
+`endif
     wire [9:0] accepted_x = coordinate(req_x,width,repeat_u);
     wire [9:0] accepted_y = coordinate(req_y,height,repeat_v);
     wire [21:0] pitch_words = pitch[22:1];
@@ -187,6 +213,8 @@ module nano_texture_cache (
         if (reset) begin
             state <= RUN; configured <= 0; base <= 0; pitch <= 0;
             width <= 0; height <= 0; repeat_u <= 0; repeat_v <= 0; extent <= 0;
+            cfg_phase <= CFG_IDLE; cfg_extent_words <= 0;
+            cfg_fields_ok <= 0; cfg_range_ok <= 0; cfg_changed <= 0;
             line_valid <= 0; refill_forward <= 0; multiply_valid <= 0; linear_valid <= 0;
             lookup_valid <= 0; read_pending <= 0; rsp_valid <= 0;
             rsp_texel <= 0; rsp_tag <= 0; fault <= 0;
@@ -205,14 +233,32 @@ module nano_texture_cache (
                 if (state != RUN || !pipeline_empty) fault <= 1;
                 else line_valid <= 0;
             end
+            // Withdrawing an unaccepted configuration or flushing cancels
+            // preparation without changing the active descriptor or tags.
+            if (!cfg_valid || flush || state != RUN) cfg_phase <= CFG_IDLE;
+            else if (pipeline_empty) begin
+                case (cfg_phase)
+                CFG_IDLE: begin
+                    cfg_extent_words <= new_extent[22:2];
+                    cfg_fields_ok <= descriptor_fields_ok && !(|new_extent[33:23]);
+                    cfg_changed <= !configured || base != cfg_base || pitch != cfg_pitch ||
+                        width != cfg_width || height != cfg_height;
+                    cfg_phase <= CFG_RANGE;
+                end
+                CFG_RANGE: begin
+                    cfg_range_ok <= cfg_fields_ok && cfg_allocation_end_words <= 22'h200000;
+                    cfg_phase <= CFG_READY;
+                end
+                CFG_READY: if (cfg_ready) cfg_phase <= CFG_IDLE;
+                default: cfg_phase <= CFG_IDLE;
+                endcase
+            end
             if (cfg_valid && cfg_ready) begin
-                if (!descriptor_ok) fault <= 1;
+                if (!cfg_range_ok) fault <= 1;
                 else begin
-                    if (!configured || base != cfg_base || pitch != cfg_pitch ||
-                        width != cfg_width || height != cfg_height)
-                        line_valid <= 0;
+                    if (cfg_changed) line_valid <= 0;
                     base <= cfg_base; pitch <= cfg_pitch; width <= cfg_width;
-                    height <= cfg_height; extent <= new_extent[23:0];
+                    height <= cfg_height; extent <= {1'b0,cfg_extent_words,2'b0};
                     repeat_u <= cfg_repeat_u; repeat_v <= cfg_repeat_v;
                     configured <= 1;
                 end

@@ -45,8 +45,8 @@ module uv_texture_tb;
             held_valid=out_valid;held_overflow=out_overflow;held_invalid=out_invalid_q;
             @(posedge clk);
             if(ce && out_ready && out_valid)begin
-                if(retired<count/2-18 && cycle!=retired+19)
-                    $fatal(1,"18-edge latency/II1 mismatch at%0d cycle%0d",retired,cycle);
+                if(retired<count/2-19 && cycle!=retired+20)
+                    $fatal(1,"19-edge latency/II1 mismatch at%0d cycle%0d",retired,cycle);
                 if(out_tag!==retired%64)$fatal(1,"context tag mismatch at%0d",retired);
                 if(out_invalid_q!==expected_invalid[retired])$fatal(1,"invalid-q flag mismatch at%0d",retired);
                 if(!expected_invalid[retired] && out_overflow!==expected_overflow[retired])

@@ -1,7 +1,7 @@
 // Ordered 64-context textured path. Every retained payload is stored through
 // three native RAM ports. Ready/rejection bits and small handoff
 // registers are explicit RTL state; there is no parallel array readback path.
-module nano_fragment_pipeline (
+module nano_fragment_pipeline #(parameter COORD_BITS = 32) (
     input wire clk, input wire reset,
     input wire color_write, input wire depth_test, input wire depth_write,
     input wire [1:0] depth_func, input wire key_enable, input wire [15:0] key_color,
@@ -33,11 +33,18 @@ module nano_fragment_pipeline (
     reg [5:0] depth_slot;
     reg [23:0] depth_value;
     reg signed [63:0] depth_u,depth_v,depth_q;
-    reg signed [31:0] depth_x,depth_y;
+    reg signed [COORD_BITS-1:0] depth_x,depth_y;
     reg coordinate_read,coordinate_valid;
     reg [5:0] coordinate_read_slot,coordinate_slot;
-    reg signed [31:0] coordinate_read_x,coordinate_read_y,coordinate_x,coordinate_y;
+    reg signed [COORD_BITS-1:0] coordinate_read_x,coordinate_read_y,coordinate_x,coordinate_y;
     reg [23:0] coordinate_factor;
+    // A second retained coordinate absorbs the first blocked request. Ready
+    // depends only on this registered occupancy, not the cache's tag/miss
+    // decision. The main entry still feeds the cache directly on warm runs.
+    reg coordinate_skid_valid;
+    reg [5:0] coordinate_skid_slot;
+    reg signed [COORD_BITS-1:0] coordinate_skid_x,coordinate_skid_y;
+    reg [23:0] coordinate_skid_factor;
     reg [23:0] texture_factor [0:7];
     reg [5:0] texture_slot [0:7];
     reg [2:0] texture_head,texture_tail;
@@ -51,7 +58,7 @@ module nano_fragment_pipeline (
     wire texture_send=coordinate_valid&&(texture_count<8)&&!fault&&!reset;
     wire texture_accept=texture_send&&tex_req_ready;
     wire texture_response=tex_rsp_valid&&tex_rsp_ready;
-    wire coordinate_space=!coordinate_valid||texture_accept;
+    wire coordinate_space=!coordinate_skid_valid;
     wire capture_coordinate=coordinate_read&&coordinate_space;
     wire read_space=!coordinate_read||capture_coordinate;
     wire uv_valid,uv_ready,uv_in_ready,uv_overflow,uv_invalid;
@@ -63,7 +70,13 @@ module nano_fragment_pipeline (
     wire sprite_coordinate=depth_valid&&depth_passing&&depth_sprite&&read_space&&!uv_valid&&!fault&&!reset;
     wire uv_input=depth_valid&&depth_passing&&!depth_sprite&&!fault&&!reset;
     wire depth_consumed=depth_reject||sprite_coordinate||(uv_input&&uv_in_ready);
-    assign in_ready=(!depth_valid||depth_consumed)&&((count<64)||retire_now)&&!fault&&!reset;
+    // Accept replacement work whenever the retained depth stage could pass
+    // downstream, without placing the depth-RAM comparison on upstream ready.
+    // A rejected sample still clears depth_valid independently below. If its
+    // downstream path is blocked, this conservative ready may insert one
+    // bubble; it never overwrites an unconsumed sample and retains warm II1.
+    wire depth_downstream_space=depth_sprite?(read_space&&!uv_valid):uv_in_ready;
+    assign in_ready=(!depth_valid||depth_downstream_space)&&((count<64)||retire_now)&&!fault&&!reset;
     wire accept=in_valid&&in_ready;
     assign uv_ready=read_space&&!fault&&!reset;
     wire uv_coordinate=uv_valid&&uv_ready;
@@ -147,6 +160,8 @@ module nano_fragment_pipeline (
             depth_u<=0;depth_v<=0;depth_q<=0;depth_x<=0;depth_y<=0;
             coordinate_read<=0;coordinate_valid<=0;coordinate_read_slot<=0;coordinate_slot<=0;
             coordinate_read_x<=0;coordinate_read_y<=0;coordinate_x<=0;coordinate_y<=0;coordinate_factor<=0;
+            coordinate_skid_valid<=0;coordinate_skid_slot<=0;
+            coordinate_skid_x<=0;coordinate_skid_y<=0;coordinate_skid_factor<=0;
             texture_head<=0;texture_tail<=0;texture_count<=0;shade_valid<=0;fault<=0;
             for(i=0;i<3;i=i+1)shade_slot[i]<=0;
         end else if(!fault) begin
@@ -182,11 +197,25 @@ module nano_fragment_pipeline (
                 texture_factor[texture_tail]<=coordinate_factor;texture_slot[texture_tail]<=coordinate_slot;
                 texture_tail<=texture_tail+1;
             end
-            if(texture_accept)coordinate_valid<=0;
+            if(texture_accept)begin
+                if(coordinate_skid_valid)begin
+                    coordinate_valid<=1;coordinate_skid_valid<=0;
+                    coordinate_slot<=coordinate_skid_slot;
+                    coordinate_x<=coordinate_skid_x;coordinate_y<=coordinate_skid_y;
+                    coordinate_factor<=coordinate_skid_factor;
+                end else coordinate_valid<=0;
+            end
             if(capture_coordinate)begin
-                coordinate_valid<=1;coordinate_slot<=coordinate_read_slot;
-                coordinate_x<=coordinate_read_x;coordinate_y<=coordinate_read_y;
-                coordinate_factor<={data4[7:0],data3};coordinate_read<=0;
+                coordinate_read<=0;
+                if(!coordinate_valid||texture_accept)begin
+                    coordinate_valid<=1;coordinate_slot<=coordinate_read_slot;
+                    coordinate_x<=coordinate_read_x;coordinate_y<=coordinate_read_y;
+                    coordinate_factor<={data4[7:0],data3};
+                end else begin
+                    coordinate_skid_valid<=1;coordinate_skid_slot<=coordinate_read_slot;
+                    coordinate_skid_x<=coordinate_read_x;coordinate_skid_y<=coordinate_read_y;
+                    coordinate_skid_factor<={data4[7:0],data3};
+                end
             end
             if(uv_coordinate)begin
                 if(uv_invalid||uv_overflow)fault<=1;

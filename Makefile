@@ -183,6 +183,7 @@ rtl-block-test:
 	$(PYTHON) scripts/rtl-native-check.py --host --build-dir "$(BUILD_DIR)/rtl-native"
 	$(PYTHON) scripts/rtl-renderer-check.py --build-dir "$(BUILD_DIR)/rtl-renderer"
 	$(PYTHON) scripts/rtl-memory-check.py --build-dir "$(BUILD_DIR)/rtl-memory"
+	$(PYTHON) scripts/rtl-core-recovery-check.py --build-dir "$(BUILD_DIR)/rtl-core-recovery"
 
 $(foreach name,$(SYSTEM_TEST_NAMES),$(BUILD_DIR)/$(name)_tests.o): $(BUILD_DIR)/%_tests.o: reference/tests/%_tests.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(INCLUDES) -c $< -o $@
