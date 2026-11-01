@@ -30,6 +30,14 @@ Whenever the architecture or CPU control changes, update **both files in
 `GPU_DOCUMENTATION/`** in the same change and push them with the implementation.
 Describe implemented behavior as implemented, and label proposals as planned.
 
+**Hardware compatibility policy:** backward compatibility must never consume
+additional hardware resources. Retain no legacy decoder, compatibility mode
+or duplicate datapath solely to support an older interface at a resource cost.
+Break the ABI and update host software, tests and both guides together when
+necessary. Compatibility with zero additional hardware cost is allowed. This
+policy does not remove required current functionality or input validation;
+the currently implemented profile remains unchanged.
+
 ## 1. Target hardware and selected operating profile
 
 The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin

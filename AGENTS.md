@@ -1,3 +1,19 @@
+# Hardware compatibility policy
+
+The user prohibits backward compatibility that consumes additional hardware
+resources in any of their projects. Treat this as a hard design constraint in
+this repository. Never retain or add legacy protocol decoders, compatibility
+modes, fallback engines, bridges or duplicate datapaths solely to preserve old
+interfaces when they cost LUTs, flip-flops, RAM, DSPs, pins or other hardware
+resources. There is no small-cost exception.
+
+Break the provisional ABI when needed and update the current host software,
+tests and both authoritative GPU guides together. Compatibility may remain
+only when it adds no hardware resource cost; establish that from implementation
+and resource evidence rather than assuming a legacy branch is free.
+Required current functionality and input validation are not compatibility-only logic; do not remove them
+merely because they involve formats, versions or multiple data encodings.
+
 # GPU documentation maintenance
 
 The user requires a single obvious home for the GPU's current documentation:

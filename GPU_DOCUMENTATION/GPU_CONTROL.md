@@ -22,6 +22,13 @@ The source-matched [timing-optimization regression](../docs/benchmarks/rtl-timin
 records passing command/copy/LOAD/abort checks and two verified frames of each
 demo scene. CPU completion still follows the fence/presentation rules below.
 
+**Hardware compatibility policy:** old host software or packet formats must
+never require additional GPU hardware resources. Interface changes may break
+the ABI; update the current host software, tests and both guides together
+instead of retaining a resource-consuming legacy path. Compatibility with no
+additional hardware cost is allowed. Current-format validation remains
+required, and this policy changes none of the packet formats documented here.
+
 Control and coordinate-buffer timing changes preserve prepared-field widths,
 numeric overflow behavior, reply ordering and completion checks. Drivers still
 honor backpressure and wait for replies/status; they do not adjust commands for
