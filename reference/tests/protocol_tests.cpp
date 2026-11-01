@@ -80,7 +80,7 @@ AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t firs
         const std::vector<std::uint8_t> header(program.bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
             program.bytes.begin() + static_cast<std::ptrdiff_t>(cursor + packet_header_bytes));
         expect(header[0] == 'N' && header[1] == 'G' && header[2] == 'P' && header[3] == 'U' &&
-               header[4] == 0 && header[5] == 1, "CPU program has invalid NGPU envelope");
+               header[4] == 0 && header[5] == 2, "CPU program has invalid NGPU envelope");
         const auto length = read_u32(header, 8);
         expect(length <= maximum_packet_payload && program.bytes.size() - cursor - packet_header_bytes >= length,
                "CPU program has an unbounded or truncated packet body");
@@ -92,14 +92,15 @@ AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t firs
         if (opcode == Opcode::WriteHeap) {
             ++result.uploads;
             expect(result.submits == 0 && length >= 8, "upload appeared after pass submission");
-            const auto address = read_u32(payload, 0);
-            const auto bytes = read_u32(payload, 4);
-            expect(bytes == length - 8 && bytes % 4 == 0, "upload count/alignment differs from packet body");
+            const auto upload = decode_heap_upload(payload);
+            const auto address = upload.address;
+            const auto bytes = upload.bytes.size();
+            expect(bytes % 4 == 0, "compiled upload is not word aligned");
             validate_heap_range(address, bytes);
             const auto offset = static_cast<std::size_t>(address - heap_base);
             expect(offset <= result.heap.size() && bytes <= result.heap.size() - offset,
                    "upload outside CPU program's declared heap use");
-            std::copy(payload.begin() + 8, payload.end(), result.heap.begin() + static_cast<std::ptrdiff_t>(offset));
+            std::copy(upload.bytes.begin(), upload.bytes.end(), result.heap.begin() + static_cast<std::ptrdiff_t>(offset));
         } else if (opcode == Opcode::SubmitPass) {
             ++result.submits;
             expect(length == 4 && result.submits == 1 && result.fences == 0 &&
@@ -152,7 +153,7 @@ void byte_tests() {
         expect(bytes == before, "invalid field write mutated bytes");
     });
     run_case("NGPU envelope matches independent byte vector", [] {
-        const std::vector<std::uint8_t> expected{'N', 'G', 'P', 'U', 0, 1, 3, 0,
+        const std::vector<std::uint8_t> expected{'N', 'G', 'P', 'U', 0, 2, 3, 0,
             4, 0, 0, 0, 0x78, 0x56, 0x34, 0x12, 0x01, 0x23, 0x45, 0x67};
         expect(encode_packet(Opcode::WriteHeap, 0x12345678u, {1, 0x23, 0x45, 0x67}) == expected,
                "NGPU header no longer matches published envelope");
@@ -171,6 +172,62 @@ void byte_tests() {
         expect(texture_extent({memory_bytes - 4, 2, 1, 4}) == 4, "last legal image word rejected");
         expect(texture_extent({heap_base, 23, 17, 52}) == 884, "NPOT generic image rejected");
         expect_throws([] { texture_extent({heap_base, 1024, 1024, 0xfffffffcu}); }, "oversized stride accepted");
+    });
+}
+
+void upload_codec_tests() {
+    run_case("unified upload codec matches an independent four-width byte vector", [] {
+        std::vector<std::uint8_t> bytes(16);
+        write_u32(bytes, 0, 0); write_u32(bytes, 4, 0xffffff80u);
+        write_u32(bytes, 8, 0x80); write_u32(bytes, 12, 0x12345678);
+        const std::vector<std::uint8_t> expected{
+            0x00, 0x80, 0x25, 0x00, 0x10, 0, 0, 0,
+            0xe4, 0x80, 0x80, 0, 0x78, 0x56, 0x34, 0x12};
+        expect(encode_heap_upload(heap_base, bytes) == expected,
+               "zero/s8/s16/literal words differ from published byte order");
+        const auto decoded = decode_heap_upload(expected);
+        expect(decoded.address == heap_base && decoded.bytes == bytes,
+               "independent encoded words did not reconstruct exactly");
+    });
+    run_case("all byte lengths and signed-width boundaries retain exact upload bytes", [] {
+        const std::array<std::uint32_t, 12> boundaries{{0, 0x7f, 0xffffff80u, 0x80,
+            0xffffff7fu, 0x7fff, 0xffff8000u, 0x8000, 0xffff7fffu,
+            0x80000000u, 0x7fffffffu, 0x89abcdefu}};
+        std::vector<std::uint8_t> source(maximum_upload_decoded_bytes);
+        for (std::size_t word = 0; word < source.size() / 4; ++word)
+            write_u32(source, 4 * word, boundaries[word % boundaries.size()]);
+        for (std::size_t length = 1; length <= source.size(); ++length) {
+            const std::vector<std::uint8_t> bytes(source.begin(), source.begin() + static_cast<std::ptrdiff_t>(length));
+            const auto payload = encode_heap_upload(memory_bytes - static_cast<std::uint32_t>(length), bytes);
+            const auto restored = decode_heap_upload(payload);
+            expect(payload.size() <= maximum_packet_payload && restored.bytes == bytes &&
+                   restored.address == memory_bytes - length, "partial word/group or heap-end bytes changed");
+        }
+        std::vector<std::uint8_t> raw(maximum_upload_decoded_bytes);
+        for (std::size_t word = 0; word < raw.size() / 4; ++word)
+            write_u32(raw, 4 * word, 0x12345678u + static_cast<std::uint32_t>(word));
+        expect(encode_heap_upload(heap_base, raw).size() == maximum_packet_payload,
+               "maximum literal upload no longer fills its exact bounded packet");
+    });
+    run_case("malformed compressed uploads cannot silently truncate or grow their extent", [] {
+        auto payload = encode_heap_upload(heap_base, {0x78, 0x56, 0x34, 0x12});
+        auto bad = payload; bad.pop_back();
+        expect_throws([&] { decode_heap_upload(bad); }, "truncated literal word accepted");
+        bad = payload; bad.push_back(0);
+        expect_throws([&] { decode_heap_upload(bad); }, "trailing encoded byte accepted");
+        bad = payload; bad.resize(8);
+        expect_throws([&] { decode_heap_upload(bad); }, "missing descriptor accepted");
+        bad = encode_heap_upload(heap_base, {0}); bad[8] |= 4;
+        expect_throws([&] { decode_heap_upload(bad); }, "unused last-group code accepted");
+        for (const auto length : {0u, static_cast<unsigned>(maximum_upload_decoded_bytes + 1)}) {
+            bad = payload; write_u32(bad, 4, length);
+            expect_throws([&] { decode_heap_upload(bad); }, "invalid decoded length accepted");
+        }
+        bad = payload; write_u32(bad, 0, memory_bytes - 3);
+        expect_throws([&] { decode_heap_upload(bad); }, "decoded extent outside heap accepted");
+        expect_throws([&] { encode_heap_upload(heap_base, {}); }, "empty upload encoded");
+        expect_throws([&] { encode_heap_upload(heap_base,
+            std::vector<std::uint8_t>(maximum_upload_decoded_bytes + 1)); }, "oversized decoded upload encoded");
     });
 }
 
@@ -487,7 +544,7 @@ void resident_program_tests() {
 } // namespace
 
 int main() {
-    byte_tests(); record_tests(); program_tests(); resident_program_tests();
+    byte_tests(); upload_codec_tests(); record_tests(); program_tests(); resident_program_tests();
     std::cout << cases - failures << '/' << cases << " protocol cases passed\n";
     return failures == 0 ? 0 : 1;
 }

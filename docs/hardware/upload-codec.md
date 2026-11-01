@@ -1,5 +1,11 @@
 # Lossless upload decoder measurement
 
+This is historical evidence from commit `7705fee`, before the unified 0.2
+upload implementation. For the current protocol and integration status, read
+the [architecture](../../GPU_DOCUMENTATION/GPU_ARCHITECTURE.md) and
+[control](../../GPU_DOCUMENTATION/GPU_CONTROL.md) guides. References below to
+unchanged production RTL describe the state when this experiment was measured.
+
 This experiment measures a concrete first upload-compression candidate before
 changing the live GPU. **Production RTL, N20K-SYS-0.1 packets, 320-byte SDRAM
 records, firmware and the frozen clock implementation are unchanged.**

@@ -58,7 +58,7 @@ struct SystemStatistics {
     std::uint32_t completed_present_token = 0;
 };
 
-// N20K-SYS-0.1. All device data enters through HostPins and reaches the
+// N20K-SYS-0.2. All device data enters through HostPins and reaches the
 // renderer/scanout through the shared timed SDRAM controller. Convenience
 // methods below are CPU drivers which serialize and physically transfer bytes.
 // The default common core/SDR clock is 100.8 MHz, derived host/pixel clocks

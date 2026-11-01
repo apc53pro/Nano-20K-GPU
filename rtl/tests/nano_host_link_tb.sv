@@ -43,13 +43,17 @@ module nano_host_link_tb;
             @(negedge host_clk); host_wr_valid = 0;
         end
     endtask
-    task automatic header(input [15:0] opcode, input [31:0] sequence_id, input [31:0] length);
+    task automatic header_version(input [15:0] opcode, input [31:0] sequence_id,
+                                  input [31:0] length, input [7:0] minor);
         begin
             send_byte(8'h4e); send_byte(8'h47); send_byte(8'h50); send_byte(8'h55);
-            send_byte(0); send_byte(1); send_byte(opcode[7:0]); send_byte(opcode[15:8]);
+            send_byte(0); send_byte(minor); send_byte(opcode[7:0]); send_byte(opcode[15:8]);
             for (integer b = 0; b < 4; b = b + 1) send_byte(length[8*b +:8]);
             for (integer b = 0; b < 4; b = b + 1) send_byte(sequence_id[8*b +:8]);
         end
+    endtask
+    task automatic header(input [15:0] opcode, input [31:0] sequence_id, input [31:0] length);
+        begin header_version(opcode, sequence_id, length, 2); end
     endtask
     task automatic packet(input [31:0] sequence_id, input integer length, input [7:0] seed);
         begin
@@ -213,6 +217,10 @@ module nano_host_link_tb;
         header(16'h0010, 1, 0); wait_fault(9); recover();
         header(3, 1, 1025); wait_fault(10); recover();
         header(3, 1, 32'h10000); wait_fault(10); recover();
+        // Only the current 0.2 wire format is implemented. An otherwise valid
+        // obsolete header must fault and leave no command lease executable.
+        header_version(3, 1, 0, 1); wait_fault(8); recover();
+        header_version(3, 1, 0, 3); wait_fault(8); recover();
         send_byte(8'h00); for (i = 1; i < 16; i = i + 1) send_byte(0);
         wait_fault(7); recover();
         @(negedge host_clk); host_reg_addr = 1; host_wr_data = 4; host_wr_valid = 1;

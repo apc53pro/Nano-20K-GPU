@@ -20,8 +20,8 @@
     "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
     "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
-    "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
+    "rtl/gpu/nano_gpu_core.sv": "ef4a85f72b363e714d99fd9717350aa983b43424e1da2e9b0468e7c37d943ce3",
+    "rtl/gpu/nano_host_link.sv": "61b4337f5d414df8b96f71d4cc1dad6461786acc406733527ef6a7de41fe6594",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
@@ -41,9 +41,9 @@
     "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
     "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
   },
-  "netlist_sha256": "57be0025721e48e42a1f5f8184831622871b4c16bc64f6bbc63c312fc93f9796",
+  "netlist_sha256": "0ecd0cc16b7660b42b4bbd6bbc12bbd4881255416832f172c7e2d251b514b247",
   "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-  "pack_report_sha256": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4",
+  "pack_report_sha256": "c430a7a997c51425e1e2b932a3f84e9d0187c073127403b0670fb79d116bc176",
   "runner_sha256": "3daeae29c79596f525560ed13c80b3d74fd6de9ce09863cccbf6f3d74c8c5bcc",
   "snapshot_sha256": {
     "source_snapshot/rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
@@ -55,7 +55,7 @@
     "source_snapshot/scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
     "source_snapshot/rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "source_snapshot/rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
-    "source_snapshot/rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
+    "source_snapshot/rtl/gpu/nano_gpu_core.sv": "ef4a85f72b363e714d99fd9717350aa983b43424e1da2e9b0468e7c37d943ce3",
     "source_snapshot/rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
     "source_snapshot/rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
     "source_snapshot/rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
@@ -63,25 +63,25 @@
     "source_snapshot/rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
     "source_snapshot/rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
     "source_snapshot/rtl/gpu/nano_sdram_service.sv": "9bd4121d971f212560f987524dddef2773de5b06568d7c2303009b2ac74a1a62",
-    "source_snapshot/rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
+    "source_snapshot/rtl/gpu/nano_host_link.sv": "61b4337f5d414df8b96f71d4cc1dad6461786acc406733527ef6a7de41fe6594",
     "source_snapshot/rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "source_snapshot/rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
     "source_snapshot/rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
     "source_snapshot/rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
     "source_snapshot/rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
-    "synth.json": "57be0025721e48e42a1f5f8184831622871b4c16bc64f6bbc63c312fc93f9796",
+    "synth.json": "0ecd0cc16b7660b42b4bbd6bbc12bbd4881255416832f172c7e2d251b514b247",
     "seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-    "pack-proof.json": "bd06aa638bd6fd030f5bbbb7022d1b581594bffcf70b10408f3f6be7345c10e4",
+    "pack-proof.json": "c430a7a997c51425e1e2b932a3f84e9d0187c073127403b0670fb79d116bc176",
     "clocks.py": "eefe7abae5b34245329e75093a6b8e42e69b775a66f22d8dea7e3b06ce55d759"
   },
   "initial_packed_resources": {
     "LUT4": {
-      "used": 17134,
+      "used": 17277,
       "available": 20736,
       "within_capacity": true
     },
     "DFF": {
-      "used": 7003,
+      "used": 7011,
       "available": 15552,
       "within_capacity": true
     },
@@ -114,13 +114,13 @@
     "-o",
     "family=GW2A-18C",
     "-o",
-    "cst=/workspace/Nano-20K-GPU/build/timing05-pnr/source_snapshot/rtl/gpu_probe.cst",
+    "cst=/workspace/Nano-20K-GPU/build/unified-upload-v2-pnr/source_snapshot/rtl/gpu_probe.cst",
     "--json",
-    "/workspace/Nano-20K-GPU/build/timing05-pnr/synth.json",
+    "/workspace/Nano-20K-GPU/build/unified-upload-v2-pnr/synth.json",
     "--write",
-    "/workspace/Nano-20K-GPU/build/timing05-pnr/routed.json",
+    "/workspace/Nano-20K-GPU/build/unified-upload-v2-pnr/routed.json",
     "--pre-place",
-    "/workspace/Nano-20K-GPU/build/timing05-pnr/clocks.py",
+    "/workspace/Nano-20K-GPU/build/unified-upload-v2-pnr/clocks.py",
     "--freq",
     "100.8",
     "--threads",
@@ -129,7 +129,7 @@
     "1",
     "--timing-allow-fail",
     "--report",
-    "/workspace/Nano-20K-GPU/build/timing05-pnr/timing.json",
+    "/workspace/Nano-20K-GPU/build/unified-upload-v2-pnr/timing.json",
     "--detailed-timing-report",
     "--chipdb",
     "/workspace/Nano-20K-GPU/.deps/rtl/oss-cad-suite/share/nextpnr/himbaechel/gowin/chipdb-GW2A-18C.bin"
@@ -137,20 +137,20 @@
   "returncode": 0,
   "tool_errors": [],
   "raw_artifact_sha256": {
-    "pnr.log": "aec69128e670b2594598b67e4a1170509fee04646068787330ca07e0d98d0156",
-    "timing.json": "03e71d53f355aa4b1b0c74abe91324353eb26e611ad5bf20ad1e5a74ac87a6aa",
-    "routed.json": "1dc01b9c0913f74fa9daf8a3a77581a49018ad7b75e2c41adcf19d44c58e552c"
+    "pnr.log": "2dd509cbedaba7ec756c10b7938111d4ccd35d9985aee81d0e047b8d563de5cf",
+    "timing.json": "0cfc9db0d1915a3873ac1926a6ce2a3dfb06f14aade0e57451596ef6c9e2fce3",
+    "routed.json": "2f26aec6682c67afa52a27a03543cddb00eadc13c77368d0c2753e2567e9589d"
   },
   "inputs_changed_during_run": [],
-  "routed_netlist_sha256": "1dc01b9c0913f74fa9daf8a3a77581a49018ad7b75e2c41adcf19d44c58e552c",
+  "routed_netlist_sha256": "2f26aec6682c67afa52a27a03543cddb00eadc13c77368d0c2753e2567e9589d",
   "post_route_physical_resources": {
     "LUT4": {
-      "used": 20305,
+      "used": 20577,
       "available": 20736,
       "within_capacity": true
     },
     "DFF": {
-      "used": 7003,
+      "used": 7011,
       "available": 15552,
       "within_capacity": true
     },
@@ -169,7 +169,7 @@
   "post_route_counts_include_passthrough_luts": true,
   "post_route_resource_scope": "Occupied BEL union, including ALU-reserved LUTs and RAM16 LUT/FF reservations",
   "post_route_explicit_cell_types": {
-    "ALU": 5494,
+    "ALU": 5558,
     "BUFG": 2,
     "DFF": 11,
     "DFFC": 176,
@@ -178,7 +178,7 @@
     "DFFP": 1,
     "DFFPE": 1,
     "DFFR": 339,
-    "DFFRE": 4003,
+    "DFFRE": 4011,
     "DFFSE": 58,
     "DUMMY_CELL": 100,
     "GOWIN_GND": 1,
@@ -186,28 +186,28 @@
     "GSR": 1,
     "IBUF": 6,
     "LUT1": 74,
-    "LUT2": 2546,
-    "LUT3": 4158,
-    "LUT4": 8001,
+    "LUT2": 2542,
+    "LUT3": 4063,
+    "LUT4": 8308,
     "MULT18X18": 25,
     "OBUF": 3,
     "RAM16SDP4": 8,
     "SDP": 46
   },
-  "post_route_lut_site_delta": 3171,
+  "post_route_lut_site_delta": 3300,
   "fmax": {
     "core.host_clk": {
-      "achieved": 118.27320861816406,
+      "achieved": 120.36592102050781,
       "constraint": 25.20034408569336
     },
     "core_outputs[105]": {
-      "achieved": 68.88001251220703,
+      "achieved": 70.22965240478516,
       "constraint": 100.80644989013672
     }
   },
   "clocks": {
     "clk": {
-      "achieved": 68.88001251220703,
+      "achieved": 70.22965240478516,
       "constraint": 100.80644989013672,
       "reported_clock": "core_outputs[105]",
       "requested_mhz": 100.8,
@@ -217,7 +217,7 @@
       "target_met": false
     },
     "host_clk": {
-      "achieved": 118.27320861816406,
+      "achieved": 120.36592102050781,
       "constraint": 25.20034408569336,
       "reported_clock": "core.host_clk",
       "requested_mhz": 25.2,
@@ -232,36 +232,36 @@
     {
       "from_clock": "posedge core.host_clk",
       "to_clock": "posedge core.host_clk",
-      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT4_I2_F_LUT2_F_I1_LUT3_I2_F_LUT4_I3_F_DFFC_D",
-      "to_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_DFFCE_Q",
-      "delay_ns": 8.455000128597021
+      "from_cell": "observed_DFFR_Q_7_D_LUT3_F_I2_DFFCE_Q_D_LUT2_F_I1_LUT4_F_I1_LUT2_F_I0_DFF_Q_D_LUT4_F_I1_LUT4_I1_F_DFF_D_Q_LUT2_I0_F_LUT2_F_I1_LUT4_I3_F_LUT3_I2_F_LUT4_I3_F_DFFC_D",
+      "to_cell": "core.host_link.tx_fifo.storage.bank",
+      "delay_ns": 8.308000147342682
     },
     {
       "from_clock": "posedge core_outputs[105]",
       "to_clock": "posedge core_outputs[105]",
-      "from_cell": "core.tile_renderer.y0_DFFRE_Q_8",
-      "to_cell": "core.tile_renderer.fragments.in_u_DFFRE_Q_40",
-      "delay_ns": 14.518000189214945
+      "from_cell": "core.memory_service.burst_base_DFFRE_Q_11_D_ALU_SUM_COUT_ALU_CIN_SUM_LUT3_I1_F_DFFR_D",
+      "to_cell": "core.memory_service.buffer_masks.bank",
+      "delay_ns": 14.239000171422958
     },
     {
       "from_clock": "posedge core.host_clk",
       "to_clock": "posedge core_outputs[105]",
-      "from_cell": "observed_DFFR_Q_6_D_LUT3_F_I2_DFFCE_Q_D_LUT4_F_I3_LUT3_F_I0_LUT4_I2_F_LUT2_F_I1_LUT4_F_I2_DFFCE_Q_D_LUT2_F_I1_DFFCE_Q",
+      "from_cell": "observed_DFFR_Q_7_D_LUT3_F_I2_DFFCE_Q_D_LUT2_F_I1_LUT4_F_I1_LUT2_F_I0_DFF_Q_D_LUT4_F_I1_LUT4_I1_F_DFF_D_Q_LUT2_I0_F_LUT2_F_I1_LUT4_I3_I2_DFFCE_Q_D_LUT2_F_I1_DFFCE_Q",
       "to_cell": "observed_DFFR_Q_2",
-      "delay_ns": 2.9710000343620777
+      "delay_ns": 2.60400003567338
     },
     {
       "from_clock": "posedge core_outputs[105]",
       "to_clock": "posedge core.host_clk",
-      "from_cell": "core.host_link.host_reg_addr_DFFRE_Q_2",
-      "to_cell": "observed_DFFR_Q_2_D_LUT3_F_I2_LUT2_F_I1_LUT4_F_I1_DFFC_Q",
-      "delay_ns": 9.539000153541565
+      "from_cell": "core.host_link.host_reg_addr_DFFRE_Q_5",
+      "to_cell": "core.host_link.tx_fifo.storage.bank",
+      "delay_ns": 9.965000212192535
     }
   ],
   "utilization": {
     "ALU": {
       "available": 15552,
-      "used": 5494
+      "used": 5558
     },
     "ALU54D": {
       "available": 24,
@@ -289,7 +289,7 @@
     },
     "DFF": {
       "available": 15552,
-      "used": 6955
+      "used": 6963
     },
     "DHCEN": {
       "available": 24,
@@ -329,7 +329,7 @@
     },
     "LUT4": {
       "available": 20736,
-      "used": 14779
+      "used": 14987
     },
     "MULT18X18": {
       "available": 48,
@@ -396,8 +396,8 @@
       "used": 0
     }
   },
-  "timing_report_sha256": "03e71d53f355aa4b1b0c74abe91324353eb26e611ad5bf20ad1e5a74ac87a6aa",
-  "log_sha256": "aec69128e670b2594598b67e4a1170509fee04646068787330ca07e0d98d0156",
+  "timing_report_sha256": "0cfc9db0d1915a3873ac1926a6ce2a3dfb06f14aade0e57451596ef6c9e2fce3",
+  "log_sha256": "2dd509cbedaba7ec756c10b7938111d4ccd35d9985aee81d0e047b8d563de5cf",
   "clock_constraints_confirmed": true,
-  "elapsed_seconds": 667.098
+  "elapsed_seconds": 828.615
 }

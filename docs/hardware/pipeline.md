@@ -1,4 +1,10 @@
-# Current GPU pipeline
+# Historical C++ GPU-model pipeline
+
+These diagrams describe the earlier C++ model, including overlapping export,
+and the 0.1 protocol snapshot. They are not the current RTL pipeline. Current
+RTL architecture and sole encoded 0.2 uploads are documented in
+[GPU_ARCHITECTURE.md](../../GPU_DOCUMENTATION/GPU_ARCHITECTURE.md) and
+[GPU_CONTROL.md](../../GPU_DOCUMENTATION/GPU_CONTROL.md).
 
 Implementation snapshot: **shared-reciprocal fragments, geometry lookahead and
 overlapped completed-tile export**.

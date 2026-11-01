@@ -1,5 +1,6 @@
-// Lossless upload-codec traffic experiment; not a production wire ABI.
-// Uses exact memory images emitted by the current standalone pass compiler.
+// Upload-codec traffic analysis using the current standalone pass compiler.
+// Per-record codec counts remain an isolated comparison; actual packet counts
+// below come from the production compiler's sole encoded WRITE_HEAP format.
 #include "nano_gpu/demo.hpp"
 #include "nano_gpu/hw/protocol.hpp"
 
@@ -84,25 +85,48 @@ std::vector<std::uint8_t> decode(const std::vector<std::uint8_t>& packed) {
     return raw;
 }
 
-std::vector<std::uint8_t> reconstruct_heap(const hw::HostProgram& program) {
+struct WireTraffic {
+    std::uint64_t packets = 0, packet_payload_bytes = 0;
+    std::uint64_t upload_packets = 0, upload_payload_bytes = 0;
+    std::uint64_t upload_encoded_body_bytes = 0, upload_decoded_bytes = 0;
+    std::uint64_t maximum_upload_decoded_bytes = 0, maximum_upload_payload_bytes = 0;
+};
+
+std::vector<std::uint8_t> reconstruct_heap(const hw::HostProgram& program, WireTraffic& wire) {
     std::vector<std::uint8_t> heap(program.heap_bytes_used, 0);
     std::size_t offset = 0;
     while (offset < program.bytes.size()) {
+        if (program.bytes.size() - offset < hw::packet_header_bytes)
+            throw std::runtime_error("truncated program header");
         const auto opcode = hw::read_u16(program.bytes, offset + 6);
         const auto length = hw::read_u32(program.bytes, offset + 8);
         const auto payload = offset + hw::packet_header_bytes;
         if (payload + length > program.bytes.size()) throw std::runtime_error("truncated program");
+        ++wire.packets;
+        wire.packet_payload_bytes += length;
         if (opcode == static_cast<unsigned>(hw::Opcode::WriteHeap)) {
-            const auto address = hw::read_u32(program.bytes, payload);
-            const auto count = hw::read_u32(program.bytes, payload + 4);
-            if (length != count + 8 || address < hw::heap_base ||
-                static_cast<std::uint64_t>(address - hw::heap_base) + count > heap.size())
+            const auto upload = hw::decode_heap_upload(std::vector<std::uint8_t>(
+                program.bytes.begin() + static_cast<std::ptrdiff_t>(payload),
+                program.bytes.begin() + static_cast<std::ptrdiff_t>(payload + length)));
+            if (upload.address < hw::heap_base ||
+                static_cast<std::uint64_t>(upload.address - hw::heap_base) + upload.bytes.size() > heap.size())
                 throw std::runtime_error("invalid experiment heap extent");
-            std::copy_n(program.bytes.begin() + static_cast<std::ptrdiff_t>(payload + 8), count,
-                        heap.begin() + static_cast<std::ptrdiff_t>(address - hw::heap_base));
+            std::copy(upload.bytes.begin(), upload.bytes.end(),
+                heap.begin() + static_cast<std::ptrdiff_t>(upload.address - hw::heap_base));
+            ++wire.upload_packets;
+            wire.upload_payload_bytes += length;
+            wire.upload_encoded_body_bytes += length - 8;
+            wire.upload_decoded_bytes += upload.bytes.size();
+            wire.maximum_upload_decoded_bytes = std::max<std::uint64_t>(
+                wire.maximum_upload_decoded_bytes, upload.bytes.size());
+            wire.maximum_upload_payload_bytes = std::max<std::uint64_t>(
+                wire.maximum_upload_payload_bytes, length);
         }
         offset = payload + length;
     }
+    if (wire.upload_decoded_bytes != program.upload_bytes ||
+        wire.packet_payload_bytes + wire.packets * hw::packet_header_bytes != program.bytes.size())
+        throw std::runtime_error("wire traffic accounting mismatch");
     return heap;
 }
 
@@ -131,10 +155,12 @@ int main(int argc, char** argv) {
         if (!report || !encoded || !expected || !lengths || !metadata)
             throw std::runtime_error("cannot create experiment output");
         metadata << "record,scene,frame,primitive,kind,encoded_bytes,selected_bytes\n";
-        report << "{\n  \"schema\": \"N20K-UPLOAD-CODEC-TRAFFIC-1\",\n"
-            << "  \"codec\": \"20 groups: 1-byte descriptor of four2-bitcodes, then word payloads zero/s8/s16/raw32; little-endian\",\n"
-            << "  \"scope\": \"Proposed codec of exact current compiled 320-byte records; no new protocol or measured FPS\",\n"
-            << "  \"raw_fallback_scope\": \"Select raw WRITE_HEAP if encoding grows; framing/command/address overhead excluded\",\n"
+        report << "{\n  \"schema\": \"N20K-UPLOAD-CODEC-TRAFFIC-2\",\n"
+            << "  \"codec\": \"20 groups per record: 1-byte descriptor of four 2-bit codes, then word payloads zero/s8/s16/raw32; little-endian\",\n"
+            << "  \"scope\": \"Exact current compiled heap images and encoded packet byte counts; no measured FPS\",\n"
+            << "  \"raw_fallback_scope\": \"Historical per-record comparison only, excluding framing; current production uploads always use the sole codec and have no raw fallback\",\n"
+            << "  \"projected_heap_payload_scope\": \"Historical isolated per-record replacement estimate; use wire_traffic for actual current packet sizes\",\n"
+            << "  \"wire_scope\": \"Compiled program contains WRITE_HEAP, SUBMIT_PASS and FENCE; PRESENT request serialized separately; successful FENCE/PRESENT reply widths counted from ABI, not sampled on bus\",\n"
             << "  \"times_seconds\": [1.25, 1.2666666666666667],\n"
             << "  \"cases\": [\n";
         std::uint64_t record_index = 0, encoded_bytes = 0;
@@ -144,7 +170,12 @@ int main(int argc, char** argv) {
             for (unsigned frame = 0; frame < 2; ++frame) {
                 const auto pass = make_demo_pass(scene, frame ? 0 : 1, 1.25L + frame / 60.0L);
                 const auto program = hw::compile_pass(pass);
-                const auto heap = reconstruct_heap(program);
+                WireTraffic wire;
+                const auto heap = reconstruct_heap(program, wire);
+                std::vector<std::uint8_t> present_payload(8);
+                hw::write_u32(present_payload, 0, static_cast<std::uint32_t>(pass.target));
+                hw::write_u32(present_payload, 4, program.next_sequence);
+                const auto present = hw::encode_packet(hw::Opcode::Present, program.next_sequence, present_payload);
                 Totals all, triangles;
                 std::array<Totals, 4> kinds;
                 for (std::size_t i = 0; i < pass.primitives.size(); ++i) {
@@ -176,6 +207,21 @@ int main(int argc, char** argv) {
                     << ", \"original_heap_upload_bytes\": " << program.upload_bytes
                     << ", \"projected_heap_payload_bytes\": " << program.upload_bytes - 320 * all.records + all.selected
                     << ", \"tile_reference_count_unchanged\": " << program.reference_count
+                    << ", \"wire_traffic\": {\"compiled_program_request_bytes\": " << program.bytes.size()
+                    << ", \"compiled_program_packets\": " << wire.packets
+                    << ", \"compiled_program_header_bytes\": " << wire.packets * hw::packet_header_bytes
+                    << ", \"compiled_program_payload_bytes\": " << wire.packet_payload_bytes
+                    << ", \"upload_packets\": " << wire.upload_packets
+                    << ", \"upload_payload_bytes\": " << wire.upload_payload_bytes
+                    << ", \"upload_address_length_bytes\": " << wire.upload_packets * 8
+                    << ", \"upload_encoded_body_bytes\": " << wire.upload_encoded_body_bytes
+                    << ", \"upload_decoded_bytes\": " << wire.upload_decoded_bytes
+                    << ", \"maximum_upload_decoded_bytes\": " << wire.maximum_upload_decoded_bytes
+                    << ", \"maximum_upload_payload_bytes\": " << wire.maximum_upload_payload_bytes
+                    << ", \"present_request_bytes\": " << present.size()
+                    << ", \"frame_request_bytes_including_present\": " << program.bytes.size() + present.size()
+                    << ", \"successful_fence_present_reply_bytes\": 56"
+                    << ", \"frame_request_reply_bytes\": " << program.bytes.size() + present.size() + 56 << "}"
                     << ", \"all_primitives\": "; emit_totals(report, all);
                 report << ", \"triangles\": "; emit_totals(report, triangles);
                 report << ", \"by_kind_triangle_rect_line_sprite\": [";

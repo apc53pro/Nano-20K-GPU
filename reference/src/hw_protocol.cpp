@@ -194,11 +194,78 @@ std::vector<std::uint8_t> encode_packet(Opcode opcode, std::uint32_t sequence,
         throw std::invalid_argument("invalid provisional NGPU packet");
     std::vector<std::uint8_t> result(packet_header_bytes + payload.size(), 0);
     result[0] = 'N'; result[1] = 'G'; result[2] = 'P'; result[3] = 'U';
-    result[4] = 0; result[5] = 1;
+    result[4] = protocol_major; result[5] = protocol_minor;
     write_u16(result, 6, static_cast<std::uint16_t>(opcode));
     write_u32(result, 8, static_cast<std::uint32_t>(payload.size()));
     write_u32(result, 12, sequence);
     std::copy(payload.begin(), payload.end(), result.begin() + packet_header_bytes);
+    return result;
+}
+
+std::vector<std::uint8_t> encode_heap_upload(std::uint32_t address,
+                                          const std::vector<std::uint8_t>& bytes) {
+    if (bytes.empty() || bytes.size() > maximum_upload_decoded_bytes)
+        throw std::invalid_argument("encoded heap upload decoded length");
+    validate_heap_range(address, bytes.size(), 1);
+    std::vector<std::uint8_t> payload(8, 0);
+    write_u32(payload, 0, address);
+    write_u32(payload, 4, static_cast<std::uint32_t>(bytes.size()));
+    for (std::size_t group = 0; group < bytes.size(); group += 16) {
+        const auto descriptor = payload.size();
+        payload.push_back(0);
+        for (unsigned slot = 0; slot < 4 && group + 4 * slot < bytes.size(); ++slot) {
+            const auto offset = group + 4 * slot;
+            std::uint32_t word = 0;
+            for (unsigned byte = 0; byte < 4 && offset + byte < bytes.size(); ++byte)
+                word |= static_cast<std::uint32_t>(bytes[offset + byte]) << (8 * byte);
+            const unsigned code = word == 0 ? 0 :
+                ((word & 0xffffff00u) == ((word & 0x80u) ? 0xffffff00u : 0)) ? 1 :
+                ((word & 0xffff0000u) == ((word & 0x8000u) ? 0xffff0000u : 0)) ? 2 : 3;
+            payload[descriptor] |= static_cast<std::uint8_t>(code << (2 * slot));
+            const unsigned count = code == 3 ? 4 : code;
+            for (unsigned byte = 0; byte < count; ++byte)
+                payload.push_back(static_cast<std::uint8_t>(word >> (8 * byte)));
+        }
+    }
+    if (payload.size() > maximum_packet_payload)
+        throw std::logic_error("encoded heap upload exceeds fixed packet storage");
+    return payload;
+}
+
+HeapUpload decode_heap_upload(const std::vector<std::uint8_t>& payload) {
+    if (payload.size() <= 8 || payload.size() > maximum_packet_payload)
+        throw std::invalid_argument("encoded heap upload payload length");
+    HeapUpload result;
+    result.address = read_u32(payload, 0);
+    const auto length = read_u32(payload, 4);
+    if (length == 0 || length > maximum_upload_decoded_bytes)
+        throw std::invalid_argument("encoded heap upload decoded length");
+    validate_heap_range(result.address, length, 1);
+    result.bytes.reserve(length);
+    std::size_t cursor = 8;
+    while (result.bytes.size() < length) {
+        if (cursor == payload.size())
+            throw std::invalid_argument("truncated heap upload descriptor");
+        unsigned descriptor = payload[cursor++];
+        for (unsigned slot = 0; slot < 4 && result.bytes.size() < length; ++slot) {
+            const unsigned code = descriptor & 3u;
+            descriptor >>= 2;
+            const unsigned count = code == 3 ? 4 : code;
+            if (count > payload.size() - cursor)
+                throw std::invalid_argument("truncated heap upload word");
+            std::uint32_t word = 0;
+            for (unsigned byte = 0; byte < count; ++byte)
+                word |= static_cast<std::uint32_t>(payload[cursor++]) << (8 * byte);
+            if (code == 1 && (word & 0x80u)) word |= 0xffffff00u;
+            if (code == 2 && (word & 0x8000u)) word |= 0xffff0000u;
+            for (unsigned byte = 0; byte < 4 && result.bytes.size() < length; ++byte)
+                result.bytes.push_back(static_cast<std::uint8_t>(word >> (8 * byte)));
+        }
+        if (result.bytes.size() == length && descriptor != 0)
+            throw std::invalid_argument("nonzero unused heap upload codes");
+    }
+    if (cursor != payload.size())
+        throw std::invalid_argument("trailing encoded heap upload bytes");
     return result;
 }
 
@@ -458,7 +525,7 @@ HostProgram build_pass_heap(const Pass& pass, const TileBins& bins,
 
 HostProgram encode_program(HostProgram result, const std::vector<Upload>& uploads,
                            std::uint32_t first_sequence) {
-    constexpr std::size_t upload_chunk = maximum_packet_payload - 8;
+    constexpr std::size_t upload_chunk = maximum_upload_decoded_bytes;
     std::uint64_t packet_count = 2;
     for (const auto& upload : uploads) {
         packet_count += (upload.bytes->size() + upload_chunk - 1) / upload_chunk;
@@ -474,11 +541,10 @@ HostProgram encode_program(HostProgram result, const std::vector<Upload>& upload
     for (const auto& upload : uploads) {
         for (std::size_t offset = 0; offset < upload.bytes->size(); offset += upload_chunk) {
             const auto length = std::min(upload_chunk, upload.bytes->size() - offset);
-            std::vector<std::uint8_t> payload(8 + length);
-            write_u32(payload, 0, upload.address + static_cast<std::uint32_t>(offset));
-            write_u32(payload, 4, static_cast<std::uint32_t>(length));
-            std::copy_n(upload.bytes->begin() + static_cast<std::ptrdiff_t>(offset), length, payload.begin() + 8);
-            append(Opcode::WriteHeap, payload);
+            const std::vector<std::uint8_t> bytes(upload.bytes->begin() + static_cast<std::ptrdiff_t>(offset),
+                upload.bytes->begin() + static_cast<std::ptrdiff_t>(offset + length));
+            append(Opcode::WriteHeap, encode_heap_upload(
+                upload.address + static_cast<std::uint32_t>(offset), bytes));
         }
     }
     std::vector<std::uint8_t> payload(4);

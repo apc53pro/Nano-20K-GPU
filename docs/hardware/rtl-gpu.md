@@ -68,9 +68,14 @@ mapping or pin assignments.
 
 ### Current native implementation
 
-The CPU byte ABI remains `N20K-SYS-0.1`; all command/record fields, capabilities,
-numeric behavior and rendering modes are unchanged. Internal storage and
-arithmetic have been restructured to reduce mapped LUT use:
+The current CPU byte ABI is **`N20K-SYS-0.2`**. Every resource upload uses one
+lossless grouped-word encoding; old 0.1 packets are rejected. The upload engine
+shares the existing command register, readback counters, staging RAM and
+SDRAM-write backend; only an eight-bit descriptor is new retained payload.
+The [control guide](../../GPU_DOCUMENTATION/GPU_CONTROL.md#sole-resource-upload-encoding)
+defines exact bytes and the 956-byte decoded limit. There is no legacy upload
+engine or uncompressed fallback. Primitive records, numeric behavior and
+rendering modes remain unchanged. The native rendering implementation uses:
 
 - Seven seed/X-step/Y-step plane triplets use 14 native **512×32 SDPB** banks.
   Registered reads anticipate accepted pixel/row steps and hold on stalls.
@@ -419,7 +424,7 @@ transfers, and performs LOAD and COPY as individual
 pixel transactions. The older C++ model's resident-texture cache, primitive
 prefetch and overlapping tile writeback have not been ported to this RTL.
 
-These counts belong to the current integrated RTL serialized schedule, with
+These counts belong to the earlier 0.1 integrated RTL serialized schedule, with
 continuous scanout maintained. Dividing the showcase submission count by
 an **assumed** 100.8 MHz gives approximately 84.01 ms;
 100.8 MHz is not an achieved whole-GPU clock, and this result does not establish
@@ -435,9 +440,33 @@ includes any enabled software oracle work. None of these reports includes
 measured RP2350 preparation time or proves board performance. The simulator's
 `color_fnv1a64` is a 16-digit hexadecimal hash of the captured RGB565 pixels.
 
-## Physical resource result
+The [0.2 unified-upload regression](../benchmarks/rtl-unified-upload.json)
+records the new source hashes and timings. Its four scenes use 22.9–41.8%
+fewer request bytes and 0.4–3.7% more submission cycles than the 0.1 timing
+baseline. This preserves the oracle checks and continuous scanout but is not
+an FPS improvement. See the authoritative architecture guide for current
+resource qualification.
 
-The current functional logical-core serial probe **places and routes legally**
+## Current 0.2 physical resource result
+
+The shared upload implementation passes complete logical-core placement and
+routing using the original serial probe: **20,577/20,736 physical LUT sites**,
+**7,011 DFF slots**, **46 BSRAM** and **25 MULT18X18 equivalents**. This leaves
+159 physical LUT sites. Relative to the 0.1 baseline, use rises by 272 physical
+LUT sites and eight DFFs, with no extra BSRAM/DSPs and no legacy upload engine.
+The [source-matched pack](rtl-core-pack.json) and
+[route](rtl-core-pnr.json) reports retain exact tools, constraints and hashes.
+
+The new route estimates **70.22965 MHz core** and **120.36592 MHz host**. The
+100.8 MHz core target remains unmet; the 25.2 MHz host target passes. The
+14.239 ns core critical path is in the SDRAM service's burst-address to
+write-mask-bank path. No clock plan or production board wrapper changed.
+These are static-model estimates, not real-board frequencies. Final board
+integration still needs its own resource/timing qualification.
+
+## Previous 0.1 physical resource result
+
+The previous 0.1 functional logical-core serial probe **placed and routed legally**
 on the Tang Nano 20K's exact FPGA, but **fails its core-clock target**. The
 physical implementation targets **GW2AR-LV18QN88C8/I7**, using the
 **GW2A-18C** database. It wraps the complete logical GPU in
@@ -445,8 +474,10 @@ physical implementation targets **GW2AR-LV18QN88C8/I7**, using the
 external inputs controllable and output cones observable. It does not replace
 any GPU function or supply the production board wrapper.
 
-The source-matched [resource report](rtl-core-pack.json) and
-[physical implementation report](rtl-core-pnr.json) distinguish:
+The table below records the earlier 0.1 result. The versioned
+[resource report](rtl-core-pack.json) and
+[physical implementation report](rtl-core-pnr.json) track the current candidate;
+use their source hashes and the architecture guide when checking current fit.
 
 | Resource | Used | Available |
 | --- | ---: | ---: |

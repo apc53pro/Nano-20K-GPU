@@ -118,7 +118,7 @@ struct HostLink::Impl {
         constexpr std::array<std::uint8_t, 4> magic{{0x4e, 0x47, 0x50, 0x55}};
         if (!std::equal(magic.begin(), magic.end(), header.begin())) {
             fail(HostFault::Magic);
-        } else if (header[4] != 0 || header[5] != 1) {
+        } else if (header[4] != protocol_major || header[5] != protocol_minor) {
             fail(HostFault::Version);
         } else if (!known_opcode(read16(header, 6))) {
             fail(HostFault::Opcode);

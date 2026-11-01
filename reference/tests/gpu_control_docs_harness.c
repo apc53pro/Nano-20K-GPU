@@ -52,7 +52,7 @@ static void mock_reply(Mock *m, uint16_t opcode, uint32_t sequence,
     m->response_count = 28 + extra;
     m->response_cursor = 0;
     gpu_put32(m->response, UINT32_C(0x5550474e));
-    m->response[5] = 1;
+    m->response[5] = 2;
     gpu_put16(m->response + 6, (uint16_t)(opcode | UINT16_C(0x8000)));
     gpu_put32(m->response + 8, 12 + extra);
     gpu_put32(m->response + 12, sequence);
@@ -66,7 +66,7 @@ static int packet_tests(void) {
     uint32_t sequence, offset, index;
     uint8_t data[2052], expected[GPU_MAX_PAYLOAD];
     const uint8_t payload[4] = {1, 0x23, 0x45, 0x67};
-    const uint8_t golden[20] = {'N', 'G', 'P', 'U', 0, 1, 3, 0, 4, 0, 0, 0,
+    const uint8_t golden[20] = {'N', 'G', 'P', 'U', 0, 2, 3, 0, 4, 0, 0, 0,
                                0x78, 0x56, 0x34, 0x12, 1, 0x23, 0x45, 0x67};
     mock_reset(&m);
     gpu_init(&g, mock_transport(&m));
@@ -82,17 +82,58 @@ static int packet_tests(void) {
     CHECK(gpu_upload(&g, GPU_TEXTURE_ADDR, data, sizeof(data)));
     offset = 0;
     for (index = 0; index < 3; ++index) {
-        uint32_t cursor = index * 1016u;
-        uint32_t chunk = index == 2 ? 20u : 1016u;
-        gpu_put32(expected, GPU_TEXTURE_ADDR + cursor);
-        gpu_put32(expected + 4, chunk);
-        memcpy(expected + 8, data + cursor, chunk);
-        CHECK(gpu_docs_packet_matches(m.written + offset, 24u + chunk,
-              GPU_WRITE_HEAP, index + 1, expected, chunk + 8));
-        offset += 24u + chunk;
+        uint32_t cursor = index * GPU_MAX_UPLOAD_DECODED;
+        uint32_t chunk = (uint32_t)sizeof(data) - cursor;
+        uint32_t encoded_length, consumed = 0, produced = 0;
+        const uint8_t *encoded;
+        if (chunk > GPU_MAX_UPLOAD_DECODED) chunk = GPU_MAX_UPLOAD_DECODED;
+        CHECK(offset + 24u <= m.written_count);
+        encoded_length = gpu_get32(m.written + offset + 8);
+        CHECK(encoded_length >= 9 && encoded_length <= GPU_MAX_PAYLOAD &&
+              offset + 16u + encoded_length <= m.written_count);
+        if (index < 2) CHECK(encoded_length == GPU_MAX_PAYLOAD);
+        encoded = m.written + offset + 16;
+        CHECK(gpu_get32(encoded) == GPU_TEXTURE_ADDR + cursor && gpu_get32(encoded + 4) == chunk);
+        CHECK(gpu_docs_packet_matches(m.written + offset, 16u + encoded_length,
+              GPU_WRITE_HEAP, index + 1, encoded, encoded_length));
+        /* Decode independently instead of duplicating the guide's encoder. */
+        consumed = 8;
+        while (produced < chunk) {
+            unsigned slot;
+            uint8_t descriptor;
+            CHECK(consumed < encoded_length);
+            descriptor = encoded[consumed++];
+            for (slot = 0; slot < 4 && produced < chunk; ++slot) {
+                uint32_t word = 0;
+                unsigned code = descriptor & 3u, width = code == 3 ? 4 : code, b;
+                descriptor >>= 2;
+                CHECK(consumed + width <= encoded_length);
+                for (b = 0; b < width; ++b) word |= (uint32_t)encoded[consumed++] << (8u * b);
+                if (code == 1 && (word & UINT32_C(0x80))) word |= UINT32_C(0xffffff00);
+                if (code == 2 && (word & UINT32_C(0x8000))) word |= UINT32_C(0xffff0000);
+                for (b = 0; b < 4 && produced < chunk; ++b) {
+                    CHECK((uint8_t)(word >> (8u * b)) == data[cursor + produced]);
+                    ++produced;
+                }
+            }
+            CHECK(produced < chunk || descriptor == 0);
+        }
+        CHECK(consumed == encoded_length);
+        offset += 16u + encoded_length;
     }
     CHECK(offset == m.written_count && g.next_sequence == 4);
     CHECK(gpu_upload(&g, GPU_TEXTURE_ADDR, NULL, 0) && offset == m.written_count);
+    {
+        const uint8_t mixed[17] = {0, 0, 0, 0, 0x80, 0xff, 0xff, 0xff,
+                                  0x80, 1, 0, 0, 0x78, 0x56, 0x34, 0x12, 0x7f};
+        const uint8_t coded[10] = {0xe4, 0x80, 0x80, 1, 0x78, 0x56, 0x34, 0x12, 1, 0x7f};
+        mock_reset(&m); gpu_init(&g, mock_transport(&m));
+        CHECK(gpu_upload(&g, GPU_TEXTURE_ADDR + 1, mixed, sizeof(mixed)));
+        gpu_put32(expected, GPU_TEXTURE_ADDR + 1); gpu_put32(expected + 4, sizeof(mixed));
+        memcpy(expected + 8, coded, sizeof(coded));
+        CHECK(gpu_docs_packet_matches(m.written, m.written_count, GPU_WRITE_HEAP, 1,
+                                      expected, 8u + sizeof(coded)));
+    }
     return 1;
 }
 
@@ -115,7 +156,7 @@ static int reply_tests(void) {
         switch (change) {
         case 0: m.response[0] ^= 1; break;
         case 1: m.response[4] = 1; break;
-        case 2: m.response[5] = 2; break;
+        case 2: m.response[5] = 1; break;
         case 3: m.response[6] = GPU_PRESENT; break;
         case 4: gpu_put32(m.response + 12, 8); break;
         case 5: gpu_put32(m.response + 8, UINT32_MAX); break;

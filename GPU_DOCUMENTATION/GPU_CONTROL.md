@@ -1,7 +1,7 @@
 # GPU control: CPU interface, commands and examples
 
 This is the CPU programmer's guide for the **implemented RTL**, protocol
-**N20K-SYS-0.1**. Read [GPU_ARCHITECTURE.md](GPU_ARCHITECTURE.md) for the rendering
+**N20K-SYS-0.2**. Read [GPU_ARCHITECTURE.md](GPU_ARCHITECTURE.md) for the rendering
 pipeline and CPU/GPU division of work. These two files are the primary GPU
 documentation and must be updated with architecture or control changes in the
 same change and pushed with those changes to GitHub.
@@ -13,14 +13,14 @@ constraints and RP2350 PIO/DMA driver are **not implemented or qualified**.
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
-The current native implementation and timing changes preserve this **0.1 byte
-ABI**: opcodes, capability/status bytes, 320-byte primitive records, numeric
-rules and buffer ownership are unchanged. Coefficients, cache tags and SDRAM
-write masks have different internal storage, but drivers encode the same
-packets and do not compensate for internal pipeline latency or setup clocks.
-The source-matched [timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json)
-records passing command/copy/LOAD/abort checks and two verified frames of each
-demo scene. CPU completion still follows the fence/presentation rules below.
+Version **0.2 breaks the previous 0.1 byte ABI**. `WRITE_HEAP` now uses one
+lossless encoded representation for every resource; no uncompressed upload
+mode or legacy packet decoder remains. Request/reply version bytes and the
+capability version are 0.2. Update host software together with the GPU.
+Primitive records remain 320 bytes after decoding, and rendering precision,
+state, buffer ownership and completion rules are unchanged. The earlier
+[timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json)
+describes the historical 0.1 implementation, not the new upload path.
 
 **Hardware compatibility policy:** old host software or packet formats must
 never require additional GPU hardware resources. Interface changes may break
@@ -60,8 +60,8 @@ FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
 The current [serial-probe route](../docs/hardware/rtl-core-pnr.json) is
-legal but estimates **68.88 MHz core Fmax**, below the 100.8 MHz target;
-the host reports 118.27 MHz and passes its 25.2 MHz target. The capability u32
+legal but estimates **70.23 MHz core Fmax**, below the 100.8 MHz target;
+the host reports 120.37 MHz and passes its 25.2 MHz target. The capability u32
 at offset 24 remains 100,800,000; it describes the selected profile,
 not timing closure. Production bus pads and electrical timing remain unqualified.
 The routed frequencies are nextpnr static timing estimates using modeled cell
@@ -323,7 +323,7 @@ No C compiler structure layout or padding is transmitted.
 | --- | ---: | --- |
 | 0 | 4 | `4E 47 50 55`, ASCII `NGPU`; LE u32 `0x5550474E`. |
 | 4 | 1 | Major version **0**. |
-| 5 | 1 | Minor version **1**. |
+| 5 | 1 | Minor version **2**; other versions are rejected. |
 | 6 | 2 | Opcode, u16. |
 | 8 | 4 | Payload byte length, excluding this header; maximum 1024. |
 | 12 | 4 | Request sequence, u32, nonzero and strictly increasing within the epoch. |
@@ -359,7 +359,7 @@ Offsets in the payload column are relative to the first byte after the header.
 | --- | --- | --- | --- |
 | `0x0001` | `GET_CAPS` | Empty. | Common 12 bytes + 64 capability bytes; **92 bytes total**. |
 | `0x0002` | `GET_STATUS` | Empty. | Common 12 bytes + 64 status bytes; **92 bytes total**. |
-| `0x0003` | `WRITE_HEAP` | u32 destination at 0, u32 data length at 4, then exactly that many bytes at 8. Data length **1..1016**. | No reply; completion through a later fence/status sequence. |
+| `0x0003` | `WRITE_HEAP` | u32 destination at 0, u32 **decoded byte length 1..956** at 4, then grouped encoded words at 8; total payload at most 1024 bytes. | No reply; completion through a later fence/status sequence. |
 | `0x0004` | `SUBMIT_PASS` | u32 pass-descriptor address at 0; **4 bytes**. | No reply; later fence waits for rendering and stores. |
 | `0x0005` | `COPY_RECT` | **56 bytes**, layout in section 8. | No reply; later fence waits for the copy. |
 | `0x0006` | `FENCE` | u32 caller token at 0; **4 bytes**. | Common payload only; **28 bytes total**. |
@@ -371,6 +371,42 @@ bytes. Its entire range must be in the heap. `READ_MEMORY` may be unaligned
 and may inspect any valid SDRAM range, including attachments; it is diagnostic
 readback, not the display data path. Neither command permits address wrap.
 There is no normal command opcode for soft abort or hard reset.
+
+### Sole resource-upload encoding
+
+All textures, records, reference lists, tables and descriptors use this same
+`WRITE_HEAP` encoding. Starting at the first byte of the decoded input, form
+little-endian words of up to four bytes. The CPU zero-pads the last partial
+word. For each group of up to four words, send one descriptor byte followed by
+the selected payloads in word order. The first word's code is in bits 1:0,
+the next in 3:2, then 5:4 and 7:6.
+
+| Code | Payload bytes | Reconstructed u32 |
+| --- | ---: | --- |
+| 0 | 0 | Zero |
+| 1 | 1 | Sign-extended signed 8-bit value |
+| 2 | 2 | Sign-extended little-endian signed 16-bit value |
+| 3 | 4 | Literal little-endian 32 bits |
+
+Literal words are part of this one encoding, not another upload mode. Every
+possible byte sequence is representable. The current CPU encoder chooses the
+shortest exact representation for each zero-padded word; the GPU accepts any
+of these representations. It writes exactly the decoded byte length and
+ignores the unused high bytes of a partial final word. Unused codes in a
+partial final group must be zero. Missing descriptors or word bytes, trailing
+encoded bytes and nonzero unused codes fault with core code 3. A malformed
+upload can have written earlier complete chunks: its destination range is
+unspecified until a successful completion fence, and must be reuploaded after
+recovery.
+
+For decoded words `00000000 0000007f ffffff80 00001234`, the encoded body is
+`94 7f 80 34 12`: descriptor `94` selects codes 0,1,1,2. The eight-byte address
+and decoded-length prefix precedes that body.
+
+The 956-byte limit guarantees every input fits: 239 literal words plus 60
+descriptor bytes occupy 1016 bytes, leaving eight bytes for the prefix inside
+the existing 1024-byte packet store. Split larger resources into successive
+uploads. Compression can grow incompressible input; there is no raw fallback.
 
 `FENCE` orders all earlier commands and their required SDRAM stores. A fence
 before `PRESENT` establishes that drawing is finished. A fence after `PRESENT`
@@ -492,7 +528,7 @@ There is no second host-domain copy of all 64 bytes.
 | Byte offset | Type | Current value / meaning |
 | --- | --- | --- |
 | 0 | u8 | Major 0. |
-| 1 | u8 | Minor 1. |
+| 1 | u8 | Minor 2. |
 | 2 | u8 | Bus data width 8. |
 | 3 | u8 | Tile side 32. |
 | 4 | u32 | SDRAM bytes: `0x800000`. |
@@ -560,12 +596,11 @@ Zero the entire record before encoding it. Primitive kinds are triangle 0,
 rectangle 1, line 2, sprite 3. Version is 1. All unused/reserved bytes and bits
 must be zero.
 
-A [lossless upload-codec measurement](../docs/hardware/upload-codec.md) checks
-exact reconstruction of these records and reports standalone decoder area,
-timing and cycles. It defines no new supported command: the current CPU must
-still send ordinary `WRITE_HEAP` bytes and 320-byte records. The combined
-GPU/decoder probe failed legal placement; integrated compression, shared-state
-references and compact SDRAM records remain unimplemented.
+`WRITE_HEAP` decodes into this unchanged record layout. The
+[earlier standalone experiment](../docs/hardware/upload-codec.md) measured a
+separate decoder and failed GPU co-residency probe; the current implementation
+instead shares the existing upload staging and register datapath. Shared-state
+references and compact records stored in SDRAM remain unimplemented.
 
 | Offset | Type / size | Meaning |
 | --- | --- | --- |
@@ -743,7 +778,7 @@ enum {
     GPU_SUBMIT_PASS = 4, GPU_COPY_RECT = 5, GPU_FENCE = 6,
     GPU_PRESENT = 7, GPU_READ_MEMORY = 8,
     GPU_WIDTH = 640, GPU_HEIGHT = 480, GPU_TILES = 300,
-    GPU_RECORD_BYTES = 320, GPU_MAX_PAYLOAD = 1024,
+    GPU_RECORD_BYTES = 320, GPU_MAX_PAYLOAD = 1024, GPU_MAX_UPLOAD_DECODED = 956,
     GPU_MAX_REPLY_PAYLOAD = 532
 };
 #define GPU_MEMORY_BYTES UINT32_C(0x800000)
@@ -821,7 +856,7 @@ bool gpu_send(Gpu *g, uint16_t opcode, const uint8_t *payload,
         g->next_sequence == UINT32_MAX) return false;
     seq = g->next_sequence++; /* Reserve the final value for planned recovery. */
     gpu_put32(header, UINT32_C(0x5550474e));
-    header[4] = 0; header[5] = 1;
+    header[4] = 0; header[5] = 2;
     gpu_put16(header + 6, opcode); gpu_put32(header + 8, length);
     gpu_put32(header + 12, seq);
     for (i = 0; i < 16; ++i)
@@ -839,7 +874,7 @@ bool gpu_reply(Gpu *g, uint16_t opcode, uint32_t sequence,
         !gpu_read_bytes(g, header, 16)) return false;
     length = gpu_get32(header + 8);
     returned_opcode = (uint16_t)((uint16_t)header[6] | ((uint16_t)header[7] << 8));
-    if (gpu_get32(header) != UINT32_C(0x5550474e) || header[4] != 0 || header[5] != 1 ||
+    if (gpu_get32(header) != UINT32_C(0x5550474e) || header[4] != 0 || header[5] != 2 ||
         returned_opcode != (uint16_t)(opcode | UINT16_C(0x8000)) ||
         gpu_get32(header + 12) != sequence || length != 12 + extra_bytes)
         return gpu_fail(g);
@@ -868,7 +903,7 @@ bool gpu_start_session(Gpu *g, GpuTransport transport, unsigned max_polls,
         if (status[1] & 1) {
             g->epoch = gpu_get32(status + 2);
             if (!g->epoch || !gpu_query(g, GPU_GET_CAPS, caps)) return false;
-            return caps[0] == 0 && caps[1] == 1 && caps[2] == 8 && caps[3] == 32 &&
+            return caps[0] == 0 && caps[1] == 2 && caps[2] == 8 && caps[3] == 32 &&
                    gpu_get32(caps + 4) == GPU_MEMORY_BYTES &&
                    gpu_get32(caps + 8) == GPU_HEAP_BASE &&
                    gpu_get32(caps + 12) == GPU_MAX_PAYLOAD &&
@@ -882,11 +917,31 @@ bool gpu_upload(Gpu *g, uint32_t address, const uint8_t *data, uint32_t length) 
     uint32_t cursor = 0, sequence;
     if (!gpu_heap_range(address, length) || (length && !data)) return false;
     while (cursor < length) {
-        uint32_t chunk = length - cursor;
-        if (chunk > 1016) chunk = 1016;
+        uint32_t chunk = length - cursor, source = 0, payload_bytes = 8;
+        if (chunk > GPU_MAX_UPLOAD_DECODED) chunk = GPU_MAX_UPLOAD_DECODED;
         gpu_put32(payload, address + cursor); gpu_put32(payload + 4, chunk);
-        memcpy(payload + 8, data + cursor, chunk);
-        if (!gpu_send(g, GPU_WRITE_HEAP, payload, chunk + 8, &sequence)) return false;
+        while (source < chunk) {
+            uint32_t descriptor = payload_bytes++, slot;
+            payload[descriptor] = 0;
+            for (slot = 0; slot < 4 && source < chunk; ++slot) {
+                uint32_t word = 0, valid = chunk - source, byte, code, count;
+                if (valid > 4) valid = 4;
+                for (byte = 0; byte < valid; ++byte)
+                    word |= (uint32_t)data[cursor + source + byte] << (8 * byte);
+                source += valid;
+                if (word == 0) code = 0;
+                else if ((word & UINT32_C(0xffffff80)) == 0 ||
+                         (word & UINT32_C(0xffffff80)) == UINT32_C(0xffffff80)) code = 1;
+                else if ((word & UINT32_C(0xffff8000)) == 0 ||
+                         (word & UINT32_C(0xffff8000)) == UINT32_C(0xffff8000)) code = 2;
+                else code = 3;
+                payload[descriptor] |= (uint8_t)(code << (2 * slot));
+                count = code == 3 ? 4 : code;
+                for (byte = 0; byte < count; ++byte)
+                    payload[payload_bytes++] = (uint8_t)(word >> (8 * byte));
+            }
+        }
+        if (!gpu_send(g, GPU_WRITE_HEAP, payload, payload_bytes, &sequence)) return false;
         cursor += chunk;
     }
     return true; /* A zero-length CPU upload emits no packet. */

@@ -172,14 +172,22 @@ and UV delay payloads use native RAM; command execution reads its owned packet
 lease without duplicating the payload prefix. The private exact integer-texel
 UV path has 19 enabled-edge latency and initiation interval one; the generic
 full-Q16 arithmetic module remains separate at 26 edges. Rendering features
-and the `N20K-SYS-0.1` CPU byte ABI are preserved.
+are preserved. The current **`N20K-SYS-0.2`** CPU ABI uses one lossless encoded
+upload format for every resource. Literal words belong to that same encoding;
+there is no old 0.1 packet path or uncompressed upload fallback. The decoder
+shares the existing registers, staging RAM and SDRAM-write engine. Host software
+must be rebuilt for 0.2. The [unified-upload regression](docs/benchmarks/rtl-unified-upload.json)
+records exact rendering parity, 22.9–41.8% fewer serialized request bytes and
+0.4–3.7% more submission cycles in the sampled scenes. This is a bandwidth
+improvement, not a demonstrated FPS improvement.
 
-The current logical-core serial probe **places and routes legally** on the
-exact FPGA: **20,305 of 20,736 physical LUT sites (97.92%)**, leaving 431 sites,
-and **7,003 DFF resources**, including 48 RAM-reserved slots. The estimated
-core Fmax is **68.88 MHz**, up from 48.26 MHz, and remains below the 100.8 MHz
-target in nextpnr's model. The host estimate is 118.27 MHz, passing its 25.2 MHz
-target. Further clock optimization is paused at this candidate for board
+The current 0.2 logical-core serial probe **places and routes legally** on the
+exact FPGA: **20,577 of 20,736 physical LUT sites (99.23%)**, leaving 159 sites,
+and **7,011 DFF resources**, including 48 RAM-reserved slots. The integrated
+upload change adds 272 physical LUT sites and eight DFFs; BSRAM and DSP use are
+unchanged. Estimated core Fmax is **70.23 MHz**, below the 100.8 MHz target in
+nextpnr's model. The host estimate is 120.37 MHz, passing its 25.2 MHz target.
+The clock plan is unchanged; further clock optimization remains paused for board
 integration and measurement. Production clock/reset, video and board pin
 integration still require qualification.
 Routed Fmax is nextpnr's static timing estimate from modeled cell and route

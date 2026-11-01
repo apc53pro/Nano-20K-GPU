@@ -204,7 +204,7 @@ module nano_host_link (
                         case (header_offset)
                             3: header_bad[0] <= header_word_next != 32'h5550474e;
                             7: begin
-                                header_bad[1] <= header_word_next[15:0] != 16'h0100;
+                                header_bad[1] <= header_word_next[15:0] != 16'h0200;
                                 header_bad[2] <= header_word_next[31:16] == 0 ||
                                     (|header_word_next[31:20]) || header_word_next[19:16] > 4'd8;
                                 header_opcode <= header_word_next[19:16];

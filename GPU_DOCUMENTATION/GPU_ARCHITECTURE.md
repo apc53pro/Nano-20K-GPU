@@ -4,7 +4,7 @@ This is the architecture guide for the **current SystemVerilog GPU** in this
 repository. Read [GPU_CONTROL.md](GPU_CONTROL.md) for the CPU-facing bus,
 registers, binary commands, data structures and generic host-code examples.
 
-The current command/data profile is **`N20K-SYS-0.1`**, a provisional development
+The current command/data profile is **`N20K-SYS-0.2`**, a provisional development
 ABI. It is implemented in the RTL simulator but is not a released RP2350 board
 interface. Older M0 design documents describe the original requirements; this
 guide describes what the current implementation actually does.
@@ -13,18 +13,24 @@ guide describes what the current implementation actually does.
 Verilator, with an independent software reference renderer (SRR) checking the
 results. The current timing-optimized complete logical-core serial
 probe **places and routes legally**
-on the exact FPGA, using **20,305 of 20,736 physical LUT sites (97.92%)**, all
+on the exact FPGA, using **20,577 of 20,736 physical LUT sites (99.23%)**, all
 46 native RAM banks and 25 multiplier equivalents. **Estimated core Fmax is
-68.88 MHz**, below the **100.8 MHz** target in nextpnr's timing model; the host
+70.23 MHz**, below the **100.8 MHz** target in nextpnr's timing model; the host
 domain passes its 25.2 MHz target. Production clock/reset, video and board pin
 integration remain unfinished. There is no board-qualified GPU bitstream yet.
 
-An isolated [lossless upload-decoder experiment](../docs/hardware/upload-codec.md)
-preserves all 320 record bytes and reduces sampled triangle traffic by
-48.2–73.7%. It uses no BSRAM or DSPs, but the complete GPU plus independent
-decoder failed legal placement in the tested co-residency probe. This does not
-establish integrated fit or upload throughput. Compression is experimental;
-the production GPU and its frozen timing implementation are unchanged.
+Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
+It shares the existing packet-word register, counters, 64-byte staging RAM and
+SDRAM-write backend; its only additional decoder storage is an eight-bit group
+descriptor. All resource types use this engine, with literal words inside the
+same encoding. There is no legacy 0.1 packet path or uncompressed fallback.
+Decoded primitive records remain 320 bytes and rendering features are unchanged.
+The [earlier standalone decoder experiment](../docs/hardware/upload-codec.md)
+was a different probe with additional measurement registers; its failed
+co-residency result is historical, not an integrated fit measurement. The
+current unified engine passes full logical-core placement and routing with
+**159 physical LUT sites remaining**, eight more DFFs and no additional BSRAM
+or DSPs. The production board wrapper remains separate work.
 
 Whenever the architecture or CPU control changes, update **both files in
 `GPU_DOCUMENTATION/`** in the same change and push them with the implementation.
@@ -75,7 +81,7 @@ invert the active-low controls, implement address latching and safe turnaround,
 and map GPU_RESET_N to logic reset. The source's byte ABI is unchanged. No
 firmware, RTL or constraints were changed for the wiring layout. Production
 I/O timing, clock/reset integration and the RP2350 PIO driver remain unfinished;
-the earlier 68.88 MHz estimate still applies only to the serial probe.
+the current 70.23 MHz estimate applies only to the serial probe.
 
 The layout leaves the Tang LCD FPC disconnected and avoids HDMI, flash, SDRAM,
 SD, audio and BL616 signal conflicts. WR_N/RD_N/ALE_N use three existing LED
@@ -111,10 +117,10 @@ in the control guide explain command encoding, not a completed Pico SDK driver.
 
 ```mermaid
 flowchart LR
-    CPU["CPU: transform, clip, setup, ordered tile bins"] --> HOST["CPU: heap allocation and packet encoding"]
+    CPU["CPU: transform, clip, setup, ordered tile bins"] --> HOST["CPU: heap allocation, upload encoding and packets"]
     HOST --> LINK["8-bit host link / asynchronous native FIFOs"]
     LINK --> PARSER["Packet decoder / bounded command queue"]
-    PARSER --> EXEC["Command executor"]
+    PARSER --> EXEC["Command executor / shared upload decoding"]
     EXEC --> UP["64-byte upload staging"]
     UP --> MEM["Shared SDRAM service"]
     EXEC --> FETCH["Fetch pass, bins, references and primitive records"]
@@ -464,6 +470,18 @@ unused words 32..47 of that same bank and are read before the two data halves.
 Slow host byte decoding must
 not hold the shared memory owner while the display FIFO drains.
 
+The upload engine decodes a descriptor for up to four u32 words, using zero,
+sign-extended 8/16-bit or literal 32-bit values. It reads the owned packet bank
+only for encoded bytes, then routes decoded bytes through the existing word
+assembly and byte-mask staging. The command accumulator becomes the decoded
+word register; readback cursors are reused because upload and readback commands
+execute serially. An eight-bit descriptor is the only new retained payload.
+Each command expands 1..956 bytes, permitting every input to fit the existing
+1024-byte packet limit. Exact encoded consumption and unused descriptor codes
+are checked before the final chunk is submitted. Earlier chunks may already
+have reached SDRAM when malformed input faults; recovery requires reuploading
+the affected resource. No second upload engine or additional BSRAM is present.
+
 The present RTL serializes foreground upload, fetch, tile transfers and copies;
 it does not implement the C++ system model's overlapping tile writeback or
 primitive prefetch schedule. Color copies use bounded native row staging and
@@ -594,24 +612,25 @@ core inside the small serial qualification wrapper report:
 
 | Resource | Use or necessary bound | Device capacity |
 | --- | ---: | ---: |
-| Routed occupied physical LUT sites | **20,305** | **20,736** |
-| Packed LUT sites before flip-flop input placement | **17,134** | **20,736** |
-| Necessary minimum physical LUT sites | **20,104** | **20,736** |
-| DFF resources, including probe and RAM-reserved slots | 7,003 | 15,552 |
+| Routed occupied physical LUT sites | **20,577** | **20,736** |
+| Packed LUT sites before flip-flop input placement | **17,277** | **20,736** |
+| Necessary minimum physical LUT sites | **20,237** | **20,736** |
+| DFF resources, including probe and RAM-reserved slots | 7,011 | 15,552 |
 | Native 18×18 multipliers | 25 | 48 |
 | Native BSRAM | 46 | 46 |
 
-The packed 17,134 sites include 5,494 ALU functions and the sites occupied by
+The packed 17,277 sites include 5,558 ALU functions and the sites occupied by
 eight `RAM16SDP4` cells. Gowin flip-flops also require an input LUT, which can
-sometimes share an already-counted LUT/ALU site. Of 6,955 active flip-flops,
-at most 3,985 can pair with existing sites, requiring **at least 2,970 further
-LUT sites**. Thus 20,104 is a necessary lower bound, not a legal-placement or
+sometimes share an already-counted LUT/ALU site. Of 6,963 active flip-flops,
+at most 4,003 can pair with existing sites, requiring **at least 2,960 further
+LUT sites**. Thus 20,237 is a necessary lower bound, not a legal-placement or
 routing result. The DFF inventory also reserves 48 RAM-blocked flip-flop slots.
 
-The current `-nowidelut` implementation's legal route occupies **20,305 physical LUT
-sites (97.92%)**: 14,779 explicit LUTs, including 32 RAM-storage sites, plus 5,494
-ALU sites and 32 further RAM-reserved sites. That union leaves 431 sites in
-this serial probe. Do not subtract the lower bound from device capacity and
+The current `-nowidelut` implementation's legal route occupies **20,577 physical LUT
+sites (99.23%)**, including FF feed-throughs, ALU and RAM reservations. That
+union leaves **159 sites** in this serial probe. Compared with the previous
+0.1 route, the integrated upload change adds 272 physical LUT sites and eight
+DFFs; BSRAM and DSP counts are unchanged. Do not subtract the lower bound from device capacity and
 present that difference as proven free physical sites.
 The earlier 19,775-site packed inventory failed placement because required
 flip-flop input LUTs raised its physical demand beyond capacity.
@@ -629,17 +648,17 @@ that hardware cannot exceed the reported frequency.
 
 | Clock domain | Requested target | Estimated routed Fmax | Result |
 | --- | ---: | ---: | --- |
-| Core | 100.8 MHz | **68.88 MHz** | **FAIL** |
-| Host | 25.2 MHz | 118.27 MHz | PASS |
+| Core | 100.8 MHz | **70.23 MHz** | **FAIL** |
+| Host | 25.2 MHz | 120.37 MHz | PASS |
 
 The timing report represents those targets with 1 ps period precision, giving
-100.80645 and 25.20034 MHz respectively. The core's 14.518 ns critical path
-runs from clipped-window bounds through raster-advancement control to
-interpolation-register enables. The previous area-optimized route estimated
-48.26 MHz; this implementation improves estimated core Fmax by 42.7% while
-preserving warm fragment initiation interval one. Further clock optimization
-is paused by user choice; retain this candidate for production integration and
-board measurements. A legal route establishes
+100.80645 and 25.20034 MHz respectively. The core's 14.239 ns critical path
+runs from SDRAM burst-address state to the memory-service write-mask bank.
+The previous 0.1 route estimated 68.88 MHz; the current estimate reflects the
+new mapping and routing, not a changed clock plan or a measured board clock.
+Warm fragment initiation interval one is preserved. Further clock optimization
+remains paused by user choice; board clock/reset integration and measurement
+are still required. A legal route establishes
 physical resource fit for the serial probe, not operation at 100.8 MHz.
 
 The probe adds up to 198 registers plus small control/checksum logic and does
@@ -679,17 +698,22 @@ old RTL and passes the corrected queued-refill/staged-upload implementation.
 The current RTL passes the command/recovery self-test and two
 rendered frames each of showcase, perspective, overdraw and opaque, with zero
 scanout underflows and matching attachment/display pixels. Showcase's second
-submission is **8,468,144 core cycles**, about **84.01 ms** at the assumed
-100.8 MHz. Across the four scenes, submission cycles increase by **1.00% to 1.57%**
-against the area-optimized baseline; the local warm fragment initiation interval
+submission is **8,719,000 core cycles**, about **86.50 ms** at the assumed
+100.8 MHz. Across the four scenes, the sole encoded upload path reduces
+serialized request bytes by **22.9–41.8%**, while submission cycles increase
+by **0.4–3.7%** relative to the previous 0.1 timing baseline. This improves bus
+capacity, not measured FPS. The local warm fragment initiation interval
 remains one. These measurements include host delivery through the matching
 fence and exclude RP2350 execution and a board frequency guarantee. SDL
 wall-clock playback is slower because the PC evaluates every simulated clock.
 The routed core misses 100.8 MHz, so those nominal milliseconds are not an
 achieved FPGA frame time.
 Full source-matched results, including 29 additional COPY oracle cases and 17
-descriptor/LOAD fault cases, are in
-[the timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json).
+descriptor/LOAD fault cases, seven malformed encoded-upload cases and obsolete
+version rejection, are in
+[the unified-upload regression](../docs/benchmarks/rtl-unified-upload.json).
+The [0.1 timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json)
+retains the previous raw-upload measurements.
 The earlier [area-optimization baseline](../docs/benchmarks/rtl-fit-optimized.json)
 retains the pre-retiming cycle counts.
 The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
@@ -731,7 +755,7 @@ from complete-device placement/routing/timing qualification. The remaining work 
 3. Run Gowin implementation and timing analysis for that full top, selecting
    actual clocks and matching SDRAM/scanout timing parameters.
 4. Generate the board bitstream and measure correctness, clock margin and
-   rendering performance on hardware. The 68.88 MHz estimate is not a board
+   rendering performance on hardware. The 70.23 MHz estimate is not a board
    measurement or a clock configuration already programmed into an FPGA.
 
 Programming uses the board's onboard USB-JTAG connection with openFPGALoader

@@ -27,8 +27,8 @@ module nano_gpu_core #(
     localparam [31:0] MEMORY_BYTES=32'h00800000;
     localparam [7:0] S_BOOT_WAIT=0, S_BOOT_CMD=1, S_BOOT_DATA=2, S_BOOT_DONE=3,
         S_IDLE=4, S_CAPTURE_REQ=5, S_CAPTURE_WAIT=6, S_EXECUTE=7,
-        S_UPLOAD_PREP=8, S_UPLOAD_CMD=9, S_UPLOAD_BYTE_REQ=10,
-        S_UPLOAD_BYTE_WAIT=11, S_UPLOAD_WORD=12, S_UPLOAD_DONE=13,
+        S_UPLOAD_PREP=8, S_UPLOAD_CMD=9, S_UPLOAD_NEXT=10,
+        S_UPLOAD_EMIT=11, S_UPLOAD_WORD=12, S_UPLOAD_DONE=13,
         S_DESC_CMD=14, S_DESC_DATA=15, S_DESC_DONE=16,
         S_ENTRY_CMD=17, S_ENTRY_DATA=18, S_ENTRY_DONE=19,
         S_TILE_INIT=20, S_LOAD_COLOR_CMD=21, S_LOAD_COLOR_DATA=22,
@@ -50,7 +50,9 @@ module nano_gpu_core #(
         S_UPLOAD_STAGE_LOW=63, S_UPLOAD_STAGE_HIGH=64,
         S_UPLOAD_RAM_LOW=65, S_UPLOAD_RAM_HIGH=66, S_COPY_CLIP=67,
         S_COPY_FETCH_REQ=68, S_COPY_FETCH_WAIT=69, S_COPY_CLIP_CHECK=70,
-        S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72;
+        S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72,
+        S_UPLOAD_HEADER_REQ=73, S_UPLOAD_HEADER_WAIT=74,
+        S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77;
     reg [7:0] state;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
@@ -159,6 +161,17 @@ module nano_gpu_core #(
     reg [6:0] upload_chunk, upload_fill;
     reg [1:0] upload_prefix;
     reg [4:0] upload_words;
+    // Sole upload representation: one descriptor byte for four little-endian
+    // words, then zero/signed8/signed16/raw32 payloads. The command capture
+    // register packet_word becomes the decoded-word shift register. Uploads
+    // reuse read_cursor as the encoded-body cursor, read_lane as the decoded
+    // byte index and capture_index as the literal-byte counter; those clients
+    // cannot execute concurrently. No second word buffer or decoder instance.
+    reg [7:0] upload_descriptor;
+    wire [1:0] upload_code = upload_descriptor[1:0];
+    wire [1:0] upload_literal_last = upload_code==3 ? 2'd3 :
+        (upload_code==2 ? 2'd1 : 2'd0);
+    wire [3:0] upload_group_offset = upload_cursor[3:0] + upload_fill[3:0];
     reg [3:0] packed_mask;
     wire [22:0] upload_current = upload_address + {12'd0,upload_cursor};
     wire [10:0] upload_remaining = upload_length - upload_cursor;
@@ -184,6 +197,15 @@ module nano_gpu_core #(
     reg [4:0] read_burst_words;
     reg [31:0] read_word_hold;
     reg [1:0] read_lane;
+    // The upload path also reuses read_length for the encoded body extent.
+    // Literal sign extension is generated one emitted byte at a time, keeping
+    // the shared 32-bit capture register on its existing shift datapath.
+    wire upload_encoded_available = read_cursor < read_length;
+    wire upload_final_byte = upload_remaining == {4'd0,upload_fill} + 11'd1;
+    wire [7:0] upload_decoded_byte = upload_code==0 ? 8'd0 :
+        upload_code==1 ? (read_lane==0 ? packet_word[31:24] : {8{packet_word[31]}}) :
+        upload_code==2 ? (read_lane==0 ? packet_word[23:16] :
+            (read_lane==1 ? packet_word[31:24] : {8{packet_word[31]}})) : packet_word[7:0];
     // Full request bounds are checked before these narrowed transfer counters
     // are used. A read of 1..512 bytes spans at most 129 aligned u32 words.
     wire [9:0] read_initial_rounded = read_length + {8'd0,read_address[1:0]} + 10'd3;
@@ -297,7 +319,7 @@ module nano_gpu_core #(
         begin
             word_value=0;
             if (index<4) word_value=32'h5550474e;
-            else if(index<8) word_value={opcode|16'h8000,8'd1,8'd0};
+            else if(index<8) word_value={opcode|16'h8000,8'd2,8'd0};
             else if(index<12) word_value={21'd0,reply_payload_bytes};
             else if(index<16) word_value=command_sequence;
             else if(index<20) word_value=epoch;
@@ -371,7 +393,7 @@ module nano_gpu_core #(
         status_snapshot[256 +:32]={24'd0,fault_code};
         status_snapshot[288 +:32]=present_token;
         status_snapshot[448 +:8]=host_fault;
-        capabilities[0 +:32]=32'h20080100;
+        capabilities[0 +:32]=32'h20080200;
         capabilities[32 +:32]=MEMORY_BYTES;
         capabilities[64 +:32]={9'd0,HEAP_BASE};
         capabilities[96 +:32]=1024; capabilities[128 +:32]=320;
@@ -434,7 +456,12 @@ module nano_gpu_core #(
             mem_cmd_valid[1]=1; mem_cmd_write[1]=1;
             mem_cmd_addr[23 +:23]=upload_current[22:0]&23'h7ffffc; mem_cmd_words[5 +:5]=upload_words;
         end
-        S_UPLOAD_BYTE_REQ: begin payload_req=1; payload_offset=10'd8+upload_cursor[9:0]+upload_fill; end
+        S_UPLOAD_HEADER_REQ,S_UPLOAD_CODE_REQ: begin
+            // Never address bytes beyond the published packet lease. A
+            // truncated encoding faults instead of waiting for missing data.
+            payload_req=upload_encoded_available;
+            payload_offset=10'd8+read_cursor;
+        end
         S_UPLOAD_STAGE_LOW: upload_ram_we=1;
         S_UPLOAD_STAGE_HIGH: begin
             upload_ram_we=1; upload_ram_waddr={5'd0,beat[3:0],1'b1};
@@ -565,6 +592,7 @@ module nano_gpu_core #(
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
             held_color<=0; held_depth<=0; packed_word<=0; packed_mask<=0; boot_address<=0;
             upload_address<=0; upload_length<=0; upload_cursor<=0; upload_chunk<=0; upload_fill<=0; upload_prefix<=0; upload_words<=0;
+            upload_descriptor<=0;
             read_address<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
             read_words_remaining<=0; read_burst_words<=0; read_word_hold<=0; read_lane<=0; read_first<=0; read_done_hold<=0;
             reply_index<=0; reply_length<=0; reply_token<=0; reply_caps<=0;
@@ -643,7 +671,7 @@ module nano_gpu_core #(
                         end
                         1: begin
                             upload_length<=capture_word_data[10:0];
-                            if(capture_word_data!={21'd0,payload_length}-32'd8 || capture_word_data==0 ||
+                            if(capture_word_data==0 || capture_word_data>956 ||
                                {1'b0,upload_address}+{13'd0,capture_word_data[10:0]}>24'h800000) capture_invalid<=1;
                         end
                         default: capture_invalid<=1;
@@ -725,7 +753,11 @@ module nano_gpu_core #(
                         start_reply(0,1,0);
                     end
                     3: if(capture_invalid) raise_fault(3);
-                       else begin upload_cursor<=0; state<=S_UPLOAD_PREP; end
+                       else begin
+                           upload_cursor<=0; read_cursor<=0; read_lane<=0;
+                           read_length<=payload_length-11'd8;
+                           upload_descriptor<=0; state<=S_UPLOAD_PREP;
+                       end
                     4: if(capture_invalid) raise_fault(3);
                        else begin tex_flush<=1; state<=S_DESC_CMD; end
                     6: begin fence_token<=packet_word; start_reply(packet_word,0,0); end
@@ -750,22 +782,60 @@ module nano_gpu_core #(
                     upload_prefix<=upload_current[1:0];
                     upload_chunk<=upload_next_chunk;
                     upload_words<=upload_rounded_bytes[6:2];
-                    upload_fill<=0; beat<=0; packed_word<=0; packed_mask<=0; state<=S_UPLOAD_BYTE_REQ;
+                    upload_fill<=0; beat<=0; packed_word<=0; packed_mask<=0;
+                    state<=S_UPLOAD_NEXT;
                 end
                 S_UPLOAD_CMD: if(mem_cmd_ready[1]) state<=S_UPLOAD_RAM_LOW;
-                S_UPLOAD_BYTE_REQ: state<=S_UPLOAD_BYTE_WAIT;
-                S_UPLOAD_BYTE_WAIT: if(payload_valid) begin
-                    packed_word[upload_lane*8 +:8]<=payload_data; packed_mask[upload_lane]<=1;
+                S_UPLOAD_NEXT: begin
+                    if(read_lane!=0) state<=S_UPLOAD_EMIT;
+                    else if(upload_group_offset==0) state<=S_UPLOAD_HEADER_REQ;
+                    else state<=S_UPLOAD_CODE;
+                end
+                S_UPLOAD_HEADER_REQ: begin
+                    if(!upload_encoded_available) raise_fault(3);
+                    else state<=S_UPLOAD_HEADER_WAIT;
+                end
+                S_UPLOAD_HEADER_WAIT: if(payload_valid) begin
+                    upload_descriptor<=payload_data; read_cursor<=read_cursor+1;
+                    state<=S_UPLOAD_CODE;
+                end
+                S_UPLOAD_CODE: begin
+                    capture_index<=0;
+                    if(upload_code==0) state<=S_UPLOAD_EMIT;
+                    else state<=S_UPLOAD_CODE_REQ;
+                end
+                S_UPLOAD_CODE_REQ: begin
+                    if(!upload_encoded_available) raise_fault(3);
+                    else state<=S_UPLOAD_CODE_WAIT;
+                end
+                S_UPLOAD_CODE_WAIT: if(payload_valid) begin
+                    packet_word<=capture_word_data; read_cursor<=read_cursor+1;
+                    if(capture_index[1:0]==upload_literal_last) begin
+                        state<=S_UPLOAD_EMIT;
+                    end else begin capture_index<=capture_index+1; state<=S_UPLOAD_CODE_REQ; end
+                end
+                S_UPLOAD_EMIT: begin
+                    packed_word[upload_lane*8 +:8]<=upload_decoded_byte;
+                    if(upload_code==3) packet_word<={8'd0,packet_word[31:8]};
+                    packed_mask[upload_lane]<=1;
+                    read_lane<=read_lane+1;
                     upload_fill<=upload_fill+1;
+                    if(read_lane==3) upload_descriptor<={2'b0,upload_descriptor[7:2]};
+                    // Malformed streams may have written earlier complete
+                    // chunks. The current chunk is not submitted on failure.
+                    // Only decoded_length bytes escape a partial final word;
+                    // its unused high bytes are ignored, never memory writes.
+                    if(upload_final_byte &&
+                       (read_cursor!=read_length || upload_descriptor[7:2]!=0)) raise_fault(3);
                     if(upload_lane==3 || upload_fill+1==upload_chunk) state<=S_UPLOAD_STAGE_LOW;
-                    else state<=S_UPLOAD_BYTE_REQ;
+                    else state<=read_lane==3 ? S_UPLOAD_NEXT : S_UPLOAD_EMIT;
                 end
                 S_UPLOAD_STAGE_LOW: state<=S_UPLOAD_STAGE_HIGH;
                 S_UPLOAD_STAGE_HIGH: state<=S_UPLOAD_STAGE_MASK;
                 S_UPLOAD_STAGE_MASK: begin
                     packed_word<=0; packed_mask<=0; beat<=beat+1;
                     if(upload_fill==upload_chunk) begin beat<=0; state<=S_UPLOAD_CMD; end
-                    else state<=S_UPLOAD_BYTE_REQ;
+                    else state<=S_UPLOAD_NEXT;
                 end
                 S_UPLOAD_RAM_LOW: state<=S_UPLOAD_RAM_HIGH;
                 S_UPLOAD_RAM_HIGH: begin packed_word[15:0]<=upload_ram_rdata; state<=S_UPLOAD_RAM_MASK; end

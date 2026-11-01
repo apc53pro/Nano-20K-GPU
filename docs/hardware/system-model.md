@@ -1,5 +1,12 @@
 # SRR system model — N20K-SYS-0.1
 
+This page records the earlier C++ system-model architecture and 0.1 protocol
+snapshot. Current code uses the sole encoded 0.2 upload format described in
+[GPU_CONTROL.md](../../GPU_DOCUMENTATION/GPU_CONTROL.md). These older model
+timings and schedules do not qualify the current RTL; use
+[GPU_ARCHITECTURE.md](../../GPU_DOCUMENTATION/GPU_ARCHITECTURE.md) for its
+implementation and resource evidence.
+
 The `system` mode connects the SRR rendering blocks to an eight-bit host link,
 bounded command queues, a physical SDRAM address space and timed memory
 controller, and continuously advancing display scanout. It measures contention

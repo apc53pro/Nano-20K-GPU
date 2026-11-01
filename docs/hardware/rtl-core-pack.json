@@ -22,8 +22,8 @@
     "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
     "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "47d6bfdb25620286822710630569aa50ce6455e12362ba453a2cbfcb5d9cf6eb",
-    "rtl/gpu/nano_host_link.sv": "1855afa5429ec04fc4a979eeca4c3368364a8bbb3ab86225ddec40d42c650928",
+    "rtl/gpu/nano_gpu_core.sv": "ef4a85f72b363e714d99fd9717350aa983b43424e1da2e9b0468e7c37d943ce3",
+    "rtl/gpu/nano_host_link.sv": "61b4337f5d414df8b96f71d4cc1dad6461786acc406733527ef6a7de41fe6594",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
@@ -46,32 +46,7 @@
   "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
   "elaboration_passed": true,
   "synthesis_returncode": 0,
-  "synthesis_cells": {
-    "$scopeinfo": 87,
-    "ALU": 4942,
-    "DFF": 11,
-    "DFFC": 176,
-    "DFFCE": 544,
-    "DFFE": 1822,
-    "DFFP": 1,
-    "DFFPE": 1,
-    "DFFR": 339,
-    "DFFRE": 4003,
-    "DFFSE": 58,
-    "GND": 1,
-    "IBUF": 6,
-    "LUT1": 74,
-    "LUT2": 2546,
-    "LUT3": 4158,
-    "LUT4": 4798,
-    "MULT18X18": 25,
-    "OBUF": 3,
-    "RAM16SDP4": 8,
-    "SDPB": 44,
-    "SDPX9B": 2,
-    "VCC": 1
-  },
-  "netlist_sha256": "57be0025721e48e42a1f5f8184831622871b4c16bc64f6bbc63c312fc93f9796",
+  "netlist_sha256": "0ecd0cc16b7660b42b4bbd6bbc12bbd4881255416832f172c7e2d251b514b247",
   "pack_returncode": 0,
   "packer_errors": [],
   "packer_utilization": {
@@ -86,7 +61,7 @@
       "within_capacity": true
     },
     "LUT4": {
-      "used": 17134,
+      "used": 17277,
       "available": 20736,
       "within_capacity": true
     },
@@ -121,7 +96,7 @@
       "within_capacity": true
     },
     "ALU": {
-      "used": 5494,
+      "used": 5558,
       "available": 15552,
       "within_capacity": true
     },
@@ -131,7 +106,7 @@
       "within_capacity": true
     },
     "DFF": {
-      "used": 7003,
+      "used": 7011,
       "available": 15552,
       "within_capacity": true
     },
@@ -241,42 +216,14 @@
       "within_capacity": true
     }
   },
-  "packed_cells": {
-    "ALU": 5494,
-    "BLOCKER_FF": 48,
-    "BLOCKER_LUT": 5526,
-    "BUFG": 2,
-    "DFF": 11,
-    "DFFC": 176,
-    "DFFCE": 544,
-    "DFFE": 1822,
-    "DFFP": 1,
-    "DFFPE": 1,
-    "DFFR": 339,
-    "DFFRE": 4003,
-    "DFFSE": 58,
-    "DUMMY_CELL": 100,
-    "GOWIN_GND": 1,
-    "GOWIN_VCC": 1,
-    "GSR": 1,
-    "IBUF": 6,
-    "LUT1": 74,
-    "LUT2": 2546,
-    "LUT3": 4158,
-    "LUT4": 4830,
-    "MULT18X18": 25,
-    "OBUF": 3,
-    "RAM16SDP4": 8,
-    "SDP": 46
-  },
-  "packed_netlist_sha256": "ce3a48eae111f5f13daaba7219a6b953721ebc03bf1f365e0280ecfa4d8e2f86",
+  "packed_netlist_sha256": "4dfb47ffc60b8144060dfe1101a25104a69d4d9a8b5648b3449e336e3dc1f04e",
   "physical_lut_lower_bound": {
     "scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
-    "active_flipflops": 6955,
-    "maximum_existing_lut_alu_pairs": 3985,
-    "minimum_additional_ff_input_luts": 2970,
-    "packed_lut_sites": 17134,
-    "minimum_physical_lut_sites": 20104,
+    "active_flipflops": 6963,
+    "maximum_existing_lut_alu_pairs": 4003,
+    "minimum_additional_ff_input_luts": 2960,
+    "packed_lut_sites": 17277,
+    "minimum_physical_lut_sites": 20237,
     "available_lut_sites": 20736,
     "within_capacity": true
   },

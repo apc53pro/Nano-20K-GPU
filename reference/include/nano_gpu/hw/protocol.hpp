@@ -12,11 +12,13 @@
 
 namespace nano_gpu::hw {
 
-// Provisional simulation ABI N20K-SYS-0.1, not a released RP2350 driver ABI.
+// Provisional simulation ABI N20K-SYS-0.2, not a released RP2350 driver ABI.
 // Every integer is little-endian; every heap structure is four-byte aligned.
 constexpr std::size_t packet_header_bytes = 16;
 constexpr std::size_t maximum_packet_payload = 1024;
 static_assert(maximum_packet_payload == host_max_payload_bytes);
+// Worst case:239 literal words plus60 descriptors =1016 encoded bytes.
+constexpr std::size_t maximum_upload_decoded_bytes = 956;
 constexpr std::size_t primitive_record_bytes = 320;
 constexpr std::size_t pass_descriptor_bytes = 32;
 constexpr std::size_t tile_entry_bytes = 8;
@@ -75,6 +77,18 @@ void validate_heap_range(std::uint32_t address, std::uint64_t length,
 std::uint32_t texture_extent(const TextureDescriptor& texture);
 std::vector<std::uint8_t> encode_packet(Opcode opcode, std::uint32_t sequence,
                                        const std::vector<std::uint8_t>& payload = {});
+struct HeapUpload {
+    std::uint32_t address = 0;
+    std::vector<std::uint8_t> bytes;
+};
+// The sole WRITE_HEAP payload representation: address, decoded byte count,
+// then descriptor/payload groups of up to four little-endian u32 words.
+// Codes0/1/2/3 denote zero/sign-extended8/sign-extended16/literal32. The last
+// word is zero-padded by the encoder; only the declared bytes are written.
+// Unused final descriptor codes must be zero; no trailing bytes are accepted.
+std::vector<std::uint8_t> encode_heap_upload(std::uint32_t address,
+                                          const std::vector<std::uint8_t>& bytes);
+HeapUpload decode_heap_upload(const std::vector<std::uint8_t>& payload);
 std::vector<std::uint8_t> encode_primitive(const Primitive& primitive,
                                          std::optional<TextureDescriptor> texture = {});
 DecodedPrimitive decode_primitive(const std::vector<std::uint8_t>& bytes);
@@ -102,7 +116,7 @@ CopyCommand decode_copy_command(const std::vector<std::uint8_t>& bytes);
 
 // CPU-side program memory is not GPU storage. compile_pass serializes/uploads
 // all resources and records once, then SUBMIT_PASS and FENCE(token=sequence).
-// WRITE_HEAP payload: u32 byteAddress,u32 dataLength,then aligned data bytes.
+// WRITE_HEAP uses encode_heap_upload(); all uploads have the same encoding.
 // SUBMIT_PASS payload: u32 descriptorAddress; FENCE payload: u32 hostToken.
 struct HostProgram {
     std::vector<std::uint8_t> bytes;

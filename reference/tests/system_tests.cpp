@@ -52,6 +52,30 @@ std::vector<std::uint8_t> scalar(std::uint32_t value) {
 void append(std::vector<std::uint8_t>& target, const std::vector<std::uint8_t>& tail) {
     target.insert(target.end(), tail.begin(), tail.end());
 }
+bool mutate_uploaded_byte(HostProgram& program, std::uint32_t address, std::uint8_t value) {
+    std::vector<std::uint8_t> rewritten;
+    bool changed = false;
+    for (std::size_t cursor = 0; cursor < program.bytes.size();) {
+        const auto length = read_u32(program.bytes, cursor + 8);
+        const auto opcode = static_cast<Opcode>(read_u16(program.bytes, cursor + 6));
+        const auto sequence = read_u32(program.bytes, cursor + 12);
+        const auto payload_start = cursor + packet_header_bytes;
+        std::vector<std::uint8_t> payload(program.bytes.begin() + static_cast<std::ptrdiff_t>(payload_start),
+            program.bytes.begin() + static_cast<std::ptrdiff_t>(payload_start + length));
+        if (opcode == Opcode::WriteHeap) {
+            auto upload = decode_heap_upload(payload);
+            if (address >= upload.address && address - upload.address < upload.bytes.size()) {
+                upload.bytes[address - upload.address] = value;
+                payload = encode_heap_upload(upload.address, upload.bytes);
+                changed = true;
+            }
+        }
+        append(rewritten, encode_packet(opcode, sequence, payload));
+        cursor = payload_start + length;
+    }
+    program.bytes = std::move(rewritten);
+    return changed;
+}
 
 // External CPU test driver: no privileged access to device queues or memory.
 // Controls are established after the previous transfer edge and remain stable
@@ -104,7 +128,7 @@ public:
             if (!result.read_valid) continue;
             bytes.push_back(result.read_data);
             if (bytes.size() == packet_header_bytes) {
-                expect(read_u32(bytes, 0) == 0x5550474eu && bytes[4] == 0 && bytes[5] == 1 &&
+                expect(read_u32(bytes, 0) == 0x5550474eu && bytes[4] == 0 && bytes[5] == 2 &&
                        read_u16(bytes, 6) == (static_cast<std::uint16_t>(opcode) | 0x8000u) &&
                        read_u32(bytes, 12) == sequence && read_u32(bytes, 8) <= 780,
                        "raw reply envelope or command identity differs");
@@ -224,11 +248,9 @@ void boot_and_io_tests() {
     run_case("ordered byte-masked heap uploads are observable only through timed readback", [] {
         SystemModel model; boot(model); RawHost host(model);
         std::vector<std::uint8_t> program;
-        auto payload = scalar(heap_base); append(payload, scalar(8));
-        payload.insert(payload.end(), {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17});
+        auto payload = encode_heap_upload(heap_base, {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17});
         append(program, encode_packet(Opcode::WriteHeap, 1, payload));
-        payload = scalar(heap_base + 1); append(payload, scalar(5));
-        payload.insert(payload.end(), {0xa1, 0xb2, 0xc3, 0xd4, 0xe5});
+        payload = encode_heap_upload(heap_base + 1, {0xa1, 0xb2, 0xc3, 0xd4, 0xe5});
         append(program, encode_packet(Opcode::WriteHeap, 2, payload));
         append(program, encode_packet(Opcode::Fence, 3, scalar(0x12345678)));
         host.send(program);
@@ -248,8 +270,7 @@ void boot_and_io_tests() {
         std::vector<std::uint8_t> expected(520);
         for (unsigned byte = 0; byte < expected.size(); ++byte)
             expected[byte] = static_cast<std::uint8_t>(byte * 37u + (byte >> 8) * 19u);
-        auto payload = scalar(heap_base); append(payload, scalar(static_cast<std::uint32_t>(expected.size())));
-        append(payload, expected);
+        auto payload = encode_heap_upload(heap_base, expected);
         auto program = encode_packet(Opcode::WriteHeap, 1, payload);
         append(program, encode_packet(Opcode::Fence, 2, scalar(0x11223344)));
         host.send(program); (void)host.reply(Opcode::Fence, 2);
@@ -266,6 +287,30 @@ void boot_and_io_tests() {
         expect(memory.prepared_submissions != 0 && memory.slot_read_words != 0 && memory.slot_write_words != 0 &&
                memory.legacy_submissions == 0 && memory.legacy_response_reads == 0,
                "readback or upload used untimed legacy burst arrays");
+    });
+    run_case("encoded upload framing faults recover without retiring malformed commands", [] {
+        SystemModel model; boot(model); RawHost host(model);
+        std::vector<std::vector<std::uint8_t>> malformed;
+        auto payload = encode_heap_upload(heap_base, {0x78, 0x56, 0x34, 0x12});
+        payload.pop_back(); malformed.push_back(payload);
+        payload = encode_heap_upload(heap_base, {0}); payload.push_back(0);
+        malformed.push_back(payload);
+        payload = encode_heap_upload(heap_base, {0}); payload[8] |= 4;
+        malformed.push_back(payload);
+        payload = encode_heap_upload(heap_base, std::vector<std::uint8_t>(20, 0));
+        payload.pop_back(); malformed.push_back(payload);
+        for (const auto& bad : malformed) {
+            host.send(encode_packet(Opcode::WriteHeap, 1, bad));
+            for (unsigned edge = 0; edge < 10000 && !model.faulted(); ++edge) model.tick();
+            expect(model.faulted() && model.system_statistics().completed_sequence == 0,
+                   "malformed encoded upload completed or waited indefinitely");
+            model.abort();
+        }
+        host.send(encode_packet(Opcode::WriteHeap, 1, encode_heap_upload(heap_base + 1, {9, 8, 7})));
+        host.send(encode_packet(Opcode::Fence, 2, scalar(0x2468)));
+        expect(read_u32(host.reply(Opcode::Fence, 2), 24) == 0x2468 &&
+               host.read_memory(3, heap_base + 1, 3, 0x1357) == std::vector<std::uint8_t>({9, 8, 7}),
+               "codec faults did not recover a usable byte-masked stream");
     });
 }
 
@@ -629,13 +674,13 @@ void recovery_tests() {
     });
     run_case("partial packets never execute and abort discards every old fragment", [] {
         SystemModel model; boot(model); RawHost host(model);
-        auto payload = scalar(heap_base); append(payload, scalar(4)); payload.insert(payload.end(), {1, 2, 3, 4});
+        auto payload = encode_heap_upload(heap_base, {1, 2, 3, 4});
         auto packet = encode_packet(Opcode::WriteHeap, 1, payload); packet.resize(18);
         host.send(packet); model.advance(1000);
         expect(model.system_statistics().uploaded_bytes == 0 && model.system_statistics().commands_completed == 0 &&
                !model.faulted(), "partially received write executed");
         model.abort();
-        payload = scalar(heap_base); append(payload, scalar(4)); payload.insert(payload.end(), {9, 8, 7, 6});
+        payload = encode_heap_upload(heap_base, {9, 8, 7, 6});
         auto bytes = encode_packet(Opcode::WriteHeap, 1, payload);
         append(bytes, encode_packet(Opcode::Fence, 2, scalar(0x55aa))); host.send(bytes);
         expect(read_u32(host.reply(Opcode::Fence, 2), 24) == 0x55aa, "new epoch fence was not returned");
@@ -697,19 +742,7 @@ void recovery_tests() {
         auto program = compile_pass(pass);
         // First allocation is the untextured primitive record. Corrupt its
         // reserved byte in WRITE_HEAP traffic, rather than editing a C++ draw.
-        bool changed = false;
-        for (std::size_t cursor = 0; cursor < program.bytes.size();) {
-            const auto length = read_u32(program.bytes, cursor + 8);
-            if (read_u16(program.bytes, cursor + 6) == static_cast<unsigned>(Opcode::WriteHeap)) {
-                const auto address = read_u32(program.bytes, cursor + packet_header_bytes);
-                const auto size = read_u32(program.bytes, cursor + packet_header_bytes + 4);
-                if (address <= heap_base + 76 && heap_base + 76 < static_cast<std::uint64_t>(address) + size) {
-                    program.bytes[cursor + packet_header_bytes + 8 + heap_base + 76 - address] = 1;
-                    changed = true;
-                }
-            }
-            cursor += packet_header_bytes + length;
-        }
+        const bool changed = mutate_uploaded_byte(program, heap_base + 76, 1);
         expect(changed, "test did not modify uploaded record bytes");
         SystemModel model; boot(model); RawHost host(model); host.send(program.bytes);
         for (std::uint64_t edge = 0; edge < 1000000 && !model.faulted(); ++edge) model.tick();
@@ -725,19 +758,7 @@ void recovery_tests() {
         pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, overlay_state({30, 80, 200}), 0});
         auto program = compile_pass(pass);
         const auto corrupt_address = heap_base + primitive_record_bytes + 76;
-        bool changed = false;
-        for (std::size_t cursor = 0; cursor < program.bytes.size();) {
-            const auto length = read_u32(program.bytes, cursor + 8);
-            if (read_u16(program.bytes, cursor + 6) == static_cast<unsigned>(Opcode::WriteHeap)) {
-                const auto address = read_u32(program.bytes, cursor + packet_header_bytes);
-                const auto size = read_u32(program.bytes, cursor + packet_header_bytes + 4);
-                if (address <= corrupt_address && corrupt_address < static_cast<std::uint64_t>(address) + size) {
-                    program.bytes[cursor + packet_header_bytes + 8 + corrupt_address - address] = 1;
-                    changed = true;
-                }
-            }
-            cursor += packet_header_bytes + length;
-        }
+        const bool changed = mutate_uploaded_byte(program, corrupt_address, 1);
         expect(changed, "test did not corrupt the second uploaded record");
         SystemModel model; boot(model); RawHost host(model); ThroughputMonitor monitor;
         model.set_cycle_observer([&](std::uint64_t clock, const FragmentCycle& event) { monitor.observe(event, clock); });

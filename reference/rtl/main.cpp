@@ -6,6 +6,7 @@
 #include "nano_gpu/hw/protocol.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <fstream>
 #include <functional>
@@ -196,7 +197,7 @@ public:
             if (host_falling && dut.host_rd_valid) {
                 result.push_back(dut.host_rd_data);
                 if (result.size() == 16) {
-                    if (hw::read_u32(result, 0) != 0x5550474e || result[4] != 0 || result[5] != 1 ||
+                    if (hw::read_u32(result, 0) != 0x5550474e || result[4] != 0 || result[5] != 2 ||
                         hw::read_u16(result, 6) != (static_cast<unsigned>(opcode) | 0x8000u) ||
                         hw::read_u32(result, 12) != sequence || hw::read_u32(result, 8) > 780)
                         throw std::runtime_error("invalid RTL response header");
@@ -295,10 +296,13 @@ void self_test(Simulation& simulation) {
     require(status.size() == 92 && hw::read_u32(status, 30) == 1, "initial coherent status epoch");
 
     const auto upload = [&](std::uint32_t address, const std::vector<std::uint8_t>& bytes) {
-        std::vector<std::uint8_t> payload(8 + bytes.size());
-        hw::write_u32(payload, 0, address); hw::write_u32(payload, 4, bytes.size());
-        std::copy(bytes.begin(), bytes.end(), payload.begin() + 8);
-        simulation.send(hw::encode_packet(hw::Opcode::WriteHeap, sequence++, payload));
+        for (std::size_t cursor = 0; cursor < bytes.size(); cursor += hw::maximum_upload_decoded_bytes) {
+            const auto count = std::min(hw::maximum_upload_decoded_bytes, bytes.size() - cursor);
+            const std::vector<std::uint8_t> chunk(bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
+                bytes.begin() + static_cast<std::ptrdiff_t>(cursor + count));
+            simulation.send(hw::encode_packet(hw::Opcode::WriteHeap, sequence++,
+                hw::encode_heap_upload(address + static_cast<std::uint32_t>(cursor), chunk)));
+        }
     };
     const auto readback = [&](std::uint32_t address, unsigned length) {
         std::vector<std::uint8_t> payload(12);
@@ -319,6 +323,29 @@ void self_test(Simulation& simulation) {
     bytes[3] = 0xa1; bytes[4] = 0xb2; bytes[5] = 0xc3;
     require(readback(heap, 16) == std::vector<std::uint8_t>(bytes.begin(), bytes.begin() + 16),
             "byte masks preserve neighboring heap bytes");
+    // Cross every signed-width boundary and the word/group/chunk boundaries
+    // with all four upload codes. The final unaligned byte must not expose
+    // the codec's deterministic zero-padding beyond the decoded extent.
+    const std::array<std::uint32_t, 12> upload_words{{0, 0x7f, 0xffffff80u, 0x80,
+        0xffffff7fu, 0x7fff, 0xffff8000u, 0x8000, 0xffff7fffu,
+        0x80000000u, 0x7fffffffu, 0x89abcdefu}};
+    std::vector<std::uint8_t> codec_bytes(hw::maximum_upload_decoded_bytes + 17, 0);
+    for (std::size_t word = 0; 4 * word + 4 <= codec_bytes.size(); ++word)
+        hw::write_u32(codec_bytes, 4 * word, upload_words[word % upload_words.size()]);
+    codec_bytes.back() = 0xa7;
+    const auto codec_address = heap + 1027;
+    upload(codec_address - 1, std::vector<std::uint8_t>(codec_bytes.size() + 2, 0x5a));
+    upload(codec_address, codec_bytes);
+    for (std::size_t cursor = 0; cursor < codec_bytes.size(); cursor += 512) {
+        const auto count = std::min<std::size_t>(512, codec_bytes.size() - cursor);
+        require(readback(codec_address + static_cast<std::uint32_t>(cursor), count) ==
+            std::vector<std::uint8_t>(codec_bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
+                                     codec_bytes.begin() + static_cast<std::ptrdiff_t>(cursor + count)),
+            "encoded upload preserves signed widths and chunk/group boundaries");
+    }
+    require(readback(codec_address - 1, 1) == std::vector<std::uint8_t>({0x5a}) &&
+            readback(codec_address + codec_bytes.size(), 1) == std::vector<std::uint8_t>({0x5a}),
+            "encoded tail padding preserves neighboring byte guards");
 
     Renderer oracle;
     Pass pass; pass.clear_color = 0x18e3;
@@ -441,23 +468,23 @@ void self_test(Simulation& simulation) {
         std::copy(patch.begin(), patch.end(), expected.begin() + prefix);
         require(readback(heap, 128) == expected, "staged upload prefix/tail byte masks");
     }
-    std::vector<std::uint8_t> burst(1016);
+    std::vector<std::uint8_t> burst(hw::maximum_upload_decoded_bytes);
     for (unsigned i = 0; i < burst.size(); ++i) burst[i] = static_cast<std::uint8_t>(i * 29 + 7);
     // Maximum upload size, an unaligned three-byte prefix and the final SDRAM
     // byte all meet in one case. Guard bytes must survive native burst masks.
-    const std::uint32_t end_upload = hw::memory_bytes - 1017;
+    const std::uint32_t end_upload = hw::memory_bytes - burst.size() - 1;
     upload(end_upload - 3, {0xa1, 0xb2, 0xc3});
     upload(hw::memory_bytes - 1, {0xe7});
     upload(end_upload, burst);
     require(readback(end_upload, 512) == std::vector<std::uint8_t>(burst.begin(), burst.begin() + 512),
             "maximum unaligned heap upload first 512 bytes");
-    require(readback(end_upload + 504, 512) == std::vector<std::uint8_t>(burst.begin() + 504, burst.end()),
+    require(readback(end_upload + burst.size() - 512, 512) == std::vector<std::uint8_t>(burst.end() - 512, burst.end()),
             "maximum unaligned READ_MEMORY at heap end");
     require(readback(end_upload - 3, 3) == std::vector<std::uint8_t>({0xa1, 0xb2, 0xc3}) &&
             readback(hw::memory_bytes - 1, 1) == std::vector<std::uint8_t>({0xe7}),
             "maximum upload preserves prefix and final SDRAM byte guards");
     const auto before_stress_frames = simulation.checked_scanout_frames;
-    for (unsigned i = 0; i < 520; ++i) upload(heap + i * 1016, burst);
+    for (unsigned i = 0; i < 520; ++i) upload(heap + i * burst.size(), burst);
     (void)simulation.command(hw::Opcode::Fence, sequence++, token);
     const auto after_upload_status = simulation.command(hw::Opcode::GetStatus, sequence++);
     require(hw::read_u32(after_upload_status, 52) == before_underflows, "host uploads cannot starve scanout");
@@ -594,6 +621,53 @@ void self_test(Simulation& simulation) {
         simulation.recover();
     }
     std::cout << descriptor_faults.size() << " raw descriptor/LOAD fault cases passed\n";
+    // These packets deliberately bypass the producer's decoder validation.
+    // An accepted prefix of a bad upload may touch heap bytes, but the command
+    // must fault rather than consume outside its payload, hang, or retire.
+    std::vector<std::pair<std::string, std::vector<std::uint8_t>>> upload_faults;
+    auto bad_upload = hw::encode_heap_upload(heap, {0x78, 0x56, 0x34, 0x12});
+    bad_upload.pop_back(); upload_faults.emplace_back("truncated literal", bad_upload);
+    bad_upload = hw::encode_heap_upload(heap, std::vector<std::uint8_t>(20, 0));
+    bad_upload.pop_back(); upload_faults.emplace_back("missing next group descriptor", bad_upload);
+    bad_upload = hw::encode_heap_upload(heap, {0}); bad_upload.push_back(0);
+    upload_faults.emplace_back("trailing bytes", bad_upload);
+    bad_upload = hw::encode_heap_upload(heap, {0}); bad_upload[8] |= 4;
+    upload_faults.emplace_back("nonzero unused group code", bad_upload);
+    for (const auto length : {0u, static_cast<unsigned>(hw::maximum_upload_decoded_bytes + 1)}) {
+        bad_upload = hw::encode_heap_upload(heap, {0}); hw::write_u32(bad_upload, 4, length);
+        upload_faults.emplace_back("invalid decoded count", bad_upload);
+    }
+    bad_upload = hw::encode_heap_upload(heap, {1, 2, 3, 4});
+    hw::write_u32(bad_upload, 0, hw::memory_bytes - 1);
+    upload_faults.emplace_back("decoded range outside heap", bad_upload);
+    for (const auto& item : upload_faults) {
+        observed_fault = false;
+        try {
+            simulation.send(hw::encode_packet(hw::Opcode::WriteHeap, 1, item.second));
+            for (unsigned edge = 0; edge < 10000; ++edge) simulation.tick();
+        } catch (const std::runtime_error&) {
+            if (!simulation.dut.fault) throw;
+            observed_fault = true;
+        }
+        if (!observed_fault || simulation.dut.fault_code != 3)
+            throw std::runtime_error("RTL encoded upload fault case " + item.first + " did not fault in category3");
+        simulation.recover();
+    }
+    // No compatibility decoder remains: the old envelope must be rejected.
+    auto obsolete = hw::encode_packet(hw::Opcode::GetCaps, 1); obsolete[5] = 1;
+    observed_fault = false;
+    try {
+        simulation.send(obsolete);
+        for (unsigned edge = 0; edge < 10000; ++edge) simulation.tick();
+    } catch (const std::runtime_error&) {
+        if (!simulation.dut.fault) throw;
+        observed_fault = true;
+    }
+    require(observed_fault, "obsolete0.1 envelope is rejected");
+    simulation.recover();
+    require(simulation.command(hw::Opcode::GetCaps, 1).at(5) == 2,
+            "codec and obsolete-version faults recover to sole0.2 stream");
+    std::cout << upload_faults.size() << " malformed encoded-upload cases and obsolete-version rejection passed\n";
     std::cout << "RTL command/copy/LOAD/scanout/recovery self-test passed\n";
 }
 

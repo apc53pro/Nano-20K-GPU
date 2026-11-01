@@ -290,6 +290,14 @@ struct SystemModel::Impl {
     unsigned capture_size = 0, capture_index = 0;
     bool packet_read_pending = false;
     unsigned packet_read_offset = 0;
+    // The C++ system uses the same clocked packet port and existing Writer.
+    // This decoder streams one reconstructed word; it never shadows a packet
+    // or reserves an additional request/RAM buffer. RTL owns cycle authority.
+    std::uint8_t upload_descriptor = 0;
+    std::uint32_t upload_decoded_word = 0;
+    unsigned upload_encoded_cursor = 8, upload_slot = 0,
+             upload_payload_bytes = 0, upload_payload_received = 0;
+    bool upload_need_descriptor = true, upload_word_ready = false;
     // A distinct736-bit reply-source register bank:28-byte framing plus at
     // most64 status/capability bytes. READ_MEMORY payload never enters here;
     // it streams through the reader's synchronous native port. ReplyBuild
@@ -388,7 +396,7 @@ struct SystemModel::Impl {
     }
     std::array<std::uint8_t, 64> capabilities() const {
         std::array<std::uint8_t, 64> bytes{};
-        bytes[0] = 0; bytes[1] = 1; bytes[2] = 8; bytes[3] = 32;
+        bytes[0] = protocol_major; bytes[1] = protocol_minor; bytes[2] = 8; bytes[3] = 32;
         put(bytes, 4, memory_bytes); put(bytes, 8, heap_base);
         put(bytes, 12, maximum_packet_payload); put(bytes, 16, primitive_record_bytes);
         put(bytes, 20, maximum_pass_references); put(bytes, 24, configuration.memory.core_hz);
@@ -409,7 +417,7 @@ struct SystemModel::Impl {
     void make_reply(std::uint32_t token, const std::vector<std::uint8_t>& data = {}) {
         if (data.size() > 64) throw std::out_of_range("system reply source exceeds bounded registers");
         reply.fill(0); reply_source_length = 28 + static_cast<unsigned>(data.size());
-        reply[0] = 'N'; reply[1] = 'G'; reply[2] = 'P'; reply[3] = 'U'; reply[5] = 1;
+        reply[0] = 'N'; reply[1] = 'G'; reply[2] = 'P'; reply[3] = 'U'; reply[5] = protocol_minor;
         put(reply, 6, static_cast<std::uint16_t>(command->opcode) | 0x8000u, 2);
         put(reply, 8, static_cast<std::uint32_t>(12 + data.size()));
         put(reply, 12, command->sequence); put(reply, 16, totals.epoch);
@@ -452,13 +460,59 @@ struct SystemModel::Impl {
         host.request_payload_byte(offset); packet_read_pending = true; packet_read_offset = offset;
         return {};
     }
+    std::optional<std::uint8_t> upload_encoded_byte() {
+        if (upload_encoded_cursor >= command->payload_size)
+            throw std::invalid_argument("truncated encoded WRITE_HEAP stream");
+        if (const auto byte = packet_byte(upload_encoded_cursor)) {
+            ++upload_encoded_cursor;
+            return byte;
+        }
+        return {};
+    }
+    std::optional<std::uint8_t> upload_byte(unsigned index) {
+        if (!upload_word_ready) {
+            if (upload_need_descriptor) {
+                const auto byte = upload_encoded_byte();
+                if (!byte) return {};
+                upload_descriptor = *byte;
+                upload_need_descriptor = false;
+                upload_slot = 0;
+                upload_payload_received = 0;
+                upload_decoded_word = 0;
+                return {};
+            }
+            const auto code = upload_descriptor & 3u;
+            upload_payload_bytes = code == 3 ? 4 : code;
+            if (upload_payload_received != upload_payload_bytes) {
+                const auto byte = upload_encoded_byte();
+                if (!byte) return {};
+                upload_decoded_word |= static_cast<std::uint32_t>(*byte) << (8 * upload_payload_received++);
+                if (upload_payload_received != upload_payload_bytes) return {};
+            }
+            if (code == 1 && (upload_decoded_word & 0x80u)) upload_decoded_word |= 0xffffff00u;
+            if (code == 2 && (upload_decoded_word & 0x8000u)) upload_decoded_word |= 0xffff0000u;
+            upload_word_ready = true;
+        }
+        const auto byte = static_cast<std::uint8_t>(upload_decoded_word >> (8 * (index & 3u)));
+        if ((index & 3u) == 3 || index + 1 == writer.length) {
+            upload_descriptor >>= 2;
+            if (index + 1 == writer.length &&
+                (upload_descriptor != 0 || upload_encoded_cursor != command->payload_size))
+                throw std::invalid_argument("unused codes or trailing encoded WRITE_HEAP bytes");
+            upload_word_ready = false;
+            upload_decoded_word = 0;
+            upload_payload_received = 0;
+            if (++upload_slot == 4) upload_need_descriptor = true;
+        }
+        return byte;
+    }
     void acquire() {
         command = &host.front_command(); captured.fill(0); capture_index = 0; packet_read_pending = false;
         unsigned exact = 0;
         switch (command->opcode) {
         case Opcode::GetCaps: case Opcode::GetStatus: exact = 0; break;
         case Opcode::WriteHeap:
-            if (command->payload_size < 8 || command->payload_size > maximum_packet_payload)
+            if (command->payload_size <= 8 || command->payload_size > maximum_packet_payload)
                 throw std::invalid_argument("WRITE_HEAP payload length");
             capture_size = 8; state = State::Capture; return;
         case Opcode::SubmitPass: case Opcode::Fence: exact = 4; break;
@@ -479,14 +533,17 @@ struct SystemModel::Impl {
         }
         case Opcode::WriteHeap: {
             const auto address = get(captured, 0), length = get(captured, 4);
-            if (length != command->payload_size - 8 || length == 0)
+            if (length == 0 || length > maximum_upload_decoded_bytes)
                 throw std::invalid_argument("WRITE_HEAP data length");
             validate_heap_range(address, length, 1);
             // Low-level host writes may reuse any heap address. The CPU
             // convenience driver must discard its residency knowledge then.
             if (!driver_program_pending) compiler.reset();
+            upload_encoded_cursor = 8; upload_slot = 0;
+            upload_need_descriptor = true; upload_word_ready = false;
+            upload_payload_received = 0; upload_decoded_word = 0;
             writer.start(address, length, MemoryClient::Host,
-                [this](unsigned index) { return packet_byte(8 + index); });
+                [this](unsigned index) { return upload_byte(index); });
             state = State::Upload; break;
         }
         case Opcode::SubmitPass:
@@ -1075,7 +1132,7 @@ std::vector<std::uint8_t> SystemModel::read_reply(Opcode opcode, std::uint32_t s
         if (value.read_valid) {
             response.push_back(value.read_data);
             if (response.size() == 16) {
-                if (read_u32(response, 0) != 0x5550474eu || response[4] != 0 || response[5] != 1 ||
+                if (read_u32(response, 0) != 0x5550474eu || response[4] != protocol_major || response[5] != protocol_minor ||
                     read_u16(response, 6) != (static_cast<std::uint16_t>(opcode) | 0x8000u) ||
                     read_u32(response, 12) != sequence || read_u32(response, 8) > 780)
                     throw std::runtime_error("invalid/stale GPU response header");
@@ -1132,7 +1189,7 @@ void SystemModel::copy_rect(int source, int target, Point source_origin, Point d
 void SystemModel::copy_image(const Image& image, int target, Point source_origin, Point destination_origin,
                              int width, int height) {
     auto& p = *impl_;
-    p.compiler.reset(); // The raw heap upload may overwrite resident textures.
+    p.compiler.reset(); // The explicit heap upload may overwrite resident textures.
     TextureDescriptor descriptor{heap_base, static_cast<std::uint32_t>(image.width()),
         static_cast<std::uint32_t>(image.height()), static_cast<std::uint32_t>(image.pitch_bytes())};
     const auto extent = texture_extent(descriptor);
@@ -1143,9 +1200,9 @@ void SystemModel::copy_image(const Image& image, int target, Point source_origin
     }
     for (std::size_t offset = 0; offset < data.size();) {
         if (p.next_sequence == std::numeric_limits<std::uint32_t>::max()) throw std::overflow_error("host sequence exhausted");
-        const auto size = std::min<std::size_t>(maximum_packet_payload - 8, data.size() - offset);
-        auto payload = scalar(heap_base + static_cast<std::uint32_t>(offset)); append(payload, scalar(static_cast<std::uint32_t>(size)));
-        payload.insert(payload.end(), data.begin() + offset, data.begin() + offset + size);
+        const auto size = std::min<std::size_t>(maximum_upload_decoded_bytes, data.size() - offset);
+        const auto payload = encode_heap_upload(heap_base + static_cast<std::uint32_t>(offset),
+            {data.begin() + static_cast<std::ptrdiff_t>(offset), data.begin() + static_cast<std::ptrdiff_t>(offset + size)});
         append(program, encode_packet(Opcode::WriteHeap, p.next_sequence++, payload)); offset += size;
     }
     CopyCommand command; command.image_source = true; command.image = descriptor; command.target = target;
