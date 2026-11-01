@@ -553,6 +553,13 @@ Zero the entire record before encoding it. Primitive kinds are triangle 0,
 rectangle 1, line 2, sprite 3. Version is 1. All unused/reserved bytes and bits
 must be zero.
 
+A [lossless upload-codec measurement](../docs/hardware/upload-codec.md) checks
+exact reconstruction of these records and reports standalone decoder area,
+timing and cycles. It defines no new supported command: the current CPU must
+still send ordinary `WRITE_HEAP` bytes and 320-byte records. The combined
+GPU/decoder probe failed legal placement; integrated compression, shared-state
+references and compact SDRAM records remain unimplemented.
+
 | Offset | Type / size | Meaning |
 | --- | --- | --- |
 | 0 | u32 | Kind bits 0..7; version bits 8..15; color write bit 16, depth test bit 17, depth write bit 18, color-key enable bit 19. Bits 20..31 zero. |

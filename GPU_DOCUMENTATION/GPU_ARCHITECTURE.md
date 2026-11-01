@@ -19,6 +19,13 @@ on the exact FPGA, using **20,305 of 20,736 physical LUT sites (97.92%)**, all
 domain passes its 25.2 MHz target. Production clock/reset, video and board pin
 integration remain unfinished. There is no board-qualified GPU bitstream yet.
 
+An isolated [lossless upload-decoder experiment](../docs/hardware/upload-codec.md)
+preserves all 320 record bytes and reduces sampled triangle traffic by
+48.2–73.7%. It uses no BSRAM or DSPs, but the complete GPU plus independent
+decoder failed legal placement in the tested co-residency probe. This does not
+establish integrated fit or upload throughput. Compression is experimental;
+the production GPU and its frozen timing implementation are unchanged.
+
 Whenever the architecture or CPU control changes, update **both files in
 `GPU_DOCUMENTATION/`** in the same change and push them with the implementation.
 Describe implemented behavior as implemented, and label proposals as planned.

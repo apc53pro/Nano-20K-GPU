@@ -1,0 +1,196 @@
+{
+  "schema": "N20K-UPLOAD-CODEC-PROBE-1",
+  "device": "GW2AR-LV18QN88C8/I7",
+  "family": "GW2A-18C",
+  "scope": "Isolated decoder and raw assembler in identical serial registered-I/O probes; no production GPU integration",
+  "production_protocol_changed": false,
+  "whole_gpu_fit_qualified": false,
+  "board_pinout_qualified": false,
+  "real_hardware_measured": false,
+  "target_mhz": 68.88,
+  "seed": 1,
+  "probe_register_bits_before_optimization": 56,
+  "synthesis_options": [
+    "-nowidelut"
+  ],
+  "source_sha256": {
+    "experiments/upload-codec/nano_upload_word_decoder.sv": "d3ae191160ad0e653123ea1949fa882978117568e5aa0cc822eb70b2997e94b7",
+    "scripts/measure-upload-codec.py": "99c17e218e1b4db0356f5ef4b6701297fe88713102e74bd7d33d903ab89d94c1",
+    "scripts/rtl-check.py": "ce10cd7a0793324e34c298d66680959a0a4bfae86e3e6bf2f8f8290f53b318f5",
+    "scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
+    "scripts/rtl-core-pnr.py": "3daeae29c79596f525560ed13c80b3d74fd6de9ce09863cccbf6f3d74c8c5bcc"
+  },
+  "yosys_version": "Yosys 0.70+219 (git sha1 5053d0e26, Release, Clang /usr/bin/clang++ 21.1.8)",
+  "nextpnr_version": "\"nextpnr-himbaechel\" -- Next Generation Place and Route (Version nextpnr-0.11.1-79-g22c5adf4)",
+  "variants": {
+    "raw_baseline": {
+      "synthesized": true,
+      "core_synthesis_cells": {
+        "ALU": 7,
+        "DFFR": 2,
+        "DFFRE": 42,
+        "GND": 1,
+        "LUT1": 3,
+        "LUT2": 6,
+        "LUT3": 5,
+        "LUT4": 7,
+        "VCC": 1
+      },
+      "core_mapped_summary": {
+        "LUT1_to_LUT4": 21,
+        "ALU": 7,
+        "DFF": 44,
+        "BSRAM": 0,
+        "MULT18X18": 0
+      },
+      "core_synth_netlist_sha256": "744803f3f2134330f4eff433f1e165df25ef8b60ee285143b3e5dd94312478d8",
+      "synth_netlist_sha256": "4e98ce50fe01d18274f2d72e083229f0321759d53519097af3932e44d9e838dd",
+      "probe_sha256": "9176ddd4c0a445dcb41eacdbbac66889ea9d125e6d301118cd197ac1d1d34ec2",
+      "placed": true,
+      "routed": true,
+      "timing_qualified": true,
+      "packed": true,
+      "physical_lut_lower_bound": {
+        "scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
+        "active_flipflops": 100,
+        "maximum_existing_lut_alu_pairs": 56,
+        "minimum_additional_ff_input_luts": 44,
+        "packed_lut_sites": 74,
+        "minimum_physical_lut_sites": 118,
+        "available_lut_sites": 20736,
+        "within_capacity": true
+      },
+      "post_route_physical_resources": {
+        "LUT4": {
+          "used": 123,
+          "available": 20736,
+          "within_capacity": true
+        },
+        "DFF": {
+          "used": 100,
+          "available": 15552,
+          "within_capacity": true
+        },
+        "BSRAM": {
+          "used": 0,
+          "available": 46,
+          "within_capacity": true
+        },
+        "MULT18X18": {
+          "used": 0,
+          "available": 48,
+          "within_capacity": true
+        }
+      },
+      "post_route_resources_within_capacity": true,
+      "fmax": {
+        "core.clk": {
+          "achieved": 274.57440185546875,
+          "constraint": 68.87999725341797
+        }
+      },
+      "target_met": true,
+      "critical_paths": [
+        {
+          "from_clock": "posedge core.clk",
+          "to_clock": "posedge core.clk",
+          "from_cell": "core.m_index_DFFRE_Q_3",
+          "to_cell": "core.byte_index_DFFRE_Q_1",
+          "delay_ns": 3.6420000679790974
+        }
+      ],
+      "routed_netlist_sha256": "ee84d425aac53e5e8e0789785ff15578f8414052ee90ce18719370bdd7cef887",
+      "timing_report_sha256": "dd430e9420e23d6d4d60c33643b92526786cee878506233bba3a0ece1feb5f26"
+    },
+    "decoder": {
+      "synthesized": true,
+      "core_synthesis_cells": {
+        "ALU": 10,
+        "DFFR": 1,
+        "DFFRE": 52,
+        "GND": 1,
+        "LUT2": 18,
+        "LUT3": 22,
+        "LUT4": 42,
+        "VCC": 1
+      },
+      "core_mapped_summary": {
+        "LUT1_to_LUT4": 82,
+        "ALU": 10,
+        "DFF": 53,
+        "BSRAM": 0,
+        "MULT18X18": 0
+      },
+      "core_synth_netlist_sha256": "373a8b21e27bc9dcab73e82cbd582ae28fcfe053949f9bc7d642cf643f8135c2",
+      "synth_netlist_sha256": "6921d67a6790b162be0160f894e96d48db0cc76fd22e0b1366e544296aa99541",
+      "probe_sha256": "478b61e3e21e73faf313d72779561d6801a09c565700c9975c4e96f0a99f47ae",
+      "placed": true,
+      "routed": true,
+      "timing_qualified": true,
+      "packed": true,
+      "physical_lut_lower_bound": {
+        "scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
+        "active_flipflops": 109,
+        "maximum_existing_lut_alu_pairs": 65,
+        "minimum_additional_ff_input_luts": 44,
+        "packed_lut_sites": 131,
+        "minimum_physical_lut_sites": 175,
+        "available_lut_sites": 20736,
+        "within_capacity": true
+      },
+      "post_route_physical_resources": {
+        "LUT4": {
+          "used": 175,
+          "available": 20736,
+          "within_capacity": true
+        },
+        "DFF": {
+          "used": 109,
+          "available": 15552,
+          "within_capacity": true
+        },
+        "BSRAM": {
+          "used": 0,
+          "available": 46,
+          "within_capacity": true
+        },
+        "MULT18X18": {
+          "used": 0,
+          "available": 48,
+          "within_capacity": true
+        }
+      },
+      "post_route_resources_within_capacity": true,
+      "fmax": {
+        "core.clk": {
+          "achieved": 263.2271728515625,
+          "constraint": 68.87999725341797
+        }
+      },
+      "target_met": true,
+      "critical_paths": [
+        {
+          "from_clock": "posedge core.clk",
+          "to_clock": "posedge core.clk",
+          "from_cell": "core.code_DFFRE_Q",
+          "to_cell": "core.word_data_DFFRE_Q_21",
+          "delay_ns": 3.7990001030266285
+        }
+      ],
+      "routed_netlist_sha256": "abd8e5916170497df734af08e9a10fa8f22fd3b8a5f53da01b836331d97574af",
+      "timing_report_sha256": "9598376a3a7197b225392e172620d2ec69830de774d71a79c1d11ddb145d2639"
+    }
+  },
+  "decoder_minus_raw_probe_resources": {
+    "LUT4": 52,
+    "DFF": 9,
+    "BSRAM": 0,
+    "MULT18X18": 0
+  },
+  "inputs_changed_during_run": [],
+  "generated_input_sha256": {
+    "nano_upload_word_decoder.sv": "d3ae191160ad0e653123ea1949fa882978117568e5aa0cc822eb70b2997e94b7",
+    "raw_baseline.sv": "ce782a046eb37380b764b72ee68c08a2fa4018fc96658d885fde90ffc0339b49",
+    "probe.cst": "b7c2aedacf8e1b84225da0970ff3a5abe84dba0624442d3bc66f43cd81b0502f"
+  }
+}

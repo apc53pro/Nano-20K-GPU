@@ -1,0 +1,1228 @@
+{
+  "schema": "N20K-UPLOAD-CODEC-CHECK-1",
+  "production_protocol_changed": false,
+  "integrated_upload_throughput_measured": false,
+  "frame_fps_measured": false,
+  "real_hardware_measured": false,
+  "source_sha256": {
+    "experiments/upload-codec/traffic.cpp": "78dae926c5c039db298b31f765d4d39d0c22c95cf0b88053b7fa67edcc2e7f36",
+    "reference/src/setup.cpp": "7994c74412e6496dcb10205f1ede388a6d059d330e8ca19c71049d2f0a9da733",
+    "reference/src/renderer.cpp": "088c82b3fb3567da69036f0c1dfd4e6da96c88c001add430138694e4d8b689e1",
+    "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+    "reference/src/hw_protocol.cpp": "0c5bdee4d7fb9fa31b19ef7b39b2c7d191d26e3269e9af1ac03531230caf1be5",
+    "experiments/upload-codec/nano_upload_word_decoder.sv": "d3ae191160ad0e653123ea1949fa882978117568e5aa0cc822eb70b2997e94b7",
+    "experiments/upload-codec/nano_upload_word_decoder_tb.sv": "bc07deb2802f79c3105cd50c056400563ce77bf2de505fb332c845ab2e4cda3a",
+    "experiments/upload-codec/traffic_tb.sv": "2a380a3c5479eb6e1fbd991393be0f84cc63123380d2d4887e0ad9de6a86a871",
+    "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+    "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+    "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+    "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+    "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+    "reference/include/nano_gpu/hw/host_link.hpp": "e32576db31779c06940752001c990d6e0bdafee8105e159a47f2412d10ed4876",
+    "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+    "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+    "reference/include/nano_gpu/hw/protocol.hpp": "e98d79e1d3c642c67db7c7e40a075830bd3f8feed7d1b3bc0b4d01bff4c91fb5",
+    "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+    "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+    "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+    "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+    "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+    "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+    "reference/include/nano_gpu/hw/system.hpp": "b3cbba324bfe45850fde47171f6ff2ac010bda843b8f10f1bedb0be666eba5ec",
+    "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+    "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+    "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+    "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+    "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+    "reference/include/nano_gpu/reference.hpp": "ae3bccc742cd427ad91fc02614814211d4aae216cebe963b3662203df152cee6",
+    "scripts/check-upload-codec.py": "32e6d11cde297eef9b5b803c00ef1dbfb61e4213ef0c7986c5fdddb7ece96535",
+    "scripts/rtl-check.py": "ce10cd7a0793324e34c298d66680959a0a4bfae86e3e6bf2f8f8290f53b318f5"
+  },
+  "inputs_changed_during_run": [],
+  "unit_tests": {
+    "records": 1969,
+    "words": 157520,
+    "encoded_bytes": 133923,
+    "cycles": 359920,
+    "checks": 157522
+  },
+  "traffic": {
+    "schema": "N20K-UPLOAD-CODEC-TRAFFIC-1",
+    "codec": "20 groups: 1-byte descriptor of four2-bitcodes, then word payloads zero/s8/s16/raw32; little-endian",
+    "scope": "Proposed codec of exact current compiled 320-byte records; no new protocol or measured FPS",
+    "raw_fallback_scope": "Select raw WRITE_HEAP if encoding grows; framing/command/address overhead excluded",
+    "times_seconds": [
+      1.25,
+      1.2666666666666666
+    ],
+    "cases": [
+      {
+        "scene": "showcase",
+        "frame": 0,
+        "texture_upload_bytes_unchanged": 155648,
+        "original_heap_upload_bytes": 276788,
+        "projected_heap_payload_bytes": 184381,
+        "tile_reference_count_unchanged": 1517,
+        "all_primitives": {
+          "records": 352,
+          "raw_bytes": 112640,
+          "encoded_bytes": 20233,
+          "bytes_with_raw_fallback": 20233,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 149,
+          "word_counts_zero_s8_s16_raw32": [
+            22652,
+            1309,
+            2456,
+            1743
+          ]
+        },
+        "triangles": {
+          "records": 18,
+          "raw_bytes": 5760,
+          "encoded_bytes": 2562,
+          "bytes_with_raw_fallback": 2562,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 116,
+          "maximum_encoded_record_bytes": 149,
+          "word_counts_zero_s8_s16_raw32": [
+            571,
+            186,
+            358,
+            325
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 18,
+            "raw_bytes": 5760,
+            "encoded_bytes": 2562,
+            "bytes_with_raw_fallback": 2562,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 116,
+            "maximum_encoded_record_bytes": 149,
+            "word_counts_zero_s8_s16_raw32": [
+              571,
+              186,
+              358,
+              325
+            ]
+          },
+          {
+            "records": 70,
+            "raw_bytes": 22400,
+            "encoded_bytes": 2787,
+            "bytes_with_raw_fallback": 2787,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              5042,
+              9,
+              409,
+              140
+            ]
+          },
+          {
+            "records": 14,
+            "raw_bytes": 4480,
+            "encoded_bytes": 544,
+            "bytes_with_raw_fallback": 544,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              1008,
+              16,
+              68,
+              28
+            ]
+          },
+          {
+            "records": 250,
+            "raw_bytes": 80000,
+            "encoded_bytes": 14340,
+            "bytes_with_raw_fallback": 14340,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              16031,
+              1098,
+              1621,
+              1250
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "showcase",
+        "frame": 1,
+        "texture_upload_bytes_unchanged": 155648,
+        "original_heap_upload_bytes": 276788,
+        "projected_heap_payload_bytes": 184381,
+        "tile_reference_count_unchanged": 1517,
+        "all_primitives": {
+          "records": 352,
+          "raw_bytes": 112640,
+          "encoded_bytes": 20233,
+          "bytes_with_raw_fallback": 20233,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 148,
+          "word_counts_zero_s8_s16_raw32": [
+            22652,
+            1309,
+            2456,
+            1743
+          ]
+        },
+        "triangles": {
+          "records": 18,
+          "raw_bytes": 5760,
+          "encoded_bytes": 2562,
+          "bytes_with_raw_fallback": 2562,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 116,
+          "maximum_encoded_record_bytes": 148,
+          "word_counts_zero_s8_s16_raw32": [
+            571,
+            186,
+            358,
+            325
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 18,
+            "raw_bytes": 5760,
+            "encoded_bytes": 2562,
+            "bytes_with_raw_fallback": 2562,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 116,
+            "maximum_encoded_record_bytes": 148,
+            "word_counts_zero_s8_s16_raw32": [
+              571,
+              186,
+              358,
+              325
+            ]
+          },
+          {
+            "records": 70,
+            "raw_bytes": 22400,
+            "encoded_bytes": 2787,
+            "bytes_with_raw_fallback": 2787,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              5042,
+              9,
+              409,
+              140
+            ]
+          },
+          {
+            "records": 14,
+            "raw_bytes": 4480,
+            "encoded_bytes": 544,
+            "bytes_with_raw_fallback": 544,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              1008,
+              16,
+              68,
+              28
+            ]
+          },
+          {
+            "records": 250,
+            "raw_bytes": 80000,
+            "encoded_bytes": 14340,
+            "bytes_with_raw_fallback": 14340,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              16031,
+              1098,
+              1621,
+              1250
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "perspective",
+        "frame": 0,
+        "texture_upload_bytes_unchanged": 147456,
+        "original_heap_upload_bytes": 245136,
+        "projected_heap_payload_bytes": 171465,
+        "tile_reference_count_unchanged": 1252,
+        "all_primitives": {
+          "records": 282,
+          "raw_bytes": 90240,
+          "encoded_bytes": 16569,
+          "bytes_with_raw_fallback": 16569,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 146,
+          "word_counts_zero_s8_s16_raw32": [
+            17963,
+            1177,
+            1964,
+            1456
+          ]
+        },
+        "triangles": {
+          "records": 8,
+          "raw_bytes": 2560,
+          "encoded_bytes": 1015,
+          "bytes_with_raw_fallback": 1015,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 92,
+          "maximum_encoded_record_bytes": 146,
+          "word_counts_zero_s8_s16_raw32": [
+            292,
+            85,
+            141,
+            122
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 8,
+            "raw_bytes": 2560,
+            "encoded_bytes": 1015,
+            "bytes_with_raw_fallback": 1015,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 92,
+            "maximum_encoded_record_bytes": 146,
+            "word_counts_zero_s8_s16_raw32": [
+              292,
+              85,
+              141,
+              122
+            ]
+          },
+          {
+            "records": 6,
+            "raw_bytes": 1920,
+            "encoded_bytes": 226,
+            "bytes_with_raw_fallback": 226,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              434,
+              10,
+              24,
+              12
+            ]
+          },
+          {
+            "records": 6,
+            "raw_bytes": 1920,
+            "encoded_bytes": 236,
+            "bytes_with_raw_fallback": 236,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              432,
+              4,
+              32,
+              12
+            ]
+          },
+          {
+            "records": 262,
+            "raw_bytes": 83840,
+            "encoded_bytes": 15092,
+            "bytes_with_raw_fallback": 15092,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              16805,
+              1078,
+              1767,
+              1310
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "perspective",
+        "frame": 1,
+        "texture_upload_bytes_unchanged": 147456,
+        "original_heap_upload_bytes": 245136,
+        "projected_heap_payload_bytes": 171465,
+        "tile_reference_count_unchanged": 1252,
+        "all_primitives": {
+          "records": 282,
+          "raw_bytes": 90240,
+          "encoded_bytes": 16569,
+          "bytes_with_raw_fallback": 16569,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 146,
+          "word_counts_zero_s8_s16_raw32": [
+            17963,
+            1177,
+            1964,
+            1456
+          ]
+        },
+        "triangles": {
+          "records": 8,
+          "raw_bytes": 2560,
+          "encoded_bytes": 1015,
+          "bytes_with_raw_fallback": 1015,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 92,
+          "maximum_encoded_record_bytes": 146,
+          "word_counts_zero_s8_s16_raw32": [
+            292,
+            85,
+            141,
+            122
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 8,
+            "raw_bytes": 2560,
+            "encoded_bytes": 1015,
+            "bytes_with_raw_fallback": 1015,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 92,
+            "maximum_encoded_record_bytes": 146,
+            "word_counts_zero_s8_s16_raw32": [
+              292,
+              85,
+              141,
+              122
+            ]
+          },
+          {
+            "records": 6,
+            "raw_bytes": 1920,
+            "encoded_bytes": 226,
+            "bytes_with_raw_fallback": 226,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              434,
+              10,
+              24,
+              12
+            ]
+          },
+          {
+            "records": 6,
+            "raw_bytes": 1920,
+            "encoded_bytes": 236,
+            "bytes_with_raw_fallback": 236,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 40,
+            "word_counts_zero_s8_s16_raw32": [
+              432,
+              4,
+              32,
+              12
+            ]
+          },
+          {
+            "records": 262,
+            "raw_bytes": 83840,
+            "encoded_bytes": 15092,
+            "bytes_with_raw_fallback": 15092,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              16805,
+              1078,
+              1767,
+              1310
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "overdraw",
+        "frame": 0,
+        "texture_upload_bytes_unchanged": 139264,
+        "original_heap_upload_bytes": 236440,
+        "projected_heap_payload_bytes": 171854,
+        "tile_reference_count_unchanged": 3126,
+        "all_primitives": {
+          "records": 257,
+          "raw_bytes": 82240,
+          "encoded_bytes": 17654,
+          "bytes_with_raw_fallback": 17654,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 172,
+          "word_counts_zero_s8_s16_raw32": [
+            15310,
+            1404,
+            2137,
+            1709
+          ]
+        },
+        "triangles": {
+          "records": 28,
+          "raw_bytes": 8960,
+          "encoded_bytes": 4639,
+          "bytes_with_raw_fallback": 4639,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 160,
+          "maximum_encoded_record_bytes": 172,
+          "word_counts_zero_s8_s16_raw32": [
+            573,
+            425,
+            657,
+            585
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 28,
+            "raw_bytes": 8960,
+            "encoded_bytes": 4639,
+            "bytes_with_raw_fallback": 4639,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 160,
+            "maximum_encoded_record_bytes": 172,
+            "word_counts_zero_s8_s16_raw32": [
+              573,
+              425,
+              657,
+              585
+            ]
+          },
+          {
+            "records": 5,
+            "raw_bytes": 1600,
+            "encoded_bytes": 186,
+            "bytes_with_raw_fallback": 186,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 39,
+            "word_counts_zero_s8_s16_raw32": [
+              362,
+              10,
+              18,
+              10
+            ]
+          },
+          {
+            "records": 2,
+            "raw_bytes": 640,
+            "encoded_bytes": 76,
+            "bytes_with_raw_fallback": 76,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 39,
+            "word_counts_zero_s8_s16_raw32": [
+              144,
+              4,
+              8,
+              4
+            ]
+          },
+          {
+            "records": 222,
+            "raw_bytes": 71040,
+            "encoded_bytes": 12753,
+            "bytes_with_raw_fallback": 12753,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              14231,
+              965,
+              1454,
+              1110
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "overdraw",
+        "frame": 1,
+        "texture_upload_bytes_unchanged": 139264,
+        "original_heap_upload_bytes": 236440,
+        "projected_heap_payload_bytes": 171855,
+        "tile_reference_count_unchanged": 3126,
+        "all_primitives": {
+          "records": 257,
+          "raw_bytes": 82240,
+          "encoded_bytes": 17655,
+          "bytes_with_raw_fallback": 17655,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 35,
+          "maximum_encoded_record_bytes": 173,
+          "word_counts_zero_s8_s16_raw32": [
+            15310,
+            1403,
+            2138,
+            1709
+          ]
+        },
+        "triangles": {
+          "records": 28,
+          "raw_bytes": 8960,
+          "encoded_bytes": 4640,
+          "bytes_with_raw_fallback": 4640,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 160,
+          "maximum_encoded_record_bytes": 173,
+          "word_counts_zero_s8_s16_raw32": [
+            573,
+            424,
+            658,
+            585
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 28,
+            "raw_bytes": 8960,
+            "encoded_bytes": 4640,
+            "bytes_with_raw_fallback": 4640,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 160,
+            "maximum_encoded_record_bytes": 173,
+            "word_counts_zero_s8_s16_raw32": [
+              573,
+              424,
+              658,
+              585
+            ]
+          },
+          {
+            "records": 5,
+            "raw_bytes": 1600,
+            "encoded_bytes": 186,
+            "bytes_with_raw_fallback": 186,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 35,
+            "maximum_encoded_record_bytes": 39,
+            "word_counts_zero_s8_s16_raw32": [
+              362,
+              10,
+              18,
+              10
+            ]
+          },
+          {
+            "records": 2,
+            "raw_bytes": 640,
+            "encoded_bytes": 76,
+            "bytes_with_raw_fallback": 76,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 37,
+            "maximum_encoded_record_bytes": 39,
+            "word_counts_zero_s8_s16_raw32": [
+              144,
+              4,
+              8,
+              4
+            ]
+          },
+          {
+            "records": 222,
+            "raw_bytes": 71040,
+            "encoded_bytes": 12753,
+            "bytes_with_raw_fallback": 12753,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 54,
+            "maximum_encoded_record_bytes": 59,
+            "word_counts_zero_s8_s16_raw32": [
+              14231,
+              965,
+              1454,
+              1110
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "opaque",
+        "frame": 0,
+        "texture_upload_bytes_unchanged": 0,
+        "original_heap_upload_bytes": 38492,
+        "projected_heap_payload_bytes": 22211,
+        "tile_reference_count_unchanged": 3495,
+        "all_primitives": {
+          "records": 69,
+          "raw_bytes": 22080,
+          "encoded_bytes": 5799,
+          "bytes_with_raw_fallback": 5799,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 71,
+          "maximum_encoded_record_bytes": 110,
+          "word_counts_zero_s8_s16_raw32": [
+            3657,
+            243,
+            1152,
+            468
+          ]
+        },
+        "triangles": {
+          "records": 69,
+          "raw_bytes": 22080,
+          "encoded_bytes": 5799,
+          "bytes_with_raw_fallback": 5799,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 71,
+          "maximum_encoded_record_bytes": 110,
+          "word_counts_zero_s8_s16_raw32": [
+            3657,
+            243,
+            1152,
+            468
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 69,
+            "raw_bytes": 22080,
+            "encoded_bytes": 5799,
+            "bytes_with_raw_fallback": 5799,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 71,
+            "maximum_encoded_record_bytes": 110,
+            "word_counts_zero_s8_s16_raw32": [
+              3657,
+              243,
+              1152,
+              468
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "scene": "opaque",
+        "frame": 1,
+        "texture_upload_bytes_unchanged": 0,
+        "original_heap_upload_bytes": 38492,
+        "projected_heap_payload_bytes": 22209,
+        "tile_reference_count_unchanged": 3495,
+        "all_primitives": {
+          "records": 69,
+          "raw_bytes": 22080,
+          "encoded_bytes": 5797,
+          "bytes_with_raw_fallback": 5797,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 71,
+          "maximum_encoded_record_bytes": 110,
+          "word_counts_zero_s8_s16_raw32": [
+            3659,
+            241,
+            1152,
+            468
+          ]
+        },
+        "triangles": {
+          "records": 69,
+          "raw_bytes": 22080,
+          "encoded_bytes": 5797,
+          "bytes_with_raw_fallback": 5797,
+          "raw_fallback_records": 0,
+          "minimum_encoded_record_bytes": 71,
+          "maximum_encoded_record_bytes": 110,
+          "word_counts_zero_s8_s16_raw32": [
+            3659,
+            241,
+            1152,
+            468
+          ]
+        },
+        "by_kind_triangle_rect_line_sprite": [
+          {
+            "records": 69,
+            "raw_bytes": 22080,
+            "encoded_bytes": 5797,
+            "bytes_with_raw_fallback": 5797,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 71,
+            "maximum_encoded_record_bytes": 110,
+            "word_counts_zero_s8_s16_raw32": [
+              3659,
+              241,
+              1152,
+              468
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "records": 0,
+            "raw_bytes": 0,
+            "encoded_bytes": 0,
+            "bytes_with_raw_fallback": 0,
+            "raw_fallback_records": 0,
+            "minimum_encoded_record_bytes": 0,
+            "maximum_encoded_record_bytes": 0,
+            "word_counts_zero_s8_s16_raw32": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    ],
+    "vector_records": 1920,
+    "vector_encoded_bytes": 120509,
+    "vector_expected_words": 153600,
+    "software_exact_roundtrip_passed": true
+  },
+  "standalone_simulations": [
+    {
+      "source": "always valid",
+      "source_mode": 0,
+      "sink_acceptance_period_core_cycles": 1,
+      "assumed_core_mhz": 68.88,
+      "assumed_host_mhz": null,
+      "source_phase_restarts_each_record": true,
+      "record_start_handshake_cycles_excluded": 1,
+      "scope": "Decoder only: no packet parser, CDC FIFO, staging RAM, SDRAM stores, CPU or frame rendering",
+      "all_records_bit_exact": true,
+      "cases": [
+        {
+          "scene": "showcase",
+          "frame": 0,
+          "records": 352,
+          "core_cycles": 48393,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 26791,
+          "triangle_records": 18,
+          "triangle_core_cycles": 4002,
+          "standalone_microseconds_at_assumed_68_88_mhz": 702.5696864111499,
+          "triangle_microseconds_at_assumed_68_88_mhz": 58.10104529616725
+        },
+        {
+          "scene": "showcase",
+          "frame": 1,
+          "records": 352,
+          "core_cycles": 48393,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 26791,
+          "triangle_records": 18,
+          "triangle_core_cycles": 4002,
+          "standalone_microseconds_at_assumed_68_88_mhz": 702.5696864111499,
+          "triangle_microseconds_at_assumed_68_88_mhz": 58.10104529616725
+        },
+        {
+          "scene": "perspective",
+          "frame": 0,
+          "records": 282,
+          "core_cycles": 39129,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 21448,
+          "triangle_records": 8,
+          "triangle_core_cycles": 1655,
+          "standalone_microseconds_at_assumed_68_88_mhz": 568.0749128919861,
+          "triangle_microseconds_at_assumed_68_88_mhz": 24.027293844367016
+        },
+        {
+          "scene": "perspective",
+          "frame": 1,
+          "records": 282,
+          "core_cycles": 39129,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 21448,
+          "triangle_records": 8,
+          "triangle_core_cycles": 1655,
+          "standalone_microseconds_at_assumed_68_88_mhz": 568.0749128919861,
+          "triangle_microseconds_at_assumed_68_88_mhz": 24.027293844367016
+        },
+        {
+          "scene": "overdraw",
+          "frame": 0,
+          "records": 257,
+          "core_cycles": 38214,
+          "encoded_bytes": 17654,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 19589,
+          "triangle_records": 28,
+          "triangle_core_cycles": 6879,
+          "standalone_microseconds_at_assumed_68_88_mhz": 554.7909407665505,
+          "triangle_microseconds_at_assumed_68_88_mhz": 99.86933797909408
+        },
+        {
+          "scene": "overdraw",
+          "frame": 1,
+          "records": 257,
+          "core_cycles": 38215,
+          "encoded_bytes": 17655,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 19589,
+          "triangle_records": 28,
+          "triangle_core_cycles": 6880,
+          "standalone_microseconds_at_assumed_68_88_mhz": 554.8054587688735,
+          "triangle_microseconds_at_assumed_68_88_mhz": 99.88385598141696
+        },
+        {
+          "scene": "opaque",
+          "frame": 0,
+          "records": 69,
+          "core_cycles": 11319,
+          "encoded_bytes": 5799,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 5244,
+          "triangle_records": 69,
+          "triangle_core_cycles": 11319,
+          "standalone_microseconds_at_assumed_68_88_mhz": 164.32926829268294,
+          "triangle_microseconds_at_assumed_68_88_mhz": 164.32926829268294
+        },
+        {
+          "scene": "opaque",
+          "frame": 1,
+          "records": 69,
+          "core_cycles": 11317,
+          "encoded_bytes": 5797,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 5244,
+          "triangle_records": 69,
+          "triangle_core_cycles": 11317,
+          "standalone_microseconds_at_assumed_68_88_mhz": 164.30023228803717,
+          "triangle_microseconds_at_assumed_68_88_mhz": 164.30023228803717
+        }
+      ],
+      "cycle_csv_sha256": "f1c6665600f6e3cb67caf7ee5ae0568fdc6b06f376e93845864508dcba8fd506"
+    },
+    {
+      "source": "synthetic paced source, phase increment15/modulus41, one pending byte",
+      "source_mode": 1,
+      "sink_acceptance_period_core_cycles": 1,
+      "assumed_core_mhz": 68.88,
+      "assumed_host_mhz": 25.2,
+      "source_phase_restarts_each_record": true,
+      "record_start_handshake_cycles_excluded": 1,
+      "scope": "Decoder only: no packet parser, CDC FIFO, staging RAM, SDRAM stores, CPU or frame rendering",
+      "all_records_bit_exact": true,
+      "cases": [
+        {
+          "scene": "showcase",
+          "frame": 0,
+          "records": 352,
+          "core_cycles": 67445,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 15047,
+          "triangle_records": 18,
+          "triangle_core_cycles": 7166,
+          "standalone_microseconds_at_assumed_68_88_mhz": 979.1666666666667,
+          "triangle_microseconds_at_assumed_68_88_mhz": 104.03600464576076
+        },
+        {
+          "scene": "showcase",
+          "frame": 1,
+          "records": 352,
+          "core_cycles": 67445,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 15047,
+          "triangle_records": 18,
+          "triangle_core_cycles": 7166,
+          "standalone_microseconds_at_assumed_68_88_mhz": 979.1666666666667,
+          "triangle_microseconds_at_assumed_68_88_mhz": 104.03600464576076
+        },
+        {
+          "scene": "perspective",
+          "frame": 0,
+          "records": 282,
+          "core_cycles": 55026,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 11867,
+          "triangle_records": 8,
+          "triangle_core_cycles": 2888,
+          "standalone_microseconds_at_assumed_68_88_mhz": 798.8675958188154,
+          "triangle_microseconds_at_assumed_68_88_mhz": 41.92799070847852
+        },
+        {
+          "scene": "perspective",
+          "frame": 1,
+          "records": 282,
+          "core_cycles": 55026,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 11867,
+          "triangle_records": 8,
+          "triangle_core_cycles": 2888,
+          "standalone_microseconds_at_assumed_68_88_mhz": 798.8675958188154,
+          "triangle_microseconds_at_assumed_68_88_mhz": 41.92799070847852
+        },
+        {
+          "scene": "overdraw",
+          "frame": 0,
+          "records": 257,
+          "core_cycles": 56393,
+          "encoded_bytes": 17654,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 9966,
+          "triangle_records": 28,
+          "triangle_core_cycles": 12784,
+          "standalone_microseconds_at_assumed_68_88_mhz": 818.7137049941929,
+          "triangle_microseconds_at_assumed_68_88_mhz": 185.59814169570268
+        },
+        {
+          "scene": "overdraw",
+          "frame": 1,
+          "records": 257,
+          "core_cycles": 56393,
+          "encoded_bytes": 17655,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 9965,
+          "triangle_records": 28,
+          "triangle_core_cycles": 12784,
+          "standalone_microseconds_at_assumed_68_88_mhz": 818.7137049941929,
+          "triangle_microseconds_at_assumed_68_88_mhz": 185.59814169570268
+        },
+        {
+          "scene": "opaque",
+          "frame": 0,
+          "records": 69,
+          "core_cycles": 17527,
+          "encoded_bytes": 5799,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 2206,
+          "triangle_records": 69,
+          "triangle_core_cycles": 17527,
+          "standalone_microseconds_at_assumed_68_88_mhz": 254.4570267131243,
+          "triangle_microseconds_at_assumed_68_88_mhz": 254.4570267131243
+        },
+        {
+          "scene": "opaque",
+          "frame": 1,
+          "records": 69,
+          "core_cycles": 17522,
+          "encoded_bytes": 5797,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 2200,
+          "triangle_records": 69,
+          "triangle_core_cycles": 17522,
+          "standalone_microseconds_at_assumed_68_88_mhz": 254.38443670150988,
+          "triangle_microseconds_at_assumed_68_88_mhz": 254.38443670150988
+        }
+      ],
+      "cycle_csv_sha256": "23c7134968bd74aa83c80f733967fd0d2aa8292fa8407f057db4f8ec0774e50a"
+    },
+    {
+      "source": "synthetic paced source, phase increment15/modulus41, one pending byte",
+      "source_mode": 1,
+      "sink_acceptance_period_core_cycles": 4,
+      "assumed_core_mhz": 68.88,
+      "assumed_host_mhz": 25.2,
+      "source_phase_restarts_each_record": true,
+      "record_start_handshake_cycles_excluded": 1,
+      "scope": "Decoder only: no packet parser, CDC FIFO, staging RAM, SDRAM stores, CPU or frame rendering",
+      "all_records_bit_exact": true,
+      "cases": [
+        {
+          "scene": "showcase",
+          "frame": 0,
+          "records": 352,
+          "core_cycles": 132332,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 79904,
+          "triangle_records": 18,
+          "triangle_core_cycles": 9542,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1921.1962833914054,
+          "triangle_microseconds_at_assumed_68_88_mhz": 138.53077816492453
+        },
+        {
+          "scene": "showcase",
+          "frame": 1,
+          "records": 352,
+          "core_cycles": 132332,
+          "encoded_bytes": 20233,
+          "expanded_bytes": 112640,
+          "input_stall_cycles": 79901,
+          "triangle_records": 18,
+          "triangle_core_cycles": 9542,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1921.1962833914054,
+          "triangle_microseconds_at_assumed_68_88_mhz": 138.53077816492453
+        },
+        {
+          "scene": "perspective",
+          "frame": 0,
+          "records": 282,
+          "core_cycles": 106614,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 63765,
+          "triangle_records": 8,
+          "triangle_core_cycles": 4008,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1547.822299651568,
+          "triangle_microseconds_at_assumed_68_88_mhz": 58.18815331010453
+        },
+        {
+          "scene": "perspective",
+          "frame": 1,
+          "records": 282,
+          "core_cycles": 106614,
+          "encoded_bytes": 16569,
+          "expanded_bytes": 90240,
+          "input_stall_cycles": 63765,
+          "triangle_records": 8,
+          "triangle_core_cycles": 4008,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1547.822299651568,
+          "triangle_microseconds_at_assumed_68_88_mhz": 58.18815331010453
+        },
+        {
+          "scene": "overdraw",
+          "frame": 0,
+          "records": 257,
+          "core_cycles": 101597,
+          "encoded_bytes": 17654,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 56200,
+          "triangle_records": 28,
+          "triangle_core_cycles": 15948,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1474.9854819976772,
+          "triangle_microseconds_at_assumed_68_88_mhz": 231.53310104529618
+        },
+        {
+          "scene": "overdraw",
+          "frame": 1,
+          "records": 257,
+          "core_cycles": 101597,
+          "encoded_bytes": 17655,
+          "expanded_bytes": 82240,
+          "input_stall_cycles": 56197,
+          "triangle_records": 28,
+          "triangle_core_cycles": 15948,
+          "standalone_microseconds_at_assumed_68_88_mhz": 1474.9854819976772,
+          "triangle_microseconds_at_assumed_68_88_mhz": 231.53310104529618
+        },
+        {
+          "scene": "opaque",
+          "frame": 0,
+          "records": 69,
+          "core_cycles": 28477,
+          "encoded_bytes": 5799,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 13378,
+          "triangle_records": 69,
+          "triangle_core_cycles": 28477,
+          "standalone_microseconds_at_assumed_68_88_mhz": 413.42915214866434,
+          "triangle_microseconds_at_assumed_68_88_mhz": 413.42915214866434
+        },
+        {
+          "scene": "opaque",
+          "frame": 1,
+          "records": 69,
+          "core_cycles": 28477,
+          "encoded_bytes": 5797,
+          "expanded_bytes": 22080,
+          "input_stall_cycles": 13384,
+          "triangle_records": 69,
+          "triangle_core_cycles": 28477,
+          "standalone_microseconds_at_assumed_68_88_mhz": 413.42915214866434,
+          "triangle_microseconds_at_assumed_68_88_mhz": 413.42915214866434
+        }
+      ],
+      "cycle_csv_sha256": "8476297c7a8f82806d17e4f7a0742e3dcc6334735a912773ed06991ed7c98ced"
+    }
+  ],
+  "vector_sha256": {
+    "encoded.hex": "5a5bc6f3f8e836d07a2294d18c45b13b75e6a4bf4ebe9f86380e3cde982196a9",
+    "expected.hex": "e40ea39785ff13af2d2941e1ff25f3b82a5fa76d15104e6278ab0571955dbbf1",
+    "lengths.hex": "c0d87014f07a984ea81732f10c5423c142f55f28b27f800deb825e97aefd31a0",
+    "records.csv": "e01eb5df6142984de95a5451aba4129d45df16bfd317d2dd2a6859ba904c8f2c",
+    "traffic.json": "34c80592d5c624e06ccb761cc84e03a74441a30412b67dcd1b845c6a068e4105"
+  }
+}
