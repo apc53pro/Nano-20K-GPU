@@ -184,7 +184,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/d0907ed).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/bd65b05).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -226,12 +226,30 @@ diagnose the bus. This limited observation is not board timing qualification.
 Printing all sixteen probe bytes means the RP software sampled WREADY and
 RVALID HIGH during the transfers; their LOW values after the bus is released
 are normal idle observations, not evidence that they stayed LOW throughout.
+The offline-only `GPU_SWAPTEST`, also run after a completed sixteen-byte
+capability probe, refreshes status through register `0x01`, then reads requested
+HEX addresses `02`, `21`, `23` and prints these bytes with the raw flags. A
+capability-transfer timeout skips the automatic test; the manual command
+remains available. With fresh-reset epoch 1 and zero fault-code upper
+bytes, expected HEX output is `1 0 0`; a pure D5/D6 interchange in both address
+and return data instead gives `1 2 40`. That pattern would strongly support the
+interchange under these assumptions, without uniquely diagnosing it; `1 0 0`
+does not establish that every line is correct. No swap-test result has been
+reported. The existing all-zero capability reads do not rule out firmware or
+establish a wiring cause. Startup can accept register 64's expected zero before
+failing register 65, which should return `0x02`. D5 remains GP23 / Core P3.9 to
+Tang J5.5 / pin 42, and D6 remains GP24 / Core P3.12 to Tang J5.6 / pin 41;
+Arduino data indexing remains `GPIO18 + bit_index`. RP pad echoes do not verify
+those endpoints. This host-only diagnostic changes no FPGA circuit or image,
+submits no packet, refuses while online or a read is held, and releases the bus
+when complete or on timeout. All zeros or timeouts leave the following voltage
+test relevant.
 An offline `GPU_HOLD` diagnostic first samples idle RVALID with HCLK LOW and
 HIGH (both should be LOW while RD_N is HIGH), then selects immutable register
 `0x41` (expected `0x02`) and holds HCLK HIGH, RD_N LOW and RP data pins as inputs for stable
 voltage measurements. It remains held even for incorrect data or a read-valid
 timeout; an address-write timeout releases the bus. `GPU_STATUS` samples the
-held data without clock edges, `GPU_PROBE` refuses while held, and
+held data without clock edges, `GPU_PROBE` and `GPU_SWAPTEST` refuse while held, and
 `GPU_RELEASE` ends the hold. `GPU_RESET` clears it and performs normal hard
 initialization. This adds no FPGA circuit or packet retry and leaves the
 client offline. The exact measurement points are in the control guide.

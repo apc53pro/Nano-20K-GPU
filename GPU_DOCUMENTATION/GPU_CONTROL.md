@@ -343,7 +343,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/d0907ed)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/bd65b05)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -419,6 +419,37 @@ Sixteen printed probe bytes mean the RP sampled WREADY and RVALID HIGH during
 the transactions. The diagnostic's later idle WREADY=0/RVALID=0 values do not
 mean those inputs stayed LOW during the probe.
 
+The offline-only `GPU_SWAPTEST` runs after a completed sixteen-byte capability
+sweep in `GPU_PROBE` (including its automatic run after failed startup), and
+can also be requested over USB Serial. A capability-transfer timeout skips this
+automatic test. It first reads sideband register `0x01` to refresh the status
+snapshot, then reads requested addresses **`0x02`, `0x21`, `0x23`**. It prints
+`GPU SWAPTEST: <three HEX bytes>; flags=0x<raw flags>` without decoding or
+classifying the result. It submits no packet and refuses while the client is
+online or a read is held; use `GPU_RELEASE` before running it after `GPU_HOLD`.
+Completion or a timeout releases the bus; a timeout identifies the register.
+
+After a fresh hard reset, with epoch 1 and zero fault-code upper bytes:
+
+| Wiring hypothesis | Expected `GPU SWAPTEST` bytes | Reason |
+| --- | --- | --- |
+| Correct D5/D6 order | `1 0 0` | Status byte 2 is epoch's low byte, 1; status bytes 33 and 35 are zero. |
+| Pure D5/D6 interchange in both address and return data | `1 2 40` | `0x02` is unchanged; `0x21` selects `0x41` (`0x02`); `0x23` selects `0x43` (`0x20`), returned as `0x40`. |
+
+The latter pattern strongly supports that interchange under these assumptions;
+it is not a unique fault diagnosis. `1 0 0` does not verify every bus line.
+All-zero results or timeouts still require the held-read voltage checks below.
+No swap-test result has yet been reported. The sixteen zero capability bytes
+alone neither rule out firmware nor establish a D5/D6 interchange. In the
+startup prefix check, register 64's expected zero can pass; register **65** is
+the first mismatch when it returns zero instead of `0x02`.
+
+The mapping remains D5 **GP23 / Core P3.9 → Tang J5.5 / FPGA pin 42**, D6
+**GP24 / Core P3.12 → Tang J5.6 / FPGA pin 41**; the Arduino driver still uses
+`GPIO18 + bit_index`. A matching address echo checks the local RP pads and
+cannot verify that these two wires reach their intended Tang endpoints. This
+host diagnostic changes no FPGA RTL, constraints, clock or programming image.
+
 For stable measurements, the offline-only `GPU_HOLD` command first releases
 the bus with WR_N/RD_N/ALE_N HIGH and RP data pins as inputs. Before selecting
 an address, it samples RVALID after 50 us with HCLK LOW and after 50 us with
@@ -438,7 +469,8 @@ reports the held flag and RP-side HCLK/WR_N/RD_N/ALE_N/ABORT levels. These are
 RP pad readings, not measurements at the Tang end of the wires.
 
 `GPU_STATUS` refreshes the held data without adding clock edges. `GPU_PROBE`
-refuses while a read is held. Use `GPU_RELEASE` to end the read, release data
+and `GPU_SWAPTEST` refuse while a read is held. Use `GPU_RELEASE` to end the
+read, release data
 and return to inactive strobes with reset HIGH, or `GPU_RESET` to clear the
 hold and perform the normal one-second hard-initialization sequence. The
 hold sends no packet, retries no partial packet and leaves the client offline;
