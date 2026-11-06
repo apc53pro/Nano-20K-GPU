@@ -6,8 +6,8 @@
 <text x="55" y="60" font-size="31" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Tang Nano20K · physical header map</text>
 <text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">Hardware 3921 · component side · USB-C TOP / HDMI BOTTOM</text>
 <rect x="55" y="117" width="1078" height="63" rx="4" fill="#fff5e8" stroke="#e6be83" stroke-width="1"/>
-<text x="73" y="142" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Wiring reservation; physical bus wrapper/driver not implemented</text>
-<text x="73" y="166" font-size="20" font-weight="600" style="fill:#b85013" text-anchor="start" class="">3.3V logic; VGA DAC disconnected</text>
+<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">FPGA pad wrapper implemented; RP driver / electrical timing unqualified</text>
+<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected</text>
 <text x="55" y="213" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">J6 = LEFT edge; J5 = RIGHT edge. Both number 1 at top → 20 at bottom.</text>
 <rect x="475" y="242" width="240" height="1110" rx="20" fill="#eaf2f3" stroke="#7b9a9f" stroke-width="2"/>
 <rect x="543" y="226" width="104" height="43" rx="6" fill="#e7ebef" stroke="#6e7d8e" stroke-width="2"/>
@@ -28,14 +28,14 @@
 <text x="595" y="1025" font-size="17" font-weight="400" style="fill:#3b6872" text-anchor="middle" class="">side</text>
 <rect x="55" y="303.0" width="380" height="44" rx="3" fill="#eaf7f4" stroke="#d4dce5" stroke-width="1"/>
 <text x="67" y="322.0" font-size="19" font-weight="700" style="fill:#00786f" text-anchor="start" class="">J6.1 · WREADY</text>
-<text x="67" y="341.0" font-size="16" font-weight="400" style="fill:#00786f" text-anchor="start" class="">FPGA 73 · GP10 (P1.11)</text>
+<text x="67" y="341.0" font-size="16" font-weight="400" style="fill:#00786f" text-anchor="start" class="">FPGA 73 · GP39 (P4.12)</text>
 <line x1="435" y1="324.0" x2="475" y2="324.0" stroke="#00786f" stroke-width="2"/>
 <line x1="475" y1="324.0" x2="497" y2="324.0" stroke="#00786f" stroke-width="2"/>
 <circle cx="497" cy="324.0" r="11.5" fill="#00786f" stroke="#00786f" stroke-width="2"/>
 <text x="497" y="328.5" font-size="12" font-weight="700" style="fill:white" text-anchor="middle" class="">1</text>
 <rect x="55" y="351.5" width="380" height="44" rx="3" fill="#eaf7f4" stroke="#d4dce5" stroke-width="1"/>
 <text x="67" y="370.5" font-size="19" font-weight="700" style="fill:#00786f" text-anchor="start" class="">J6.2 · RVALID</text>
-<text x="67" y="389.5" font-size="16" font-weight="400" style="fill:#00786f" text-anchor="start" class="">FPGA 74 · GP11 (P1.14)</text>
+<text x="67" y="389.5" font-size="16" font-weight="400" style="fill:#00786f" text-anchor="start" class="">FPGA 74 · GP40 (P4.11)</text>
 <line x1="435" y1="372.5" x2="475" y2="372.5" stroke="#00786f" stroke-width="2"/>
 <line x1="475" y1="372.5" x2="497" y2="372.5" stroke="#00786f" stroke-width="2"/>
 <circle cx="497" cy="372.5" r="11.5" fill="#00786f" stroke="#00786f" stroke-width="2"/>
@@ -70,7 +70,7 @@
 <text x="497" y="571.0" font-size="12" font-weight="700" style="fill:white" text-anchor="middle" class="">6</text>
 <rect x="55" y="594.0" width="380" height="44" rx="3" fill="#eef5ff" stroke="#d4dce5" stroke-width="1"/>
 <text x="67" y="613.0" font-size="19" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">J6.7 · RD_N</text>
-<text x="67" y="632.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 16 · GP15 (P3.2)</text>
+<text x="67" y="632.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 16 · GP38 (P4.9)</text>
 <line x1="435" y1="615.0" x2="475" y2="615.0" stroke="#165bb0" stroke-width="2"/>
 <line x1="475" y1="615.0" x2="497" y2="615.0" stroke="#165bb0" stroke-width="2"/>
 <circle cx="497" cy="615.0" r="11.5" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
@@ -126,7 +126,7 @@
 <text x="497" y="959.0" font-size="12" font-weight="700" style="fill:white" text-anchor="middle" class="">14</text>
 <rect x="55" y="982.0" width="380" height="44" rx="3" fill="#eef5ff" stroke="#d4dce5" stroke-width="1"/>
 <text x="67" y="1001.0" font-size="19" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">J6.15 · ALE_N</text>
-<text x="67" y="1020.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 17 · GP14 (P1.15)</text>
+<text x="67" y="1020.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 17 · GP37 (P4.10)</text>
 <line x1="435" y1="1003.0" x2="475" y2="1003.0" stroke="#165bb0" stroke-width="2"/>
 <line x1="475" y1="1003.0" x2="497" y2="1003.0" stroke="#165bb0" stroke-width="2"/>
 <circle cx="497" cy="1003.0" r="11.5" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
@@ -280,14 +280,14 @@
 <text x="693" y="1056.0" font-size="12" font-weight="700" style="fill:#b85013" text-anchor="middle" class="">16</text>
 <rect x="753" y="1079.0" width="380" height="44" rx="3" fill="#eef5ff" stroke="#d4dce5" stroke-width="1"/>
 <text x="765" y="1098.0" font-size="19" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">J5.17 · ABORT</text>
-<text x="765" y="1117.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 72 · GP12 (P1.13)</text>
+<text x="765" y="1117.0" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 72 · GP35 (P4.8)</text>
 <line x1="715" y1="1100.0" x2="753" y2="1100.0" stroke="#165bb0" stroke-width="2"/>
 <line x1="715" y1="1100.0" x2="693" y2="1100.0" stroke="#165bb0" stroke-width="2"/>
 <circle cx="693" cy="1100.0" r="11.5" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>
 <text x="693" y="1104.5" font-size="12" font-weight="700" style="fill:white" text-anchor="middle" class="">17</text>
 <rect x="753" y="1127.5" width="380" height="44" rx="3" fill="#eef5ff" stroke="#d4dce5" stroke-width="1"/>
 <text x="765" y="1146.5" font-size="19" font-weight="700" style="fill:#165bb0" text-anchor="start" class="">J5.18 · GPU_RESET_N</text>
-<text x="765" y="1165.5" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 71 · GP13 (P1.16)</text>
+<text x="765" y="1165.5" font-size="16" font-weight="400" style="fill:#165bb0" text-anchor="start" class="">FPGA 71 · GP36 (P4.7)</text>
 <line x1="715" y1="1148.5" x2="753" y2="1148.5" stroke="#165bb0" stroke-width="2"/>
 <line x1="715" y1="1148.5" x2="693" y2="1148.5" stroke="#165bb0" stroke-width="2"/>
 <circle cx="693" cy="1148.5" r="11.5" fill="#165bb0" stroke="#165bb0" stroke-width="2"/>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render documentation-only, printable wiring reservations from the pinout JSON.
+"""Render documentation-only, printable wiring maps from the pinout JSON.
 
 Run from any directory. Inkscape is used only to export the generated SVGs to PDF.
 This script does not generate firmware, FPGA constraints, or electrical sign-off.
@@ -98,12 +98,12 @@ def header(svg, title, subtitle):
     svg.text(55, 60, title, size=31, weight=700)
     svg.text(55, 96, subtitle, size=20, color=MUTED)
     svg.rect(55, 117, svg.width - 110, 63, fill="#fff5e8", stroke="#e6be83", radius=4)
-    svg.text(73, 142, "Wiring reservation; physical bus wrapper/driver not implemented", size=21, weight=700)
-    svg.text(73, 166, "3.3V logic; VGA DAC disconnected", size=20, weight=600, color=POWER)
+    svg.text(73, 142, "FPGA pad wrapper implemented; RP driver / electrical timing unqualified", size=20, weight=700)
+    svg.text(73, 166, "RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected", size=19, weight=600, color=POWER)
 
 
 def wiring(rows):
-    s = SVG(1680, 1188, 297, 210, "Core2350B to Tang Nano20K: 16-signal point-to-point wiring reservation")
+    s = SVG(1680, 1188, 297, 210, "Core2350B to Tang Nano20K: revised 16-signal point-to-point wiring")
     header(s, "Core2350B ↔ Tang Nano20K · 16-signal wiring map", "Core2350B: RP2350B / 8 MB PSRAM / 16 MB flash   •   Tang Nano20K hardware 3921")
 
     s.text(72, 213, "CORE2350B", size=20, weight=700)
@@ -178,8 +178,8 @@ def wiring(rows):
     s.rect(55, 1087, 1570, 43, fill="#fff1ed", stroke="#d89987", radius=3)
     s.text(70, 1105, "Keep ALL 16 signal links OPEN until compatible Core firmware + FPGA image are installed.", size=17, weight=700)
     s.text(70, 1123, "Assembly while unpowered is OK; keep removable links open on powered old images. 33Ω does not make contention safe.", size=17, weight=600)
-    s.text(55, 1148, "Core connector numbers are P1/P3 schematic positions, not RP2350 package pins or Pico 2 numbering.", size=16, color=MUTED)
-    s.text(55, 1170, "Sources: Core2350B manufacturer schematic; Tang Nano20K Rev 1.30 / hardware 3921 (2023-07-11). Exact evidence: pinout JSON.", size=14.5, color=MUTED)
+    s.text(55, 1148, "Core bus: P3/P4 contacts, not package pins. GP39 WREADY: RP input; shared red LED + 470Ω to GND adds Tang output load.", size=16, color=MUTED)
+    s.text(55, 1170, "Sources: user wiring revision; Core2350B schematic; Tang Rev 1.30 / hardware 3921 (2023-07-11). Exact evidence: pinout JSON.", size=14.5, color=MUTED)
     return s
 
 
@@ -253,41 +253,44 @@ def tang_headers(rows, headers):
 
 def core_headers(rows):
     by_header = {r["core_header"]: r for r in rows}
-    s = SVG(1188, 1680, 210, 297, "Core2350B component-side physical P1 and P3 header locator")
-    header(s, "Core2350B · P1 / P3 physical locator", "RP2350B · 8 MB PSRAM / 16 MB flash · component side · USB FPC connector toward TOP")
+    s = SVG(1188, 1680, 210, 297, "Core2350B component-side physical P4 and P3 header locator")
+    header(s, "Core2350B · P4 / P3 physical locator", "RP2350B · 8 MB PSRAM / 16 MB flash · component side · USB FPC connector toward TOP")
     s.text(55, 220, "Use the Core2350B connector labels below; Pico 2 header numbering does not apply.", size=20, weight=700)
-    s.text(55, 270, "P1 · LEFT EDGE · vertical 2×8 header", size=24, weight=700)
-    s.text(500, 309, "Outer / odd", size=18, weight=600, anchor="middle")
-    s.text(650, 309, "Inner / even", size=18, weight=600, anchor="middle")
+    s.text(55, 270, "P4 · RIGHT EDGE · vertical 2×8 header", size=24, weight=700)
+    s.text(500, 309, "Inner / odd", size=18, weight=600, anchor="middle")
+    s.text(650, 309, "Outer / even", size=18, weight=600, anchor="middle")
     s.rect(477, 329, 46, 523, fill="#eaf2f3", stroke="#9ab1b5", radius=4)
     s.rect(627, 329, 46, 523, fill="#eaf2f3", stroke="#9ab1b5", radius=4)
 
     preserved = {0: "Existing indicator", 2: "Existing SD SPI", 3: "Existing SD SPI", 4: "Existing SD SPI", 5: "Existing SD SPI", 6: "Existing audio I2S", 7: "Existing audio I2S", 8: "Existing audio I2S", 27: "Existing PS/2 keyboard", 28: "Existing PS/2 keyboard"}
-    p1_odd = [None, 2, 4, 6, 8, 10, 12, 14]
-    p1_even = [0, 1, 3, 5, 7, 9, 11, 13]
+    p4_odd = [None, 32, 34, 36, 38, 40, 42, 44]
+    p4_even = [30, 31, 33, 35, 37, 39, 41, 43]
 
     def core_label(connector, pin, gpio):
         key = f"{connector}.{pin}"
         row = by_header.get(key)
         if row:
-            return color_for_signal(row["signal"]), f"{key} · GP{gpio}", f'{row["signal"]} · Tang {row["tang_header"]}'
+            note = " · Core LED load" if gpio == 39 else ""
+            return color_for_signal(row["signal"]), f"{key} · GP{gpio}", f'{row["signal"]} · Tang {row["tang_header"]}{note}'
         if gpio is None:
             return INK, f"{key} · GND", "Common ground to Tang"
-        return GREY, f"{key} · GP{gpio}", preserved.get(gpio, "Unallocated by this bus layout")
+        role = "Unavailable for GPU bus" if gpio in range(10, 16) else preserved.get(gpio, "Unallocated by this bus layout")
+        return GREY, f"{key} · GP{gpio}", role
 
     for index in range(8):
         y = 361 + index * 66
-        for pin, gpio, label_x, pin_x in [(1 + 2 * index, p1_odd[index], 55, 500), (2 + 2 * index, p1_even[index], 706, 650)]:
-            color, primary, secondary = core_label("P1", pin, gpio)
-            active = f"P1.{pin}" in by_header or gpio is None
+        for pin, gpio, label_x, pin_x in [(1 + 2 * index, p4_odd[index], 55, 500), (2 + 2 * index, p4_even[index], 706, 650)]:
+            color, primary, secondary = core_label("P4", pin, gpio)
+            active = f"P4.{pin}" in by_header or gpio is None
             s.rect(label_x, y - 25, 427 if pin % 2 == 0 else 387, 51, fill="#f3f6f9" if active else "#f6f7f8", stroke=GRID, radius=3)
             s.text(label_x + 13, y - 4, primary, size=21, weight=700, color=color)
-            s.text(label_x + 13, y + 17, secondary, size=18, color=color)
+            s.text(label_x + 13, y + 17, secondary, size=16 if gpio == 39 else 18, color=color)
             s.line(label_x + 387 if pin % 2 else pin_x, y, pin_x if pin % 2 else label_x, y, color=color, sw=2)
             s.circle(pin_x, y, 15, fill=color if active else "white", stroke=color, sw=2)
             s.text(pin_x, y + 5, pin, size=15, weight=700, color="white" if active else color, anchor="middle")
 
-    s.text(55, 914, "P1 contacts read TOP → BOTTOM. Outer column is toward the board's left edge.", size=19, color=MUTED)
+    s.text(55, 886, "P4 contacts read TOP → BOTTOM. Outer column is toward the board's right edge.", size=19, color=MUTED)
+    s.text(55, 915, "GP39: WREADY input only; red LED + 470Ω to GND loads the Tang output. Disable RP LED writes.", size=18, color=POWER)
     s.text(55, 969, "P3 · BOTTOM EDGE · horizontal 2×8 header", size=24, weight=700)
     s.text(55, 1002, "Read both rows LEFT → RIGHT. Inner / even row is nearer the board centre.", size=19, color=MUTED)
     s.rect(91, 1100, 1038, 139, fill="#eaf2f3", stroke="#9ab1b5", radius=4)
@@ -303,7 +306,7 @@ def core_headers(rows):
             s.text(x, label_y, f"P3.{pin}", size=18, weight=600, color=color, anchor="middle")
             s.text(x, label_y + 25, "GND" if gpio is None else f"GP{gpio}", size=21, weight=700, color=color, anchor="middle")
             row = by_header.get(f"P3.{pin}")
-            short_label = row["signal"] if row else "Common GND" if gpio is None else "PS/2 kept" if gpio in (27, 28) else "Unallocated"
+            short_label = row["signal"] if row else "Common GND" if gpio is None else "PS/2 kept" if gpio in (27, 28) else "Unavailable" if gpio in range(10, 16) else "Unallocated"
             s.text(x, label_y + 49, short_label, size=16, color=color, anchor="middle")
     s.text(95, 1169, "INNER / EVEN", size=16, weight=600, color="#3b6872")
     s.text(915, 1169, "OUTER / ODD", size=16, weight=600, color="#3b6872")
@@ -312,7 +315,7 @@ def core_headers(rows):
     s.text(73, 1401, "Physical orientation reference", size=21, weight=700)
     s.text(73, 1433, "Component side, USB FPC toward top:", size=19)
     s.text(73, 1462, "P1 left · P2 top · P3 bottom · P4 right.", size=19)
-    s.text(73, 1494, "Only P1/P3 take bus wiring; grey GPIOs keep existing roles.", size=18)
+    s.text(73, 1490, "Signals use P3/P4. Bond P1.1 GND to Tang J5.2 as well.", size=17)
     s.text(73, 1521, "Keep ALL 16 signal links OPEN until compatible Core firmware", size=17, weight=700)
     s.text(73, 1545, "+ FPGA image are installed; old powered images need links open.", size=17, weight=700)
     s.text(73, 1569, "33Ω does not make contention safe. Power boards separately.", size=17, weight=600)
@@ -327,8 +330,8 @@ def core_headers(rows):
     s.text(1080, 1483, "P4", size=18, weight=700)
     s.text(989, 1454, "P2", size=16, weight=700, anchor="middle")
     s.text(989, 1573, "P3", size=18, weight=700, anchor="middle")
-    s.text(55, 1620, "Connector locator only. P1/P3 drawings are expanded for legibility and are not a scale board drawing. Do not mirror for solder side.", size=15, color=MUTED)
-    s.text(55, 1648, "Source: manufacturer Core2350B schematic and component-side product photograph; full provenance in the pinout JSON.", size=16, color=MUTED)
+    s.text(55, 1620, "Connector locator only. P3/P4 drawings are expanded for legibility and are not a scale board drawing. Do not mirror for solder side.", size=15, color=MUTED)
+    s.text(55, 1648, "Sources: user wiring revision, Core2350B schematic and component-side photograph; provenance in the pinout JSON.", size=16, color=MUTED)
     return s
 
 
@@ -370,12 +373,13 @@ def load_pinout():
             }
     if len(rows) != 16 or len(headers) != 40:
         raise ValueError("These page layouts require 16 signals and 40 Tang header positions")
-    # The full physical P1/P3 locator comes from the manufacturer schematic.
+    # The physical connector routing comes from the manufacturer schematic.
     # Reject a changed bus JSON that contradicts that fixed connector routing.
     physical_core = {}
     for connector, odd, even in [
         ("P1", [None, 2, 4, 6, 8, 10, 12, 14], [0, 1, 3, 5, 7, 9, 11, 13]),
         ("P3", [None, 17, 19, 21, 23, 25, 27, 29], [15, 16, 18, 20, 22, 24, 26, 28]),
+        ("P4", [None, 32, 34, 36, 38, 40, 42, 44], [30, 31, 33, 35, 37, 39, 41, 43]),
     ]:
         for index, gpio in enumerate(odd):
             physical_core[f"{connector}.{index * 2 + 1}"] = gpio
@@ -383,7 +387,7 @@ def load_pinout():
             physical_core[f"{connector}.{index * 2 + 2}"] = gpio
     for row in rows:
         if physical_core.get(row["core_header"]) != row["gpio"]:
-            raise ValueError("Bus JSON contradicts verified Core2350B P1/P3 connector routing")
+            raise ValueError("Bus JSON contradicts verified Core2350B connector routing")
         if headers[row["tang_header"]]["fpga_pin"] != row["fpga_pin"]:
             raise ValueError("Bus JSON and physical Tang header table disagree")
     return rows, headers

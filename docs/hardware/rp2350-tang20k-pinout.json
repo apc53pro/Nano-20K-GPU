@@ -1,9 +1,11 @@
 {
   "schema": "N20K-WIRING-1",
   "profile": "N20K-PIN-0.1",
-  "status": "Fixed wiring reservation only; physical bus wrapper, RP2350 driver and board timing are not implemented or qualified",
+  "rp_wiring_revision": "2026-11-06",
+  "status": "Tang physical bus wrapper and package constraints implemented; RP-side wiring revised by user; RP2350 driver unimplemented and external electrical timing unqualified",
   "firmware_modified": false,
   "rtl_modified": false,
+  "modification_flags_scope": "This RP-side wiring revision; existing Tang wrapper and package constraints are unchanged",
   "hardware_tested": false,
   "signal_count": 16,
   "rp_board": {
@@ -24,9 +26,15 @@
   "signals": [
     {
       "signal": "WREADY",
-      "rp_gpio": 10,
-      "rp_header": "P1",
-      "rp_header_pin": 11,
+      "rp_gpio": 39,
+      "rp_header": "P4",
+      "rp_header_pin": 12,
+      "rp_onboard_load": {
+        "type": "active-high red LED",
+        "path": "GP39 -> R10 470 ohms -> LED1 -> GND",
+        "rp_configuration": "input; disable independent onboard LED output code",
+        "electrical_qualification": "Pending; include LED source-current load in Tang WREADY validation"
+      },
       "tang_header": "J6",
       "tang_header_pin": 1,
       "fpga_package_pin": 73,
@@ -52,9 +60,9 @@
     },
     {
       "signal": "RVALID",
-      "rp_gpio": 11,
-      "rp_header": "P1",
-      "rp_header_pin": 14,
+      "rp_gpio": 40,
+      "rp_header": "P4",
+      "rp_header_pin": 11,
       "tang_header": "J6",
       "tang_header_pin": 2,
       "fpga_package_pin": 74,
@@ -80,9 +88,9 @@
     },
     {
       "signal": "ABORT",
-      "rp_gpio": 12,
-      "rp_header": "P1",
-      "rp_header_pin": 13,
+      "rp_gpio": 35,
+      "rp_header": "P4",
+      "rp_header_pin": 8,
       "tang_header": "J5",
       "tang_header_pin": 17,
       "fpga_package_pin": 72,
@@ -108,9 +116,9 @@
     },
     {
       "signal": "GPU_RESET_N",
-      "rp_gpio": 13,
-      "rp_header": "P1",
-      "rp_header_pin": 16,
+      "rp_gpio": 36,
+      "rp_header": "P4",
+      "rp_header_pin": 7,
       "tang_header": "J5",
       "tang_header_pin": 18,
       "fpga_package_pin": 71,
@@ -136,9 +144,9 @@
     },
     {
       "signal": "ALE_N",
-      "rp_gpio": 14,
-      "rp_header": "P1",
-      "rp_header_pin": 15,
+      "rp_gpio": 37,
+      "rp_header": "P4",
+      "rp_header_pin": 10,
       "tang_header": "J6",
       "tang_header_pin": 15,
       "fpga_package_pin": 17,
@@ -166,9 +174,9 @@
     },
     {
       "signal": "RD_N",
-      "rp_gpio": 15,
-      "rp_header": "P3",
-      "rp_header_pin": 2,
+      "rp_gpio": 38,
+      "rp_header": "P4",
+      "rp_header_pin": 9,
       "tang_header": "J6",
       "tang_header_pin": 7,
       "fpga_package_pin": 16,
@@ -525,13 +533,11 @@
       27,
       28
     ],
-    "onboard_led": [
-      39
-    ],
     "psram_cs": [
       47
     ]
   },
+  "unavailable_rp_gpio_for_this_bus": [10, 11, 12, 13, 14, 15],
   "unallocated_by_this_layout": [
     1,
     9,
@@ -786,6 +792,20 @@
   },
   "sources": [
     {
+      "id": "user_wiring_revision",
+      "description": "User-supplied updated_wiring.txt; six RP GPIO replacements, Tang package pins unchanged",
+      "date": "2026-11-06",
+      "rp_gpio_replacements": {
+        "15": 38,
+        "14": 37,
+        "13": 36,
+        "12": 35,
+        "10": 39,
+        "11": 40
+      },
+      "reason": "Original six RP GPIOs unavailable"
+    },
+    {
       "id": "user_firmware",
       "description": "User-supplied resource_development.7z; read-only reference, no firmware build or modification",
       "archive_sha256": "2fcd65f17cd9c86bfb46c439b2c73bcc562e071f69c3d1815270caaa710552de",
@@ -812,7 +832,7 @@
       "id": "core_schematic",
       "url": "https://files.waveshare.com/wiki/Core2350B0/Core2350B.pdf",
       "sha256": "ea3e5f74072c949a84041436b8b7dd71b78774bd4eb24499581f45b9c8cb9e7b",
-      "evidence": "P1/P3 connector numbering, GPIO routing, GP39 LED and GP47 PSRAM chip select"
+      "evidence": "P1/P3/P4 connector numbering and GPIO routing; GP39 -> R10 470 ohms -> red LED1 -> GND; GP47 PSRAM chip select"
     },
     {
       "id": "core_orientation",

@@ -72,8 +72,14 @@ the core clock, and separate link tests exercise other clock ratios/phases.
 The **fixed `N20K-PIN-0.1` wiring reservation** connects a Waveshare Core2350B
 (16 MiB flash, 8 MiB PSRAM) to Tang Nano 20K hardware 3921 using **16 signal
 GPIOs plus common ground**. It reuses VGA GP16/GP17 for HCLK/WR_N and VGA
-GP18–GP25 for the bidirectional data byte; GP10–GP15 add read, address-latch,
-ready/valid, abort and GPU-reset controls. All selected FPGA banks run at 3.3 V.
+GP18–GP25 for the bidirectional data byte. The user's 2026-11-06 RP-side wiring
+revision replaces unavailable GP10–GP15 with **GP35–GP40 on P4**: GP35 ABORT,
+GP36 GPU_RESET_N, GP37 ALE_N, GP38 RD_N, GP39 WREADY and GP40 RVALID.
+The `N20K-PIN-0.1` Tang package-pin allocation is unchanged; no RTL or FPGA
+constraint change is needed for this host-side remap. GP39 shares the Core's
+active-high red LED and must be an RP input, with the LED load driven by Tang
+WREADY rather than an independent RP LED output. All selected FPGA banks run
+at 3.3 V.
 The [control guide's exact wiring table](GPU_CONTROL.md#fixed-wiring-layout-core2350b-to-tang-nano-20k)
 and [printable board layouts](../docs/images/core2350b-tang-nano20k-wiring.pdf)
 identify manufacturer header contacts and package pins.
@@ -131,7 +137,9 @@ timings; pad/interconnect margins still require physical-board measurement.
 The layout leaves the Tang LCD FPC disconnected and avoids HDMI, flash, SDRAM,
 SD, audio and BL616 signal conflicts. WR_N/RD_N/ALE_N use three existing LED
 pins as FPGA inputs, with their LED loads included in the wiring/current
-instructions. The VGA DAC must be disconnected before its GPIOs become a
+instructions. Core GP39 adds its red LED and 470 Ω path to ground to WREADY;
+that load remains part of the pending external electrical validation.
+The VGA DAC must be disconnected before its GPIOs become a
 bidirectional GPU bus. Power, pulls, boot isolation and unimplemented-driver
 limits are specified in the control guide.
 

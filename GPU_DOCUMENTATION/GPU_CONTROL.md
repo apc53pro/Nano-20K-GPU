@@ -8,7 +8,8 @@ same change and pushed with those changes to GitHub.
 
 The byte protocol below is implemented, but remains provisional. It is not a
 released RP2350 firmware ABI. The **Core2350B/Tang Nano 20K wiring allocation
-is fixed below as `N20K-PIN-0.1`**. The bidirectional pad wrapper and exact package constraints are implemented
+uses the `N20K-PIN-0.1` Tang pin profile with the 2026-11-06 RP-side remap below**.
+The bidirectional pad wrapper and exact package constraints are implemented
 in `rtl/board/`. Electrical margins and the RP2350 PIO/DMA driver remain
 **unqualified**; RP2350 firmware has not been modified.
 The examples implement generic packet/driver logic; their transport callbacks
@@ -101,18 +102,25 @@ the two interfaces. The logical port table is not itself a physical pin map.
 
 ### Fixed wiring layout: Core2350B to Tang Nano 20K
 
-**Layout `N20K-PIN-0.1`: 16 signal wires plus common ground, all at 3.3 V.**
+**Tang profile `N20K-PIN-0.1`, RP wiring revision 2026-11-06:
+16 signal wires plus common ground, all at 3.3 V.**
 This allocation is for the **Waveshare Core2350B with 16 MiB flash and 8 MiB
 PSRAM**, confirmed by the user, and **Tang Nano 20K hardware 3921**, referenced
-to Sipeed schematic revision 1.30. The board top and CST now implement these
-exact connections. This work does not modify RP2350 firmware or provide its
+to Sipeed schematic revision 1.30. The board top and CST implement the Tang
+endpoints; the RP-side remap changes no FPGA package pin or constraint.
+This work does not modify RP2350 firmware or provide its
 PIO/DMA driver. Use the full-board programming image rather than a logical-core
 probe image; physical hardware qualification remains pending.
 
 The uploaded `resource_development.7z` confirms HSYNC on GP16, VSYNC on GP17
-and eight RGB outputs on GP18–GP25. Reuse **all ten VGA GPIOs**, with **GP10–GP15**
-as the six additional signals. The eight data GPIOs remain contiguous for PIO;
-ALE_N/RD_N/HCLK/WR_N occupy the contiguous GP14–GP17 control group.
+and eight RGB outputs on GP18–GP25. Reuse **all ten VGA GPIOs**, with **GP35–GP40**
+as the six additional signals. The user reports GP10–GP15 unavailable and
+supplied this replacement mapping in `updated_wiring.txt`: GP15 → GP38,
+GP14 → GP37, GP13 → GP36, GP12 → GP35, GP10 → GP39 and GP11 → GP40.
+The eight data GPIOs remain contiguous for PIO. HCLK/WR_N stay on GP16/GP17;
+ALE_N/RD_N are now GP37/GP38. A future RP driver must handle these separated
+control groups and GP39/GP40 inputs, including the RP2350B high-GPIO/PIO window
+selection, rather than assuming one contiguous four-control group.
 
 - [Printable A4 wiring and both board-header layouts](../docs/images/core2350b-tang-nano20k-wiring.pdf)
 - [Point-to-point layout](../docs/images/core2350b-tang-nano20k-wiring.svg),
@@ -120,18 +128,18 @@ ALE_N/RD_N/HCLK/WR_N occupy the contiguous GP14–GP17 control group.
   [Core2350B header locator](../docs/images/core2350b-header-map.svg)
 - [Pin allocation, resistor values and source fingerprints](../docs/hardware/rp2350-tang20k-pinout.json)
 
-`P1.11` means **contact 11 of Core2350B connector P1**, not GP11. Likewise,
+`P4.12` means **contact 12 of Core2350B connector P4**, which carries GP39. Likewise,
 `J6.8` is Tang connector J6 contact 8; its FPGA package pin is 27. These are
 manufacturer connector positions, not Raspberry Pi Pico/Pico 2 header numbers.
 
 | Signal | RP GPIO | Core2350B contact | Tang contact | FPGA QN88 pin | Direction | Previous VGA use |
 | --- | ---: | --- | --- | ---: | --- | --- |
-| WREADY | GP10 | P1.11 | J6.1 | 73 | Tang → RP | — |
-| RVALID | GP11 | P1.14 | J6.2 | 74 | Tang → RP | — |
-| ABORT | GP12 | P1.13 | J5.17 | 72 | RP → Tang | — |
-| GPU_RESET_N | GP13 | P1.16 | J5.18 | 71 | RP → Tang | — |
-| ALE_N | GP14 | P1.15 | J6.15 | 17 | RP → Tang | — |
-| RD_N | GP15 | P3.2 | J6.7 | 16 | RP → Tang | — |
+| WREADY | GP39 | P4.12 | J6.1 | 73 | Tang → RP | — |
+| RVALID | GP40 | P4.11 | J6.2 | 74 | Tang → RP | — |
+| ABORT | GP35 | P4.8 | J5.17 | 72 | RP → Tang | — |
+| GPU_RESET_N | GP36 | P4.7 | J5.18 | 71 | RP → Tang | — |
+| ALE_N | GP37 | P4.10 | J6.15 | 17 | RP → Tang | — |
+| RD_N | GP38 | P4.9 | J6.7 | 16 | RP → Tang | — |
 | HCLK | GP16 | P3.4 | J6.5 | 77 | RP → Tang | HSYNC |
 | WR_N | GP17 | P3.3 | J6.6 | 15 | RP → Tang | VSYNC |
 | D0 | GP18 | P3.6 | J6.8 | 27 | Bidirectional | RGB bit 0 |
@@ -158,11 +166,15 @@ View **both boards from the component side**, not the solder side:
   contact 20 at the HDMI end. **J5.1 is 5 V**, not ground.
 - **Core2350B:** the USB FPC connector is at the top. P1 is left, P2 top, P3
   bottom and P4 right. On P1, the outer column is odd-numbered top to bottom
-  and the inner column even-numbered. On P3, the outer/bottom row is odd-numbered
+  and the inner column even-numbered. On P4, the inner column is odd-numbered
+  top to bottom and the outer column even-numbered; P4.1 is ground.
+  On P3, the outer/bottom row is odd-numbered
   left to right and the inner/top row even-numbered. P1.1 and P3.1 are ground.
 
-The printable locator pages mark every P1/P3 and J5/J6 contact, including
-unused positions. Verify that the received Tang board matches the referenced
+The printable locator pages mark every P3/P4 and J5/J6 contact, including
+unused positions, and identify the separate P1.1 ground connection. GP10–GP15
+and their old contacts are no longer GPU signal endpoints. Verify that the
+received Tang board matches the referenced
 3921 schematic and orientation before following the layout.
 
 #### Resistors, idle levels and board connections
@@ -208,8 +220,17 @@ bank and 3.3 V supply. The selected banks 1/3/4/5/6 are all 3.3 V on this board.
 HCLK uses **77/GCLKT_1**, a suitable single-ended global-clock input.
 
 Preserve RP **GP0** (startup indicator), **GP2–GP5** (SD SPI), **GP6–GP8**
-(I2S audio), **GP27/GP28** (PS/2), **GP39** (Core onboard LED) and **GP47**
+(I2S audio), **GP27/GP28** (PS/2) and **GP47**
 (PSRAM chip select). GP1/GP9/GP26/GP29 are not allocated by this wiring plan.
+GP10–GP15 are unavailable for this bus, rather than spare GPU connections.
+**GP39 is now WREADY, not a separate LED output.** The Core schematic connects
+GP39 → R10 470 Ω → red LED1 → GND. A HIGH WREADY therefore lights the LED and
+loads the Tang output. This is a branch to ground, not a series resistor in
+the GP39 connection; continuity along that connection can still read nearly
+zero ohms. Keep RP GP39 configured as an input and disable any
+independent onboard-LED output code. Include this additional source-current
+load and its effect on WREADY levels/edges in board validation; no electrical
+margin or tested host clock is established by this documentation update.
 The existing VGA resistor DAC and sync circuitry must be disconnected from
 GP16–GP25; connect at the GPIO-side nodes, not the VGA connector's combined
 analog R/G/B pins.
@@ -257,6 +278,11 @@ soft recovery. Reply/status polling uses the existing logical banks; no IRQ,
 separate direction signal or seven extra address wires are reserved.
 
 #### Pinout evidence
+
+The user's `updated_wiring.txt` supplies the six revised RP GPIO-to-Tang
+package-pin connections. The Core manufacturer schematic verifies the P4
+contacts in the table and the GP39 LED load. The dated RP-side revision does
+not change the Tang `N20K-PIN-0.1` allocation, packet ABI or FPGA image inputs.
 
 The source archive is retained as reference metadata and hashes in the pin
 allocation JSON; its firmware files are not copied into this repository.

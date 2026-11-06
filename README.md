@@ -14,8 +14,10 @@ two authoritative guides for the current GPU:
 
 For assembly, use the [Core2350B ↔ Tang Nano 20K wiring PDF](docs/images/core2350b-tang-nano20k-wiring.pdf)
 and [exact GPIO/header table](GPU_DOCUMENTATION/GPU_CONTROL.md#fixed-wiring-layout-core2350b-to-tang-nano-20k).
-The fixed layout reuses all ten VGA GPIOs and adds GP10–GP15. It documents
-the connections implemented by `rtl/board/tang20k_top.sv` and its CST.
+The current layout reuses all ten VGA GPIOs and adds GP35–GP40 on Core2350B P4,
+following the user's revised wiring. GP39 is WREADY and shares the Core LED;
+it must be an RP input. The Tang connections match `rtl/board/tang20k_top.sv`
+and its CST; the FPGA package-pin allocation is unchanged.
 The RP2350 PIO/DMA driver remains unimplemented; its firmware is unchanged.
 
 Both guides must be updated and pushed with every architecture or control change.
