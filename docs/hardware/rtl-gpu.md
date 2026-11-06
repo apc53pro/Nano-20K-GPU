@@ -14,7 +14,11 @@ and timed-system implementations are not linked into the RTL executable.
 This is functional RTL simulation and a synthesis entry point for the
 **GW2AR-LV18QN88C8/I7**. The production board clock/reset wrapper, HDMI/DVI
 serialization integration, pin constraints and complete placed-and-routed
-fit/timing qualification remain separate work.
+fit/timing qualification were outside the logical-core measurements on this
+page. The new `rtl/board/tang20k_top.sv` integrates those board components.
+Use the authoritative guides and the full-board report for current board
+resources, clocks and programming instructions. Historical probe results
+below do not qualify that board target.
 
 ## Device and testbench boundaries
 

@@ -11,13 +11,16 @@ guide describes what the current implementation actually does.
 
 **Current status:** rendering and CPU control execute functional RTL under
 Verilator, with an independent software reference renderer (SRR) checking the
-results. The current timing-optimized complete logical-core serial
-probe **places and routes legally**
-on the exact FPGA, using **20,577 of 20,736 physical LUT sites (99.23%)**, all
-46 native RAM banks and 25 multiplier equivalents. **Estimated core Fmax is
-70.23 MHz**, below the **100.8 MHz** target in nextpnr's timing model; the host
-domain passes its 25.2 MHz target. Production clock/reset, video and board pin
-integration remain unfinished. There is no board-qualified GPU bitstream yet.
+results. The board target now includes clocks/reset, bidirectional host pads,
+registered SDRAM pads, video serialization and exact Tang Nano 20K constraints.
+The complete board implementation report, rather than the earlier logical-core
+probe, is the authority for board resource and timing results. Hardware has not
+yet been tested; RP2350 firmware and its PIO/DMA driver remain separate work.
+The complete board **places/routes and passes its selected internal timing gates**:
+**20,467/20,736 physical LUT sites (98.70%)**, **6,864 DFF resources**,
+**46/46 BSRAM**, **25/48 multipliers**. It leaves **269 LUT sites**. The generated
+upload image uses a **50.4 MHz** core; routed core Fmax is estimated at
+**63.14 MHz**, not measured on hardware.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -28,9 +31,10 @@ Decoded primitive records remain 320 bytes and rendering features are unchanged.
 The [earlier standalone decoder experiment](../docs/hardware/upload-codec.md)
 was a different probe with additional measurement registers; its failed
 co-residency result is historical, not an integrated fit measurement. The
-current unified engine passes full logical-core placement and routing with
-**159 physical LUT sites remaining**, eight more DFFs and no additional BSRAM
-or DSPs. The production board wrapper remains separate work.
+historical unified-engine logical-core probe routed with **159 physical LUT
+sites remaining**. That count excluded the production board wrapper and must
+not be treated as board headroom. Both historical probe reports below retain
+their original source hashes; they do not qualify the changed board RTL.
 
 Whenever the architecture or CPU control changes, update **both files in
 `GPU_DOCUMENTATION/`** in the same change and push them with the implementation.
@@ -59,7 +63,7 @@ The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 | PLLs available in QN88 | 2 |
 | In-package SDR SDRAM | 8 MiB, 32-bit data interface |
 
-The selected simulation profile assumes a **100.8 MHz core/SDRAM clock** and
+The default logical-core simulation profile assumes a **100.8 MHz core/SDRAM clock** and
 **25.2 MHz host and pixel clocks**. These are nominal design assumptions, not
 achieved whole-GPU FPGA frequencies. The host link has its own clock domain;
 the RP2350 supplies `host_clk`. The integrated demo drives it at one quarter of
@@ -74,14 +78,55 @@ The [control guide's exact wiring table](GPU_CONTROL.md#fixed-wiring-layout-core
 and [printable board layouts](../docs/images/core2350b-tang-nano20k-wiring.pdf)
 identify manufacturer header contacts and package pins.
 
-This is a wiring allocation, not an implemented pad wrapper. Current RTL still
-uses separate logical read/write data ports and a seven-bit register address.
-A future wrapper must multiplex those onto the reserved eight data wires,
-invert the active-low controls, implement address latching and safe turnaround,
-and map GPU_RESET_N to logic reset. The source's byte ABI is unchanged. No
-firmware, RTL or constraints were changed for the wiring layout. Production
-I/O timing, clock/reset integration and the RP2350 PIO driver remain unfinished;
-the current 70.23 MHz estimate applies only to the serial probe.
+[`tang20k_top.sv`](../rtl/board/tang20k_top.sv) implements that wiring:
+seven-bit address latching on ALE_N writes, active-low read/write controls,
+shared-data output enable, WREADY/RVALID gating and GPU_RESET_N logic reset.
+[`tang20k.cst`](../rtl/board/tang20k.cst) fixes the external package pins;
+the embedded SDRAM uses the part database's fixed SiP terminals, checked
+against [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) after routing.
+RP2350 firmware has not been modified. External electrical margins and the
+RP2350 PIO driver remain unqualified.
+
+The first board profile uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel
+clock** and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from
+27 MHz (divide 3, multiply 28), with a divided 126 MHz output; two CLKDIV5
+blocks produce core and pixel clocks. This gives an exact two-core-clocks per
+pixel relationship. A pixel-domain toggle crosses through two core-domain
+synchronizer stages and an event detector; that event advances core scanout.
+Pixel payloads therefore change after a physical pixel edge and settle before
+a later encoder capture, independent of GPU-reset release phase. The board
+wrapper regression checks capture spacing and exactly one pixel per physical
+pixel clock across eight reset-release offsets. The default core simulator
+uses its compile-time internal divider instead; the board image prunes that
+counter and uses only the synchronized external pixel event. It is a conservative realizable clock plan, distinct from
+the earlier 68.88/70.23 MHz *estimated limits* and the default simulator's
+unclosed 100.8 MHz target. No 100 MHz timing optimization is attempted here.
+The core divider is constrained to `X55Y27/CLKDIV_HCLK0_SECT0` so its
+252 MHz input does not compete with the video clock routing. The isolated
+clock/pad implementation verifies dedicated routes before the full GPU run.
+Clock profiles are compile-time constants: the board image contains one
+configuration, without a runtime mode or duplicate compatibility hardware.
+The host supplies its independent clock, with a selected ceiling of 25.2 MHz
+pending electrical validation. Board capabilities report 50,400,000 core Hz,
+host-divider metadata 0 (independent clock) and pixel divider 2.
+
+Configuration initializes an eight-bit power-on delay. The board reset button
+(pin 88, active HIGH) restarts PLL initialization. PLL lock and GPU_RESET_N
+control asynchronous reset assertion and synchronized release separately in
+core, host and pixel domains; the native link/FIFOs also synchronize reset
+release in their receiving domains. The GPU_RESET_N input has a pull-down,
+so an unconnected host holds GPU rendering in reset. There is no command
+player or built-in demo scene.
+
+SDRAM commands, address, masks, DQ output and output enable are registered on
+the core rising edge. An ODDR forwards an inverted core clock, giving output
+signals approximately half a core period before the chip sampling edge.
+The input DQ is sampled at the next core rising edge. Output registers are
+not cleared by GPU logic reset, allowing already-issued write tails to drain.
+The board waits 10,080 core cycles (200 us) before SDRAM initialization and uses
+refresh interval 787 cycles with the controller's early-service guard; CAS3,
+BL8 and conservative bank timing are retained. These are implemented logical
+timings; pad/interconnect margins still require physical-board measurement.
 
 The layout leaves the Tang LCD FPC disconnected and avoids HDMI, flash, SDRAM,
 SD, audio and BL616 signal conflicts. WR_N/RD_N/ALE_N use three existing LED
@@ -118,7 +163,8 @@ in the control guide explain command encoding, not a completed Pico SDK driver.
 ```mermaid
 flowchart LR
     CPU["CPU: transform, clip, setup, ordered tile bins"] --> HOST["CPU: heap allocation, upload encoding and packets"]
-    HOST --> LINK["8-bit host link / asynchronous native FIFOs"]
+    HOST --> PADS["Physical 8-bit data bus + controls / address latch"]
+    PADS --> LINK["8-bit host link / asynchronous native FIFOs"]
     LINK --> PARSER["Packet decoder / bounded command queue"]
     PARSER --> EXEC["Command executor / shared upload decoding"]
     EXEC --> UP["64-byte upload staging"]
@@ -137,8 +183,9 @@ flowchart LR
     COPY <--> MEM
     MEM --> FIFO["Two-bank native display FIFO"]
     FIFO --> SCAN["Independent 640×480 scanout"]
-    MEM <--> SDRAM["8 MiB ×32 SDR SDRAM"]
-    SCAN --> VIDEO["Logical RGB565 + sync / future board video wrapper"]
+    MEM <--> SDPADS["Registered SDRAM output pads / inverted forwarded clock"]
+    SDPADS <--> SDRAM["8 MiB ×32 SDR SDRAM"]
+    SCAN --> VIDEO["RGB565 + sync / board TMDS serializers"]
 ```
 
 All GPU data enters through the host interface and reaches external memory
@@ -444,6 +491,14 @@ implements initialization, bank/row timing, read/write turnaround, refresh and
 response backpressure. Its selected physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
 
+Read responses stream from the native RAM as soon as captured words are
+available, including while the physical BL8 tail or another burst is in flight.
+The existing fill counter tracks captured words; a read never consumes an
+uncaptured word or reads the location being written on the same edge. Native
+RAM output holds its valid word under backpressure. Transaction completion
+still waits for both client response consumption and the physical burst tail.
+This reduces scanout refill latency without another RAM bank or response FIFO.
+
 The arbiter computes foreground eligibility from the round-robin cursor in
 parallel, choosing the first request at or after the cursor or wrapping to the
 first earlier request. Its one-hot grant drives `cmd_ready` directly; binary
@@ -531,9 +586,11 @@ black for the rest of that affected frame and increments a diagnostic counter;
 it is an error condition, not normal presentation behavior.
 
 The functional core outputs RGB565, sync, display-enable and pixel coordinates.
-The standard TMDS encoder/native serializer module exists separately, but the
-production PLL/clock/reset wrapper, differential pad integration and final pin
-constraints are not integrated into the complete GPU top.
+The board top feeds the standard TMDS encoder and four native OSER10
+serializers, driving TLVDS_OBUF pads. Lanes 0/1/2 carry blue/green/red at package
+pairs 35/36, 37/38 and 39/40; lane 3 is the clock pair 33/34. The CST selects
+LVDS25, matching Sipeed's hardware-3921 HDMI example. This is video-only output;
+there are no HDMI audio or auxiliary packets.
 
 ## 11. Completion, ownership and recovery
 
@@ -545,6 +602,10 @@ reply identity, sequence and epoch rules.
 The area-reduced query serializer retains changing counters and flags at
 query execution, then serializes the other foreground fields while ordered
 execution holds them stable. Immutable capabilities are serialized directly.
+The diagnostic core cycle counter and its reply snapshot are physically
+48 bits. The unchanged u64 wire slot zero-extends the upper 16 bits and wraps
+modulo 2^48 (about 64.6 days at 50.4 MHz); hard reset restarts it. This storage
+reduction does not affect rendering arithmetic or command sequence/epoch widths.
 The wire result remains a coherent snapshot. Sideband reads use the
 acknowledged core snapshot bank held unchanged until the next request; refresh
 blocks reads until the cross-domain acknowledgement. Removing duplicate
@@ -607,8 +668,12 @@ equivalents**: 19 for UV reconstruction, two for texture addresses, three for
 RGB modulation and one for triangle edge setup. RAM and DSP subtotals alone do
 not establish fit; LUT/register mapping must be measured for the complete core.
 
-Exact-part synthesis, packing and routing of the complete logical
-core inside the small serial qualification wrapper report:
+### Historical logical-core probe (before board integration)
+
+The following counts and frequencies apply only to the earlier source hashes
+in the linked reports. They exclude board PLLs, video/pad logic and SDRAM output
+registers; they are not the current board fit. Exact-part synthesis, packing
+and routing of that logical core inside its serial qualification wrapper reported:
 
 | Resource | Use or necessary bound | Device capacity |
 | --- | ---: | ---: |
@@ -626,7 +691,7 @@ at most 4,003 can pair with existing sites, requiring **at least 2,960 further
 LUT sites**. Thus 20,237 is a necessary lower bound, not a legal-placement or
 routing result. The DFF inventory also reserves 48 RAM-blocked flip-flop slots.
 
-The current `-nowidelut` implementation's legal route occupies **20,577 physical LUT
+That historical `-nowidelut` implementation's legal route occupies **20,577 physical LUT
 sites (99.23%)**, including FF feed-throughs, ALU and RAM reservations. That
 union leaves **159 sites** in this serial probe. Compared with the previous
 0.1 route, the integrated upload change adds 272 physical LUT sites and eight
@@ -673,6 +738,56 @@ Production-board qualification must include the clock/reset and video/pad
 wrappers, final pin constraints and complete clock/I/O timing closure. Neither
 a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 
+### Current board implementation
+
+The [source-matched full-board report](../docs/hardware/tang20k-board.json)
+qualifies the programming image in `bitstreams/tangnano20k/`. Placement seed 3
+produces this result, including board clocks/reset, physical host pads, SDRAM
+boundary registers and HDMI serializers/pads:
+
+| Physical resource | Used | Capacity |
+| --- | ---: | ---: |
+| LUT sites, including FF inputs and distributed-RAM reservations | **20,467** | 20,736 |
+| DFF resources, including 48 distributed-RAM reservations | 6,864 | 15,552 |
+| Native BSRAM banks | 46 | 46 |
+| Native 18×18 multipliers | 25 | 48 |
+| rPLLs | 1 | 2 |
+
+This leaves **269 LUT sites (1.30%) and no spare BSRAM**. The serial probe's
+test-only registers/checksum logic are absent from the board target, so its
+old count cannot simply be added to board logic. The board also uses the
+48-bit diagnostic counter and synchronized pixel-event path described above.
+There are no rendering-feature or numeric-precision cuts.
+The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
+independently parses the emitted `.fs`, verifies its device ID and frame CRCs,
+and records the same SHA-256 as the provided image. This is structural file
+validation, not a physical-board test.
+
+| Board domain | Configured clock | Routed Fmax estimate |
+| --- | ---: | ---: |
+| Core/SDRAM | 50.4 MHz | 63.14 MHz |
+| Host | At most 25.2 MHz selected | 105.51 MHz |
+| Pixel | 25.2 MHz | 205.42 MHz |
+| Reference | 27 MHz | 485.44 MHz |
+
+The core-to-pixel path is estimated at **13.72 ns**, within its **18.84 ns**
+budget after a 1 ns reserve. All selected clock and capture gates pass.
+These are modeled internal delays; external I/O margins and the real board
+are unmeasured. The image contains no command player.
+
+The complete board build is `make tang20k` on the Linux HDL toolchain. Its
+source-matched `build/tang20k/board-report.json` includes full synthesis,
+packing, placement/routing, fixed SiP pin checks, timing and bitstream hashes.
+It refuses to emit an upload image if any resource or internal timing gate
+fails. A packed resource count or a LUT lower bound is not a final fit result.
+The board glue uses one rPLL, two CLKDIV blocks, four OSER10 serializers,
+four differential output buffers and one ODDR, plus pad/reset/control logic.
+All these components belong to the measured board target. The timing gate
+also requires the core-to-pixel payload path to fit one core period with a
+1 ns reserve; this covers the synchronized pixel-event handoff's capture
+window in the delay model, rather than assuming unrelated clock phases are
+safe. It remains an estimate, not a board propagation-time measurement.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -695,7 +810,7 @@ frames consumed during the next upload/render. Per-frame CSV logging preserves
 blackouts rather than hiding them. The scanout-starvation regression fails the
 old RTL and passes the corrected queued-refill/staged-upload implementation.
 
-The current RTL passes the command/recovery self-test and two
+The historical 0.2 default-profile RTL passed the command/recovery self-test and two
 rendered frames each of showcase, perspective, overdraw and opaque, with zero
 scanout underflows and matching attachment/display pixels. Showcase's second
 submission is **8,719,000 core cycles**, about **86.50 ms** at the assumed
@@ -719,6 +834,26 @@ retains the pre-retiming cycle counts.
 The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
 retains the original blackout regression and pre-area-optimization counts.
 
+The [current board-profile regression](../docs/benchmarks/rtl-tang20k.json) runs the real core at the 50.4 MHz
+core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests
+and two frames of all four scenes pass; every checked display frame and
+RGB565/D24 attachment matches the SRR, with zero scanout underflows. Its last
+submission measurements include host delivery through the matching fence:
+
+| Scene | Core cycles | Virtual time at 50.4 MHz (ms) |
+| --- | ---: | ---: |
+| showcase | 9,853,572 | 195.51 |
+| perspective | 8,912,684 | 176.84 |
+| overdraw | 11,052,888 | 219.30 |
+| opaque | 10,736,252 | 213.02 |
+
+These are simulation measurements, not observed FPGA FPS. They exclude CPU
+transform/setup work and presentation wait. The board profile is a first
+hardware bring-up target, not a claim that complete scenes reach 30 FPS.
+Warm resident-tile one-fragment-per-clock cadence remains verified separately.
+The early read-response streaming change is required for zero scanout
+underflow at this two-core-clocks-per-pixel profile.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -741,32 +876,51 @@ make rtl-gpu-pack
 make rtl-gpu-pnr
 ```
 
-The pack command returns status 2 when a measured resource or the necessary
-flip-flop input LUT lower bound is over capacity. The physical probe command
-uses `scripts/rtl-core-pnr.py --require-timing`, retaining source-matched
-evidence and checking independent core/host clock targets; a legal route that
-misses timing returns status 2. **The current `make rtl-gpu-pnr` returns 2 for
-the core-clock miss despite a legal route.** Passing the capacity inventory is distinct
-from complete-device placement/routing/timing qualification. The remaining work is:
+The older `rtl-gpu-pack` and `rtl-gpu-pnr` targets qualify the logical-core
+serial probe, not the production board target. Their nominal 100.8 MHz target
+is separate from the fixed board clock plan. The retained probe reports above
+are historical and must not be used as current board evidence.
 
-1. Implement and validate the RP2350's real bus/PIO path.
-2. Integrate production clocks, reset crossings, SDRAM timing/pads, video output
-   and final board constraints.
-3. Run Gowin implementation and timing analysis for that full top, selecting
-   actual clocks and matching SDRAM/scanout timing parameters.
-4. Generate the board bitstream and measure correctness, clock margin and
-   rendering performance on hardware. The 70.23 MHz estimate is not a board
-   measurement or a clock configuration already programmed into an FPGA.
+Build the complete board with the Linux x86_64 pinned toolchain:
 
-Programming uses the board's onboard USB-JTAG connection with openFPGALoader
-or a compatible Gowin Programmer. Generating the bitstream uses either the
-open-source synthesis/nextpnr/Apicula flow or Gowin EDA. This is distinct from
-running the software simulator.
+```bash
+./scripts/setup-rtl-tools.sh
+make tang20k-test
+make tang20k
+```
+
+`make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
+address/data bus behavior and the real core at the board profile. Wrapper
+isolation tests use a small test-only core model; the five integration cases
+use the real GPU and external SDRAM model. `make tang20k` then runs full-board
+synthesis, packing, placement, routing, fixed SiP pin verification and internal
+timing checks. `TANG20K_SEED` selects its placement seed, recorded in the
+implementation report; it emits no `.fs` after a failed gate. At this utilization,
+a different placement seed can be necessary without any circuit change.
+Outputs are `build/tang20k/nano-gpu.fs` and `build/tang20k/board-report.json`.
+Changing RTL, constraints or the builder requires rebuilding the image and
+matching report; previously generated files do not qualify a changed design.
+
+The repository programming image is `bitstreams/tangnano20k/nano-gpu.fs`, with
+its release SHA-256 file, the full-board report under `docs/hardware/`, and
+board-profile functional evidence under `docs/benchmarks/`. See the
+[control guide's programming instructions](GPU_CONTROL.md#programming-and-first-board-bring-up)
+for SRAM loading with openFPGALoader, reset release and expected idle output.
+The FPGA contains no command player or demo assets; a host must submit work.
+
+Remaining hardware work is the RP2350 PIO/DMA driver and firmware integration,
+external bus/SDRAM timing measurement, and correctness/performance testing on
+the received board. Internal nextpnr timing closure uses modeled delays;
+external setup/hold margins and real maximum clock are not established by
+Verilator or a successful bitstream generation. The initial 50.4 MHz board
+profile does not claim a measured silicon frequency limit or 30 FPS scenes.
 
 ## 15. Implementation map
 
 | Source | Architectural responsibility |
 | --- | --- |
+| [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Production clocks/reset, pixel handoff, shared host pads, SDRAM boundary and TMDS integration |
+| [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and verified fixed embedded SDRAM terminals |
 | [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, copies, presentation/recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |

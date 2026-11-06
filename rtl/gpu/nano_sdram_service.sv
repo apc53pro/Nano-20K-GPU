@@ -120,6 +120,7 @@ module nano_sdram_service #(
     reg read_stream_active, read_output_valid;
     reg [4:0] read_index;
     wire read_handshake = read_stream_active && read_output_valid && r_ready[owner];
+    wire [4:0] next_read_index = read_index + {4'b0,read_handshake};
     reg ram_we, ram_re;
     reg [9:0] ram_waddr, ram_raddr;
     reg [31:0] ram_wdata;
@@ -243,10 +244,11 @@ module nano_sdram_service #(
         if (useful_write && {2'b0, physical_beat} + 1 < {2'b0, burst_prefix} + burst_useful) begin
             ram_re = 1; ram_raddr = {5'b0, write_buffer_index + 5'd1};
         end
-        if (read_stream_active && !read_output_valid) begin
-            ram_re = 1; ram_raddr = 0;
-        end else if (read_handshake && read_index + 1 < request_words) begin
-            ram_re = 1; ram_raddr = {5'b0, read_index + 5'd1};
+        // fill_index counts captured read words as well as accepted write
+        // words. Never read the address currently being written by SDRAM.
+        if (read_stream_active && (!read_output_valid || r_ready[owner]) &&
+                next_read_index < fill_index) begin
+            ram_re = 1; ram_raddr = {5'b0,next_read_index};
         end
 
         sd_cke = 1; sd_cs_n = 0; sd_ras_n = 1; sd_cas_n = 1; sd_we_n = 1;
@@ -312,12 +314,16 @@ module nano_sdram_service #(
                 if (rc_wait[bank] != 0) rc_wait[bank] <= rc_wait[bank] - 1'b1;
                 if (wr_wait[bank] != 0) wr_wait[bank] <= wr_wait[bank] - 1'b1;
             end
+            if (useful_read) fill_index <= fill_index + 1'b1;
             if (read_stream_active) begin
-                if (!read_output_valid) begin read_output_valid <= 1; read_index <= 0; end
-                else if (read_handshake) begin
+                if (ram_re) read_output_valid <= 1;
+                else if (read_handshake) read_output_valid <= 0;
+                if (read_handshake) begin
+                    read_index <= read_index + 1'b1;
                     if (read_index + 1 == request_words) begin
-                        read_stream_active <= 0; read_output_valid <= 0; done[owner] <= 1;
-                    end else read_index <= read_index + 1'b1;
+                        read_stream_active <= 0; read_output_valid <= 0;
+                        if(state==DRAIN) begin done[owner]<=1;read_index<=0;end
+                    end
                 end
             end
             case (state)
@@ -355,7 +361,12 @@ module nano_sdram_service #(
                 CHECK_REQUEST: begin
                     if (refresh_due) begin refresh_resume <= CHECK_REQUEST; state <= REFRESH_WAIT; end
                     else if (request_invalid) begin done[owner] <= 1; error[owner] <= 1; state <= IDLE; end
-                    else state <= request_write ? FILL : CHOOSE;
+                    else begin
+                        if(!request_write) begin
+                            read_stream_active<=1;read_output_valid<=0;read_index<=0;
+                        end
+                        state <= request_write ? FILL : CHOOSE;
+                    end
                 end
                 FILL: begin
                     if (refresh_due) begin refresh_resume <= FILL; state <= REFRESH_WAIT; end
@@ -396,7 +407,7 @@ module nano_sdram_service #(
                         turnaround <= TURN_BITS'(READ_TO_WRITE - 1);
                         processed <= processed + burst_useful;
                         if (processed + burst_useful == request_words) begin
-                            read_stream_active <= 1; read_output_valid <= 0; read_index <= 0; state <= DRAIN;
+                            state <= DRAIN;
                         end else state <= CHOOSE;
                     end else burst_beat <= burst_beat + 1'b1;
                 end
@@ -415,7 +426,12 @@ module nano_sdram_service #(
                 end
                 DRAIN: begin
                     if (refresh_due) begin refresh_resume <= DRAIN; state <= REFRESH_WAIT; end
-                    else if (!read_stream_active) state <= IDLE;
+                    else if (!read_stream_active) begin
+                        // An early response can retire before the physical
+                        // burst tail. Its completion waits for this state.
+                        if(read_index==request_words) done[owner]<=1;
+                        read_index<=0;state <= IDLE;
+                    end
                 end
                 REFRESH_WAIT: if (refresh_safe) begin
                     bank_open <= 0;

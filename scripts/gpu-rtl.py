@@ -143,12 +143,15 @@ def main():
     parser.add_argument("--check", action="store_true", help="compile/run a small RTL/C++/SDL toolchain test")
     parser.add_argument("--verbose", action="store_true", help="show compiler output as it is produced")
     parser.add_argument("--synth", action="store_true")
+    parser.add_argument("--board-core", action="store_true", help="Simulate the fixed Tang board core/pixel/host clock profile")
     parser.add_argument("--run", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.headless_only and args.require_sdl: parser.error("--headless-only and --require-sdl cannot be combined")
     VERBOSE = args.verbose
     build = args.build_dir.resolve(); build.mkdir(parents=True, exist_ok=True)
     verilator, cflags, ldflags, sdl = preflight(build, args.headless_only, args.require_sdl)
+    if args.board_core:
+        cflags += ["-DNANO_GPU_BOARD_PROFILE=1"]
     if args.check:
         smoke_check(build, verilator, cflags, ldflags, sdl)
         return
@@ -169,6 +172,8 @@ def main():
         "--top-module", "nano_gpu_core", "--prefix", "Vnano_gpu_core", "--Mdir", (build / "obj").as_posix(),
         "-Wno-fatal", "-CFLAGS", shlex.join(cflags), "-o", output.as_posix()]
     if ldflags: command += ["-LDFLAGS", shlex.join(ldflags)]
+    if args.board_core:
+        command += ["-GCORE_HZ=50400000", "-GPIXEL_DIVIDER=2", "-GEXTERNAL_PIXEL_TICK=1", "-GREFRESH_INTERVAL=787", "-GHOST_DIVIDER_METADATA=0"]
     command += [path.as_posix() for path in rtl + cpp]
     print("Building Verilator GPU from functional RTL...", flush=True)
     run(command, build / "verilator-build.log")
@@ -176,6 +181,7 @@ def main():
         "schema": "N20K-GPU-RTL-BUILD-1", "top": "nano_gpu_core",
         "device": "GW2AR-LV18QN88C8/I7", "family": "GW2A-18C",
         "simulation_backend": "verilator", "sdl_enabled": sdl,
+        "board_core_profile": args.board_core,
         "cpp_device_backends_linked": False,
         "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
         "whole_gpu_fit_qualified": False,

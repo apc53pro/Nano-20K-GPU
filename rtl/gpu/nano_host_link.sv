@@ -17,6 +17,12 @@ module nano_host_link (
     input wire [7:0] response_data,
     output reg [7:0] fault, output reg recovering
 );
+    // Assert asynchronously, release only after two local host-clock edges.
+    (* async_reg="true" *) reg [1:0] host_reset_pipe=3;
+    always @(posedge host_clk or posedge reset)
+        if(reset) host_reset_pipe<=3;
+        else host_reset_pipe<={host_reset_pipe[0],1'b0};
+    wire host_reset=host_reset_pipe[1];
     // Soft recovery is a cross-domain flush handshake. The caller first
     // quiesces host DMA and drains device memory work. Both clocks must run
     // until recovering deasserts; no old payload or reply survives the flush.
@@ -28,7 +34,7 @@ module nano_host_link (
     (* async_reg = "true" *) reg ack_meta, ack_sync;
     reg [1:0] settle_count;
     wire core_flush = reset || core_abort || recovering;
-    wire host_flush = reset || host_reset_active;
+    wire host_flush = host_reset || host_reset_active;
     always @(posedge clk or posedge reset) begin
         if (reset) begin
             abort_toggle <= 0; recovering <= 0; ack_meta <= 0; ack_sync <= 0;
@@ -45,8 +51,8 @@ module nano_host_link (
             end
         end
     end
-    always @(posedge host_clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge host_clk or posedge host_reset) begin
+        if (host_reset) begin
             abort_meta <= 0; abort_sync <= 0; host_abort_seen <= 0;
             host_abort_ack <= 0; host_flush_count <= 0; host_reset_active <= 0;
         end else begin
@@ -85,8 +91,8 @@ module nano_host_link (
         .rready(tx_read_ready), .rdata(tx_read_data)
     );
     assign tx_read_ready = host_rd_req && host_reg_addr == 0 && !host_wr_valid && !host_flush && !status_pending;
-    always @(posedge host_clk or posedge reset) begin
-        if (reset) begin host_error <= 0; waiting_write <= 0; waiting_data <= 0; waiting_address <= 0; end
+    always @(posedge host_clk or posedge host_reset) begin
+        if (host_reset) begin host_error <= 0; waiting_write <= 0; waiting_data <= 0; waiting_address <= 0; end
         else if (host_flush) begin host_error <= 0; waiting_write <= 0; end
         else begin
             if (host_error == 0) begin
@@ -288,8 +294,8 @@ module nano_host_link (
             end
         end
     end
-    always @(posedge host_clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge host_clk or posedge host_reset) begin
+        if (host_reset) begin
             snapshot_request <= 0; snapshot_ack_meta <= 0; snapshot_ack_sync <= 0;
             status_latched <= 0; status_pending <= 0; status_address <= 0;
             host_rd_data <= 0; host_rd_valid <= 0;
@@ -338,6 +344,14 @@ module nano_host_async_fifo #(parameter ADDRESS_BITS = 8) (
     input wire rclk, input wire rflush,
     output reg rvalid, input wire rready, output wire [7:0] rdata
 );
+    (* async_reg="true" *) reg [1:0] write_reset_pipe=3,read_reset_pipe=3;
+    always @(posedge wclk or posedge reset)
+        if(reset) write_reset_pipe<=3;
+        else write_reset_pipe<={write_reset_pipe[0],1'b0};
+    always @(posedge rclk or posedge reset)
+        if(reset) read_reset_pipe<=3;
+        else read_reset_pipe<={read_reset_pipe[0],1'b0};
+    wire write_reset=write_reset_pipe[1],read_reset=read_reset_pipe[1];
     reg [ADDRESS_BITS:0] write_binary, write_gray, read_binary, read_gray;
     (* async_reg = "true" *) reg [ADDRESS_BITS:0] read_gray_meta, read_gray_sync;
     (* async_reg = "true" *) reg [ADDRESS_BITS:0] write_gray_meta, write_gray_sync;
@@ -350,27 +364,27 @@ module nano_host_async_fifo #(parameter ADDRESS_BITS = 8) (
     wire [ADDRESS_BITS:0] next_read_gray = (next_read >> 1) ^ next_read;
     wire full_next = next_write_gray == {~read_gray_sync[ADDRESS_BITS:ADDRESS_BITS-1], read_gray_sync[ADDRESS_BITS-2:0]};
     wire next_empty = next_read_gray == write_gray_sync;
-    wire read_head = !reset && !rflush && (!rvalid || rready) && !next_empty;
+    wire read_head = !read_reset && !rflush && (!rvalid || rready) && !next_empty;
     wire [15:0] native_data;
-    assign wready = !full && !reset && !wflush;
+    assign wready = !full && !write_reset && !wflush;
     assign rdata = native_data[7:0];
     nano_sdp16 storage (
         .wclk(wclk), .wce(1'b1), .we(write_accepted),
         .waddr({{(10-ADDRESS_BITS){1'b0}}, write_binary[ADDRESS_BITS-1:0]}), .wdata({8'b0, wdata}),
         .rclk(rclk), .rce(1'b1), .re(read_head),
         .raddr({{(10-ADDRESS_BITS){1'b0}}, next_read[ADDRESS_BITS-1:0]}),
-        .reset_output(reset || rflush), .rdata(native_data)
+        .reset_output(read_reset || rflush), .rdata(native_data)
     );
-    always @(posedge wclk or posedge reset) begin
-        if (reset) begin write_binary <= 0; write_gray <= 0; read_gray_meta <= 0; read_gray_sync <= 0; full <= 0; end
+    always @(posedge wclk or posedge write_reset) begin
+        if (write_reset) begin write_binary <= 0; write_gray <= 0; read_gray_meta <= 0; read_gray_sync <= 0; full <= 0; end
         else if (wflush) begin write_binary <= 0; write_gray <= 0; read_gray_meta <= 0; read_gray_sync <= 0; full <= 0; end
         else begin
             read_gray_meta <= read_gray; read_gray_sync <= read_gray_meta;
             write_binary <= next_write; write_gray <= next_write_gray; full <= full_next;
         end
     end
-    always @(posedge rclk or posedge reset) begin
-        if (reset) begin read_binary <= 0; read_gray <= 0; write_gray_meta <= 0; write_gray_sync <= 0; rvalid <= 0; end
+    always @(posedge rclk or posedge read_reset) begin
+        if (read_reset) begin read_binary <= 0; read_gray <= 0; write_gray_meta <= 0; write_gray_sync <= 0; rvalid <= 0; end
         else if (rflush) begin read_binary <= 0; read_gray <= 0; write_gray_meta <= 0; write_gray_sync <= 0; rvalid <= 0; end
         else begin
             write_gray_meta <= write_gray; write_gray_sync <= write_gray_meta;

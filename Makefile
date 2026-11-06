@@ -41,8 +41,14 @@ CORE_OBJECTS := $(BUILD_DIR)/setup.o $(BUILD_DIR)/renderer.o \
     $(BUILD_DIR)/hw_system.o $(BUILD_DIR)/hw_reciprocal.o $(BUILD_DIR)/hw_fragment_pipeline.o
 DEMO_OBJECT := $(BUILD_DIR)/demo.o
 
-.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test gpu-docs-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-gpu-pnr rtl-block-test run sanitize clean check-sdl check-rtl-python
+.PHONY: all headless test throughput throughput-test system-benchmark benchmark-test gpu-docs-test resource-report fpga-fit rtl-test rtl-synth rtl-pnr rtl-gpu rtl-gpu-run rtl-gpu-test rtl-gpu-synth rtl-gpu-pack rtl-gpu-pnr rtl-block-test run sanitize clean check-sdl check-rtl-python tang20k tang20k-test
 all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
+tang20k-test:
+	$(PYTHON) scripts/check-tang20k.py --build-dir "$(BUILD_DIR)/tang20k"
+
+TANG20K_SEED ?= 3
+tang20k: tang20k-test
+	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --seed "$(TANG20K_SEED)"
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
 $(BUILD_DIR) $(BUILD_DIR)/generated:

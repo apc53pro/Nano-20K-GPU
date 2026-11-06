@@ -3,9 +3,14 @@
 // External SDRAM is accessed only through nano_sdram_service's physical pins.
 module nano_gpu_core #(
     parameter integer POWERUP_CYCLES = 10080,
-    parameter integer REFRESH_INTERVAL = 1575
+    parameter integer REFRESH_INTERVAL = 1575,
+    parameter integer CORE_HZ = 100800000,
+    parameter integer HOST_DIVIDER_METADATA = 4,
+    parameter integer PIXEL_DIVIDER = 4,
+    parameter integer EXTERNAL_PIXEL_TICK = 0
 )(
     input wire clk, input wire reset, input wire host_clk, input wire abort_request,
+    input wire pixel_advance,
     input wire host_wr_valid, input wire [7:0] host_wr_data,
     output wire host_wr_ready,
     input wire host_rd_req, input wire [6:0] host_reg_addr,
@@ -57,9 +62,11 @@ module nano_gpu_core #(
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
     reg [31:0] epoch, completed_sequence, fence_token, present_token;
-    reg [63:0] cycle_counter;
-    reg [1:0] pixel_phase;
-    wire pixel_tick = pixel_phase == 2'd3;
+    // 48 physical bits span >64 days at the board clock; the wire slot is u64.
+    reg [47:0] cycle_counter;
+    localparam integer PIXEL_PHASE_BITS = $clog2(PIXEL_DIVIDER);
+    reg [PIXEL_PHASE_BITS-1:0] pixel_phase;
+    wire pixel_tick = EXTERNAL_PIXEL_TICK ? pixel_advance : &pixel_phase;
     reg abort_sync1, abort_sync2, abort_previous, abort_pending, fault_pending;
     reg foreground_quiet;
     reg renderer_reset, host_abort;
@@ -215,7 +222,7 @@ module nano_gpu_core #(
     reg [10:0] reply_index, reply_length;
     reg [31:0] reply_token;
     reg reply_caps;
-    reg [63:0] reply_cycle_snapshot;
+    reg [47:0] reply_cycle_snapshot;
     reg [31:0] reply_underflow_snapshot;
     reg [7:0] reply_flags_snapshot, reply_host_fault_snapshot;
     reg reply_has_snapshot, reply_has_readback;
@@ -397,8 +404,8 @@ module nano_gpu_core #(
         capabilities[32 +:32]=MEMORY_BYTES;
         capabilities[64 +:32]={9'd0,HEAP_BASE};
         capabilities[96 +:32]=1024; capabilities[128 +:32]=320;
-        capabilities[160 +:32]=1048576; capabilities[192 +:32]=100800000;
-        capabilities[224 +:32]=4; capabilities[256 +:32]=4;
+        capabilities[160 +:32]=1048576; capabilities[192 +:32]=CORE_HZ;
+        capabilities[224 +:32]=HOST_DIVIDER_METADATA; capabilities[256 +:32]=PIXEL_DIVIDER;
         capabilities[288 +:32]=256; capabilities[320 +:32]=2;
         capabilities[352 +:32]=1024; capabilities[384 +:32]=2048;
         capabilities[416 +:32]=640; capabilities[448 +:32]=480;

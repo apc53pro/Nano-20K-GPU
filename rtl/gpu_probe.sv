@@ -41,7 +41,7 @@ module nano_gpu_probe (
     wire checksum_feedback = checksum[31] ^ observed[115];
 
     nano_gpu_core core (
-        .clk(clk), .reset(reset), .host_clk(host_clk),
+        .pixel_advance(1'b0), .clk(clk), .reset(reset), .host_clk(host_clk),
         .abort_request(stimulus[49]),
         .host_wr_valid(stimulus[48]), .host_wr_data(stimulus[47:40]),
         .host_wr_ready(host_wr_ready), .host_rd_req(stimulus[39]),

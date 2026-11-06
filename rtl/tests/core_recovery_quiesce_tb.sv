@@ -26,7 +26,7 @@ module nano_core_recovery_quiesce_tb;
     integer expected_record_index=0;
     reg [31:0] expected_record_data=0;
     nano_gpu_core #(.POWERUP_CYCLES(8),.REFRESH_INTERVAL(1575)) dut(
-        .clk(clk),.reset(reset),.host_clk(host_clk),.abort_request(abort_request),
+        .pixel_advance(1'b0), .clk(clk),.reset(reset),.host_clk(host_clk),.abort_request(abort_request),
         .host_wr_valid(1'b0),.host_wr_data(8'd0),.host_wr_ready(),
         .host_rd_req(1'b0),.host_reg_addr(7'd0),.host_rd_data(),.host_rd_valid(),
         .sd_dq_in(32'h87654321),.sd_clk(sd_clk),.sd_cke(sd_cke),.sd_cs_n(sd_cs_n),

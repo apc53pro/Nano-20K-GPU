@@ -9,3 +9,7 @@ Makefile text eol=lf
 *.v text eol=lf
 *.hex text eol=lf
 *.json text eol=lf
+*.cst text eol=lf
+# Programming files must retain their exact release SHA-256 on every platform.
+*.fs binary
+SHA256SUMS text eol=lf

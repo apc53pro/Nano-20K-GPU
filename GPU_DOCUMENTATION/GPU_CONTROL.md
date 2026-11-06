@@ -8,8 +8,9 @@ same change and pushed with those changes to GitHub.
 
 The byte protocol below is implemented, but remains provisional. It is not a
 released RP2350 firmware ABI. The **Core2350B/Tang Nano 20K wiring allocation
-is fixed below as `N20K-PIN-0.1`**. The bidirectional pad wrapper, board timing
-constraints and RP2350 PIO/DMA driver are **not implemented or qualified**.
+is fixed below as `N20K-PIN-0.1`**. The bidirectional pad wrapper and exact package constraints are implemented
+in `rtl/board/`. Electrical margins and the RP2350 PIO/DMA driver remain
+**unqualified**; RP2350 firmware has not been modified.
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
@@ -59,18 +60,26 @@ the GPU core clock is a separate domain connected through native asynchronous
 FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
-The current [serial-probe route](../docs/hardware/rtl-core-pnr.json) is
-legal but estimates **70.23 MHz core Fmax**, below the 100.8 MHz target;
-the host reports 120.37 MHz and passes its 25.2 MHz target. The capability u32
-at offset 24 remains 100,800,000; it describes the selected profile,
-not timing closure. Production bus pads and electrical timing remain unqualified.
-The routed frequencies are nextpnr static timing estimates using modeled cell
-and interconnect delays; they are not measured hardware limits. Verilator's
-cycle simulation does not establish those delays. Final clock selection needs
-timing analysis for the production board top and hardware testing.
-Further clock optimization is paused at this implementation for board
-integration and measurement. The nominal simulator/capability clock remains
-100.8 MHz; no production PLL or bus-clock configuration has been changed.
+The production board profile uses **50.4 MHz core/SDRAM**, **25.2 MHz pixels**
+and **126 MHz DDR serialization**, derived from the onboard 27 MHz oscillator.
+Its capability bank reports core Hz 50,400,000, host-divider metadata 0
+(independent host clock) and pixel divider 2. Default logical-core simulation
+retains 100,800,000 / 4 / 4. Drivers read capabilities rather than assuming one
+profile. Board pixel advancement is aligned to the physical pixel clock by a
+single-bit toggle synchronizer; reset release does not select an arbitrary
+scanout/encoder phase. This changes no command or buffer-ownership rule.
+Profiles are fixed when building the image; there is no runtime
+clock-profile command or hardware compatibility mode. The earlier serial
+probe's 68.88/70.23 MHz estimates were static
+timing limits, not actual PLL settings or measured silicon limits. The board
+profile's internal timing and resources must be taken from its full-board
+report; external bus/SDRAM margins require hardware testing. The selected host
+ceiling is 25.2 MHz pending that validation; begin physical bring-up slower.
+The [complete board implementation report](../docs/hardware/tang20k-board.json)
+passes the selected internal timing gates, with a 63.14 MHz core Fmax estimate
+and a 13.72 ns core-to-pixel path against an 18.84 ns budget. The programmed
+core clock is 50.4 MHz, not the estimated limit. A matching upload image is
+provided below; the physical hardware remains untested.
 
 | Signal | Direction at GPU | Current logical meaning |
 | --- | --- | --- |
@@ -87,7 +96,7 @@ integration and measurement. The nominal simulator/capability clock remains
 
 The separate read/write data ports and seven address bits describe the current
 RTL boundary. The physical wiring reservation below shares eight data wires
-and assigns an address-latch control. A future production wrapper must bridge
+and assigns an address-latch control. `tang20k_top.sv` bridges
 the two interfaces. The logical port table is not itself a physical pin map.
 
 ### Fixed wiring layout: Core2350B to Tang Nano 20K
@@ -95,10 +104,10 @@ the two interfaces. The logical port table is not itself a physical pin map.
 **Layout `N20K-PIN-0.1`: 16 signal wires plus common ground, all at 3.3 V.**
 This allocation is for the **Waveshare Core2350B with 16 MiB flash and 8 MiB
 PSRAM**, confirmed by the user, and **Tang Nano 20K hardware 3921**, referenced
-to Sipeed schematic revision 1.30. It reserves the exact connections for the
-future board implementation. This documentation change does not modify the
-RP2350 firmware, FPGA RTL or constraints, and does not make the current
-simulator/probe image a usable board bitstream.
+to Sipeed schematic revision 1.30. The board top and CST now implement these
+exact connections. This work does not modify RP2350 firmware or provide its
+PIO/DMA driver. Use the full-board programming image rather than a logical-core
+probe image; physical hardware qualification remains pending.
 
 The uploaded `resource_development.7z` confirms HSYNC on GP16, VSYNC on GP17
 and eight RGB outputs on GP18–GP25. Reuse **all ten VGA GPIOs**, with **GP10–GP15**
@@ -214,10 +223,10 @@ board image are available**. Series resistors do not make conflicting
 push-pull outputs safe. Do not drive an unpowered board through its GPIOs.
 All signal voltages are 3.3 V; no 5 V signal connects to this interface.
 
-#### Reserved signal meanings for the future pad wrapper
+#### Implemented physical pad wrapper
 
-These roles explain the wiring reservation; **the physical adapter is not yet
-RTL or an RP2350 driver**. The implemented packet bytes below remain unchanged.
+These roles are implemented by `rtl/board/tang20k_top.sv`. The packet bytes
+below are unchanged. The RP2350 transport driver still needs implementation.
 
 HCLK is generated by the RP. WR_N offers an address or packet byte; WREADY is
 its pre-rising-edge acceptance indication. With ALE_N LOW, a write latches
@@ -239,9 +248,11 @@ board-timing work, not values established by this layout.
 
 ABORT is an active-HIGH soft-recovery request to the existing core semantics;
 GPU_RESET_N is an active-LOW **GPU logic reset**, not Core RUN, Tang RECONFIG_N
-or a configuration/programming button. The wrapper inverts GPU_RESET_N into
-the core's existing active-HIGH reset. It must release the
-data bus and suppress handshakes during reset. Both clocks must continue for
+or a configuration/programming button. GPU_RESET_N, PLL unlock and the board reset path assert the core reset;
+release is synchronized in core, host and pixel domains. The wrapper releases
+the data bus and suppresses handshakes during reset. GPU_RESET_N is pulled
+LOW, so an unconnected board remains in GPU reset until an external host or
+isolated bring-up jumper drives it HIGH. Both clocks must continue for
 soft recovery. Reply/status polling uses the existing logical banks; no IRQ,
 separate direction signal or seven extra address wires are reserved.
 
@@ -311,6 +322,51 @@ two physical 2048×8 native RAMs; this sharing does not increase the advertised
 payload limit or queue depth. Honor backpressure rather than
 assuming a whole packet always fits. There is no packet CRC or automatic
 retransmission in this protocol revision.
+
+### Programming and first board bring-up
+
+Use the full-board image `bitstreams/tangnano20k/nano-gpu.fs` and its matching
+`docs/hardware/tang20k-board.json` implementation report. Do not program a
+serial-probe image as a working GPU. The release checksum is checked from the
+repository root with:
+
+```bash
+sha256sum -c bitstreams/tangnano20k/SHA256SUMS
+```
+
+Install [openFPGALoader](https://trabucayre.github.io/openFPGALoader/guide/installation.html)
+and its USB drivers for your platform. Connect the Tang's onboard USB-C
+programming connection, then load **volatile SRAM first**:
+
+```bash
+openFPGALoader -b tangnano20k --detect
+openFPGALoader -b tangnano20k bitstreams/tangnano20k/nano-gpu.fs
+```
+
+An SRAM load is lost on power-off. After validating the SRAM image, persistent
+flash programming uses the same file with `-f`:
+
+```bash
+openFPGALoader -b tangnano20k -f bitstreams/tangnano20k/nano-gpu.fs
+```
+
+The cloud environment cannot access your physical USB connection. Successful
+implementation and file generation are not a claim that the received board,
+HDMI connection, SDRAM or RP2350 bus has been tested physically.
+
+For the first test, keep all 16 RP2350 signal links **disconnected**; its current
+VGA firmware is incompatible with the GPU bus. Power the Tang normally and
+connect HDMI. GPU_RESET_N has a pull-down: with it LOW the GPU remains in
+reset. With the RP2350 completely isolated, a local jumper from Tang J6.19
+(3.3 V) to Tang J5.18 (GPU_RESET_N, FPGA pin 71) can release reset. Never fit
+that jumper while the RP2350 or another output can drive the reset wire LOW.
+Keep that jumper absent while programming; fit it only after this GPU image
+has loaded successfully. Remove it before power-cycling an SRAM-only test,
+since the factory flash image can return and may drive that pin. The expected
+idle output after initialization is a black 640×480/60 Hz raster.
+There is no built-in scene, command player, status overlay or visible animation.
+The host can later submit the commands documented below; its driver is separate
+work. Remove the isolated bring-up jumper before connecting a real host.
 
 ## 3. Packets and replies
 
@@ -493,13 +549,17 @@ zero. Packet snapshots begin at total reply byte 28.
 | 10 | u32 | Last successful fence token. |
 | 14 | u8 | Current physical front color ID. |
 | 15 | u8 | Bit 0 color 0 valid, bit 1 color 1 valid, bit 2 depth valid. |
-| 16 | u64 | Core cycle counter; restarts on hard reset. |
+| 16 | u64 | 48-bit core cycle counter zero-extended to u64; wraps at 2^48, restarts on hard reset. |
 | 24 | u64 | Scanout underflows; this RTL supplies a 32-bit count and zero upper half. |
 | 32 | u32 | Core fault code, currently low eight bits used. |
 | 36 | u32 | Last successful presentation token. |
 | 40..55 | Bytes | Reserved zero in RTL. |
 | 56 | u8 | Transport/parser fault code. |
 | 57..63 | Bytes | Reserved zero. |
+
+For elapsed-time arithmetic using the core counter, mask differences to 48
+bits; the u64 slot does not imply a physical 64-bit counter. Driver timeouts
+should use the CPU's own monotonic clock and bounded transport operations.
 
 Sideband register 1 adds bit 7 transport fault, bit 6 RX full, bit 5 published
 command queue full, and bit 4 reply available. Queue-full and parser-fault
@@ -536,9 +596,9 @@ There is no second host-domain copy of all 64 bytes.
 | 12 | u32 | Maximum request payload: 1024. |
 | 16 | u32 | Primitive record bytes: 320. |
 | 20 | u32 | Maximum pass references: 1,048,576. |
-| 24 | u32 | Nominal core Hz: 100,800,000; not measured Fmax. |
-| 28 | u32 | Selected host-divider metadata: 4; the physical host still supplies its clock. |
-| 32 | u32 | Selected pixel divider: 4. |
+| 24 | u32 | Configured core Hz: board 50,400,000; default simulation 100,800,000. Not measured Fmax. |
+| 28 | u32 | Host-divider metadata: board 0 (independent), default simulation 4; host supplies its clock. |
+| 32 | u32 | Pixel divider: board 2, default simulation 4. |
 | 36 | u32 | RX FIFO bytes: 256. |
 | 40 | u32 | Published command capacity: 2. |
 | 44 | u32 | TX FIFO bytes: 1024. |
@@ -567,8 +627,11 @@ Recovery procedure:
 2. Request out-of-band soft abort. Keep **both clocks running** while accepted
    memory work drains and the cross-domain RX/TX/parser flush completes.
 3. Through sideband reads, wait for a **changed epoch**, ready asserted and
-   fault indications cleared. Ready alone is insufficient. The physical abort
-   pulse/ack and reset timing must be finalized in the board wrapper.
+   fault indications cleared. Ready alone is insufficient. ABORT is internally
+   synchronized into the core domain: hold it HIGH for at least four core
+   cycles, then release it before waiting for recovery; begin with a generous
+   microsecond pulse during bring-up. There is no dedicated ACK pin; observe
+   the changed epoch. Electrical setup/hold margins remain unmeasured.
 4. Discard any old local reply bytes, reset sequence allocation to 1, and
    invalidate the CPU's assumptions about interrupted resources. An interrupted
    heap write leaves its touched range unspecified; reupload it before use.

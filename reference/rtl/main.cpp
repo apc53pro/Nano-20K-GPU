@@ -106,7 +106,7 @@ public:
     explicit Simulation(const std::string& trace_path, const std::string& scanout_path = {}) {
         dut.clk = 0; dut.reset = 1; dut.host_clk = 0; dut.abort_request = 0;
         dut.host_wr_valid = 0; dut.host_wr_data = 0; dut.host_rd_req = 0; dut.host_reg_addr = 0;
-        dut.sd_dq_in = 0xcdcdcdcdu;
+        dut.sd_dq_in = 0xcdcdcdcdu; dut.pixel_advance = 0;
         if (!scanout_path.empty()) {
             scanout_log.open(scanout_path);
             if (!scanout_log) throw std::runtime_error("cannot open scanout log " + scanout_path);
@@ -125,7 +125,12 @@ public:
 
     void tick(bool check_fault = true) {
         dut.clk = 0; dut.eval(); context.timeInc(1); if (trace) trace->dump(context.time());
+#ifdef NANO_GPU_BOARD_PROFILE
+        const bool next_host = (cycles & 1u) != 0;
+        dut.pixel_advance = (cycles & 1u) != 0;
+#else
         const bool next_host = (cycles & 3u) >= 2u;
+#endif
         host_rising = !dut.host_clk && next_host;
         host_falling = dut.host_clk && !next_host;
         write_accepted = host_rising && dut.host_wr_valid && dut.host_wr_ready;

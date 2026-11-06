@@ -1,0 +1,11 @@
+{
+  "schema": "N20K-BITSTREAM-READCHECK-1",
+  "bitstream_sha256": "dd77e7c59ccd8007af7a893a3d44b6d865faa148e8c4d79f12fda45b5ec9fb17",
+  "device_id": "0x0000081b",
+  "frame_crcs_verified": true,
+  "bitmap_rows": 2110,
+  "bitmap_columns": 3376,
+  "hardware_tested": false,
+  "verifier": "Apicula bslib.read_bitstream from the pinned OSS CAD Suite",
+  "scope": "Programming-file device ID and frame CRCs only; not physical hardware validation"
+}

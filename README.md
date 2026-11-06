@@ -15,8 +15,8 @@ two authoritative guides for the current GPU:
 For assembly, use the [Core2350B ↔ Tang Nano 20K wiring PDF](docs/images/core2350b-tang-nano20k-wiring.pdf)
 and [exact GPIO/header table](GPU_DOCUMENTATION/GPU_CONTROL.md#fixed-wiring-layout-core2350b-to-tang-nano-20k).
 The fixed layout reuses all ten VGA GPIOs and adds GP10–GP15. It documents
-wiring reservations only; the physical bus wrapper and RP2350 driver are not
-implemented, and the firmware/RTL remain unchanged by this layout.
+the connections implemented by `rtl/board/tang20k_top.sv` and its CST.
+The RP2350 PIO/DMA driver remains unimplemented; its firmware is unchanged.
 
 Both guides must be updated and pushed with every architecture or control change.
 A documentation check in CI enforces accompanying edits; examples are checked
@@ -41,6 +41,36 @@ textures, shading, and 2D drawing. SDL2 displays the result; a separate headless
 build produces deterministic images and raw color/depth dumps.
 
 ![Software reference showcase](docs/images/software-reference.png)
+
+## Tang Nano 20K programming image
+
+The actual hardware-3921 target is `rtl/board/tang20k_top.sv`, with exact QN88
+constraints, SDRAM pads, host bus and video-only HDMI output. Its initial profile
+uses a **50.4 MHz core and 25.2 MHz pixels**. The complete implementation report
+is [tang20k-board.json](docs/hardware/tang20k-board.json); functional evidence is
+[rtl-tang20k.json](docs/benchmarks/rtl-tang20k.json). These replace the historical
+core-only probe as evidence for the board target. The board route uses
+**20,467/20,736 LUT sites**, **6,864 DFF resources**, **46/46 RAM banks** and
+**25/48 multipliers**, leaving **269 LUT sites**. Its 63.14 MHz estimated core
+limit passes the configured 50.4 MHz clock; the pixel-capture timing gate also
+passes. Physical hardware is untested.
+
+With openFPGALoader installed, check and load the provided image into volatile
+SRAM from the repository root:
+
+```bash
+sha256sum -c bitstreams/tangnano20k/SHA256SUMS
+openFPGALoader -b tangnano20k --detect
+openFPGALoader -b tangnano20k bitstreams/tangnano20k/nano-gpu.fs
+```
+
+Read the [first-board instructions](GPU_DOCUMENTATION/GPU_CONTROL.md#programming-and-first-board-bring-up)
+for reset release and host isolation **before connecting the RP2350 signals**.
+The firmware's existing VGA outputs conflict with this bus. There is no command
+player or built-in scene; the expected idle raster is black after reset release.
+The RP2350 PIO/DMA driver remains separate work. Linux x86_64 rebuilding uses
+`./scripts/setup-rtl-tools.sh` followed by `make tang20k`; Windows simulator setup
+alone does not install the full synthesis/routing toolchain.
 
 ## Build and run
 
@@ -181,18 +211,20 @@ records exact rendering parity, 22.9–41.8% fewer serialized request bytes and
 0.4–3.7% more submission cycles in the sampled scenes. This is a bandwidth
 improvement, not a demonstrated FPS improvement.
 
-The current 0.2 logical-core serial probe **places and routes legally** on the
+The historical 0.2 logical-core serial probe **placed and routed legally** on the
 exact FPGA: **20,577 of 20,736 physical LUT sites (99.23%)**, leaving 159 sites,
 and **7,011 DFF resources**, including 48 RAM-reserved slots. The integrated
 upload change adds 272 physical LUT sites and eight DFFs; BSRAM and DSP use are
 unchanged. Estimated core Fmax is **70.23 MHz**, below the 100.8 MHz target in
 nextpnr's model. The host estimate is 120.37 MHz, passing its 25.2 MHz target.
-The clock plan is unchanged; further clock optimization remains paused for board
-integration and measurement. Production clock/reset, video and board pin
-integration still require qualification.
+Those counts excluded the production board wrapper. The current board target
+includes clock/reset, video serialization, bidirectional host pads and registered
+SDRAM pads, at a conservative 50.4 MHz core / 25.2 MHz pixel profile. Use the
+full-board implementation report for its resources and timing; the historical
+core-only result does not qualify this target.
 Routed Fmax is nextpnr's static timing estimate from modeled cell and route
 delays, not a measured physical clock limit. Verilator checks cycle behavior;
-the final board still needs Gowin timing analysis and hardware testing.
+external timing margins and physical behavior still need hardware testing.
 Native coefficient capture adds one setup clock per nonempty primitive/tile
 invocation. Draw validation/clipping adds three setup clocks per valid draw;
 cache configuration has two preparation edges, and the private UV path adds one
@@ -200,7 +232,8 @@ normalization edge while retaining one-fragment-per-clock throughput. COPY
 refetch/clipping uses about 128 clocks and upload staging streams one u32 every
 three clocks. Run `make rtl-gpu-pack` for source-matched
 resource evidence and `make rtl-gpu-pnr` for the clock-gated physical probe;
-the latter currently returns **2** for the core timing miss. The
+the retained historical result returned **2** for the core timing miss;
+rebuild to measure changed sources. The
 [resource report](docs/hardware/rtl-core-pack.json) and
 [physical probe report](docs/hardware/rtl-core-pnr.json), explained in the
 [RTL guide](docs/hardware/rtl-gpu.md#physical-resource-result),
@@ -270,7 +303,8 @@ Current status: the M0 specification, initial canonical renderer, CPU setup
 library, conformance tests, demo scenes, and a rendering block backend with
 matching color/depth output, a timed C++ GPU system model, and a functional RTL
 GPU simulator are available. Independent geometric error analysis and
-command-trace capture remain M0 work. A stable packed bus ABI, complete board
-integration, qualified whole-GPU fit/timing and measured board performance
-remain future milestones. Software frame times do not establish FPGA throughput
+command-trace capture remain M0 work. The board wrapper and constraints are
+implemented; the full-board report records actual implementation results.
+A stable firmware ABI, RP2350 driver and measured board performance remain
+future milestones. Software frame times do not establish FPGA throughput
 or fit.

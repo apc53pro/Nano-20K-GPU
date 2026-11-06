@@ -331,3 +331,39 @@ Synthesis and routing on other platforms still require those separate HDL
 tools. Set `NANO_GPU_RTL_TOOLS` to a custom suite root or put the required tools
 on PATH. Rebuild generated simulators on each machine rather than copying
 binaries or `.deps` installations between platforms.
+
+
+### Full Tang Nano 20K target
+
+The Linux x86_64 pinned HDL suite also builds the actual hardware-3921 target:
+
+```bash
+make tang20k-test
+make tang20k
+```
+
+The first checks board pad/clock behavior and the real GPU at its fixed board
+profile. The second repeats or reuses source-matched functional checks, then
+synthesizes, packs, places/routes, verifies fixed SiP connections and checks
+internal clock timing before emitting `build/tang20k/nano-gpu.fs`. It removes
+a previous image before starting, so a failed run cannot leave a stale image
+at that output path. Inspect `build/tang20k/board-report.json` and logs on failure.
+
+This target uses a 50.4 MHz core, 25.2 MHz pixels and a 126 MHz DDR serializer.
+The default logical-core simulator retains its separate nominal 100.8 MHz
+profile. To run the real-core simulator at the board ratios manually:
+
+```bash
+python3 scripts/gpu-rtl.py --board-core --build-dir build/tang20k-core-sim --output build/nano-gpu-tang20k-sim
+./build/nano-gpu-tang20k-sim --headless --verify --scene showcase --frames 2
+```
+
+Board wrapper tests use functional PLL/divider/pad models, not analog timing
+models. Full-core tests use the real GPU RTL and the external SDRAM model;
+they do not link C++ GPU backends. External setup/hold margins and the received
+physical board still require hardware tests. There is no built-in command
+player and no RP2350 PIO/DMA driver in this target. Programming and the existing
+wiring/reset instructions are in the two top-level GPU guides. The image can
+be programmed from Windows with openFPGALoader; rebuilding it requires the
+separate synthesis, placement/routing and packing tools, beyond the Windows
+simulator dependencies.

@@ -387,7 +387,8 @@ struct SystemModel::Impl {
         put(bytes, 10, totals.completed_fence_token); bytes[14] = static_cast<std::uint8_t>(scanout.front_id());
         bytes[15] = static_cast<std::uint8_t>((valid[0] ? 1 : 0) | (valid[1] ? 2 : 0) |
                                            (valid_depth ? 4 : 0));
-        put(bytes, 16, totals.core_cycles, 8); put(bytes, 24, scanout.statistics().underflows, 8);
+        put(bytes, 16, totals.core_cycles & UINT64_C(0x0000ffffffffffff), 8);
+        put(bytes, 24, scanout.statistics().underflows, 8);
         put(bytes, 32, static_cast<std::uint32_t>(error));
         put(bytes, 36, totals.completed_present_token); put(bytes, 40, memory.statistics().refresh_late_cycles, 8);
         put(bytes, 48, memory.statistics().uninitialized_read_words, 8);

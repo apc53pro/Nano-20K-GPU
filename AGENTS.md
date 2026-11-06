@@ -52,3 +52,20 @@ their technical accuracy.
 Retain existing user changes, avoid force-pushing, and follow any later user
 instructions about branches or publication. The standing documentation rule
 does not authorize unrelated changes.
+
+# Whole-board fit evidence
+
+Hardware-fit and remaining-headroom claims for the Tang Nano 20K must use the
+complete `tang20k_top` implementation, including PLL/dividers, reset crossings,
+video serializers/pads, physical host wrapper, SDRAM boundary registers and the
+actual package constraints. A logical-core serial probe excludes board logic
+and includes test-only overhead; its LUT count is not production-board headroom.
+
+Require source-matched synthesis, legal placement/routing, fixed SiP connection
+checks and the selected board clock/capture timing gates before publishing a
+programming image. Keep the image checksum and board report together. If RTL,
+constraints or build inputs change, old implementation reports are historical
+until rebuilt; do not qualify changed sources using an earlier route. Distinguish
+tool-estimated internal timing from external electrical margins and physical
+hardware measurements. Placement-seed trials are software build choices, not
+additional hardware modes.
