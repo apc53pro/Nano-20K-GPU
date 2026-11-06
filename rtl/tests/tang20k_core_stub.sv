@@ -5,7 +5,11 @@ module nano_gpu_core #(
     parameter integer CORE_HZ = 100800000,
     parameter integer HOST_DIVIDER_METADATA = 4,
     parameter integer PIXEL_DIVIDER = 4,
-    parameter integer EXTERNAL_PIXEL_TICK = 0
+    parameter integer EXTERNAL_PIXEL_TICK = 0,
+    parameter integer SDRAM_T_RP=3, SDRAM_T_RCD=3, SDRAM_T_RFC=9,
+    parameter integer SDRAM_T_MRD=3, SDRAM_T_WR=3, SDRAM_T_RAS=6,
+    parameter integer SDRAM_T_RC=9, SDRAM_READ_TO_WRITE=2,
+    parameter integer SDRAM_WRITE_TO_READ=2, SDRAM_CAS_LATENCY=3
 )(
     input wire clk, input wire reset, input wire host_clk, input wire abort_request,
     input wire pixel_advance,

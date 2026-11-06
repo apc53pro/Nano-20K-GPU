@@ -49,16 +49,27 @@ build produces deterministic images and raw color/depth dumps.
 
 ## Tang Nano 20K programming image
 
-The actual hardware-3921 target is `rtl/board/tang20k_top.sv`, with exact QN88
-constraints, SDRAM pads, host bus and video-only HDMI output. Its initial profile
-uses a **50.4 MHz core and 25.2 MHz pixels**. The complete implementation report
-is [tang20k-board.json](docs/hardware/tang20k-board.json); functional evidence is
-[rtl-tang20k.json](docs/benchmarks/rtl-tang20k.json). These replace the historical
-core-only probe as evidence for the board target. The board route uses
-**20,467/20,736 LUT sites**, **6,864 DFF resources**, **46/46 RAM banks** and
-**25/48 multipliers**, leaving **269 LUT sites**. Its 63.14 MHz estimated core
-limit passes the configured 50.4 MHz clock; the pixel-capture timing gate also
-passes. Physical hardware is untested.
+The hardware-3921 target is `rtl/board/tang20k_top.sv`, with exact QN88
+constraints, SDRAM pads and the physical host bus. The selected fixed bus-test
+build uses a **6.3 MHz GPU core/SDRAM clock**, with **25.2 MHz HDMI pixels and
+126 MHz DDR serialization**. HDMI intentionally shows a constant-black
+640×480/60 raster generated in the pixel domain; GPU-rendered pixels are
+disconnected. This image cannot display or qualify the terminal. The GPIO
+firmware uses 50 us minimum phases, below a 10 kHz phase-only HCLK ceiling.
+
+The [source-matched complete-board build](docs/hardware/tang20k-board.json)
+legally places/routes, verifies fixed SiP connections and passes its selected
+internal clock gates. It uses **20,043/20,736 LUT sites**, **6,731 DFF resources**,
+**44/46 BSRAM** and **25/48 multipliers**. Unconnected GPU-video payload logic
+is pruned; the lower allocation is specific to this black-raster test image
+and is not production GPU-display headroom. The earlier 50.4 MHz board route
+and rendered-frame regression are historical.
+
+The matching image is **7,263,640 bytes**, SHA-256
+`ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3`.
+Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
+[functional evidence](docs/hardware/tang20k-functional.json) accompany the
+board report. Physical hardware and external electrical margins remain unqualified.
 
 With openFPGALoader installed, check and load the provided image into volatile
 SRAM from the repository root:
@@ -71,9 +82,10 @@ openFPGALoader -b tangnano20k bitstreams/tangnano20k/nano-gpu.fs
 
 Read the [first-board instructions](GPU_DOCUMENTATION/GPU_CONTROL.md#programming-and-first-board-bring-up)
 for reset release and host isolation **before connecting the RP2350 signals**.
-The firmware's existing VGA outputs conflict with this bus. There is no command
-player or built-in scene; the expected idle raster is black after reset release.
-The RP2350 PIO/DMA driver remains separate work. Linux x86_64 rebuilding uses
+Old VGA firmware conflicts with this bus. There is no command player or built-in
+scene; the bus-test raster remains black even while GPU work executes. The
+MPC-2350 GPIO client exists; PIO/DMA and NARM GPU integration remain separate
+work. Linux x86_64 rebuilding uses
 `./scripts/setup-rtl-tools.sh` followed by `make tang20k`; Windows simulator setup
 alone does not install the full synthesis/routing toolchain.
 
@@ -222,11 +234,12 @@ and **7,011 DFF resources**, including 48 RAM-reserved slots. The integrated
 upload change adds 272 physical LUT sites and eight DFFs; BSRAM and DSP use are
 unchanged. Estimated core Fmax is **70.23 MHz**, below the 100.8 MHz target in
 nextpnr's model. The host estimate is 120.37 MHz, passing its 25.2 MHz target.
-Those counts excluded the production board wrapper. The current board target
-includes clock/reset, video serialization, bidirectional host pads and registered
-SDRAM pads, at a conservative 50.4 MHz core / 25.2 MHz pixel profile. Use the
-full-board implementation report for its resources and timing; the historical
-core-only result does not qualify this target.
+Those counts excluded the complete board wrapper. The current bus-test target
+includes clock/reset, black-raster video serialization, bidirectional host pads
+and registered SDRAM pads, with a 6.3 MHz GPU core and 25.2 MHz physical pixels.
+Use a source-matched full-board implementation report for its resources and
+timing; neither the historical core-only result nor the earlier 50.4 MHz board
+route qualifies changed sources.
 Routed Fmax is nextpnr's static timing estimate from modeled cell and route
 delays, not a measured physical clock limit. Verilator checks cycle behavior;
 external timing margins and physical behavior still need hardware testing.

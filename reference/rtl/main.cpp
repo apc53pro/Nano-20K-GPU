@@ -126,8 +126,10 @@ public:
     void tick(bool check_fault = true) {
         dut.clk = 0; dut.eval(); context.timeInc(1); if (trace) trace->dump(context.time());
 #ifdef NANO_GPU_BOARD_PROFILE
+        // Virtual host runs at half the 6.3 MHz core rate for regression.
+        // Physical diagnostic HCLK and the independent black HDMI raster
+        // belong to the board-wrapper tests, not this logical-core harness.
         const bool next_host = (cycles & 1u) != 0;
-        dut.pixel_advance = (cycles & 1u) != 0;
 #else
         const bool next_host = (cycles & 3u) >= 2u;
 #endif

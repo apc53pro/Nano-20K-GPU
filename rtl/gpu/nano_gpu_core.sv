@@ -4,6 +4,16 @@
 module nano_gpu_core #(
     parameter integer POWERUP_CYCLES = 10080,
     parameter integer REFRESH_INTERVAL = 1575,
+    parameter integer SDRAM_CAS_LATENCY = 3,
+    parameter integer SDRAM_T_RP = 3,
+    parameter integer SDRAM_T_RCD = 3,
+    parameter integer SDRAM_T_RFC = 9,
+    parameter integer SDRAM_T_MRD = 3,
+    parameter integer SDRAM_T_WR = 3,
+    parameter integer SDRAM_T_RAS = 6,
+    parameter integer SDRAM_T_RC = 9,
+    parameter integer SDRAM_READ_TO_WRITE = 2,
+    parameter integer SDRAM_WRITE_TO_READ = 2,
     parameter integer CORE_HZ = 100800000,
     parameter integer HOST_DIVIDER_METADATA = 4,
     parameter integer PIXEL_DIVIDER = 4,
@@ -1100,7 +1110,11 @@ module nano_gpu_core #(
         .cmd_valid(host_cmd_valid),.cmd_opcode(host_cmd_opcode),.cmd_sequence(host_cmd_sequence),.cmd_payload_length(host_cmd_length),
         .cmd_pop(host_cmd_pop),.payload_req(payload_req),.payload_offset(payload_offset),.payload_valid(payload_valid),.payload_data(payload_data),
         .response_valid(response_valid),.response_ready(response_ready),.response_data(response_data),.fault(host_fault),.recovering(host_recovering));
-    nano_sdram_service #(.POWERUP_CYCLES(POWERUP_CYCLES),.REFRESH_INTERVAL(REFRESH_INTERVAL)) memory_service (
+    nano_sdram_service #(.POWERUP_CYCLES(POWERUP_CYCLES),.REFRESH_INTERVAL(REFRESH_INTERVAL),
+        .CAS_LATENCY(SDRAM_CAS_LATENCY),.T_RP(SDRAM_T_RP),.T_RCD(SDRAM_T_RCD),
+        .T_RFC(SDRAM_T_RFC),.T_MRD(SDRAM_T_MRD),.T_WR(SDRAM_T_WR),
+        .T_RAS(SDRAM_T_RAS),.T_RC(SDRAM_T_RC),
+        .READ_TO_WRITE(SDRAM_READ_TO_WRITE),.WRITE_TO_READ(SDRAM_WRITE_TO_READ)) memory_service (
         .clk(clk),.reset(reset),.initialized(memory_initialized),
         .cmd_valid(mem_cmd_valid),.cmd_ready(mem_cmd_ready),.cmd_write(mem_cmd_write),.cmd_addr(mem_cmd_addr),.cmd_words(mem_cmd_words),
         .w_valid(mem_w_valid),.w_ready(mem_w_ready),.w_data(mem_w_data),.w_strb(mem_w_strb),

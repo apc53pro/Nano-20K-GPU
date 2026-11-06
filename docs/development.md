@@ -349,9 +349,16 @@ internal clock timing before emitting `build/tang20k/nano-gpu.fs`. It removes
 a previous image before starting, so a failed run cannot leave a stale image
 at that output path. Inspect `build/tang20k/board-report.json` and logs on failure.
 
-This target uses a 50.4 MHz core, 25.2 MHz pixels and a 126 MHz DDR serializer.
+The fixed bus-test target uses a **6.3 MHz GPU core/SDRAM clock**. Physical
+HDMI retains 25.2 MHz pixels and a 126 MHz DDR serializer, fed by an independent
+constant-black 640×480/60 raster. GPU-rendered pixels are disconnected, so this
+image cannot display or qualify the terminal. The GPIO firmware uses at least
+50 us per phase/setup wait, below a 10 kHz phase-only HCLK ceiling.
+
 The default logical-core simulator retains its separate nominal 100.8 MHz
-profile. To run the real-core simulator at the board ratios manually:
+profile. `--board-core` selects the 6.3 MHz core/SDRAM timing and 3.15 MHz virtual
+host/logical scanout; it does not model the physical 10 kHz GPIO transport or
+the independent physical black-raster generator. To run it manually:
 
 ```bash
 python3 scripts/gpu-rtl.py --board-core --build-dir build/tang20k-core-sim --output build/nano-gpu-tang20k-sim
@@ -362,11 +369,25 @@ Board wrapper tests use functional PLL/divider/pad models, not analog timing
 models. Full-core tests use the real GPU RTL and the external SDRAM model;
 they do not link C++ GPU backends. External setup/hold margins and the received
 physical board still require hardware tests. There is no built-in command
-player and no RP2350 PIO/DMA driver in this target. Programming and the existing
+player and no RP2350 PIO/DMA driver in this target; the initial MPC-2350 client
+uses GPIO. Clock/video changes require new source-matched board evidence and
+an image checksum. Earlier 50.4 MHz reports are historical for the changed
+bus-test sources. Programming and the existing
 wiring/reset instructions are in the two top-level GPU guides. The image can
 be programmed from Windows with openFPGALoader; rebuilding it requires the
 separate synthesis, placement/routing and packing tools, beyond the Windows
 simulator dependencies.
+
+The current 6.3 MHz bus-test image has a matching
+[complete-board implementation report](hardware/tang20k-board.json),
+[functional checks](hardware/tang20k-functional.json) and
+[programming-file validation](hardware/tang20k-bitstream-check.json).
+Legal route, fixed SiP checks and selected internal clock gates pass; the GPU
+payload capture gate is not applicable because that crossing is disconnected.
+Wrapper checks use an isolated core model and 25 MHz host stress; real-core
+simulation uses 6.3 MHz core and 3.15 MHz virtual host/logical pixels. Firmware
+mocks separately verify the 50 us GPIO phase floor. These are complementary
+software checks, not physical electrical or visible-terminal qualification.
 
 The separate MPC-2350 firmware now implements a first GPIO-based monochrome
 terminal using font-texture copies. Its software-oracle host regression is

@@ -39,7 +39,7 @@ def main():
                   f"assign {output}=output{bank};"]
     lines += ["`endif", "endmodule", ""]
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text("\n".join(lines))
+    args.output.write_text("\n".join(lines), newline="\n")
 
 
 if __name__ == "__main__":

@@ -6,8 +6,8 @@
 <text x="55" y="60" font-size="31" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Core2350B ↔ Tang Nano20K · 16-signal wiring map</text>
 <text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">Core2350B: RP2350B / 8 MB PSRAM / 16 MB flash   •   Tang Nano20K hardware 3921</text>
 <rect x="55" y="117" width="1570" height="63" rx="4" fill="#fff5e8" stroke="#e6be83" stroke-width="1"/>
-<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">FPGA pad wrapper implemented; RP driver / electrical timing unqualified</text>
-<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected</text>
+<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Bus-test build: 6.3MHz GPU; black HDMI only; electrical timing unqualified</text>
+<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP2350 A2; one 100Ω per signal wire; two 4.7kΩ handshake pull-downs fitted</text>
 <text x="72" y="213" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">CORE2350B</text>
 <text x="642" y="213" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">CABLE / SIGNAL FLOW</text>
 <text x="1152" y="213" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">TANG NANO20K</text>
@@ -16,8 +16,8 @@
 <text x="73" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">GPIO</text>
 <text x="205" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Header pin</text>
 <text x="385" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Signal</text>
-<text x="602" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">At Core</text>
-<text x="1023" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">At Tang</text>
+<text x="666" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Single series resistor</text>
+<text x="968" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Flow</text>
 <text x="1154" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Header pin</text>
 <text x="1360" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">FPGA pin</text>
 <text x="1510" y="254" font-size="18" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Bank</text>
@@ -28,9 +28,9 @@
 <line x1="579" y1="287.0" x2="1114" y2="287.0" stroke="#00786f" stroke-width="2.6"/>
 <circle cx="579" cy="287.0" r="3.5" fill="#00786f" stroke="#00786f" stroke-width="1"/>
 <circle cx="1114" cy="287.0" r="3.5" fill="#00786f" stroke="#00786f" stroke-width="1"/>
-<rect x="1027" y="278.0" width="62" height="18" rx="0" fill="white" stroke="#00786f" stroke-width="2"/>
-<text x="1058" y="292.0" font-size="15" font-weight="600" style="fill:#00786f" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="287.0" x2="902" y2="287.0" stroke="#00786f" stroke-width="2.6" marker-start="url(#arrow)"/>
+<rect x="724" y="278.0" width="62" height="18" rx="0" fill="white" stroke="#00786f" stroke-width="2"/>
+<text x="755" y="292.0" font-size="15" font-weight="600" style="fill:#00786f" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="287.0" x2="1049" y2="287.0" stroke="#00786f" stroke-width="2.6" marker-start="url(#arrow)"/>
 <text x="1154" y="293.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.1</text>
 <text x="1375" y="293.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">73</text>
 <text x="1535" y="293.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">1</text>
@@ -40,9 +40,9 @@
 <line x1="579" y1="320.5" x2="1114" y2="320.5" stroke="#00786f" stroke-width="2.6"/>
 <circle cx="579" cy="320.5" r="3.5" fill="#00786f" stroke="#00786f" stroke-width="1"/>
 <circle cx="1114" cy="320.5" r="3.5" fill="#00786f" stroke="#00786f" stroke-width="1"/>
-<rect x="1027" y="311.5" width="62" height="18" rx="0" fill="white" stroke="#00786f" stroke-width="2"/>
-<text x="1058" y="325.5" font-size="15" font-weight="600" style="fill:#00786f" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="320.5" x2="902" y2="320.5" stroke="#00786f" stroke-width="2.6" marker-start="url(#arrow)"/>
+<rect x="724" y="311.5" width="62" height="18" rx="0" fill="white" stroke="#00786f" stroke-width="2"/>
+<text x="755" y="325.5" font-size="15" font-weight="600" style="fill:#00786f" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="320.5" x2="1049" y2="320.5" stroke="#00786f" stroke-width="2.6" marker-start="url(#arrow)"/>
 <text x="1154" y="326.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.2</text>
 <text x="1375" y="326.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">74</text>
 <text x="1535" y="326.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">1</text>
@@ -53,9 +53,9 @@
 <line x1="579" y1="354.0" x2="1114" y2="354.0" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="354.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="354.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="345.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="359.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="354.0" x2="902" y2="354.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="345.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="359.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="354.0" x2="1049" y2="354.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="360.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J5.17</text>
 <text x="1375" y="360.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">72</text>
 <text x="1535" y="360.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">1</text>
@@ -65,9 +65,9 @@
 <line x1="579" y1="387.5" x2="1114" y2="387.5" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="387.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="387.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="378.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="392.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="387.5" x2="902" y2="387.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="378.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="392.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="387.5" x2="1049" y2="387.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="393.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J5.18</text>
 <text x="1375" y="393.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">71</text>
 <text x="1535" y="393.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">1</text>
@@ -78,9 +78,9 @@
 <line x1="579" y1="421.0" x2="1114" y2="421.0" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="421.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="421.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="412.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="426.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="421.0" x2="902" y2="421.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="412.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="426.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="421.0" x2="1049" y2="421.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="427.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.15</text>
 <text x="1375" y="427.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">17</text>
 <text x="1535" y="427.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">6</text>
@@ -90,9 +90,9 @@
 <line x1="579" y1="454.5" x2="1114" y2="454.5" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="454.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="454.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="445.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="459.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="454.5" x2="902" y2="454.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="445.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="459.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="454.5" x2="1049" y2="454.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="460.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.7</text>
 <text x="1375" y="460.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">16</text>
 <text x="1535" y="460.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">6</text>
@@ -103,9 +103,9 @@
 <line x1="579" y1="488.0" x2="1114" y2="488.0" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="488.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="488.0" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="479.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="493.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="488.0" x2="902" y2="488.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="479.0" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="493.0" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="488.0" x2="1049" y2="488.0" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="494.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.5</text>
 <text x="1375" y="494.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">77</text>
 <text x="1535" y="494.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">1</text>
@@ -115,9 +115,9 @@
 <line x1="579" y1="521.5" x2="1114" y2="521.5" stroke="#165bb0" stroke-width="2.6"/>
 <circle cx="579" cy="521.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
 <circle cx="1114" cy="521.5" r="3.5" fill="#165bb0" stroke="#165bb0" stroke-width="1"/>
-<rect x="603" y="512.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
-<text x="634" y="526.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="521.5" x2="902" y2="521.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
+<rect x="724" y="512.5" width="62" height="18" rx="0" fill="white" stroke="#165bb0" stroke-width="2"/>
+<text x="755" y="526.5" font-size="15" font-weight="600" style="fill:#165bb0" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="521.5" x2="1049" y2="521.5" stroke="#165bb0" stroke-width="2.6" marker-end="url(#arrow)"/>
 <text x="1154" y="527.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.6</text>
 <text x="1375" y="527.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">15</text>
 <text x="1535" y="527.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">6</text>
@@ -128,11 +128,9 @@
 <line x1="579" y1="555.0" x2="1114" y2="555.0" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="555.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="555.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="546.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="560.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="546.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="560.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="555.0" x2="902" y2="555.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="546.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="560.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="555.0" x2="1049" y2="555.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="561.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.8</text>
 <text x="1375" y="561.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">27</text>
 <text x="1535" y="561.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">5</text>
@@ -142,11 +140,9 @@
 <line x1="579" y1="588.5" x2="1114" y2="588.5" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="588.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="588.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="579.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="593.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="579.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="593.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="588.5" x2="902" y2="588.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="579.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="593.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="588.5" x2="1049" y2="588.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="594.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.9</text>
 <text x="1375" y="594.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">28</text>
 <text x="1535" y="594.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">5</text>
@@ -157,11 +153,9 @@
 <line x1="579" y1="622.0" x2="1114" y2="622.0" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="622.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="622.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="613.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="627.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="613.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="627.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="622.0" x2="902" y2="622.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="613.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="627.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="622.0" x2="1049" y2="622.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="628.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.12</text>
 <text x="1375" y="628.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">29</text>
 <text x="1535" y="628.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">5</text>
@@ -171,11 +165,9 @@
 <line x1="579" y1="655.5" x2="1114" y2="655.5" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="655.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="655.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="646.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="660.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="646.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="660.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="655.5" x2="902" y2="655.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="646.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="660.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="655.5" x2="1049" y2="655.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="661.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.13</text>
 <text x="1375" y="661.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">30</text>
 <text x="1535" y="661.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">5</text>
@@ -186,11 +178,9 @@
 <line x1="579" y1="689.0" x2="1114" y2="689.0" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="689.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="689.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="680.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="694.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="680.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="694.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="689.0" x2="902" y2="689.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="680.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="694.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="689.0" x2="1049" y2="689.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="695.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J6.14</text>
 <text x="1375" y="695.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">31</text>
 <text x="1535" y="695.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">5</text>
@@ -200,11 +190,9 @@
 <line x1="579" y1="722.5" x2="1114" y2="722.5" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="722.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="722.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="713.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="727.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="713.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="727.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="722.5" x2="902" y2="722.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="713.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="727.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="722.5" x2="1049" y2="722.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="728.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J5.5</text>
 <text x="1375" y="728.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">42</text>
 <text x="1535" y="728.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">4</text>
@@ -215,11 +203,9 @@
 <line x1="579" y1="756.0" x2="1114" y2="756.0" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="756.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="756.0" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="747.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="761.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="747.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="761.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="756.0" x2="902" y2="756.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="747.0" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="761.0" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="756.0" x2="1049" y2="756.0" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="762.0" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J5.6</text>
 <text x="1375" y="762.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">41</text>
 <text x="1535" y="762.0" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">4</text>
@@ -229,11 +215,9 @@
 <line x1="579" y1="789.5" x2="1114" y2="789.5" stroke="#7543a2" stroke-width="2.6"/>
 <circle cx="579" cy="789.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
 <circle cx="1114" cy="789.5" r="3.5" fill="#7543a2" stroke="#7543a2" stroke-width="1"/>
-<rect x="603" y="780.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="634" y="794.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<rect x="1027" y="780.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
-<text x="1058" y="794.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">33Ω</text>
-<line x1="794" y1="789.5" x2="902" y2="789.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="724" y="780.5" width="62" height="18" rx="0" fill="white" stroke="#7543a2" stroke-width="2"/>
+<text x="755" y="794.5" font-size="15" font-weight="600" style="fill:#7543a2" text-anchor="middle" class="">100Ω</text>
+<line x1="941" y1="789.5" x2="1049" y2="789.5" stroke="#7543a2" stroke-width="2.6" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 <text x="1154" y="795.5" font-size="20" font-weight="600" style="fill:#16283d" text-anchor="start" class="mono">J5.10</text>
 <text x="1375" y="795.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">48</text>
 <text x="1535" y="795.5" font-size="20" font-weight="400" style="fill:#16283d" text-anchor="start" class="mono">3</text>
@@ -247,23 +231,23 @@
 <text x="73" y="977" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Keep inter-board 3.3V and 5V rails separate.</text>
 <text x="73" y="1005" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Tang J6.19: local pull-up rail only.</text>
 <text x="73" y="1033" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Tang J5.1 (5V), J5.16 (3.3V): unconnected.</text>
-<text x="590" y="862" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Local bias at Tang · 4.7kΩ</text>
-<text x="590" y="893" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">To Tang 3.3V: WR_N, RD_N, ALE_N.</text>
-<text x="590" y="921" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">To GND: HCLK, ABORT, GPU_RESET_N,</text>
-<text x="590" y="949" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">WREADY and RVALID. No data pull resistors.</text>
-<text x="590" y="977" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">GPU_RESET_N low holds the GPU in reset.</text>
-<text x="590" y="1005" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">ABORT is active high; *_N is active low.</text>
-<text x="590" y="1033" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Pulls attach on the Tang pin side of series R.</text>
-<text x="1117" y="862" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Placement and shared pads</text>
-<text x="1117" y="893" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">33Ω at each driving end; data: 33Ω each end</text>
-<text x="1117" y="921" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">(66Ω total). Starting values; timing unqualified.</text>
+<text x="590" y="862" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Bias · fitted / recommended</text>
+<text x="590" y="893" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Fitted: 4.7kΩ each GP39 / GP40 → GND.</text>
+<text x="590" y="921" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Added pulls: capability reads still all zero.</text>
+<text x="590" y="949" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Other external bias parts: not confirmed.</text>
+<text x="590" y="977" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Design: up WR_N, RD_N, ALE_N to Tang 3.3V;</text>
+<text x="590" y="1005" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">down HCLK, ABORT, RESET_N to GND at Tang.</text>
+<text x="590" y="1033" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">No data pulls recommended. RESET_N low = reset.</text>
+<text x="1117" y="862" font-size="21" font-weight="700" style="fill:#16283d" text-anchor="start" class="">CONFIRMED assembly / shared pads</text>
+<text x="1117" y="893" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">16 × 100Ω total; ONE per wire, including data.</text>
+<text x="1117" y="921" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Resistor end placement was not reported.</text>
 <text x="1117" y="949" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Disconnect the Tang FPC LCD and VGA DAC.</text>
 <text x="1117" y="977" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Preserve HDMI CEC/HPD (FPGA pins 25/26).</text>
 <text x="1117" y="1005" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">3 loads (15/16/17): orange LED + 510Ω to 3.3V.</text>
-<text x="1117" y="1033" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Future RP drive ≥8mA per net (12mA advised).</text>
+<text x="1117" y="1033" font-size="18" font-weight="400" style="fill:#16283d" text-anchor="start" class="">RP controls 12mA; HCLK phases ≥50us.</text>
 <rect x="55" y="1087" width="1570" height="43" rx="3" fill="#fff1ed" stroke="#d89987" stroke-width="1"/>
 <text x="70" y="1105" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Keep ALL 16 signal links OPEN until compatible Core firmware + FPGA image are installed.</text>
-<text x="70" y="1123" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">Assembly while unpowered is OK; keep removable links open on powered old images. 33Ω does not make contention safe.</text>
+<text x="70" y="1123" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">Assembly while unpowered is OK; keep removable links open on powered old images. 100Ω does not make contention safe.</text>
 <text x="55" y="1148" font-size="16" font-weight="400" style="fill:#536174" text-anchor="start" class="">Core bus: P3/P4 contacts, not package pins. GP39 WREADY: RP input; shared red LED + 470Ω to GND adds Tang output load.</text>
 <text x="55" y="1170" font-size="14.5" font-weight="400" style="fill:#536174" text-anchor="start" class="">Sources: user wiring revision; Core2350B schematic; Tang Rev 1.30 / hardware 3921 (2023-07-11). Exact evidence: pinout JSON.</text>
 </svg>

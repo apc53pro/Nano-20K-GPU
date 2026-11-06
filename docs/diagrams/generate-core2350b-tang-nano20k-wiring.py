@@ -80,7 +80,7 @@ class SVG:
 
     def resistor(self, x, y, *, color):
         self.rect(x, y - 9, 62, 18, stroke=color, sw=2)
-        self.text(x + 31, y + 5, "33Ω", size=15, weight=600, color=color, anchor="middle")
+        self.text(x + 31, y + 5, "100Ω", size=15, weight=600, color=color, anchor="middle")
 
     def save(self, path: Path):
         path.write_text("\n".join(self.parts + ["</svg>"]) + "\n", encoding="utf-8")
@@ -98,8 +98,8 @@ def header(svg, title, subtitle):
     svg.text(55, 60, title, size=31, weight=700)
     svg.text(55, 96, subtitle, size=20, color=MUTED)
     svg.rect(55, 117, svg.width - 110, 63, fill="#fff5e8", stroke="#e6be83", radius=4)
-    svg.text(73, 142, "FPGA pad wrapper implemented; RP driver / electrical timing unqualified", size=20, weight=700)
-    svg.text(73, 166, "RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected", size=19, weight=600, color=POWER)
+    svg.text(73, 142, "Bus-test build: 6.3MHz GPU; black HDMI only; electrical timing unqualified", size=20, weight=700)
+    svg.text(73, 166, "RP2350 A2; one 100Ω per signal wire; two 4.7kΩ handshake pull-downs fitted", size=19, weight=600, color=POWER)
 
 
 def wiring(rows):
@@ -111,7 +111,7 @@ def wiring(rows):
     s.text(1152, 213, "TANG NANO20K", size=20, weight=700)
     s.rect(55, 225, 1570, 583, fill="white", stroke=GRID)
     s.rect(55, 225, 1570, 44, fill="#edf2f7", stroke=GRID)
-    headings = [(73, "GPIO"), (205, "Header pin"), (385, "Signal"), (602, "At Core"), (1023, "At Tang"), (1154, "Header pin"), (1360, "FPGA pin"), (1510, "Bank")]
+    headings = [(73, "GPIO"), (205, "Header pin"), (385, "Signal"), (666, "Single series resistor"), (968, "Flow"), (1154, "Header pin"), (1360, "FPGA pin"), (1510, "Bank")]
     for x, label in headings:
         s.text(x, 254, label, size=18, weight=700)
     for i, row in enumerate(rows):
@@ -125,16 +125,14 @@ def wiring(rows):
         s.line(579, y, 1114, y, color=color, sw=2.6)
         s.circle(579, y, 3.5, fill=color, stroke=color, sw=1)
         s.circle(1114, y, 3.5, fill=color, stroke=color, sw=1)
-        if row["direction"] in ("core_to_tang", "bidirectional"):
-            s.resistor(603, y, color=color)
-        if row["direction"] in ("tang_to_core", "bidirectional"):
-            s.resistor(1027, y, color=color)
+        # Schematic position only: the user has not reported which end has R.
+        s.resistor(724, y, color=color)
         if row["direction"] == "core_to_tang":
-            s.line(794, y, 902, y, color=color, sw=2.6, end=True)
+            s.line(941, y, 1049, y, color=color, sw=2.6, end=True)
         elif row["direction"] == "tang_to_core":
-            s.line(794, y, 902, y, color=color, sw=2.6, start=True)
+            s.line(941, y, 1049, y, color=color, sw=2.6, start=True)
         else:
-            s.line(794, y, 902, y, color=color, sw=2.6, start=True, end=True)
+            s.line(941, y, 1049, y, color=color, sw=2.6, start=True, end=True)
         s.text(1154, y + 6, row["tang_header"], size=20, weight=600, cls="mono")
         s.text(1375, y + 6, row["fpga_pin"], size=20, cls="mono")
         s.text(1535, y + 6, row["bank"], size=20, cls="mono")
@@ -153,31 +151,31 @@ def wiring(rows):
     ]
     for i, note in enumerate(notes):
         s.text(73, 893 + 28 * i, note, size=18)
-    s.text(590, 862, "Local bias at Tang · 4.7kΩ", size=21, weight=700)
+    s.text(590, 862, "Bias · fitted / recommended", size=21, weight=700)
     notes = [
-        "To Tang 3.3V: WR_N, RD_N, ALE_N.",
-        "To GND: HCLK, ABORT, GPU_RESET_N,",
-        "WREADY and RVALID. No data pull resistors.",
-        "GPU_RESET_N low holds the GPU in reset.",
-        "ABORT is active high; *_N is active low.",
-        "Pulls attach on the Tang pin side of series R.",
+        "Fitted: 4.7kΩ each GP39 / GP40 → GND.",
+        "Added pulls: capability reads still all zero.",
+        "Other external bias parts: not confirmed.",
+        "Design: up WR_N, RD_N, ALE_N to Tang 3.3V;",
+        "down HCLK, ABORT, RESET_N to GND at Tang.",
+        "No data pulls recommended. RESET_N low = reset.",
     ]
     for i, note in enumerate(notes):
         s.text(590, 893 + 28 * i, note, size=18)
-    s.text(1117, 862, "Placement and shared pads", size=21, weight=700)
+    s.text(1117, 862, "CONFIRMED assembly / shared pads", size=21, weight=700)
     notes = [
-        "33Ω at each driving end; data: 33Ω each end",
-        "(66Ω total). Starting values; timing unqualified.",
+        "16 × 100Ω total; ONE per wire, including data.",
+        "Resistor end placement was not reported.",
         "Disconnect the Tang FPC LCD and VGA DAC.",
         "Preserve HDMI CEC/HPD (FPGA pins 25/26).",
         "3 loads (15/16/17): orange LED + 510Ω to 3.3V.",
-        "Future RP drive ≥8mA per net (12mA advised).",
+        "RP controls 12mA; HCLK phases ≥50us.",
     ]
     for i, note in enumerate(notes):
         s.text(1117, 893 + 28 * i, note, size=18)
     s.rect(55, 1087, 1570, 43, fill="#fff1ed", stroke="#d89987", radius=3)
     s.text(70, 1105, "Keep ALL 16 signal links OPEN until compatible Core firmware + FPGA image are installed.", size=17, weight=700)
-    s.text(70, 1123, "Assembly while unpowered is OK; keep removable links open on powered old images. 33Ω does not make contention safe.", size=17, weight=600)
+    s.text(70, 1123, "Assembly while unpowered is OK; keep removable links open on powered old images. 100Ω does not make contention safe.", size=17, weight=600)
     s.text(55, 1148, "Core bus: P3/P4 contacts, not package pins. GP39 WREADY: RP input; shared red LED + 470Ω to GND adds Tang output load.", size=16, color=MUTED)
     s.text(55, 1170, "Sources: user wiring revision; Core2350B schematic; Tang Rev 1.30 / hardware 3921 (2023-07-11). Exact evidence: pinout JSON.", size=14.5, color=MUTED)
     return s
@@ -245,7 +243,7 @@ def tang_headers(rows, headers):
     s.text(73, 1512, "Common ground: J6.20 + J5.2 + J5.15 → Core P1.1 / P3.1. Power each board separately.", size=17)
     s.text(73, 1535, "FPC LCD disconnected. HDMI CEC/HPD (J6.10/J6.11) remain reserved for HDMI.", size=17)
     s.text(73, 1558, "Keep ALL 16 signal links OPEN until compatible Core firmware + FPGA image are installed.", size=17, weight=700)
-    s.text(73, 1581, "33Ω does not make contention safe. With old images powered, keep removable links open.", size=17, weight=600)
+    s.text(73, 1581, "16 × 100Ω fitted (one/wire); end placement unknown. Series R does not make contention safe.", size=17, weight=600)
     s.text(55, 1618, "Physical orientation: view the components; do not mirror this map for the solder side. Board outline is schematic, not to scale.", size=16, color=MUTED)
     s.text(55, 1648, "Source: Tang Nano20K Rev 1.30 / hardware 3921 (2023-07-11); full provenance and signal map in the pinout JSON.", size=16, color=MUTED)
     return s
@@ -254,7 +252,7 @@ def tang_headers(rows, headers):
 def core_headers(rows):
     by_header = {r["core_header"]: r for r in rows}
     s = SVG(1188, 1680, 210, 297, "Core2350B component-side physical P4 and P3 header locator")
-    header(s, "Core2350B · P4 / P3 physical locator", "RP2350B · 8 MB PSRAM / 16 MB flash · component side · USB FPC connector toward TOP")
+    header(s, "Core2350B · P4 / P3 physical locator", "RP2350B package, A2 silicon · 8 MB PSRAM / 16 MB flash · component side · USB FPC TOP")
     s.text(55, 220, "Use the Core2350B connector labels below; Pico 2 header numbering does not apply.", size=20, weight=700)
     s.text(55, 270, "P4 · RIGHT EDGE · vertical 2×8 header", size=24, weight=700)
     s.text(500, 309, "Inner / odd", size=18, weight=600, anchor="middle")
@@ -318,7 +316,7 @@ def core_headers(rows):
     s.text(73, 1490, "Signals use P3/P4. Bond P1.1 GND to Tang J5.2 as well.", size=17)
     s.text(73, 1521, "Keep ALL 16 signal links OPEN until compatible Core firmware", size=17, weight=700)
     s.text(73, 1545, "+ FPGA image are installed; old powered images need links open.", size=17, weight=700)
-    s.text(73, 1569, "33Ω does not make contention safe. Power boards separately.", size=17, weight=600)
+    s.text(73, 1569, "One 100Ω per signal wire; end unknown. R does not make contention safe.", size=17, weight=600)
     s.rect(918, 1424, 141, 117, fill="#eaf2f3", stroke="#7b9a9f", radius=5)
     s.rect(966, 1415, 46, 16, fill="#b8c8cc", stroke="#7b9a9f", radius=2)
     s.text(989, 1405, "USB FPC ↑", size=16, weight=600, anchor="middle")
@@ -338,6 +336,15 @@ def core_headers(rows):
 def load_pinout():
     """The JSON-to-display normalization is intentionally kept in one place."""
     data = json.loads(PINOUT.read_text(encoding="utf-8"))
+    if data["rp_board"]["silicon_stepping"] != "A2":
+        raise ValueError("Update the page headings for changed RP2350 silicon")
+    if data["fixed_bus_test_configuration"]["core_sdram_hz"] != 6300000 or data["fixed_bus_test_configuration"]["host_min_phase_and_setup_us"] != 50:
+        raise ValueError("Update the bus-test clock notes for changed core/host timing")
+    if data["assembly"]["parts"] != {"100_ohm_series_resistors": 16, "4700_ohm_handshake_pulldowns": 2}:
+        raise ValueError("Update the confirmed assembly notes for changed fitted parts")
+    observed_bias = data["assembly"]["observed_external_bias"]
+    if observed_bias["WREADY_pull_down_fitted"] is not True or observed_bias["RVALID_pull_down_fitted"] is not True:
+        raise ValueError("Update the page warnings for changed handshake pull-downs")
     expected_pulls = {
         "up": {"WR_N", "RD_N", "ALE_N"},
         "down": {"HCLK", "ABORT", "GPU_RESET_N", "WREADY", "RVALID"},
@@ -349,13 +356,12 @@ def load_pinout():
     directions = {"rp_to_gpu": "core_to_tang", "gpu_to_rp": "tang_to_core", "bidirectional": "bidirectional"}
     rows = []
     for item in data["signals"]:
-        if item["io_voltage_v"] != 3.3 or item["series_resistors"]["ohms"] != 33:
+        if item["io_voltage_v"] != 3.3 or item["series_resistors"]["ohms"] != 100:
             raise ValueError("Update drawing labels for changed I/O voltage or series resistance")
         if item["pull"]["direction"] != "none" and item["pull"]["ohms"] != 4700:
             raise ValueError("Update drawing labels for changed local pull resistance")
-        expected_series = {"rp_to_gpu": ["RP driver"], "gpu_to_rp": ["Tang driver"], "bidirectional": ["RP driver", "Tang driver"]}
-        if item["series_resistors"]["locations"] != expected_series[item["direction"]]:
-            raise ValueError("Update the drawing for changed series resistor locations")
+        if item["series_resistors"]["count_per_wire"] != 1 or item["series_resistors"]["locations"] != ["not reported"]:
+            raise ValueError("Update the drawing for changed resistor count or known placement")
         rows.append({
             "signal": item["signal"], "gpio": item["rp_gpio"],
             "core_header": f'{item["rp_header"]}.{item["rp_header_pin"]}',

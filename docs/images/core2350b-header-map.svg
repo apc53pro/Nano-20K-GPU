@@ -4,10 +4,10 @@
 <style>text{font-family:"DejaVu Sans",Arial,sans-serif;fill:#16283d}.mono{font-family:"DejaVu Sans Mono",monospace}</style>
 <rect x="0" y="0" width="1188" height="1680" rx="0" fill="white" stroke="none" stroke-width="1"/>
 <text x="55" y="60" font-size="31" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Core2350B · P4 / P3 physical locator</text>
-<text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">RP2350B · 8 MB PSRAM / 16 MB flash · component side · USB FPC connector toward TOP</text>
+<text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">RP2350B package, A2 silicon · 8 MB PSRAM / 16 MB flash · component side · USB FPC TOP</text>
 <rect x="55" y="117" width="1078" height="63" rx="4" fill="#fff5e8" stroke="#e6be83" stroke-width="1"/>
-<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">FPGA pad wrapper implemented; RP driver / electrical timing unqualified</text>
-<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected</text>
+<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Bus-test build: 6.3MHz GPU; black HDMI only; electrical timing unqualified</text>
+<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP2350 A2; one 100Ω per signal wire; two 4.7kΩ handshake pull-downs fitted</text>
 <text x="55" y="220" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Use the Core2350B connector labels below; Pico 2 header numbering does not apply.</text>
 <text x="55" y="270" font-size="24" font-weight="700" style="fill:#16283d" text-anchor="start" class="">P4 · RIGHT EDGE · vertical 2×8 header</text>
 <text x="500" y="309" font-size="18" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">Inner / odd</text>
@@ -204,7 +204,7 @@
 <text x="73" y="1490" font-size="17" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Signals use P3/P4. Bond P1.1 GND to Tang J5.2 as well.</text>
 <text x="73" y="1521" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Keep ALL 16 signal links OPEN until compatible Core firmware</text>
 <text x="73" y="1545" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">+ FPGA image are installed; old powered images need links open.</text>
-<text x="73" y="1569" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">33Ω does not make contention safe. Power boards separately.</text>
+<text x="73" y="1569" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">One 100Ω per signal wire; end unknown. R does not make contention safe.</text>
 <rect x="918" y="1424" width="141" height="117" rx="5" fill="#eaf2f3" stroke="#7b9a9f" stroke-width="1"/>
 <rect x="966" y="1415" width="46" height="16" rx="2" fill="#b8c8cc" stroke="#7b9a9f" stroke-width="1"/>
 <text x="989" y="1405" font-size="16" font-weight="600" style="fill:#16283d" text-anchor="middle" class="">USB FPC ↑</text>

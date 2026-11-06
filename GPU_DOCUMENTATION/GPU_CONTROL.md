@@ -62,26 +62,36 @@ the GPU core clock is a separate domain connected through native asynchronous
 FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
-The production board profile uses **50.4 MHz core/SDRAM**, **25.2 MHz pixels**
-and **126 MHz DDR serialization**, derived from the onboard 27 MHz oscillator.
-Its capability bank reports core Hz 50,400,000, host-divider metadata 0
-(independent host clock) and pixel divider 2. Default logical-core simulation
-retains 100,800,000 / 4 / 4. Drivers read capabilities rather than assuming one
-profile. Board pixel advancement is aligned to the physical pixel clock by a
-single-bit toggle synchronizer; reset release does not select an arbitrary
-scanout/encoder phase. This changes no command or buffer-ownership rule.
-Profiles are fixed when building the image; there is no runtime
-clock-profile command or hardware compatibility mode. The earlier serial
-probe's 68.88/70.23 MHz estimates were static
-timing limits, not actual PLL settings or measured silicon limits. The board
-profile's internal timing and resources must be taken from its full-board
-report; external bus/SDRAM margins require hardware testing. The selected host
-ceiling is 25.2 MHz pending that validation; begin physical bring-up slower.
-The [complete board implementation report](../docs/hardware/tang20k-board.json)
-passes the selected internal timing gates, with a 63.14 MHz core Fmax estimate
-and a 13.72 ns core-to-pixel path against an 18.84 ns budget. The programmed
-core clock is 50.4 MHz, not the estimated limit. A matching upload image is
-provided below; the physical hardware remains untested.
+The selected **fixed bus-test board image** uses **6.3 MHz core/SDRAM**, while
+physical HDMI remains **25.2 MHz pixels / 126 MHz DDR serialization**. A
+pixel-domain generator feeds a constant-black 640×480/60 raster to HDMI;
+GPU-rendered pixels are disconnected. This image does not display or qualify
+the terminal, even if protocol transactions succeed. The onboard 27 MHz
+oscillator and PLL still supply video clocks; the core uses a registered
+divide-by-four of 25.2 MHz with a BUFG.
+
+The capability bank reports **6,300,000 core Hz**, host-divider metadata 0
+(independent host clock) and pixel divider 2. That divider describes the
+core's **3.15 MHz logical scanout / approximately 7.5 Hz frame counter**, not
+the independent physical HDMI raster. Default logical-core simulation retains
+100,800,000 / 4 / 4. Drivers read capabilities rather than assuming one profile.
+This changes no packet or buffer-ownership rule. The image contains one fixed
+compile-time test configuration, with no runtime clock command or hardware
+compatibility mode. A later clock/video change and new validation are required
+to restore visible GPU terminal output.
+
+The GPIO firmware uses at least **50 us per HCLK phase/setup wait**: its
+phase-only ceiling is **10 kHz**, before API overhead. External bus/SDRAM
+margins remain unqualified. The earlier 50.4 MHz board route and the serial
+probe's estimated frequency limits are historical, not evidence for the
+changed sources. The [matching complete-board build](../docs/hardware/tang20k-board.json)
+legally routes the test image, verifies fixed SiP connections and passes its
+selected internal clock gates. Core/pixel/host Fmax estimates are respectively
+58.88 / 159.69 / 87.68 MHz; the configured clocks remain 6.3 / 25.2 / at most
+0.01 MHz.
+The GPU payload capture gate is not applicable because that crossing is
+disconnected, and the build checks its absence. Physical electrical margins
+remain unqualified; lower test-build LUT/RAM use is not GPU-display headroom.
 
 | Signal | Direction at GPU | Current logical meaning |
 | --- | --- | --- |
@@ -157,7 +167,8 @@ Connect Core **P1.1 GND → Tang J5.2 GND**, and **P3.1 GND → Tang J6.20 GND**
 Also bond **Tang J5.15 GND** to that same ground; it may branch from P3.1.
 Keep a ground return alongside the clock and data bundle. The layout does not
 join the boards' 3.3 V or 5 V outputs. Power each board through its normal power
-connection. Tang **J6.19 3.3 V** supplies only the local pull-up resistors below.
+connection. Tang **J6.19 3.3 V** is the local rail for the recommended pull-ups
+below; it does not connect to the RP board's 3.3 V output.
 
 #### Header orientation
 
@@ -181,13 +192,18 @@ received Tang board matches the referenced
 
 #### Resistors, idle levels and board connections
 
-Use **33 Ω series resistors** as initial prototype values: at the RP end of
-HCLK/WR_N/RD_N/ALE_N/ABORT/GPU_RESET_N, at the Tang end of WREADY/RVALID,
-and at **both ends of each D0–D7 wire**. Data therefore has two 33 Ω resistors
-in series. Values and maximum clock rate still need measurement with the real
-wiring; these resistors are not level shifters.
+**Current user-reported assembly:** one **100 Ω series resistor on each of
+the 16 signal wires**, including one on each bidirectional data wire. The end
+placement has not been reported. This replaces the earlier proposed two-resistor
+data arrangement. The user has now fitted **separate 4.7 kΩ pull-downs from
+RP GPIO39/WREADY and GPIO40/RVALID to common GND**. Capability reads remain
+all zero. Other external-bias fitment has not been separately verified.
+Series resistance does not establish an idle LOW or HIGH level. These are
+prototype values; signal levels and allowable clock rate remain unqualified.
 
-Fit these **external 4.7 kΩ pulls at the Tang-side signal nodes**:
+The **recommended external 4.7 kΩ bias** is listed below. Only the two
+handshake pull-downs are confirmed fitted; the other entries are design
+recommendations/defaults, not claims of installed parts:
 
 | Signals | Pull | Power-on/default meaning |
 | --- | --- | --- |
@@ -195,13 +211,32 @@ Fit these **external 4.7 kΩ pulls at the Tang-side signal nodes**:
 | HCLK, ABORT | To common GND | LOW; stopped clock and no abort |
 | GPU_RESET_N | To common GND | LOW; GPU logic held in reset until RP releases it |
 | WREADY, RVALID | To common GND | LOW while FPGA outputs are not configured |
-| D0–D7 | No external pull required | Both drivers released outside a transaction |
+| D0–D7 | No external data bias specified | Drivers release outside transfers; idle voltage is undefined, including possible A2 E9 effects |
 
 High impedance describes the output drivers, not a guaranteed wire voltage:
-the FPGA can bias data pins with weak pull-ups during configuration. The
-defaults above apply once the relevant supplies exist. The passive parts for
-this layout are **24 × 33 Ω** series resistors and **8 × 4.7 kΩ** pulls
-(three pull-ups and five pull-downs).
+the FPGA can bias data pins with weak pull-ups during configuration, and A2
+RP2350 inputs have the E9 leakage described below. The recommended defaults
+apply after external bias is fitted and supplies exist. The confirmed series
+parts count is **16 × 100 Ω**, plus the **2 × 4.7 kΩ** handshake pull-downs.
+The complete recommended control-bias count is **8 ×
+4.7 kΩ** (three pull-ups and five pull-downs), separate from the series parts.
+
+The user confirms **A2 silicon**. RP2350-E9 can source leakage into an input
+in the undefined voltage region and hold a weakly driven pad near 2.2 V.
+The datasheet recommends a low-impedance driver or external pull-down of
+8.2 kΩ or less where needed. A series 100 Ω resistor is not a pull-down;
+a functioning push-pull FPGA output should overcome this leakage during a
+valid read. The all-zero/all-one capability responses do not establish E9
+as the cause. [RP2350 datasheet, RP2350-E9](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf)
+
+The first E9 test added **4.7 kΩ from RP GPIO39/WREADY to common GND and
+4.7 kΩ from RP GPIO40/RVALID to common GND**, retaining the existing 100 Ω
+series resistors. Both are now user-confirmed fitted, and capability reads
+still return all zero. This does not establish E9 as the root cause. A held,
+known read and pad-voltage measurement are needed to distinguish a weak/high-
+impedance line from incorrect active readback. Changing to `digitalRead()` does not
+remove the hardware leakage; Arduino-Pico applies no forced universal E9
+workaround. [Arduino-Pico E9 notes](https://arduino-pico.readthedocs.io/en/stable/rp2350.html)
 
 The three active-low controls deliberately use Tang **LED0/1/2** pins 15/16/17.
 Each has an existing **3.3 V → orange LED → 510 Ω → signal** branch. LOW lights
@@ -209,8 +244,10 @@ the corresponding LED and adds sink current to the RP output; HIGH turns it
 off. The driver must select **at least 8 mA GPIO drive strength** for
 these three outputs; the initial firmware selects **12 mA**. Ignoring LED forward
 voltage gives a conservative nominal bound of **7.18 mA per asserted line**
-including its 4.7 kΩ pull-up. The LED branch does not replace a real pull-up.
-No LED needs removal. Configure these FPGA pins strictly as inputs.
+including the recommended 4.7 kΩ pull-up and ignoring the series resistance.
+The LED branch does not replace a real pull-up. Verify the FPGA-side logic
+levels with the current 100 Ω series parts. Configure these FPGA pins strictly
+as inputs.
 
 **Leave the Tang RGB LCD FPC connector disconnected.** Data pins and HCLK also
 route to that connector. This allocation avoids HDMI CEC/HPD on FPGA pins 25/26,
@@ -306,18 +343,20 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/eceb3fb)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/6162f9b)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
 16×16 glyphs. NARM launching and its native graphics interface are disabled;
 PIO/DMA acceleration, color rendering and a graphical mouse cursor are deferred.
 PS/2 mouse input is retained without the old pixel compositor.
+The fixed 6.3 MHz bus-test FPGA image keeps rendered pixels disconnected from
+HDMI; that image exercises the bus first and cannot display this terminal.
 
 The transport uses the pin table above, always keeps GP39/40 as inputs, selects
 12 mA drive for RP control outputs, and releases D[7:0] before reads. GPIO waits
-are at least **1 us per HCLK phase**, so the clock is below the theoretical
-500 kHz phase-only ceiling once software overhead is included; this is not a
+are at least **50 us per HCLK phase/setup wait**, so the clock is below the
+10 kHz phase-only ceiling once software overhead is included; this is not a
 measured transfer rate or an electrically qualified clock. WREADY is sampled
 before a write edge; RVALID/data are sampled after a read edge and RD_N is
 released before the next rising edge. The driver uses no video PIO or DMA.
@@ -360,6 +399,8 @@ connecting the RP reset output. Terminal messages are mirrored to USB Serial.
 `GPU_STATUS` also prints the observed RESET_N/WREADY/RVALID GPIO levels and
 the saved startup flags, core fault code and transport fault code (`GPU BOOT`).
 Those fault fields are the last startup snapshot, not a live status refresh.
+If the capability prefix fails before status polling, `GPU BOOT` remains
+zero-initialized and unread; those zeros do not mean the GPU reported no fault.
 An all-`FF` snapshot is rejected as `all-ones startup readback`; its numeric
 fault fields must not be interpreted as a decoded GPU error. `GPU ADDRESS`
 shows the last address byte driven and sensed at the RP data pads. Equal
@@ -391,14 +432,17 @@ write timeout, read timeout, startup fault and malformed reply. A simulated
 do not exercise physical GPIO electronics, FPGA RTL or HDMI.
 Firmware compilation/flashing and the first connected-board test are left to
 the user; the project has not qualified this driver on hardware. In the current
-user-reported bring-up, the monitor locks to a black image with reset HIGH.
+user-reported bring-up before the 6.3 MHz bus-test build, the monitor locked
+to a black image with reset HIGH.
 The RP address-pad echo matches, but status/capability reads have returned all
 ones and, subsequently, all zeros. The user checked continuity of all eight data
 wires. Terminal operation and physical bus
-correctness remain unresolved; this is not electrical timing qualification.
+correctness remain unresolved; adding the two external handshake pull-downs
+did not change the zero capability reads. This is not electrical timing qualification.
 Build settings
 and the first-test procedure are in the firmware README. FPGA RTL, package
-constraints and the existing programming-image inputs are unchanged.
+constraints retain the same pin mapping. The subsequent 6.3 MHz bus-test build
+changes RTL clocks/video and ships with its matching image and board report.
 
 ### Write and read timing
 
@@ -451,8 +495,16 @@ retransmission in this protocol revision.
 
 Use the full-board image `bitstreams/tangnano20k/nano-gpu.fs` and its matching
 `docs/hardware/tang20k-board.json` implementation report. Do not program a
-serial-probe image as a working GPU. The release checksum is checked from the
-repository root with:
+serial-probe image as a working GPU.
+
+The current image is **7,263,640 bytes**, SHA-256
+`ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3`.
+The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
+verifies device ID and frame CRCs against that hash. The
+[functional report](../docs/hardware/tang20k-functional.json) separately scopes
+wrapper-model and real-core simulation; neither is a physical-board test.
+
+Check the release checksum from the repository root with:
 
 ```bash
 sha256sum -c bitstreams/tangnano20k/SHA256SUMS
@@ -474,23 +526,26 @@ flash programming uses the same file with `-f`:
 openFPGALoader -b tangnano20k -f bitstreams/tangnano20k/nano-gpu.fs
 ```
 
-The cloud environment cannot access your physical USB connection. Successful
-implementation and file generation are not a claim that the received board,
-HDMI connection, SDRAM or RP2350 bus has been tested physically.
+Successful implementation and file generation are not a claim that the
+received board, HDMI connection, SDRAM or RP2350 bus has been qualified physically.
 
 For an isolated Tang-only test, keep all 16 RP2350 signal links **disconnected**;
 the previous VGA firmware is incompatible with the GPU bus. Power the Tang normally and
-connect HDMI. GPU_RESET_N has a pull-down: with it LOW the GPU remains in
+connect HDMI. GPU_RESET_N has an FPGA pad pull-down in the package constraints:
+with it LOW the GPU remains in
 reset. With the RP2350 completely isolated, a local jumper from Tang J6.19
 (3.3 V) to Tang J5.18 (GPU_RESET_N, FPGA pin 71) can release reset. Never fit
 that jumper while the RP2350 or another output can drive the reset wire LOW.
 Keep that jumper absent while programming; fit it only after this GPU image
 has loaded successfully. Remove it before power-cycling an SRAM-only test,
 since the factory flash image can return and may drive that pin. The expected
-idle output after initialization is a black 640×480/60 Hz raster.
+output after reset release is an intentional black 640×480/60 Hz raster from
+the independent pixel-domain generator, even during GPU work. The 6.3 MHz
+bus-test image cannot show GPU-rendered terminal pixels.
 There is no built-in scene, command player, status overlay or visible animation.
-The host can later submit the commands documented below; its driver is separate
-work. Remove the isolated bring-up jumper before connecting a real host.
+The [current MPC-2350 GPIO implementation](#initial-mpc-2350-terminal-driver)
+can submit the commands documented below, but this bus-test image still shows
+only black. Remove the isolated bring-up jumper before connecting the host.
 
 ## 3. Packets and replies
 
@@ -720,9 +775,9 @@ There is no second host-domain copy of all 64 bytes.
 | 12 | u32 | Maximum request payload: 1024. |
 | 16 | u32 | Primitive record bytes: 320. |
 | 20 | u32 | Maximum pass references: 1,048,576. |
-| 24 | u32 | Configured core Hz: board 50,400,000; default simulation 100,800,000. Not measured Fmax. |
+| 24 | u32 | Configured core Hz: bus-test board 6,300,000; default simulation 100,800,000. Not measured Fmax. |
 | 28 | u32 | Host-divider metadata: board 0 (independent), default simulation 4; host supplies its clock. |
-| 32 | u32 | Pixel divider: board 2, default simulation 4. |
+| 32 | u32 | Logical scanout pixel divider: board 2, default simulation 4; not the independent physical HDMI black-raster clock. |
 | 36 | u32 | RX FIFO bytes: 256. |
 | 40 | u32 | Published command capacity: 2. |
 | 44 | u32 | TX FIFO bytes: 1024. |

@@ -2,20 +2,35 @@
   "schema": "N20K-WIRING-1",
   "profile": "N20K-PIN-0.1",
   "rp_wiring_revision": "2026-11-06",
-  "status": "Tang wrapper/package constraints and initial MPC-2350 GPIO terminal driver implemented; PIO/DMA and NARM GPU integration deferred; external electrical timing unqualified",
+  "status": "Fixed slow bus-test board build selected: 6.3 MHz GPU core/SDRAM, independent constant-black HDMI raster, and 50 us GPIO host phases. GPU-rendered video is disconnected; terminal display, PIO/DMA, NARM integration and external electrical qualification remain unresolved.",
   "firmware_modified": true,
-  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/eceb3fb",
-  "rtl_modified": false,
-  "modification_flags_scope": "MPC-2350 GPIO terminal bring-up; existing Tang wrapper, constraints and FPGA image unchanged",
+  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/6162f9b",
+  "rtl_modified": true,
+  "modification_flags_scope": "MPC-2350 host bus slowed to 50 us phases; fixed Tang bus-test build changes core/SDRAM clock and physical video source. Pin mappings and packet ABI are unchanged; the earlier 50.4 MHz image/report cannot qualify these changed sources.",
   "hardware_tested": false,
-  "hardware_observation": "User reports monitor lock to black with GPU_RESET_N HIGH and matching RP address-pad echoes. Status/capability reads returned all FF and then all zero; all eight data-wire continuities were checked by the user. Terminal/bus operation and electrical qualification unresolved; hardware_tested remains false for qualification.",
+  "hardware_observation": "Before the 6.3 MHz bus-test build, user reports monitor lock to black with GPU_RESET_N HIGH and matching RP address-pad echoes. Earlier status/capability reads returned all FF and then all zero. Both separate 4.7 kohm handshake pull-downs are now fitted and capability reads remain zero; the latest early capability failure leaves GPU BOOT zero-initialized and unread. All eight data-wire continuities were checked. Terminal/bus operation and electrical qualification remain unresolved; hardware_tested is false for qualification.",
+  "fixed_bus_test_configuration": {
+    "core_sdram_hz": 6300000,
+    "physical_hdmi_pixel_hz": 25200000,
+    "physical_hdmi_serializer_hz": 126000000,
+    "internal_pixel_divider": 2,
+    "internal_logical_scanout_hz": 3150000,
+    "internal_logical_frame_hz": 7.5,
+    "host_min_phase_and_setup_us": 50,
+    "host_phase_only_ceiling_hz": 10000,
+    "hdmi_source": "Independent constant-black 640x480/60 raster in the physical pixel domain; GPU-rendered pixels disconnected",
+    "scope": "One fixed compile-time diagnostic image, not a runtime compatibility mode. Visible GPU terminal output requires a later implementation change and new qualification."
+  },
   "signal_count": 16,
   "rp_board": {
     "model": "Waveshare Core2350B",
     "flash_mib": 16,
     "psram_mib": 8,
     "confirmed_by_user": true,
-    "orientation": "Component side; USB FPC connector at top; P1 left, P2 top, P3 bottom, P4 right"
+    "orientation": "Component side; USB FPC connector at top; P1 left, P2 top, P3 bottom, P4 right",
+    "package": "RP2350B",
+    "silicon_stepping": "A2",
+    "silicon_stepping_confirmed_by_user": true
   },
   "tang_board": {
     "model": "Sipeed Tang Nano 20K",
@@ -50,10 +65,12 @@
         "rail": "common GND"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -78,10 +95,12 @@
         "rail": "common GND"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -106,10 +125,12 @@
         "rail": "common GND"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -134,10 +155,12 @@
         "rail": "common GND"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -162,10 +185,12 @@
         "rail": "Tang 3.3V"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -192,10 +217,12 @@
         "rail": "Tang 3.3V"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": null,
       "onboard_load": {
@@ -222,10 +249,12 @@
         "rail": "common GND"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "HSYNC",
       "onboard_load": {
@@ -250,10 +279,12 @@
         "rail": "Tang 3.3V"
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VSYNC",
       "onboard_load": {
@@ -280,11 +311,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 0",
       "onboard_load": {
@@ -309,11 +341,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 1",
       "onboard_load": {
@@ -338,11 +371,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 2",
       "onboard_load": {
@@ -367,11 +401,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 3",
       "onboard_load": {
@@ -396,11 +431,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 4",
       "onboard_load": {
@@ -425,11 +461,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 5",
       "onboard_load": {
@@ -454,11 +491,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 6",
       "onboard_load": {
@@ -483,11 +521,12 @@
         "rail": null
       },
       "series_resistors": {
-        "ohms": 33,
+        "ohms": 100,
+        "count_per_wire": 1,
         "locations": [
-          "RP driver",
-          "Tang driver"
-        ]
+          "not reported"
+        ],
+        "scope": "user-confirmed fitted assembly"
       },
       "reused_vga_function": "VGA RGB bit 7",
       "onboard_load": {
@@ -539,7 +578,14 @@
       47
     ]
   },
-  "unavailable_rp_gpio_for_this_bus": [10, 11, 12, 13, 14, 15],
+  "unavailable_rp_gpio_for_this_bus": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
   "unallocated_by_this_layout": [
     1,
     9,
@@ -887,10 +933,36 @@
     "power_off_assembly": true,
     "series_resistors_protect_against_push_pull_contention": false,
     "parts": {
-      "33_ohm_series_resistors": 24,
+      "100_ohm_series_resistors": 16,
+      "4700_ohm_handshake_pulldowns": 2
+    },
+    "gpio_defaults_scope": "Intended design states if the recommended bias is fitted, not measured power-on voltages. WREADY/RVALID external pull-downs are now fitted; other external bias is unconfirmed. Released data outputs may be biased by FPGA configuration pull-ups.",
+    "parts_scope": "User-confirmed fitted parts: one series resistor on each of the 16 signal wires, including bidirectional data, and two separate handshake pull-downs. Series-resistor end placement was not reported. The complete recommended control-bias count includes these two fitted pull-downs.",
+    "recommended_bias_parts": {
       "4700_ohm_pullups": 3,
       "4700_ohm_pulldowns": 5
     },
-    "gpio_defaults_scope": "Intended pull-biased states once supply rails exist; released data outputs may be biased by FPGA configuration pull-ups."
-  }
+    "observed_external_bias": {
+      "WREADY_pull_down_fitted": true,
+      "RVALID_pull_down_fitted": true,
+      "handshake_pull_down_ohms_each": 4700,
+      "handshake_pull_down_connection": "Each RP input node to common GND",
+      "other_external_bias_parts_fitted": null,
+      "scope": "User confirms both proposed 4.7 kohm handshake pull-downs are now fitted. Capability reads remain all zero. Fitted state of other external bias parts is not established."
+    },
+    "handshake_pull_down_test": {
+      "signals": [
+        "WREADY",
+        "RVALID"
+      ],
+      "rp_gpio": [
+        39,
+        40
+      ],
+      "ohms_each": 4700,
+      "connection": "Each RP input node to common GND",
+      "status": "User confirms both fitted; capability reads still all zero. Not an electrical qualification or proof of E9 as the cause."
+    }
+  },
+  "electrical_description_scope": "Per-signal series_resistors describe the user-confirmed fitted assembly. Per-signal pull entries are design recommendations, not claims that these external bias resistors are fitted; see assembly.observed_external_bias."
 }

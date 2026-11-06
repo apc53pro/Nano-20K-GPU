@@ -15,7 +15,7 @@ def main():
  inputs+=[ROOT/'reference/src'/n for n in ['setup.cpp','renderer.cpp','demo.cpp','hw_protocol.cpp']]
  inputs+=list((ROOT/'reference/rtl').glob('*.cpp'))+list((ROOT/'reference/rtl').glob('*.hpp'))
  inputs += [Path(__file__).resolve(),ROOT/'scripts/gpu-rtl.py',ROOT/'scripts/rtl-gpu-check.py',ROOT/'scripts/rtl-check.py']
- hashes={str(p.relative_to(ROOT)):digest(p) for p in inputs}
+ hashes={p.relative_to(ROOT).as_posix():digest(p) for p in inputs}
  if report.exists():
   old=json.loads(report.read_text())
   if old.get('source_sha256')==hashes and old.get('passed'):
@@ -29,7 +29,7 @@ def main():
  print(output.strip(),flush=True)
  # This executable contains the real GPU, external SDRAM model and SRR. The
  # small wrapper test above uses a stub only to isolate physical pad behavior.
- core_build=ROOT/'build/tang20k-core-sim';exe=ROOT/'build/nano-gpu-tang20k-sim'
+ core_build=ROOT/'build/tang20k-core-sim';exe=ROOT/('build/nano-gpu-tang20k-sim.exe' if sys.platform=='win32' else 'build/nano-gpu-tang20k-sim')
  need_build=True
  if (core_build/'build-report.json').exists() and exe.exists():
   m=json.loads((core_build/'build-report.json').read_text())
@@ -45,8 +45,9 @@ def main():
  if changed:raise RuntimeError('Inputs changed during checks: '+str(changed))
  report.write_text(json.dumps({'schema':'N20K-BOARD-FUNCTIONAL-1','passed':True,'source_sha256':hashes,
   'board_glue_log_sha256':digest(b/'board-tb.log'),'board_glue_scope':'Clock/pad wrapper with isolated core test model',
-  'core_scope':'Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends',
-  'gpu_regression':results,'hardware_tested':False},indent=2)+'\n')
+  'core_build_report_sha256':digest(core_build/'build-report.json'),
+  'core_scope':'Real GPU at 6.3MHz core, 3.15MHz virtual host/internal pixel rates, no C++ device backends; physical host limited separately to 10kHz',
+  'gpu_regression':results,'hardware_tested':False},indent=2)+'\n',newline='\n')
  print('Board functional evidence: '+str(report))
 if __name__=='__main__':
  try:main()

@@ -6,8 +6,8 @@
 <text x="55" y="60" font-size="31" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Tang Nano20K · physical header map</text>
 <text x="55" y="96" font-size="20" font-weight="400" style="fill:#536174" text-anchor="start" class="">Hardware 3921 · component side · USB-C TOP / HDMI BOTTOM</text>
 <rect x="55" y="117" width="1078" height="63" rx="4" fill="#fff5e8" stroke="#e6be83" stroke-width="1"/>
-<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">FPGA pad wrapper implemented; RP driver / electrical timing unqualified</text>
-<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP wiring 2026-11-06; 3.3V logic; VGA DAC disconnected</text>
+<text x="73" y="142" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Bus-test build: 6.3MHz GPU; black HDMI only; electrical timing unqualified</text>
+<text x="73" y="166" font-size="19" font-weight="600" style="fill:#b85013" text-anchor="start" class="">RP2350 A2; one 100Ω per signal wire; two 4.7kΩ handshake pull-downs fitted</text>
 <text x="55" y="213" font-size="20" font-weight="700" style="fill:#16283d" text-anchor="start" class="">J6 = LEFT edge; J5 = RIGHT edge. Both number 1 at top → 20 at bottom.</text>
 <rect x="475" y="242" width="240" height="1110" rx="20" fill="#eaf2f3" stroke="#7b9a9f" stroke-width="2"/>
 <rect x="543" y="226" width="104" height="43" rx="6" fill="#e7ebef" stroke="#6e7d8e" stroke-width="2"/>
@@ -312,7 +312,7 @@
 <text x="73" y="1512" font-size="17" font-weight="400" style="fill:#16283d" text-anchor="start" class="">Common ground: J6.20 + J5.2 + J5.15 → Core P1.1 / P3.1. Power each board separately.</text>
 <text x="73" y="1535" font-size="17" font-weight="400" style="fill:#16283d" text-anchor="start" class="">FPC LCD disconnected. HDMI CEC/HPD (J6.10/J6.11) remain reserved for HDMI.</text>
 <text x="73" y="1558" font-size="17" font-weight="700" style="fill:#16283d" text-anchor="start" class="">Keep ALL 16 signal links OPEN until compatible Core firmware + FPGA image are installed.</text>
-<text x="73" y="1581" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">33Ω does not make contention safe. With old images powered, keep removable links open.</text>
+<text x="73" y="1581" font-size="17" font-weight="600" style="fill:#16283d" text-anchor="start" class="">16 × 100Ω fitted (one/wire); end placement unknown. Series R does not make contention safe.</text>
 <text x="55" y="1618" font-size="16" font-weight="400" style="fill:#536174" text-anchor="start" class="">Physical orientation: view the components; do not mirror this map for the solder side. Board outline is schematic, not to scale.</text>
 <text x="55" y="1648" font-size="16" font-weight="400" style="fill:#536174" text-anchor="start" class="">Source: Tang Nano20K Rev 1.30 / hardware 3921 (2023-07-11); full provenance and signal map in the pinout JSON.</text>
 </svg>

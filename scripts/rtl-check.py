@@ -35,7 +35,11 @@ def tool(name):
 def environment():
     result = os.environ.copy()
     if SUITE.is_dir():
-        result["PATH"] = str(SUITE / "bin") + os.pathsep + result.get("PATH", "")
+        search = [SUITE / "bin"]
+        # Windows suite helpers load their DLLs from lib, as in the suite's
+        # own environment.ps1. No system-wide PATH changes are needed.
+        if os.name == "nt": search.append(SUITE / "lib")
+        result["PATH"] = os.pathsep.join(map(str, search)) + os.pathsep + result.get("PATH", "")
     return result
 
 

@@ -18,7 +18,7 @@ HDL=module('board_hdl','rtl-check.py')
 PACK=module('board_pack','rtl-core-pack.py')
 PNR=module('board_pnr','rtl-core-pnr.py')
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
-def write(p,j): p.write_text(json.dumps(j,indent=2,allow_nan=False)+'\n')
+def write(p,j): p.write_text(json.dumps(j,indent=2,allow_nan=False)+'\n',newline='\n')
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
@@ -33,14 +33,16 @@ def main():
     inputs=[p for p in sources if p!=rom]+[ROOT/'rtl/board/tang20k.cst',ROOT/'rtl/board/tang20k-sip.json',Path(__file__).resolve()]
     inputs+=sorted((ROOT/'rtl/generated').glob('*.hex'))
     inputs += [ROOT/'scripts'/n for n in ('rtl-check.py','rtl-core-pack.py','rtl-core-pnr.py','rtl-generate-rom.py')]
-    hashes={str(p.relative_to(ROOT)):digest(p) for p in inputs}
+    hashes={p.relative_to(ROOT).as_posix():digest(p) for p in inputs}
     report={'schema':'N20K-TANG20K-BOARD-1','device':'GW2AR-LV18QN88C8/I7',
         'top':'tang20k_top','source_sha256':hashes,'seed':args.seed,
         'command_player':False,'hardware_tested':False,'upload_ready':False,
         'generated_rom_sha256':digest(rom),
         'external_io_timing_measured':False,
         'timing_scope':'nextpnr internal-clock setup estimates; external SDRAM/parallel-bus margins require hardware measurement',
-        'core_mhz':50.4,'pixel_mhz':25.2,'serial_mhz':126.0,'host_max_mhz':25.2,
+        'profile':'slow-core-bus-test',
+        'display_scope':'Independent constant-black 640x480/60 raster; GPU-rendered video disconnected',
+        'core_mhz':6.3,'pixel_mhz':25.2,'serial_mhz':126.0,'host_max_mhz':0.01,
         'synthesized':False,'packed':False,'placed':False,'routed':False,
         'timing_passed':False,'bitstream_generated':False}
     def save(): write(b/'board-report.json',report)
@@ -73,7 +75,7 @@ def main():
     report['functional_report_sha256']=digest(functional)
     # Resolve aliases through input buffers before handing exact net names to
     # nextpnr's embedded Python. PLL/divider outputs are direct scalar nets.
-    clocks={'clk27':27.0,'gpu_hclk':25.2,'fast_clk':252.0,'serial_clk':126.0,'core.clk':50.4,'pixel_clk':25.2}
+    clocks={'clk27':27.0,'gpu_hclk':0.01,'serial_clk':126.0,'core.clk':6.3,'pixel_clk':25.2}
     constraints=[]
     for hint,freq in clocks.items():
         bits=set(design['netnames'][hint]['bits'])
@@ -82,10 +84,10 @@ def main():
         aliases=[n for n,v in design['netnames'].items() if len(v['bits'])==1 and v['bits'][0] in bits]
         constraints.append((aliases,freq))
     clocks_py=b/'clocks.py'
-    clocks_py.write_text("ctx.cells['core_div'].setAttr('BEL','X55Y27/CLKDIV_HCLK0_SECT0')\n"+'constraints='+repr(constraints)+'\nfor aliases,freq in constraints:\n    names=[n for n in aliases if n in ctx.nets]\n    assert names, str(aliases)\n    ctx.addClock(names[0],freq)\n')
+    clocks_py.write_text('constraints='+repr(constraints)+'\nfor aliases,freq in constraints:\n    names=[n for n in aliases if n in ctx.nets]\n    assert names, str(aliases)\n    ctx.addClock(names[0],freq)\n',newline='\n')
     report['clock_constraints_sha256']=digest(clocks_py);save()
     print('Placing/routing the complete board target...',flush=True)
-    command=common+['--pre-place',str(clocks_py),'--freq','50.4','--timing-allow-fail',
+    command=common+['--pre-place',str(clocks_py),'--freq','6.3','--timing-allow-fail',
         '--write',str(b/'routed.json'),'--report',str(b/'timing.json'),'--detailed-timing-report']
     env=HDL.environment();env.update(extra)
     result=PNR.run_pnr(command,env,b/'pnr.log');report['route_returncode']=result.returncode;save()
@@ -114,26 +116,28 @@ def main():
         names=set(aliases).intersection(fmax)
         if len(names)!=1:raise RuntimeError('Missing or ambiguous board timing clock '+hint)
         name=names.pop();v=fmax[name]
-        if abs(1e6/v['constraint']-1e6/target)>1.000001:raise RuntimeError('Incorrect board timing constraint '+hint)
+        # nextpnr serializes constraints as float32 MHz. At 10 kHz its tiny
+        # representation error exceeds the old fixed 1 ps period tolerance.
+        # Retain that floor and allow 0.1 ppm for floating-point roundoff.
+        period_ps=1e6/target
+        if abs(1e6/v['constraint']-period_ps)>max(1.000001,period_ps*1e-7):
+            raise RuntimeError('Incorrect board timing constraint '+hint)
         required[hint]={'reported_clock':name,'requested_mhz':target,**v}
     report['required_clock_results']=required
-    # Pixel events cross into the core before scanout advances. The resulting
-    # payload has at least one core period before its next pixel capture;
-    # reserve 1ns beyond the reported launch/route/setup path estimate.
+    # This fixed test image has no GPU-core-to-pixel payload crossing. Require
+    # its absence rather than reusing the old 50.4 MHz capture-window proof.
     pixel_paths=[p for p in timing.get('critical_paths',[]) if
         p.get('from')=='posedge '+required['core.clk']['reported_clock'] and
         p.get('to')=='posedge '+required['pixel_clk']['reported_clock']]
-    if not pixel_paths:raise RuntimeError('Missing core-to-pixel capture timing path')
-    capture_delay=max(sum(step.get('delay',0) for step in p.get('path',[])) for p in pixel_paths)
-    capture_budget=1000/clocks['core.clk']-1.0
-    report['pixel_capture']={'minimum_logical_window_ns':1000/clocks['core.clk'],
-        'estimated_path_ns':capture_delay,'budget_after_1ns_margin_ns':capture_budget,
-        'passed':math.isfinite(capture_delay) and 0<capture_delay<=capture_budget}
+    if pixel_paths:raise RuntimeError('Unexpected GPU-core-to-pixel path in black-raster test image')
+    report['pixel_capture']={'applicable':False,
+        'reason':'GPU-rendered payload disconnected; black raster is entirely pixel-clock synchronous',
+        'unexpected_core_to_pixel_paths':len(pixel_paths)}
     report['timing_passed']=all(v['achieved']>=v['constraint'] for v in fmax.values()) and all(v['achieved']>=v['requested_mhz'] for v in required.values())
     report['inputs_changed']=[n for n,h in hashes.items() if digest(ROOT/n)!=h];save()
     if report['inputs_changed']:raise RuntimeError('Sources changed during implementation')
     if not report['routed'] or not all(v['within_capacity'] for v in report['resources'].values()):raise RuntimeError('Incomplete route or resource overflow')
-    if not report['timing_passed'] or not report['pixel_capture']['passed']:raise RuntimeError('Board timing/capture targets not met; no upload image emitted')
+    if not report['timing_passed']:raise RuntimeError('Board timing targets not met; no upload image emitted')
     print('Generating board programming image...',flush=True)
     HDL.run(HDL.tool('gowin_pack')+['-d','GW2A-18C','-c','-o',str(image),str(b/'routed.json')],b/'bitstream.log',extra)
     if image.stat().st_size<1000:raise RuntimeError('Invalid short bitstream')

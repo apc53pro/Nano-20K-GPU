@@ -6,6 +6,17 @@
 
 namespace nano_gpu::rtl {
 
+namespace {
+#ifdef NANO_GPU_BOARD_PROFILE
+// Fixed 6.3 MHz diagnostic profile: one edge is approximately 158.73 ns.
+constexpr unsigned kTrp = 1, kTrcd = 1, kTrfc = 1, kTmrd = 2;
+constexpr unsigned kTwr = 1, kTras = 1, kTrc = 2;
+#else
+constexpr unsigned kTrp = 3, kTrcd = 3, kTrfc = 9, kTmrd = 3;
+constexpr unsigned kTwr = 3, kTras = 6, kTrc = 9;
+#endif
+}
+
 SdramPinsModel::SdramPinsModel() : words_(8u * 1024u * 1024u / 4, 0xcdcdcdcdu), defined_(words_.size(), 0) {}
 
 void SdramPinsModel::require(bool condition, const char* reason) const {
@@ -28,7 +39,7 @@ void SdramPinsModel::write_beat(const Pins& pins) {
         defined_[address] |= static_cast<std::uint8_t>(1u << lane);
     }
     ++statistics_.write_words;
-    banks_[write_.bank].precharge_after = std::max(banks_[write_.bank].precharge_after, statistics_.edges + 3);
+    banks_[write_.bank].precharge_after = std::max(banks_[write_.bank].precharge_after, statistics_.edges + kTwr);
     if (++write_.offset == write_.length) write_.active = false;
 }
 
@@ -60,7 +71,7 @@ std::uint32_t SdramPinsModel::rising_edge(const Pins& pins) {
         require(mode_set_, "ACTIVE before mode-register initialization");
         require(!bank.active && statistics_.edges >= bank.activate_after, "ACTIVE violates bank ownership/tRC/tRP");
         bank.active = true; bank.row = pins.address; bank.active_at = statistics_.edges;
-        bank.column_after = statistics_.edges + 3; bank.precharge_after = statistics_.edges + 6;
+        bank.column_after = statistics_.edges + kTrcd; bank.precharge_after = statistics_.edges + kTras;
         ++statistics_.activates;
         break;
     case 2: // PRECHARGE, address10 selects all banks.
@@ -70,15 +81,15 @@ std::uint32_t SdramPinsModel::rising_edge(const Pins& pins) {
             require(!(write_.active && write_.bank == index), "PRECHARGE during a write burst");
             for (const auto& read : reads_) require(read.bank != index, "PRECHARGE during a read burst");
             selected.active = false;
-            selected.activate_after = std::max(statistics_.edges + 3, selected.active_at + 9);
+            selected.activate_after = std::max(statistics_.edges + kTrp, selected.active_at + kTrc);
         }
-        blocked_until_ = statistics_.edges + 3; ++statistics_.precharges;
+        blocked_until_ = statistics_.edges + kTrp; ++statistics_.precharges;
         break;
     case 1: // AUTO REFRESH
         require(!write_.active && reads_.empty(), "REFRESH during a data burst");
         for (const auto& selected : banks_) require(!selected.active, "REFRESH requires all banks precharged");
         if (last_refresh_) statistics_.max_refresh_gap = std::max(statistics_.max_refresh_gap, statistics_.edges - last_refresh_);
-        last_refresh_ = statistics_.edges; blocked_until_ = statistics_.edges + 9;
+        last_refresh_ = statistics_.edges; blocked_until_ = statistics_.edges + kTrfc;
         ++statistics_.refreshes;
         break;
     case 0: // MODE REGISTER SET
@@ -88,7 +99,7 @@ std::uint32_t SdramPinsModel::rising_edge(const Pins& pins) {
         cas_ = (pins.address >> 4) & 7u;
         require(cas_ == 2 || cas_ == 3, "unsupported CAS latency");
         require((pins.address & 512u) == 0, "single-location write mode is unsupported");
-        burst_ = 8; mode_set_ = true; blocked_until_ = statistics_.edges + 3;
+        burst_ = 8; mode_set_ = true; blocked_until_ = statistics_.edges + kTmrd;
         break;
     case 5: // READ
         require(mode_set_ && bank.active && statistics_.edges >= bank.column_after, "READ before ACTIVE/tRCD");
