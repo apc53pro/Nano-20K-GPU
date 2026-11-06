@@ -14,8 +14,8 @@ Verilator, with an independent software reference renderer (SRR) checking the
 results. The board target now includes clocks/reset, bidirectional host pads,
 registered SDRAM pads, video serialization and exact Tang Nano 20K constraints.
 The complete board implementation report, rather than the earlier logical-core
-probe, is the authority for board resource and timing results. Hardware has not
-yet been tested. The MPC-2350 firmware now has an initial GPIO transport and
+probe, is the authority for board resource and timing results. Hardware
+qualification remains incomplete. The MPC-2350 firmware now has an initial GPIO transport and
 monochrome GPU terminal; PIO/DMA optimization and NARM GPU integration remain
 separate work. Its host regression uses the software oracle, not Verilator.
 The complete board **places/routes and passes its selected internal timing gates**:
@@ -164,7 +164,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/f607936).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/72afbf5).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -184,10 +184,19 @@ The RP driver now keeps **GPU_RESET_N HIGH after a host/session failure**, with
 the data bus released and read/write/address strobes inactive. The earlier
 LOW-on-error path also held scanout and the TMDS serializers in reset, masking
 the original bus fault as missing video. Explicit initialization/recovery
-still pulses reset LOW. USB diagnostics retain the startup fault snapshot and
+still pulses reset LOW and waits **1000 ms with data released before any host
+clock or transfer**, allowing time for FPGA flash configuration. This fixed
+allowance does not read a configuration-DONE signal; if the Tang starts later,
+explicitly retry after it has configured. USB diagnostics retain the startup fault snapshot and
 show reset/handshake GPIO levels. The correction changes only firmware; the
 FPGA reset circuitry and programming image are unchanged. A GPIO/time host
 mock tests these failure paths; it does not establish physical HDMI operation.
+Current user-reported bring-up reaches monitor lock with a black image once
+reset is HIGH, while the startup status bank reads entirely `FF`; terminal
+operation is unresolved. The client labels that snapshot invalid readback and
+offers an offline immutable-capability probe (also automatic after failed
+startup) plus RP address-pad echo to help
+diagnose the bus. This limited observation is not board timing qualification.
 
 The current desktop setup code uses `__int128`; it is not a
 drop-in library for the 32-bit M33. A firmware port must implement equivalent

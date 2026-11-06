@@ -306,7 +306,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/f607936)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/72afbf5)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -322,7 +322,10 @@ measured transfer rate or an electrically qualified clock. WREADY is sampled
 before a write edge; RVALID/data are sampled after a read edge and RD_N is
 released before the next rising edge. The driver uses no video PIO or DMA.
 
-Startup asserts GPU_RESET_N, clocks the host domain during reset and release,
+Startup asserts GPU_RESET_N and keeps the data bus released for **1000 ms**
+before any host clock/transfer, allowing for FPGA flash configuration. This is
+a fixed startup allowance, not a configuration-DONE detector. It then clocks
+the host domain during reset and release,
 polls coherent sideband status, checks the 0.2 capabilities, uploads a **64 KiB
 256×128 RGB565 font texture at heap `0x258000`**, and fences. The CPU expands
 immutable font bits into one 512-byte upload row at a time; it allocates no
@@ -347,6 +350,19 @@ connecting the RP reset output. Terminal messages are mirrored to USB Serial.
 `GPU_STATUS` also prints the observed RESET_N/WREADY/RVALID GPIO levels and
 the saved startup flags, core fault code and transport fault code (`GPU BOOT`).
 Those fault fields are the last startup snapshot, not a live status refresh.
+An all-`FF` snapshot is rejected as `all-ones startup readback`; its numeric
+fault fields must not be interpreted as a decoded GPU error. `GPU ADDRESS`
+shows the last address byte driven and sensed at the RP data pads. Equal
+values check the local output level, not inter-board continuity.
+For an offline link, `GPU_PROBE` reads immutable capability bytes 64..79 through
+the sideband path without submitting/retrying packets. Its expected hexadecimal
+prefix is `0 2 8 20` (version 0.2, 8-bit bus, 32-pixel tiles). All-ones responses
+point to invalid readback and require checking data/control wiring and bus drive.
+The probe also runs automatically once after a failed startup so its output is
+available even with a locally disabled serial command loop.
+`GPU_RESET` repeats the one-second allowance. If the Tang is powered later or
+reprogrammed while the RP is already running, wait for configuration to finish
+and issue `GPU_RESET` or restart the RP before expecting a connection.
 At Tang J5.18 / FPGA pin 71, approximately 3.3 V releases GPU reset; 0 V asserts
 it. A `GPU startup fault` message alone does not distinguish a real core fault
 from incorrect bus readback; inspect the numeric snapshot and physical levels.
@@ -356,10 +372,15 @@ every pixel back through packets to check redraw, idle behavior, edits across
 swaps, scrolling and failure latching. Its nine PS/2 host checks also pass.
 Additional host tests compile the actual GPIO board glue with stubbed GPIO/time
 to check reset polarity, failure release and saved fault diagnostics across
-write timeout, read timeout, startup fault and malformed reply. These checks
+write timeout, read timeout, startup fault and malformed reply. A simulated
+800 ms configuration delay checks the one-second startup guard. These checks
 do not exercise physical GPIO electronics, FPGA RTL or HDMI.
 Firmware compilation/flashing and the first connected-board test are left to
-the user; the project has not qualified this driver on hardware. Build settings
+the user; the project has not qualified this driver on hardware. In the current
+user-reported bring-up, the monitor locks to a black image with reset HIGH, but
+startup status reads return all ones. Terminal operation and physical bus
+correctness remain unresolved; this is not electrical timing qualification.
+Build settings
 and the first-test procedure are in the firmware README. FPGA RTL, package
 constraints and the existing programming-image inputs are unchanged.
 
