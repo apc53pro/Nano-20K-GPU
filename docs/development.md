@@ -367,3 +367,9 @@ wiring/reset instructions are in the two top-level GPU guides. The image can
 be programmed from Windows with openFPGALoader; rebuilding it requires the
 separate synthesis, placement/routing and packing tools, beyond the Windows
 simulator dependencies.
+
+The separate MPC-2350 firmware now implements a first GPIO-based monochrome
+terminal using font-texture copies. Its software-oracle host regression is
+distinct from the RTL simulations above. See the control guide's initial
+terminal-driver section and the firmware README for scope and bring-up steps;
+PIO/DMA acceleration, NARM GPU integration and physical validation are deferred.

@@ -15,7 +15,9 @@ results. The board target now includes clocks/reset, bidirectional host pads,
 registered SDRAM pads, video serialization and exact Tang Nano 20K constraints.
 The complete board implementation report, rather than the earlier logical-core
 probe, is the authority for board resource and timing results. Hardware has not
-yet been tested; RP2350 firmware and its PIO/DMA driver remain separate work.
+yet been tested. The MPC-2350 firmware now has an initial GPIO transport and
+monochrome GPU terminal; PIO/DMA optimization and NARM GPU integration remain
+separate work. Its host regression uses the software oracle, not Verilator.
 The complete board **places/routes and passes its selected internal timing gates**:
 **20,467/20,736 physical LUT sites (98.70%)**, **6,864 DFF resources**,
 **46/46 BSRAM**, **25/48 multipliers**. It leaves **269 LUT sites**. The generated
@@ -90,8 +92,9 @@ shared-data output enable, WREADY/RVALID gating and GPU_RESET_N logic reset.
 [`tang20k.cst`](../rtl/board/tang20k.cst) fixes the external package pins;
 the embedded SDRAM uses the part database's fixed SiP terminals, checked
 against [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) after routing.
-RP2350 firmware has not been modified. External electrical margins and the
-RP2350 PIO driver remain unqualified.
+The MPC-2350 firmware implements the revised pins with slow GPIO transfers;
+external electrical margins remain unqualified. This host-only change does
+not alter RTL, constraints, clocks or the FPGA programming image.
 
 The first board profile uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel
 clock** and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from
@@ -160,8 +163,24 @@ example, Gouraud mode interpolates RGB values supplied by the CPU; the FPGA
 does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
-valid commands. **RP2350 firmware and its PIO/GPIO bus driver are not
-implemented.** The current desktop setup code uses `__int128`; it is not a
+valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/RP2350-GP-COMPUTER/commit/b863a1d).** That terminal uploads a
+64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
+It builds the first frame from 16×16 glyph copies. On later changes it copies
+the current front to back, copies changed glyphs, fences, then presents and waits
+for the vertical-blank reply. Idle terminal frames send no commands. Font asset
+decoding uses a 512-byte CPU row; there is no RP pixel framebuffer, software
+2D/3D rasterizer, VGA scanout, or pixel cursor/overlay compositor. Mouse input
+is retained, with graphical mouse-cursor rendering deferred.
+
+NARM launching is disabled in this milestone, and the retained native runtime
+does not advertise a graphics capability or expose a video service. Its GPU
+integration and PIO/DMA acceleration are later work. The firmware-client host
+test checks every displayed pixel through packet readback using the clocked
+software oracle; it does not qualify RTL equivalence, the physical bus or HDMI.
+Firmware compilation/flashing and the first physical test are left to the user.
+
+The current desktop setup code uses `__int128`; it is not a
 drop-in library for the 32-bit M33. A firmware port must implement equivalent
 bounded arithmetic and preserve the numeric contract. The generic C99 examples
 in the control guide explain command encoding, not a completed Pico SDK driver.

@@ -18,7 +18,10 @@ The current layout reuses all ten VGA GPIOs and adds GP35–GP40 on Core2350B P4
 following the user's revised wiring. GP39 is WREADY and shares the Core LED;
 it must be an RP input. The Tang connections match `rtl/board/tang20k_top.sv`
 and its CST; the FPGA package-pin allocation is unchanged.
-The RP2350 PIO/DMA driver remains unimplemented; its firmware is unchanged.
+The [MPC-2350 firmware](https://github.com/apc53pro/RP2350-GP-COMPUTER)
+now has an initial GPIO bus driver and monochrome GPU terminal. It uploads a
+font texture and uses GPU copies; PIO/DMA optimization, NARM GPU integration
+and physical electrical qualification remain future work.
 
 Both guides must be updated and pushed with every architecture or control change.
 A documentation check in CI enforces accompanying edits; examples are checked
