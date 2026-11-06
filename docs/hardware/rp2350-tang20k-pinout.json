@@ -4,11 +4,11 @@
   "rp_wiring_revision": "2026-11-06",
   "status": "Tang wrapper/package constraints and initial MPC-2350 GPIO terminal driver implemented; PIO/DMA and NARM GPU integration deferred; external electrical timing unqualified",
   "firmware_modified": true,
-  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/72afbf5",
+  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/eceb3fb",
   "rtl_modified": false,
   "modification_flags_scope": "MPC-2350 GPIO terminal bring-up; existing Tang wrapper, constraints and FPGA image unchanged",
   "hardware_tested": false,
-  "hardware_observation": "User reports monitor lock to black with GPU_RESET_N HIGH; status bank reads all FF. Terminal/bus operation and electrical qualification unresolved; hardware_tested remains false for qualification.",
+  "hardware_observation": "User reports monitor lock to black with GPU_RESET_N HIGH and matching RP address-pad echoes. Status/capability reads returned all FF and then all zero; all eight data-wire continuities were checked by the user. Terminal/bus operation and electrical qualification unresolved; hardware_tested remains false for qualification.",
   "signal_count": 16,
   "rp_board": {
     "model": "Waveshare Core2350B",

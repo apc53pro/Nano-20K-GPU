@@ -164,7 +164,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/72afbf5).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/eceb3fb).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -192,11 +192,19 @@ show reset/handshake GPIO levels. The correction changes only firmware; the
 FPGA reset circuitry and programming image are unchanged. A GPIO/time host
 mock tests these failure paths; it does not establish physical HDMI operation.
 Current user-reported bring-up reaches monitor lock with a black image once
-reset is HIGH, while the startup status bank reads entirely `FF`; terminal
-operation is unresolved. The client labels that snapshot invalid readback and
+reset is HIGH. The RP address-pad echo matches, while startup status and
+capability reads have returned entirely `FF` and then entirely zero; the user
+checked continuity of all eight data wires. Terminal operation is unresolved.
+The client validates the fixed capability prefix before polling ready status and
 offers an offline immutable-capability probe (also automatic after failed
 startup) plus RP address-pad echo to help
 diagnose the bus. This limited observation is not board timing qualification.
+The initial transport now uses Arduino `digitalRead()`, `digitalWrite()` and
+`pinMode()` for all bus data and control, with Arduino timing calls. The host
+mock checks all 256 write/read byte patterns and direction changes, including
+Arduino-Pico's output-latch clearing during `pinMode(OUTPUT)`. The read strobe
+stays active and HCLK stays HIGH throughout the eight data-pin samples. This
+API simplification has not yet been verified on the physical bus.
 
 The current desktop setup code uses `__int128`; it is not a
 drop-in library for the 32-bit M33. A firmware port must implement equivalent

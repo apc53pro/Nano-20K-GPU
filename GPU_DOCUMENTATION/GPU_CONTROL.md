@@ -119,7 +119,7 @@ as the six additional signals. The user reports GP10–GP15 unavailable and
 supplied this replacement mapping in `updated_wiring.txt`: GP15 → GP38,
 GP14 → GP37, GP13 → GP36, GP12 → GP35, GP10 → GP39 and GP11 → GP40.
 The eight data GPIOs remain contiguous for PIO. HCLK/WR_N stay on GP16/GP17;
-ALE_N/RD_N are now GP37/GP38. The initial driver uses SDK GPIO calls for the
+ALE_N/RD_N are now GP37/GP38. The initial driver uses Arduino GPIO calls for the
 separated control groups and GP39/GP40 inputs. Future PIO code must account
 for the RP2350B high-GPIO/PIO window selection rather than assuming one
 contiguous four-control group.
@@ -306,7 +306,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/72afbf5)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/eceb3fb)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -321,12 +321,22 @@ are at least **1 us per HCLK phase**, so the clock is below the theoretical
 measured transfer rate or an electrically qualified clock. WREADY is sampled
 before a write edge; RVALID/data are sampled after a read edge and RD_N is
 released before the next rising edge. The driver uses no video PIO or DMA.
+The transport uses Arduino `digitalRead()`, `digitalWrite()` and `pinMode()`
+for all data and control pins. Controls use Arduino-Pico `OUTPUT_12MA`, data
+uses `OUTPUT` during writes and `INPUT` during reads/release, and GP39/40 stay
+`INPUT`. Receive bytes are assembled from eight `digitalRead()` calls with
+RD_N LOW and HCLK HIGH throughout. `GPU DATA` prints the last received byte;
+the address echo uses the same API. Timing uses Arduino `delayMicroseconds()`,
+`delay()` and `micros()`. Arduino-Pico's `pinMode(OUTPUT)` clears the output
+latch, so the driver sets data-pin mode before writing its bit, with strobes
+inactive. Reset is asserted first while configuring the other control outputs.
 
 Startup asserts GPU_RESET_N and keeps the data bus released for **1000 ms**
 before any host clock/transfer, allowing for FPGA flash configuration. This is
 a fixed startup allowance, not a configuration-DONE detector. It then clocks
-the host domain during reset and release,
-polls coherent sideband status, checks the 0.2 capabilities, uploads a **64 KiB
+the host domain during reset and release, checks the immutable sideband
+capability prefix `0 2 8 20` before interpreting status, polls coherent startup
+status, checks the full 0.2 capabilities, and uploads a **64 KiB
 256×128 RGB565 font texture at heap `0x258000`**, and fences. The CPU expands
 immutable font bits into one 512-byte upload row at a time; it allocates no
 screen pixel buffer. The first frame uses 1200 heap-image `COPY_RECT` commands.
@@ -358,6 +368,9 @@ For an offline link, `GPU_PROBE` reads immutable capability bytes 64..79 through
 the sideband path without submitting/retrying packets. Its expected hexadecimal
 prefix is `0 2 8 20` (version 0.2, 8-bit bus, 32-pixel tiles). All-ones responses
 point to invalid readback and require checking data/control wiring and bus drive.
+An all-zero or otherwise incorrect capability prefix reports `invalid capability
+readback` rather than being treated as an SDRAM initialization timeout: these
+bytes are constants independent of initialization.
 The probe also runs automatically once after a failed startup so its output is
 available even with a locally disabled serial command loop.
 `GPU_RESET` repeats the one-second allowance. If the Tang is powered later or
@@ -370,15 +383,18 @@ from incorrect bus readback; inspect the numeric snapshot and physical levels.
 The firmware host regression uses the clocked **C++ software oracle** and reads
 every pixel back through packets to check redraw, idle behavior, edits across
 swaps, scrolling and failure latching. Its nine PS/2 host checks also pass.
-Additional host tests compile the actual GPIO board glue with stubbed GPIO/time
-to check reset polarity, failure release and saved fault diagnostics across
+Additional host tests compile the actual board glue with stubbed Arduino
+GPIO/time APIs to check all 256 write/read byte patterns, direction changes,
+reset polarity, failure release and saved fault diagnostics across
 write timeout, read timeout, startup fault and malformed reply. A simulated
 800 ms configuration delay checks the one-second startup guard. These checks
 do not exercise physical GPIO electronics, FPGA RTL or HDMI.
 Firmware compilation/flashing and the first connected-board test are left to
 the user; the project has not qualified this driver on hardware. In the current
-user-reported bring-up, the monitor locks to a black image with reset HIGH, but
-startup status reads return all ones. Terminal operation and physical bus
+user-reported bring-up, the monitor locks to a black image with reset HIGH.
+The RP address-pad echo matches, but status/capability reads have returned all
+ones and, subsequently, all zeros. The user checked continuity of all eight data
+wires. Terminal operation and physical bus
 correctness remain unresolved; this is not electrical timing qualification.
 Build settings
 and the first-test procedure are in the firmware README. FPGA RTL, package
