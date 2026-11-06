@@ -306,7 +306,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/RP2350-GP-COMPUTER/commit/b863a1d)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/f607936)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -334,17 +334,30 @@ This exercises the copy engine and scanout, not the triangle renderer.
 
 Each physical byte transfer has a **250 ms timeout**; startup polling also has
 a finite count. Invalid replies, mismatched epoch/sequence/token, or transfer
-failure latch the client offline. The board glue releases data and holds GPU
-reset LOW. It does not retry a partial packet or use soft ABORT in this first
+failure latch the client offline. The board glue releases data, drives
+WR_N/RD_N/ALE_N HIGH and **keeps GPU_RESET_N HIGH**. A host error must not
+hold the video pipeline in reset; the earlier firmware's LOW-on-error path
+also stopped HDMI video and has been corrected. Only explicit startup or
+`GPU_RESET` asserts GPU_RESET_N LOW before releasing it HIGH again.
+It does not retry a partial packet or use soft ABORT in this first
 version. USB Serial at 115200 accepts `GPU_STATUS` and `GPU_RESET`; the latter
 hard-resets the GPU, starts a fresh sequence/epoch session, reuploads the font
 and redraws the terminal. Remove any Tang-only reset-release jumper before
 connecting the RP reset output. Terminal messages are mirrored to USB Serial.
+`GPU_STATUS` also prints the observed RESET_N/WREADY/RVALID GPIO levels and
+the saved startup flags, core fault code and transport fault code (`GPU BOOT`).
+Those fault fields are the last startup snapshot, not a live status refresh.
+At Tang J5.18 / FPGA pin 71, approximately 3.3 V releases GPU reset; 0 V asserts
+it. A `GPU startup fault` message alone does not distinguish a real core fault
+from incorrect bus readback; inspect the numeric snapshot and physical levels.
 
 The firmware host regression uses the clocked **C++ software oracle** and reads
 every pixel back through packets to check redraw, idle behavior, edits across
 swaps, scrolling and failure latching. Its nine PS/2 host checks also pass.
-These checks do not exercise the physical GPIO transport, FPGA RTL or HDMI.
+Additional host tests compile the actual GPIO board glue with stubbed GPIO/time
+to check reset polarity, failure release and saved fault diagnostics across
+write timeout, read timeout, startup fault and malformed reply. These checks
+do not exercise physical GPIO electronics, FPGA RTL or HDMI.
 Firmware compilation/flashing and the first connected-board test are left to
 the user; the project has not qualified this driver on hardware. Build settings
 and the first-test procedure are in the firmware README. FPGA RTL, package

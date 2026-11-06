@@ -4,7 +4,7 @@
   "rp_wiring_revision": "2026-11-06",
   "status": "Tang wrapper/package constraints and initial MPC-2350 GPIO terminal driver implemented; PIO/DMA and NARM GPU integration deferred; external electrical timing unqualified",
   "firmware_modified": true,
-  "firmware_source": "https://github.com/apc53pro/RP2350-GP-COMPUTER/commit/b863a1d",
+  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/f607936",
   "rtl_modified": false,
   "modification_flags_scope": "MPC-2350 GPIO terminal bring-up; existing Tang wrapper, constraints and FPGA image unchanged",
   "hardware_tested": false,

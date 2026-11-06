@@ -164,7 +164,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/RP2350-GP-COMPUTER/commit/b863a1d).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/f607936).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -179,6 +179,15 @@ integration and PIO/DMA acceleration are later work. The firmware-client host
 test checks every displayed pixel through packet readback using the clocked
 software oracle; it does not qualify RTL equivalence, the physical bus or HDMI.
 Firmware compilation/flashing and the first physical test are left to the user.
+
+The RP driver now keeps **GPU_RESET_N HIGH after a host/session failure**, with
+the data bus released and read/write/address strobes inactive. The earlier
+LOW-on-error path also held scanout and the TMDS serializers in reset, masking
+the original bus fault as missing video. Explicit initialization/recovery
+still pulses reset LOW. USB diagnostics retain the startup fault snapshot and
+show reset/handshake GPIO levels. The correction changes only firmware; the
+FPGA reset circuitry and programming image are unchanged. A GPIO/time host
+mock tests these failure paths; it does not establish physical HDMI operation.
 
 The current desktop setup code uses `__int128`; it is not a
 drop-in library for the 32-bit M33. A firmware port must implement equivalent
