@@ -4,11 +4,11 @@
   "rp_wiring_revision": "2026-11-06",
   "status": "Fixed slow bus-test board build selected: 6.3 MHz GPU core/SDRAM, independent constant-black HDMI raster, and 50 us GPIO host phases. GPU-rendered video is disconnected; terminal display, PIO/DMA, NARM integration and external electrical qualification remain unresolved.",
   "firmware_modified": true,
-  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/6162f9b",
+  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/d0907ed",
   "rtl_modified": true,
   "modification_flags_scope": "MPC-2350 host bus slowed to 50 us phases; fixed Tang bus-test build changes core/SDRAM clock and physical video source. Pin mappings and packet ABI are unchanged; the earlier 50.4 MHz image/report cannot qualify these changed sources.",
   "hardware_tested": false,
-  "hardware_observation": "Before the 6.3 MHz bus-test build, user reports monitor lock to black with GPU_RESET_N HIGH and matching RP address-pad echoes. Earlier status/capability reads returned all FF and then all zero. Both separate 4.7 kohm handshake pull-downs are now fitted and capability reads remain zero; the latest early capability failure leaves GPU BOOT zero-initialized and unread. All eight data-wire continuities were checked. Terminal/bus operation and electrical qualification remain unresolved; hardware_tested is false for qualification.",
+  "hardware_observation": "Before the 6.3 MHz bus-test build, user reports monitor lock to black with GPU_RESET_N HIGH and matching RP address-pad echoes. Earlier status/capability reads returned all FF and then all zero. Both separate 4.7 kohm handshake pull-downs are fitted. The subsequent 6.3 MHz core / 50 us host-phase build still returned sixteen zero capability bytes; slowing the clocks did not change readback. Printing all sixteen bytes means software sampled WREADY and RVALID HIGH during transfers; their later idle LOW levels do not describe active transfers. Early capability failure leaves GPU BOOT zero-initialized and unread. All eight data-wire continuities were checked. Held-read voltage measurements are pending. Terminal/bus operation and electrical qualification remain unresolved; hardware_tested is false for qualification.",
   "fixed_bus_test_configuration": {
     "core_sdram_hz": 6300000,
     "physical_hdmi_pixel_hz": 25200000,

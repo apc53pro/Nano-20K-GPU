@@ -343,7 +343,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/6162f9b)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/d0907ed)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -386,7 +386,8 @@ This exercises the copy engine and scanout, not the triangle renderer.
 
 Each physical byte transfer has a **250 ms timeout**; startup polling also has
 a finite count. Invalid replies, mismatched epoch/sequence/token, or transfer
-failure latch the client offline. The board glue releases data, drives
+failure latch the client offline. For normal initialization, packet and probe
+transfers, the board glue releases data, drives
 WR_N/RD_N/ALE_N HIGH and **keeps GPU_RESET_N HIGH**. A host error must not
 hold the video pipeline in reset; the earlier firmware's LOW-on-error path
 also stopped HDMI video and has been corrected. Only explicit startup or
@@ -414,6 +415,56 @@ readback` rather than being treated as an SDRAM initialization timeout: these
 bytes are constants independent of initialization.
 The probe also runs automatically once after a failed startup so its output is
 available even with a locally disabled serial command loop.
+Sixteen printed probe bytes mean the RP sampled WREADY and RVALID HIGH during
+the transactions. The diagnostic's later idle WREADY=0/RVALID=0 values do not
+mean those inputs stayed LOW during the probe.
+
+For stable measurements, the offline-only `GPU_HOLD` command first releases
+the bus with WR_N/RD_N/ALE_N HIGH and RP data pins as inputs. Before selecting
+an address, it samples RVALID after 50 us with HCLK LOW and after 50 us with
+HCLK HIGH. `GPU IDLE` prints `RVALID_LOWCLK` and `RVALID_HIGHCLK`; both should
+be **0** because RD_N is inactive. A clock-linked RVALID miswire is one possible
+cause of an incorrect idle result, not an established diagnosis. The check
+adds one idle rising edge, submits no packet and continues to the held read
+even if idle RVALID is wrong.
+
+It freshly selects register **65 / `0x41`**, whose immutable expected
+byte is **`0x02`**. It releases all RP data outputs, asserts RD_N LOW with
+WR_N/ALE_N HIGH, and clocks until RVALID is sampled HIGH or the 250 ms read
+timeout expires. It then **keeps HCLK HIGH and RD_N LOW**, including when the
+data is zero or RVALID timed out. An address-write/WREADY timeout instead
+releases the bus. `GPU HOLD` reports the expected byte and result; `GPU BUS`
+reports the held flag and RP-side HCLK/WR_N/RD_N/ALE_N/ABORT levels. These are
+RP pad readings, not measurements at the Tang end of the wires.
+
+`GPU_STATUS` refreshes the held data without adding clock edges. `GPU_PROBE`
+refuses while a read is held. Use `GPU_RELEASE` to end the read, release data
+and return to inactive strobes with reset HIGH, or `GPU_RESET` to clear the
+hold and perform the normal one-second hard-initialization sequence. The
+hold sends no packet, retries no partial packet and leaves the client offline;
+it is not a rendering mode or an FPGA implementation change.
+
+With `GPU_HOLD` active, measure against common GND at these nodes. The table
+describes a correctly operating held read, not the user's measured voltages:
+
+| Signal | Tang measurement point | RP measurement point | Expected level |
+| --- | --- | --- | --- |
+| D1 | J6.9 / FPGA pin 28 | P3.5 / GPIO19 | HIGH, approximately 3.3 V |
+| D0, D2–D7 | Existing data-pin table above | GPIO18, GPIO20–GPIO25 | LOW |
+| GPU_RESET_N | J5.18 / FPGA pin 71 | P4.7 / GPIO36 | HIGH |
+| HCLK | J6.5 / FPGA pin 77 | P3.4 / GPIO16 | HIGH |
+| WR_N | J6.6 / FPGA pin 15 | P3.3 / GPIO17 | HIGH |
+| ALE_N | J6.15 / FPGA pin 17 | P4.10 / GPIO37 | HIGH |
+| RD_N | J6.7 / FPGA pin 16 | P4.9 / GPIO38 | LOW |
+| ABORT | J5.17 / FPGA pin 72 | P4.8 / GPIO35 | LOW |
+| WREADY | J6.1 / FPGA pin 73 | P4.12 / GPIO39 | LOW during the held read |
+| RVALID | J6.2 / FPGA pin 74 | P4.11 / GPIO40 | HIGH after a valid response |
+
+Start with D1 on **both sides of its existing 100 Ω series resistor**, then
+check the Tang-side control levels. Keep the two fitted handshake pull-downs.
+The held measurement avoids averaging brief read pulses on a multimeter;
+its result has not yet been reported.
+
 `GPU_RESET` repeats the one-second allowance. If the Tang is powered later or
 reprogrammed while the RP is already running, wait for configuration to finish
 and issue `GPU_RESET` or restart the RP before expecting a connection.
@@ -438,7 +489,10 @@ The RP address-pad echo matches, but status/capability reads have returned all
 ones and, subsequently, all zeros. The user checked continuity of all eight data
 wires. Terminal operation and physical bus
 correctness remain unresolved; adding the two external handshake pull-downs
-did not change the zero capability reads. This is not electrical timing qualification.
+did not change the zero capability reads. After installing the 6.3 MHz / 50 us
+test build, the user again reported sixteen zero capability bytes with matching
+address echoes and reset HIGH. Slowing both clocks did not change that
+observation. This is not electrical timing qualification.
 Build settings
 and the first-test procedure are in the firmware README. FPGA RTL, package
 constraints retain the same pin mapping. The subsequent 6.3 MHz bus-test build

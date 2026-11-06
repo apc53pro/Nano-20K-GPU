@@ -184,7 +184,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/6162f9b).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/d0907ed).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -200,7 +200,7 @@ test checks every displayed pixel through packet readback using the clocked
 software oracle; it does not qualify RTL equivalence, the physical bus or HDMI.
 Firmware compilation/flashing and the first physical test are left to the user.
 
-The RP driver now keeps **GPU_RESET_N HIGH after a host/session failure**, with
+The RP driver keeps **GPU_RESET_N HIGH after a normal host/session failure**, with
 the data bus released and read/write/address strobes inactive. The earlier
 LOW-on-error path also held scanout and the TMDS serializers in reset, masking
 the original bus fault as missing video. Explicit initialization/recovery
@@ -212,14 +212,29 @@ show reset/handshake GPIO levels. That reset correction changed only firmware;
 the subsequent slow bus-test build separately changes board clocks and video.
 A GPIO/time host
 mock tests these failure paths; it does not establish physical HDMI operation.
-Before this 6.3 MHz bus-test build, user-reported bring-up reached monitor lock with a black image once
-reset is HIGH. The RP address-pad echo matches, while startup status and
-capability reads have returned entirely `FF` and then entirely zero; the user
-checked continuity of all eight data wires. Terminal operation is unresolved.
+Before this 6.3 MHz bus-test build, user-reported bring-up reached monitor lock
+with a black image once reset was HIGH. The RP address-pad echo matches, while
+startup status and capability reads returned entirely `FF` and then entirely
+zero. The user checked continuity of all eight data wires. The subsequent
+6.3 MHz core / 50 us host-phase test still returned sixteen zero capability
+bytes. The slower clocks did not change the observation; they do not locate
+the fault. Terminal operation is unresolved.
 The client validates the fixed capability prefix before polling ready status and
 offers an offline immutable-capability probe (also automatic after failed
 startup) plus RP address-pad echo to help
 diagnose the bus. This limited observation is not board timing qualification.
+Printing all sixteen probe bytes means the RP software sampled WREADY and
+RVALID HIGH during the transfers; their LOW values after the bus is released
+are normal idle observations, not evidence that they stayed LOW throughout.
+An offline `GPU_HOLD` diagnostic first samples idle RVALID with HCLK LOW and
+HIGH (both should be LOW while RD_N is HIGH), then selects immutable register
+`0x41` (expected `0x02`) and holds HCLK HIGH, RD_N LOW and RP data pins as inputs for stable
+voltage measurements. It remains held even for incorrect data or a read-valid
+timeout; an address-write timeout releases the bus. `GPU_STATUS` samples the
+held data without clock edges, `GPU_PROBE` refuses while held, and
+`GPU_RELEASE` ends the hold. `GPU_RESET` clears it and performs normal hard
+initialization. This adds no FPGA circuit or packet retry and leaves the
+client offline. The exact measurement points are in the control guide.
 If that prefix check fails first, the printed `GPU BOOT` snapshot has not been
 read and remains zero-initialized; it does not establish that the GPU has no fault.
 The initial transport now uses Arduino `digitalRead()`, `digitalWrite()` and
