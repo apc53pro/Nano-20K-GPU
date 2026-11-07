@@ -191,7 +191,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
-implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0762519dbb5a327334e248ff718735792daaee85).
+implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/6b4ebda7e0bffb24ea81aead5970b014f4146e2c).
 That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. It tracks which characters
@@ -210,9 +210,15 @@ The terminal and the focused NARM application share one GPU session, including
 command ordering, sequence numbers and front/back ownership. Native programs
 with the GPU capability can upload assets to `0x280000`–`0x7fffff`, submit
 passes, copy rectangles, fence, present and read back memory through the
-native GPU interface. They prepare their own rendering data and handle their
-own pointer visuals. On return to terminal focus the terminal rebuilds its
-cached view of the buffers. See the [native interface in the control guide](GPU_CONTROL.md#narm-gpu-interface).
+native GPU interface. NARMCC exposes named built-ins for these operations,
+record encoding, and link recovery. The firmware serializes records and the
+application prepares geometry and bins, manages resource lifetimes, and
+draws its pointer. In a realtime loop, NARM programs should keep running
+while the GPU works and submit a new present only when it is ready. The
+firmware tracks one asynchronous present and updates front/back ownership
+when it drains that command's matching completion. On return to terminal
+focus the terminal drains any pending presentation and rebuilds its cached
+view of the buffers. See the [native interface in the control guide](GPU_CONTROL.md#narm-gpu-interface).
 
 The firmware-client host test checks displayed pixels through packet readback
 using the clocked software oracle. The board results below cover the earlier

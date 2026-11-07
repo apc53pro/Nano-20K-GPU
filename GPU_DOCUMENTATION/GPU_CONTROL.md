@@ -338,7 +338,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 `nano_gpu.cpp` serializes N20K-SYS-0.2 packets and issues terminal commands.
 `font.cpp` supplies the bitmap font for the **40×30 black-on-white terminal**.
 The FPGA copies each 16×16 glyph and scans out the front buffer over HDMI.
-See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0762519dbb5a327334e248ff718735792daaee85).
+See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/6b4ebda7e0bffb24ea81aead5970b014f4146e2c).
 
 The CPU submits each byte operation through the TX FIFO of one PIO2 state
 machine and waits for its completion in the RX FIFO. PIO controls the clock,
@@ -658,8 +658,8 @@ buffers in static storage, objects or the heap, never in local arrays.
 
 ### NARM GPU interface
 
-Firmware API 1.18 advertises `NARM_CAP_GPU` (bit 6) and exposes
-`NativeGpuApiV1` version 1.0 through interface `NARM_INTERFACE_GPU` (`0x0500`)
+Firmware API 1.19 advertises `NARM_CAP_GPU` (bit 6) and exposes
+`NativeGpuApiV1` version 1.1 through interface `NARM_INTERFACE_GPU` (`0x0500`)
 and the context's `gpu_api` pointer. Only the running, focused application can
 submit GPU operations on Core 0. The terminal and NARM share a single firmware
 client, with one sequence, epoch and front/back buffer state. The terminal
@@ -669,7 +669,10 @@ rebuilds any glyph cache invalidated by native drawing when it resumes.
 argument words. The adapter validates the argument count, applicable CPU
 pointers and GPU address ranges before the firmware serializes wire bytes.
 Here `out` and `source` are native CPU pointers, and addresses of GPU records
-are byte offsets in the FPGA SDRAM. The table uses `NARM_GPU_` names.
+are byte offsets in the FPGA SDRAM. The table uses `NARM_GPU_` names. NARMCC's
+`narm.tch` declares a named `narm_gpu_*` built-in for each row. Its
+`narm_gpu_copy_rect` built-in takes a pointer to a typed 14-word argument
+block, which firmware serializes to the GPU.
 
 | Command | Argument words in order | Result or constraints |
 | --- | --- | --- |
@@ -682,12 +685,34 @@ are byte offsets in the FPGA SDRAM. The table uses `NARM_GPU_` names.
 | `PRESENT` (`0x0007`) | `target, token` | Presents the current back buffer and waits for the matching vertical-blank reply. |
 | `READ_MEMORY` (`0x0008`) | `address, byte_count, out` | Reads 1–512 bytes within GPU SDRAM. |
 | `BACK_TARGET` (`0x0100`) | None | Returns the writable physical target, 0 or 1. |
+| `ENCODE_PASS` (`0x0101`) | `out, target, flags, clear_rgb565, clear_d24, table` | Encodes the 32-byte descriptor in CPU memory. Use the current FPGA image for depth DISCARD. |
+| `ENCODE_TILE` (`0x0102`) | `out, list, count` | Encodes an 8-byte tile entry. |
+| `ENCODE_PRIMITIVE` (`0x0103`) | `out, input` | Encodes the 320-byte record from a separate CPU-side `NarmGpuPrimitive`. |
+| `LINK_STATUS` (`0x0104`) | `out` | Reads the 64-byte sideband status bank even if the packet client is offline. |
+| `ABORT` (`0x0105`) | None | Issues the out-of-band soft abort and waits for recovery. |
+| `RESET` (`0x0106`) | None | Issues a hard reset and reloads the terminal font. |
+| `FRAME_READY` (`0x0107`) | None | Returns 1 after earlier commands and any async present retire, or 0 while busy. |
+| `TRY_PRESENT` (`0x0108`) | `target, token` | Returns 1 when it queues the present, or 0 while busy. |
 
 The other commands return zero on success. Negative results are unknown
 command (`-1`), invalid arguments (`-2`), missing capability (`-3`), the
-caller lacking GPU focus (`-4`) and device failure (`-5`). Applications
-build pass records and other assets using the wire layouts below, fence
-before reusing active GPU data, and draw any application pointer themselves.
+caller lacking GPU focus or an asynchronous present still pending (`-4`),
+and device failure (`-5`). The record builders cover all current primitive
+settings. Applications prepare geometry, build ordered lists of primitive
+addresses, and keep assets immutable while the GPU uses them.
+
+**Strong recommendation for realtime NARM programs. Keep processing input
+and updating simulation while the GPU is busy. Check `narm_gpu_frame_ready()`
+once per iteration and use `narm_gpu_try_present()` when the completed frame
+is ready.** The readiness check compares the completed sequence with the
+last submitted sequence and consumes the async swap reply once available.
+It does not wait for GPU rendering or vertical blank. Query the back target
+again after a completed swap. Avoid spin loops, synchronous PRESENT and
+blocking fences in the realtime frame path. The PIO transport still performs
+bounded bus transfers. An upload of at most 216 decoded bytes after a
+successful readiness check fits the empty RX FIFO even with worst-case
+encoding. After recovery, follow the resource and attachment rules in
+[section 5](#fault-codes-and-recovery).
 
 ### Write and read timing
 
