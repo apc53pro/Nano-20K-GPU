@@ -184,7 +184,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/5ca5190).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/e09f065).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -207,7 +207,11 @@ the original bus fault as missing video. Explicit initialization/recovery
 still pulses reset LOW and waits **1000 ms with data released before any host
 clock or transfer**, allowing time for FPGA flash configuration. This fixed
 allowance does not read a configuration-DONE signal; if the Tang starts later,
-explicitly retry after it has configured. USB diagnostics retain the startup fault snapshot and
+explicitly retry after it has configured. A 2026-11-06 report shows that at
+cold power-up the FPGA had not finished configuring within this allowance:
+the first startup read all `FF` with idle WREADY/RVALID HIGH, while startup after
+an RP-only reset reached the configured image. The offline `GPU_LATCHTEST`
+diagnostic also pulses reset, without the configuration wait. USB diagnostics retain the startup fault snapshot and
 show reset/handshake GPIO levels. That reset correction changed only firmware;
 the subsequent slow bus-test build separately changes board clocks and video.
 A GPIO/time host
@@ -245,8 +249,16 @@ latched another address. The 2026-11-06 report, from firmware without edge
 counting, was sixteen zero capability bytes and swap-test `0 0 0`, flags `0`,
 with no timeouts. That matches neither pattern. Register `02` uses neither D5
 nor D6, and every read returned zero, including nonzero capability bytes. A
-D5/D6 interchange alone therefore cannot explain it; the edge-count result and
-held-read voltages remain unreported. Startup can accept register 64's expected zero before
+D5/D6 interchange alone therefore cannot explain it. A later report, with the
+FPGA configured, gave `edges=1 1 1 1; pre=0 0 0 0`. During a confirmed held
+read of `0x41`, the Tang measured RVALID pin 74 at 3.3 V, WREADY pin 73 at 0 V,
+and all eight data pins at 0 V. The GPU therefore answered and drove `0x00`
+instead of `0x02`. This indicates, without isolating the cause, that the FPGA
+latched a different capability-range address from the one sent. Address
+acceptance cannot reveal this, because address-phase WREADY is `!gpu_d[7]`. The
+offline `GPU_LATCHTEST` reset-and-read sequence and the edge-free `GPU_DRIVE`
+address-phase hold test that path without any FPGA change; their results are
+unreported. Startup can accept register 64's expected zero before
 failing register 65, which should return `0x02`. D5 remains GP23 / Core P3.9 to
 Tang J5.5 / pin 42, and D6 remains GP24 / Core P3.12 to Tang J5.6 / pin 41;
 Arduino data indexing remains `GPIO18 + bit_index`. RP pad echoes do not verify
@@ -259,7 +271,7 @@ HIGH (both should be LOW while RD_N is HIGH), then selects immutable register
 `0x41` (expected `0x02`) and holds HCLK HIGH, RD_N LOW and RP data pins as inputs for stable
 voltage measurements. It remains held even for incorrect data or a read-valid
 timeout; an address-write timeout releases the bus. `GPU_STATUS` samples the
-held data without clock edges, `GPU_PROBE` and `GPU_SWAPTEST` refuse while held, and
+held data without clock edges, `GPU_PROBE`, `GPU_SWAPTEST` and `GPU_LATCHTEST` refuse while held, and
 `GPU_RELEASE` ends the hold. `GPU_RESET` clears it and performs normal hard
 initialization. This adds no FPGA circuit or packet retry and leaves the
 client offline. The exact measurement points are in the control guide.

@@ -343,7 +343,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/5ca5190)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/e09f065)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -390,8 +390,9 @@ failure latch the client offline. For normal initialization, packet and probe
 transfers, the board glue releases data, drives
 WR_N/RD_N/ALE_N HIGH and **keeps GPU_RESET_N HIGH**. A host error must not
 hold the video pipeline in reset; the earlier firmware's LOW-on-error path
-also stopped HDMI video and has been corrected. Only explicit startup or
-`GPU_RESET` asserts GPU_RESET_N LOW before releasing it HIGH again.
+also stopped HDMI video and has been corrected. Only explicit startup,
+`GPU_RESET` or the offline `GPU_LATCHTEST` diagnostic asserts GPU_RESET_N LOW
+before releasing it HIGH again.
 It does not retry a partial packet or use soft ABORT in this first
 version. USB Serial at 115200 accepts `GPU_STATUS` and `GPU_RESET`; the latter
 hard-resets the GPU, starts a fresh sequence/epoch session, reuploads the font
@@ -461,10 +462,62 @@ electrical margins.
 zero bytes and `GPU SWAPTEST: 0 0 0; flags=0x0`, with no timeouts. This matches
 neither table row. Register `0x02` uses neither D5 nor D6, so a pure interchange
 still returns `1`. Every byte read was zero, including capability bytes `0x02`,
-`0x08` and `0x20`. A D5/D6 interchange alone cannot explain this result. The
-`edges`/`pre` result and the held-read voltages below have not yet been
-reported. In the startup prefix check, register 64's expected zero can pass;
-register **65** is the first mismatch when it returns zero instead of `0x02`.
+`0x08` and `0x20`. A D5/D6 interchange alone cannot explain this result. In
+the startup prefix check, register 64's expected zero can pass; register **65**
+is the first mismatch when it returns zero instead of `0x02`.
+
+**Reported 2026-11-06 with edge counting**, after an RP-only reset with the
+FPGA already configured: `edges=1 1 1 1; pre=0 0 0 0`, bytes `0 0 0`, and a
+`GPU_HOLD` idle check of `0/0`. During a confirmed hold (`held=1`, RVALID=1,
+WREADY=0 at the RP), the user measured at the Tang:
+
+| Point | Measured | Expected for register `0x41` |
+| --- | --- | --- |
+| 3V3 | 3.3 V | 3.3 V |
+| Pin 74 RVALID / pin 73 WREADY | 3.3 V / 0 V | HIGH / LOW |
+| Pin 16 RD_N | 0.23 V | LOW (pin 16 also sinks onboard LED1 current through the series resistor) |
+| Data pins 27, 28, 29, 30, 31, 42, 41, 48 | all 0 V | pin 28 (D1) HIGH, others LOW |
+| RP GPIO19 (D1) | 0.05 V | HIGH |
+
+The GPU therefore answered and drove `0x00` where register `0x41` holds
+`0x02`. Together with the one-edge register-`0x01` answer, this indicates that
+the FPGA latched a different address, in the immediately answered capability
+range. That is an inference, not an isolated cause. The `build/tang20k-slow`
+image and the flashed `bitstreams/tangnano20k/nano-gpu.fs` have the same SHA-256
+(`ede2657f…`), and its routed ports are on the constrained package pins.
+A cold power-up first printed all `FF` with idle WREADY/RVALID HIGH and
+`pre=1 1 1 1`, because configuration had not finished within the 1000 ms
+allowance. That is a separate startup-timing observation.
+
+During an address write, the RP accepts once WREADY is HIGH, and
+`tang20k_top` drives WREADY as `!gpu_d[7]`. Acceptance therefore cannot reveal
+a missed or incorrect latch. Two further offline host diagnostics isolate the
+address path without an FPGA change:
+
+- **`GPU_LATCHTEST`** pulses reset exactly like startup (32 HCLK edges with
+  GPU_RESET_N LOW, release, 64 idle edges), without the configuration wait or
+  client startup. It then reads capability registers **`0x41 0x42 0x43 0x41`**,
+  never `0x40` first, and prints
+  `GPU LATCHTEST: <4 HEX bytes>; edges=<4 decimal>; expected=2 8 20 2`.
+  `2 8 20 2` means that these address writes reached the latch. `2 2 2 2`
+  matches latching only the first address after reset. `0 0 0 0` matches the
+  FPGA seeing other addresses, for example a fixed `0x40`. These signatures
+  come from the host model and are not unique diagnoses.
+- **`GPU_DRIVE <hex>`** (one or two hexadecimal digits) releases the bus,
+  drives the byte on GPIO18..25 and holds an **address phase without its
+  rising edge**: ALE_N and WR_N LOW, RD_N HIGH, HCLK LOW, reset HIGH. No edge
+  means nothing is latched. With RD_N HIGH, the `reading` condition is false,
+  so the FPGA leaves `gpu_d` released. Measure the Tang data pins, WR_N pin 15
+  and ALE_N pin 17 (both LOW), RD_N pin 16 (HIGH), HCLK pin 77 (LOW) and WREADY
+  pin 73. WREADY reports the inverse of the D7 level that the FPGA sees. `55`
+  then `2A` exercise each address bit HIGH and LOW. `GPU BUS` reports
+  `drive=1`. `GPU_RELEASE` raises the strobes before releasing data, still
+  without a rising edge; `GPU_RESET` also ends the hold.
+
+Both diagnostics submit no packet and refuse while the client is online.
+`GPU_PROBE`, `GPU_SWAPTEST` and `GPU_LATCHTEST` refuse while a `GPU_HOLD` or
+`GPU_DRIVE` hold is active. No result from either new diagnostic has been
+reported yet.
 
 The mapping remains D5 **GP23 / Core P3.9 → Tang J5.5 / FPGA pin 42**, D6
 **GP24 / Core P3.12 → Tang J5.6 / FPGA pin 41**; the Arduino driver still uses
@@ -490,8 +543,8 @@ releases the bus. `GPU HOLD` reports the expected byte and result; `GPU BUS`
 reports the held flag and RP-side HCLK/WR_N/RD_N/ALE_N/ABORT levels. These are
 RP pad readings, not measurements at the Tang end of the wires.
 
-`GPU_STATUS` refreshes the held data without adding clock edges. `GPU_PROBE`
-and `GPU_SWAPTEST` refuse while a read is held. Use `GPU_RELEASE` to end the
+`GPU_STATUS` refreshes the held data without adding clock edges. `GPU_PROBE`,
+`GPU_SWAPTEST` and `GPU_LATCHTEST` refuse while a read is held. Use `GPU_RELEASE` to end the
 read, release data
 and return to inactive strobes with reset HIGH, or `GPU_RESET` to clear the
 hold and perform the normal one-second hard-initialization sequence. The
