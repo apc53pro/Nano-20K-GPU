@@ -103,12 +103,11 @@ The MPC-2350 bus driver claims one **PIO2** state machine with GPIO base
 **16** to reach both control groups and the contiguous data pins. PIO drives
 HCLK, write/address/read strobes and data direction, and samples WREADY and
 RVALID. The CPU owns packet construction, FIFO deadlines and GPU reset.
-Each retry takes **12 PIO cycles per HCLK period**, giving a **25 MHz
-burst clock** with a 300 MHz state-machine clock at the firmware's 375 MHz
-system clock. One HCLK period takes exactly 15 system clock cycles.
-HCLK pauses between byte transactions.
-The earlier GPIO driver first ran on the board at 50 µs phases. The 25 MHz
-setting and its external electrical margins require board validation.
+Each retry takes **12 PIO cycles per HCLK period**. The firmware derives
+the PIO divider from the system clock and one requested HCLK burst rate,
+`kHostClockHz`, which defaults to **250 kHz**. HCLK pauses between byte
+transactions. The earlier GPIO driver first ran on the board at 50 µs
+phases. The user reported that 25 MHz failed on their wired setup.
 
 The board image uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel clock**
 and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from 27 MHz
@@ -188,7 +187,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
-implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/7d29945d8b6c0db9104a0e225000e6c6911f3033).
+implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0762519dbb5a327334e248ff718735792daaee85).
 That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. It tracks which characters
