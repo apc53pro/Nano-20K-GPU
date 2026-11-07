@@ -18,17 +18,13 @@ probe, is the authority for board resource and timing results. Hardware
 qualification remains incomplete. The MPC-2350 firmware now has an initial GPIO transport and
 monochrome GPU terminal; PIO/DMA optimization and NARM GPU integration remain
 separate work. Its host regression uses the software oracle, not Verilator.
-The selected image is a **fixed bus-test build with a 6.3 MHz GPU core/SDRAM
-clock**. HDMI retains 25.2 MHz pixels and 126 MHz DDR serialization, but emits
-an intentional constant-black 640×480/60 raster generated in the pixel domain.
-GPU-rendered pixels are disconnected from this output, so this image cannot
-display or qualify the terminal. Its source-matched full-board build legally
-places/routes, verifies fixed SiP connections and passes the selected internal
-clock gates. It uses **20,043/20,736 LUT sites**, **6,731 DFF resources**,
-**44/46 BSRAM**, **25/48 multipliers** and one PLL. These are counts for the
-black-raster test build: unconnected GPU-video payload logic is pruned, so the
-lower LUT/RAM use is not headroom for a normal GPU-display image. The earlier
-50.4 MHz route is historical after these clock/video changes.
+The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
+pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI,
+and the user has reported the terminal running on it. The image is built with
+Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
+source-matched build verifies every package pin and meets every required
+clock, with the core at 51.13 MHz Fmax. It uses **16,062/20,736 logic
+(Gowin count)**, **6,750 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -102,32 +98,30 @@ shared-data output enable, WREADY/RVALID gating and GPU_RESET_N logic reset.
 the embedded SDRAM uses the part database's fixed SiP terminals, checked
 against [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) after routing.
 The MPC-2350 firmware implements the revised pins with GPIO transfers using
-at least **50 us per clock phase/setup wait**, below a phase-only ceiling of
-**10 kHz HCLK** once API overhead is included. External electrical margins
-remain unqualified. The pin remap itself changes no FPGA package constraint;
-the separate slow bus-test build changes the board clocks and video source.
+at least **2 us per clock phase/setup wait**, below a phase-only ceiling of
+**250 kHz HCLK** once API overhead is included. The bus was first proven at
+50 us phases. External electrical margins remain unqualified, and the pin
+remap changes no FPGA package constraint.
 
-The fixed bus-test board image uses a **6.3 MHz core/SDRAM clock**, **25.2 MHz
-physical HDMI pixel clock** and **126 MHz DDR serializer clock**. One rPLL
-derives 252 MHz from 27 MHz (divide 3, multiply 28), with a divided 126 MHz
-output; a CLKDIV5 produces 25.2 MHz pixels. A registered divide-by-four and
-BUFG derive the 6.3 MHz core from that pixel clock, replacing the earlier
-50.4 MHz core CLKDIV.
+The board image uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel clock**
+and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from 27 MHz
+(divide 3, multiply 28), with a divided 126 MHz output. Two CLKDIV5 blocks
+produce the core and pixel clocks, giving exactly two core clocks per pixel. A
+pixel-domain toggle crosses through two core-domain synchronizer stages and an
+event detector, and that event advances core scanout. Pixel payloads
+therefore change after a physical pixel edge and settle before a later
+encoder capture, independent of GPU-reset release phase. The board-wrapper
+regression checks capture spacing and exactly one pixel per physical pixel
+clock across eight reset-release offsets. The core's rendered pixels drive the
+TMDS encoders and HDMI.
 
-The core keeps its real protocol, rendering and SDRAM engines, with internal
-`PIXEL_DIVIDER=2` advancement: **3.15 MHz logical scanout, approximately
-7.5 frames/s** for its 800×525 timing counters. That logical cadence is not the
-HDMI display rate. A separate constant-black raster is generated entirely in
-the physical pixel domain and feeds TMDS; the core's rendered pixels do not.
-This isolates bus bring-up from the former core-to-pixel payload handoff.
-It is a single compile-time test configuration, not a runtime compatibility
-mode or alternate legacy renderer. Restoring visible GPU terminal output
-requires a later board clock/video implementation change and new validation.
-Board capabilities report **6,300,000 core Hz**, host-divider metadata 0
-(independent host clock) and pixel divider 2 for the internal scanout counter.
-They do not describe the independent physical black-raster generator's pixel
-clock. The earlier 50.4/25.2 MHz display profile and its capture regression are
-historical; neither its route nor nominal simulator clocks qualify this build.
+From 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
+raster replaced this profile during bus diagnosis. It is historical and is no
+longer built. Clock profiles are compile-time constants: the image contains one
+configuration, with no runtime mode or duplicate compatibility hardware. The
+host supplies its independent clock, with a design ceiling of 25.2 MHz pending
+electrical validation. Board capabilities report **50,400,000 core Hz**,
+host-divider metadata 0 (independent clock) and pixel divider 2.
 
 Configuration initializes an eight-bit power-on delay. The board reset button
 (pin 88, active HIGH) restarts PLL initialization. PLL lock and GPU_RESET_N
@@ -143,10 +137,10 @@ the core rising edge. An ODDR forwards an inverted core clock, giving output
 signals approximately half a core period before the chip sampling edge.
 The input DQ is sampled at the next core rising edge. Output registers are
 not cleared by GPU logic reset, allowing already-issued write tails to drain.
-The board waits **1260 core cycles (200 us)** before SDRAM initialization and
-uses refresh interval **98 cycles (about 15.556 us)** with the controller's
-early-service guard. CAS3 and BL8 remain; bank wait cycles are rescaled
-conservatively for 6.3 MHz. These are implemented logical
+The board waits **10,080 core cycles (200 us)** before SDRAM initialization
+and uses refresh interval **787 cycles (about 15.6 us)** with the controller's
+early-service guard. CAS3 and BL8 use the controller's default bank timings
+(tRP/tRCD 3, tRFC 9, tRAS 6, tRC 9 cycles). These are implemented logical
 timings; pad/interconnect margins still require physical-board measurement.
 
 The layout leaves the Tang LCD FPC disconnected and avoids HDMI, flash, SDRAM,
@@ -187,11 +181,17 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/e09f065).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/cb2eb28).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
-It builds the first frame from 16×16 glyph copies. On later changes it copies
-the current front to back, copies changed glyphs, fences, then presents and waits
-for the vertical-blank reply. Idle terminal frames send no commands. Font asset
+It builds the first frame from 16×16 glyph copies. It tracks which characters
+each of the two colour buffers shows. For a changed frame, it picks the
+cheapest way to bring the back buffer up to date. Either it draws only the
+glyphs that differ from what that buffer already holds, or it first copies the
+front buffer with one `COPY_RECT`, shifted up by whole text rows for a scroll,
+and then draws the rest. It then fences, presents and waits for the
+vertical-blank reply. Once both buffers are known, a cursor blink needs no
+glyph copies, and a one-line scroll needs one copy plus at most a line of
+glyphs. Idle terminal frames send no commands. Font asset
 decoding uses a 512-byte CPU row; there is no RP pixel framebuffer, software
 2D/3D rasterizer, VGA scanout, or pixel cursor/overlay compositor. Mouse input
 is retained, with graphical mouse-cursor rendering deferred.
@@ -215,17 +215,14 @@ cold power-up the FPGA had not finished configuring within this allowance:
 the first startup read all `FF` with idle WREADY/RVALID HIGH, while startup after
 an RP-only reset reached the configured image. The offline `GPU_LATCHTEST`
 diagnostic also pulses reset, without the configuration wait. USB diagnostics retain the startup fault snapshot and
-show reset/handshake GPIO levels. That reset correction changed only firmware;
-the subsequent slow bus-test build separately changes board clocks and video.
-A GPIO/time host
-mock tests these failure paths; it does not establish physical HDMI operation.
-Before this 6.3 MHz bus-test build, user-reported bring-up reached monitor lock
-with a black image once reset was HIGH. The RP address-pad echo matches, while
-startup status and capability reads returned entirely `FF` and then entirely
-zero. The user checked continuity of all eight data wires. The subsequent
-6.3 MHz core / 50 us host-phase test still returned sixteen zero capability
-bytes. The slower clocks did not change the observation; they do not locate
-the fault. Terminal operation is unresolved.
+show reset/handshake GPIO levels. A GPIO/time host mock tests these failure
+paths; it does not establish physical HDMI operation.
+
+**Board result, 2026-11-07:** the Gowin-built 50.4 MHz image runs the
+terminal on HDMI with the GPU's rendered output. Earlier bring-up returned
+all-`FF` and then all-zero capability reads. The cause was isolated to the
+open-source FPGA flow's implementation of the address latch, as recorded
+below and in the control guide, not to wiring, firmware or RTL.
 The client validates the fixed capability prefix before polling ready status and
 offers an offline immutable-capability probe (also automatic after failed
 startup) plus RP address-pad echo to help
@@ -327,8 +324,8 @@ flowchart LR
     FIFO --> SCAN["Independent 640×480 scanout"]
     MEM <--> SDPADS["Registered SDRAM output pads / inverted forwarded clock"]
     SDPADS <--> SDRAM["8 MiB ×32 SDR SDRAM"]
-    SCAN --> COREVIDEO["Core RGB565 + sync / unconnected in bus-test board"]
-    BLACK["Pixel-domain constant-black raster"] --> VIDEO["Board TMDS serializers / HDMI"]
+    PIXEL["Pixel-domain toggle / synchronized event"] --> SCAN
+    SCAN --> VIDEO["Core RGB565 + sync / board TMDS serializers / HDMI"]
 ```
 
 All GPU data enters through the host interface and reaches external memory
@@ -494,7 +491,13 @@ products use mixed unsigned/signed mode. The private texture-coordinate path
 uses **19 native 18×18 multiplier equivalents** and eight native RAM delay
 banks. Their circular addresses advance with the complete pipeline and hold
 on backpressure, preserving latency and initiation interval without retaining
-all delayed payloads as flip-flops. The generic full signed-Q16 reconstruction
+all delayed payloads as flip-flops. The two 43×35 U/V reciprocal products are
+**retimed** (`nano_uv_mul` `RETIME=1`). Their six DSP blocks take operands
+without input registers, because both operands are already advance-enabled
+register outputs. The shifted partial-product sum is registered instead. The
+latency stays three enabled edges, and the wide adder tree no longer shares a
+clock period with `integer_estimate` window selection, which closes 50.4 MHz
+in the board build. The generic full signed-Q16 reconstruction
 module remains available with **26 enabled-edge latency**, but is not the
 fragment path instantiated by the complete GPU.
 
@@ -682,9 +685,22 @@ the affected resource. No second upload engine or additional BSRAM is present.
 
 The present RTL serializes foreground upload, fetch, tile transfers and copies;
 it does not implement the C++ system model's overlapping tile writeback or
-primitive prefetch schedule. Color copies use bounded native row staging and
-preserve same-buffer overlap semantics, but their initial external access
-schedule is per pixel. The executor retains no 56-byte command-prefix copy:
+primitive prefetch schedule. Color copies work one row at a time:
+1. **Read.** The row's 32-bit source words arrive in SDRAM bursts of up to 16
+   words. Each word is realigned on arrival into destination-aligned words in
+   one 512×32 native row RAM. With a one-pixel source/destination phase
+   difference, a word's low half is paired with the previous word's high
+   half, and odd shifted rows add one flush word.
+2. **Write.** The row is written back in bursts of up to 16 words, at one word
+   per core edge, with per-word half strobes for partial end words.
+
+The whole row is read before any of it is written, which preserves same-buffer
+overlap semantics; a reverse row order handles downward overlap. Before
+2026-11-07, every pixel took a separate one-word read and a separate masked
+write, which made a 640×480 copy take well over 0.8 s at 6.3 MHz. A one-cycle
+setup state also registers the copy direction and starting destination row
+before the address arithmetic, to meet 50.4 MHz timing. The executor retains
+no 56-byte command-prefix copy:
 it validates complete raw words through one 32-bit accumulator and reuses the
 owned native packet lease until retirement. COPY refetches 14 parameter words,
 clips X then Y through one signed 33-bit interval/subtract/compare datapath,
@@ -717,9 +733,8 @@ pass. A normal new 3D frame clears depth; `LOAD` alone does not make an old colo
 buffer and shared depth a matched pair.
 
 Logical core scanout runs independently at 640×480 active pixels in an 800×525
-timing frame, with active-low sync. A 25.2 MHz logical pixel rate gives 60 Hz;
-the current 6.3 MHz bus-test core instead advances at 3.15 MHz, giving 7.5 Hz
-logical frames. Its physical HDMI raster is separate and remains 60 Hz.
+timing frame, with active-low sync. On the board, each synchronized 25.2 MHz
+physical pixel event advances scanout by one pixel, giving 60 Hz frames.
 Video-only DVI-compatible signaling through the HDMI connector is sufficient;
 audio and HDMI data packets are not required.
 
@@ -730,10 +745,9 @@ eligible for memory arbitration during foreground traffic. Underflow produces
 black for the rest of that affected frame and increments a diagnostic counter;
 it is an error condition, not normal presentation behavior.
 
-The functional core outputs RGB565, sync, display-enable and pixel coordinates,
-but those outputs are disconnected in the fixed bus-test board. Its pixel-domain
-black-raster generator feeds the standard TMDS encoder and four native OSER10
-serializers, driving TLVDS_OBUF pads. Lanes 0/1/2 carry blue/green/red at package
+The functional core outputs RGB565, sync, display-enable and pixel coordinates.
+On the board, its RGB565, sync and display-enable feed the standard TMDS encoder
+and four native OSER10 serializers, driving TLVDS_OBUF pads. Lanes 0/1/2 carry blue/green/red at package
 pairs 35/36, 37/38 and 39/40; lane 3 is the clock pair 33/34. The CST selects
 LVDS25, matching Sipeed's hardware-3921 HDMI example. This is video-only output;
 there are no HDMI audio or auxiliary packets.
@@ -750,7 +764,7 @@ query execution, then serializes the other foreground fields while ordered
 execution holds them stable. Immutable capabilities are serialized directly.
 The diagnostic core cycle counter and its reply snapshot are physically
 48 bits. The unchanged u64 wire slot zero-extends the upper 16 bits and wraps
-modulo 2^48 (about 517 days at 6.3 MHz); hard reset restarts it. This storage
+modulo 2^48 (about 64.6 days at 50.4 MHz); hard reset restarts it. This storage
 reduction does not affect rendering arithmetic or command sequence/epoch widths.
 The wire result remains a coherent snapshot. Sideband reads use the
 acknowledged core snapshot bank held unchanged until the next request; refresh
@@ -789,9 +803,8 @@ simulation and synthesis. In synthesis, the wrappers bind actual Gowin `SDPB`, `
 does not clear stored RAM words; forbidden same-address read/write collisions
 are checked in simulation.
 
-The logical core RTL declares **46 native RAM banks** as follows. This source
-allocation is distinct from the source-matched physical board count: the
-bus-test board does not consume the core's rendered video output.
+The logical core RTL declares **46 native RAM banks** as follows. The board
+image uses all 46 of the device's banks, because the scanout FIFO is in use.
 
 | Allocation | BSRAM banks |
 | --- | ---: |
@@ -886,103 +899,84 @@ Production-board qualification must include the clock/reset and video/pad
 wrappers, final pin constraints and complete clock/I/O timing closure. Neither
 a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 
-### Current fixed bus-test implementation
+### Current board implementation (Gowin EDA)
 
-The [current complete-board report](../docs/hardware/tang20k-board.json)
-matches the 6.3 MHz core and independent black HDMI raster described above.
-Placement seed 3 legally routes the full `tang20k_top` target, including PLL,
-registered divider/BUFG, resets, physical host wrapper, SDRAM boundary pads,
-black-raster logic and TMDS serializers/pads. Fixed SiP connections and all
-selected internal clock gates pass.
-
-| Physical resource | Used | Capacity |
-| --- | ---: | ---: |
-| LUT sites, including FF inputs and distributed-RAM reservations | **20,043** | 20,736 |
-| DFF resources, including RAM reservations | 6,731 | 15,552 |
-| Native BSRAM banks | 44 | 46 |
-| Native 18×18 multipliers | 25 | 48 |
-| rPLLs | 1 | 2 |
-
-These counts belong only to the fixed black-raster diagnostic build.
-Synthesis prunes unobserved GPU-video payload logic and its two RAM banks;
-the resulting lower allocation is not production GPU-display headroom.
-
-| Board domain | Configured clock | Routed Fmax estimate |
-| --- | ---: | ---: |
-| Core/SDRAM | 6.3 MHz | 58.88 MHz |
-| Host | At most 0.01 MHz selected | 87.68 MHz |
-| Physical pixel | 25.2 MHz | 159.69 MHz |
-
-Fmax is a tool estimate, not the programmed clock or a hardware measurement.
-The core-to-pixel GPU payload capture gate is **not applicable**: that payload
-is disconnected, and the build checks that no such crossing remains. Pixel
-clock timing is checked separately. External bus/SDRAM margins remain
-unmeasured.
-
-The matching image is **7,263,640 bytes**, SHA-256
-`ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3`.
-The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
-verifies device ID, declared frame count, bitmap shape and frame CRCs; it
-records that same hash. This is structural file validation, not a physical test.
-
-The [matching functional evidence](../docs/hardware/tang20k-functional.json)
-passes 630,068 wrapper checks with an isolated core model and a 25 MHz host
-stress clock. Five separate real-core cases pass at 6.3 MHz core / 3.15 MHz
-virtual host and logical pixel rates, without C++ device backends. Those
-simulations do not model the physical 10 kHz GPIO transport. Firmware GPIO
-mocks separately verify the 50 us phase floor; none of these checks qualify
-the received hardware or visible GPU terminal output.
-
-### Earlier 50.4 MHz board implementation (historical)
-
-The [earlier source-matched full-board report](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/hardware/tang20k-board.json)
-qualified the earlier 50.4 MHz programming image, not the changed 6.3 MHz
-bus-test sources. Placement seed 3 produced this result, including board
-clocks/reset, physical host pads, SDRAM
-boundary registers and HDMI serializers/pads:
+The [current complete-board report](../docs/hardware/tang20k-board.json) is
+source-matched to the 50.4 MHz GPU-video profile described above. It is built
+by `make tang20k` with Gowin EDA V1.9.8.11 Education, using placement option 2
+and routing option 1. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
+resets, the physical host wrapper, registered SDRAM boundary pads, the
+pixel-event handoff, and the TMDS serializers and pads. All 26 package pins,
+including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| LUT sites, including FF inputs and distributed-RAM reservations | **20,467** | 20,736 |
-| DFF resources, including 48 distributed-RAM reservations | 6,864 | 15,552 |
-| Native BSRAM banks | 46 | 46 |
-| Native 18×18 multipliers | 25 | 48 |
-| rPLLs | 1 | 2 |
+| Logic (Gowin LUT/ALU count) | **16,062 (78%)** | 20,736 |
+| Registers | 6,750 (43%) | 15,915 |
+| Native BSRAM banks | 46 (100%) | 46 |
+| DSP | 53% | |
+| rPLL / CLKDIV | 1 / 2 | 2 / 8 |
 
-That build left **269 LUT sites (1.30%) and no spare BSRAM**. The serial probe's
-test-only registers/checksum logic are absent from the board target, so its
-old count cannot simply be added to board logic. The board also uses the
-48-bit diagnostic counter and the earlier synchronized pixel-event handoff.
-There are no rendering-feature or numeric-precision cuts.
-The [earlier programming-file check](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/hardware/tang20k-bitstream-check.json)
-parsed that emitted `.fs`, checked its device ID and frame CRCs, and recorded
-its SHA-256. This was structural file validation, not a physical-board test or
-qualification of the changed clocks/video source.
+Gowin's logic count is not directly comparable with the nextpnr LUT-site
+counts of earlier reports. No BSRAM bank is spare.
 
-| Board domain | Configured clock | Routed Fmax estimate |
+| Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | 63.14 MHz |
-| Host | At most 25.2 MHz selected | 105.51 MHz |
-| Pixel | 25.2 MHz | 205.42 MHz |
-| Reference | 27 MHz | 485.44 MHz |
+| Core/SDRAM | 50.4 MHz | **51.13 MHz** |
+| Host | 25.2 MHz | 79.08 MHz |
+| Physical pixel | 25.2 MHz | 186.56 MHz |
+| Reference | 27 MHz | 410.86 MHz |
 
-That core-to-pixel path was estimated at **13.72 ns**, within its **18.84 ns**
-budget after a 1 ns reserve. Its selected clock and capture gates passed.
-These are modeled internal delays; external I/O margins and the real board
-are unmeasured. The image contains no command player.
+The core closes with about 1.4% margin in this placement; an earlier placement
+of the same timing fixes reached 62.8 MHz. Its closest paths are in the
+renderer (depth RAM output to fragment-ready enables). Two RTL timing fixes
+took the core from 41.2 MHz to these results:
+- the retimed U/V reciprocal multipliers (section 6);
+- registering the copy direction and starting row before the address
+  arithmetic (section 9).
 
-The complete board build is `make tang20k` on the Linux HDL toolchain. Its
-source-matched `build/tang20k/board-report.json` includes full synthesis,
-packing, placement/routing, fixed SiP pin checks, timing and bitstream hashes.
-It refuses to emit an upload image if any resource or internal timing gate
-fails. A packed resource count or a LUT lower bound is not a final fit result.
-The earlier board glue used one rPLL, two CLKDIV blocks, four OSER10 serializers,
-four differential output buffers and one ODDR, plus pad/reset/control logic.
-All those components belonged to that measured board target. Its timing gate
-also required the core-to-pixel payload path to fit one core period with a
-1 ns reserve, covering the synchronized pixel-event handoff's capture window
-in the delay model. The current black-raster test build has no such GPU pixel
-handoff. These measurements remain estimates, not board propagation times.
+Eight reset-release paths have negative slack, and the report lists each one:
+- power-on into the core and pixel reset synchronizers, −2.61 ns and
+  −1.29 ns. This is an asynchronous preset into two-flop synchronizers that
+  release synchronously.
+- the synchronized pixel reset into the four OSER10 serializer resets,
+  −0.40 ns.
+
+The build fails on any other negative-slack path.
+
+`AGENTS.md` records the exception for this flow. The fixed SiP SDRAM connection
+cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
+copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
+
+The image is **7,264,137 bytes**, SHA-256
+`55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170`. The
+[programming-file check](../docs/hardware/tang20k-bitstream-check.json)
+verifies device ID, declared frame count and frame CRCs; this is structural
+file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
+covers two layers:
+- the board-wrapper testbench (773 clock/pad/bus checks with an isolated core
+  model);
+- five real-core cases at the 50.4 MHz board profile: the command/copy self-test
+  with 44 copy oracle cases, plus four rendering scenes.
+
+Firmware mocks separately verify the 2 us GPIO phase floor. On 2026-11-07 the
+user programmed this exact image (Gowin Programmer verified the flash write)
+and reported it displaying and refreshing the MPC-2350 terminal on HDMI. A
+standalone RP2350 sketch also kept the 2 us bus running a continuously moving
+screen without locking up. These are functional observations, not electrical
+or timing qualification. A keyboard stall seen during these runs was an RP2350
+firmware stack overflow, not a GPU fault; the control guide records it.
+
+### Earlier board implementations (historical)
+
+- **Open-source 50.4 MHz image** (nextpnr, seed 3). Its routed estimates were
+  63.14 MHz core and 205.42 MHz pixel. Gowin's own timing analysis of the same
+  design gave 41.2 MHz before the two fixes above, so nextpnr's delay model
+  overstated the margin.
+- **Open-source 6.3 MHz bus-test image** (2026-11-06). Its host address latch
+  failed on the board, as recorded in the control guide.
+
+Their reports remain in git history and do not qualify the current sources.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -1043,8 +1037,8 @@ submission measurements include host delivery through the matching fence:
 | overdraw | 11,052,888 | 219.30 |
 | opaque | 10,736,252 | 213.02 |
 
-These are historical simulation measurements, not observed FPGA FPS or results
-for the current 6.3 MHz bus-test image. They exclude CPU
+These are historical simulation measurements, not observed FPGA FPS. They
+predate the burst copy engine. They exclude CPU
 transform/setup work and presentation wait. The board profile is a first
 hardware bring-up target, not a claim that complete scenes reach 30 FPS.
 Warm resident-tile one-fragment-per-clock cadence remains verified separately.
@@ -1078,57 +1072,67 @@ serial probe, not the production board target. Their nominal 100.8 MHz target
 is separate from the fixed board clock plan. The retained probe reports above
 are historical and must not be used as current board evidence.
 
-Build the complete board with the Linux x86_64 pinned toolchain:
+Build the complete board with Gowin EDA, running the functional checks from
+MSYS2 UCRT64:
 
 ```bash
-./scripts/setup-rtl-tools.sh
 make tang20k-test
-make tang20k
+make tang20k GOWIN_SH="C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe"
 ```
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
 address/data bus behavior and the real core at the board profile. Wrapper
 isolation tests use a small test-only core model; the five integration cases
-use the real GPU and external SDRAM model. `make tang20k` then runs full-board
-synthesis, packing, placement, routing, fixed SiP pin verification and internal
-timing checks. `TANG20K_SEED` selects its placement seed, recorded in the
-implementation report; it emits no `.fs` after a failed gate. At this utilization,
-a different placement seed can be necessary without any circuit change.
-Outputs are `build/tang20k/nano-gpu.fs` and `build/tang20k/board-report.json`.
-Changing RTL, constraints or the builder requires rebuilding the image and
-matching report; previously generated files do not qualify a changed design.
+use the real GPU and external SDRAM model. `make tang20k` then requires that
+passing evidence. It builds the board with Gowin and checks:
+- every package pin;
+- the four required clocks;
+- that every negative-slack path is a listed reset-release path.
+
+It emits no `.fs` after a failed gate. Outputs are `build/tang20k/nano-gpu.fs`
+and `build/tang20k/board-report.json`. Changing RTL, constraints or the builder
+requires rebuilding the image and matching report; previously generated files
+do not qualify a changed design. `AGENTS.md` records why the vendor flow is
+used and which gate it cannot meet.
 
 The repository programming image is `bitstreams/tangnano20k/nano-gpu.fs`, with
 its release SHA-256 file and matching complete-board, functional and
 programming-file reports under `docs/hardware/`. Earlier performance evidence
 under `docs/benchmarks/` remains historical for the changed board profile. See the
 [control guide's programming instructions](GPU_CONTROL.md#programming-and-first-board-bring-up)
-for SRAM loading with openFPGALoader, reset release and expected idle output.
+for loading with Gowin Programmer, reset release and expected idle output.
 The FPGA contains no command player or demo assets; a host must submit work.
 
-**This repository image failed on the received board** (2026-11-07). It
-configures, drives video timing and answers handshakes, but it latches wrong
-host addresses, so it never passes startup. Board wiring, pins, RTL and
-synthesis were cleared independently. The same RTL built with Gowin EDA
-(`experiments/gowin-ab/build.py`, a diagnostic and not a qualified image)
-reached `READY`. The diagnostic `experiments/bus-echo` image, built with the
-open flow on the same pin sites, also worked. The open-flow fault lies in
-packing, placement or bitstream generation for the full design and is not yet
-isolated. After `READY`, the Gowin build's first terminal present timed out;
-that cause is open.
+**Hardware history, 2026-11-07:**
+- The open-source flow's image failed on the received board. It configured,
+  drove video timing and answered handshakes, but latched wrong host
+  addresses. Wiring, pins, RTL and synthesis were cleared independently, and
+  a pin-identical open-flow bus-echo image (`experiments/bus-echo`) worked.
+  The fault lies in that flow's packing, placement or bitstream generation for
+  the full design.
+- The same RTL built with Gowin reached `READY`. At the then-current 6.3 MHz,
+  its slow per-pixel full-screen copy outlasted the host's old 250 ms reply
+  wait. Live status showed the core busy without faults.
+- After that:
+  - the host now polls reply availability with a 10 s deadline and stops on
+    fault flags;
+  - copies use SDRAM bursts;
+  - the terminal no longer copies the whole screen per frame;
+  - the board returned to 50.4 MHz with GPU video. The user reported the
+    terminal on HDMI with the 50.4 MHz Gowin build before burst copies.
 
 Remaining hardware work is the RP2350 PIO/DMA driver and firmware integration,
 external bus/SDRAM timing measurement, and correctness/performance testing on
-the received board. Internal nextpnr timing closure uses modeled delays;
+the received board. Gowin's static timing uses its device delay models;
 external setup/hold margins and real maximum clock are not established by
-Verilator or a successful bitstream generation. The fixed 6.3 MHz bus-test image
-does not claim visible GPU output, a measured silicon frequency limit or 30 FPS scenes.
+Verilator or a successful bitstream generation. The board image does not claim
+a measured silicon frequency limit or 30 FPS scenes.
 
 ## 15. Implementation map
 
 | Source | Architectural responsibility |
 | --- | --- |
-| [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Fixed bus-test clocks/reset, independent black HDMI raster, shared host pads, SDRAM boundary and TMDS integration |
+| [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Board clocks/reset, synchronized pixel-event handoff, shared host pads, SDRAM boundary and TMDS integration |
 | [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and verified fixed embedded SDRAM terminals |
 | [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, copies, presentation/recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |

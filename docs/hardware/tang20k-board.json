@@ -1,12 +1,14 @@
 {
-  "schema": "N20K-TANG20K-BOARD-1",
+  "schema": "N20K-TANG20K-BOARD-2",
   "device": "GW2AR-LV18QN88C8/I7",
   "top": "tang20k_top",
+  "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education",
+  "gowin_shell": "C:\\Gowin\\Gowin_V1.9.8.11_Education\\IDE\\bin\\gw_sh.exe",
   "source_sha256": {
-    "rtl/uv_mult.v": "13ca947c631febfc2361117b317ced6219509fbdf9d13d87d49ec2dd33a6f710",
-    "rtl/uv_pipeline.v": "71a01688901ba647b25b429da9f0af0153c906294b1044e83ca3a6dbca370784",
+    "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+    "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "2af7b21f10898045745ece797246aff7efff63ed79992b25607f934c482c39bb",
+    "rtl/gpu/nano_gpu_core.sv": "e6efd8bf6c862559d1e3d6fd30ce340ba09c199c0592ff42aa86efd767186e35",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -17,205 +19,115 @@
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
     "rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
-    "rtl/board/tang20k_top.sv": "040a5705fdc97774d2a1807dad8ea53562128499c5fe1094f1343fa67a801756",
+    "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
-    "rtl/board/tang20k-sip.json": "476cd005034f8362680f9072e2df7709e3519e1fd0a03bbcb78dcd5237455d24",
-    "scripts/build-tang20k.py": "380ca74d959dcb3e23f9fc12d594f10251f8fbdb5e0b071666bb79186efd4f0d",
+    "scripts/build-tang20k.py": "3a985180ab3f100e329e4b436788bae7b28599f7edce5dd41d55f2089e77bd02",
+    "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
     "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
     "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
     "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
-    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
-    "scripts/rtl-check.py": "c8e84c1519f25fdb9deb4e2e5d4e305937980964bd5375a4664fa73cd4a633d8",
-    "scripts/rtl-core-pack.py": "b3d0d5d052d06d5c5bd9f6145cebddcf897eed940e4e8d9cc45f40268b60e790",
-    "scripts/rtl-core-pnr.py": "3daeae29c79596f525560ed13c80b3d74fd6de9ce09863cccbf6f3d74c8c5bcc",
-    "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9"
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
   },
-  "seed": 3,
-  "command_player": false,
-  "hardware_tested": false,
-  "upload_ready": true,
-  "generated_rom_sha256": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
-  "external_io_timing_measured": false,
-  "timing_scope": "nextpnr internal-clock setup estimates; external SDRAM/parallel-bus margins require hardware measurement",
-  "profile": "slow-core-bus-test",
-  "display_scope": "Independent constant-black 640x480/60 raster; GPU-rendered video disconnected",
-  "core_mhz": 6.3,
+  "place_option": 2,
+  "route_option": 1,
+  "profile": "gpu-video-50mhz",
+  "core_mhz": 50.4,
   "pixel_mhz": 25.2,
   "serial_mhz": 126.0,
-  "host_max_mhz": 0.01,
+  "host_max_mhz": 25.2,
+  "command_player": false,
+  "hardware_tested": false,
+  "external_io_timing_measured": false,
+  "upload_ready": true,
+  "agents_exception": "AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer).",
+  "sip_pins_verified": false,
+  "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
+  "functional_report_sha256": "aeb20685e1679585282109bb505401467fc64888c071a12cb260671c5be479b2",
+  "gowin_reused": true,
+  "gowin_returncode": 0,
   "synthesized": true,
-  "packed": true,
   "placed": true,
   "routed": true,
-  "timing_passed": true,
-  "bitstream_generated": true,
-  "yosys_version": "Yosys 0.70+219 (git sha1 5053d0e26, Release, GNU /usr/bin/x86_64-w64-mingw32-g++ 15.2.1)",
-  "nextpnr_version": "\"nextpnr-himbaechel\" -- Next Generation Place and Route (Version nextpnr-0.11.1-79-g22c5adf4)",
-  "synthesis_cells": {
-    "$scopeinfo": 95,
-    "ALU": 4973,
-    "BUFG": 1,
-    "CLKDIV": 1,
-    "DFF": 6,
-    "DFFC": 188,
-    "DFFCE": 545,
-    "DFFE": 1822,
-    "DFFP": 9,
-    "DFFPE": 1,
-    "DFFR": 275,
-    "DFFRE": 3788,
-    "DFFS": 16,
-    "DFFSE": 33,
-    "GND": 1,
-    "IBUF": 8,
-    "IOBUF": 40,
-    "LUT1": 87,
-    "LUT2": 2478,
-    "LUT3": 3760,
-    "LUT4": 4913,
-    "MULT18X18": 25,
-    "OBUF": 33,
-    "ODDR": 1,
-    "OSER10": 4,
-    "RAM16SDP4": 8,
-    "SDPB": 42,
-    "SDPX9B": 2,
-    "TLVDS_OBUF": 4,
-    "VCC": 1,
-    "rPLL": 1
-  },
-  "synth_sha256": "bbc946a7d3a5ed64a13b0c29f67f45d6d1af3b4635ea46379b4148c4a3cd84bb",
-  "physical_lut_lower_bound": {
-    "scope": "Optimistic FF-input LUT lower bound for the selected nextpnr Gowin mapping; not legal placement or timing",
-    "active_flipflops": 6683,
-    "maximum_existing_lut_alu_pairs": 3758,
-    "minimum_additional_ff_input_luts": 2925,
-    "packed_lut_sites": 16838,
-    "minimum_physical_lut_sites": 19763,
-    "available_lut_sites": 20736,
-    "within_capacity": true
-  },
-  "functional_report_sha256": "bed4807ffeb8a3c2e4528cf21bc2192ab01aae65a0a41e076adf72ab506b3db6",
-  "clock_constraints_sha256": "814e106647052f9ad972a4ae77d3f98e824b800011dc6e071d4552aa10a0b743",
-  "route_returncode": 0,
-  "resources": {
-    "LUT4": {
-      "used": 20043,
-      "available": 20736,
-      "within_capacity": true
-    },
-    "DFF": {
-      "used": 6731,
-      "available": 15552,
-      "within_capacity": true
-    },
-    "BSRAM": {
-      "used": 44,
-      "available": 46,
-      "within_capacity": true
-    },
-    "MULT18X18": {
-      "used": 25,
-      "available": 48,
-      "within_capacity": true
-    }
-  },
-  "routed_sha256": "d1383722270b9dfdd6aaa27bdaba14110b218e39187835bc91e228eb75944bc0",
-  "sip_pins_verified": true,
+  "package_pins_checked": 26,
+  "package_pins_verified": true,
+  "pin_mismatches": [],
   "fmax": {
-    "clk27_IBUF_I_O": {
-      "achieved": 431.59259033203125,
-      "constraint": 27.000028610229492
-    },
-    "core.clk": {
-      "achieved": 58.88241195678711,
-      "constraint": 6.30000638961792
-    },
-    "core.host_clk": {
-      "achieved": 87.68084716796875,
-      "constraint": 0.009999999776482582
-    },
-    "pixel_clk": {
-      "achieved": 159.69338989257812,
-      "constraint": 25.20034408569336
-    }
-  },
-  "critical_paths": [
-    {
-      "from_clock": "posedge core.host_clk",
-      "to_clock": "posedge core.host_clk",
-      "from_cell": "gpu_rd_n_IBUF_I_O_DFFP_Q",
-      "to_cell": "core.host_link.tx_fifo.storage.bank",
-      "delay_ns": 11.40500009432435
-    },
-    {
-      "from_clock": "posedge clk27_IBUF_I_O",
-      "to_clock": "posedge clk27_IBUF_I_O",
-      "from_cell": "poweron_DFFRE_Q_6",
-      "to_cell": "poweron_DFFRE_Q_7",
-      "delay_ns": 2.317000050097704
-    },
-    {
-      "from_clock": "posedge core.clk",
-      "to_clock": "posedge core.clk",
-      "from_cell": "core.memory_service.burst_base_DFFRE_Q_11_D_ALU_SUM_COUT_ALU_CIN_SUM_LUT3_I1_F_DFFR_D",
-      "to_cell": "core.memory_service.buffer_masks.bank",
-      "delay_ns": 16.98300028592348
-    },
-    {
-      "from_clock": "posedge pixel_clk",
-      "to_clock": "posedge pixel_clk",
-      "from_cell": "locked_LUT4_I2_F_DFFP_PRESET_Q_DFFP_D",
-      "to_cell": "video.lanes[2].serializer.parallel_data_DFFR_Q",
-      "delay_ns": 6.262000102549791
-    },
-    {
-      "from_clock": "posedge clk27_IBUF_I_O",
-      "to_clock": "posedge core.clk",
-      "from_cell": "poweron_DFFRE_Q_6",
-      "to_cell": "core.tile_renderer.plane_current[1]_DFFRE_Q_17",
-      "delay_ns": 18.24200004711747
-    },
-    {
-      "from_clock": "posedge clk27_IBUF_I_O",
-      "to_clock": "posedge core.host_clk",
-      "from_cell": "poweron_DFFRE_Q_6",
-      "to_cell": "core.host_link.tx_fifo.storage.bank",
-      "delay_ns": 18.709000159054995
-    }
-  ],
-  "required_clock_results": {
     "clk27": {
-      "reported_clock": "clk27_IBUF_I_O",
-      "requested_mhz": 27.0,
-      "achieved": 431.59259033203125,
-      "constraint": 27.000028610229492
+      "constraint_mhz": 27.0,
+      "achieved_mhz": 410.864
     },
     "gpu_hclk": {
-      "reported_clock": "core.host_clk",
-      "requested_mhz": 0.01,
-      "achieved": 87.68084716796875,
-      "constraint": 0.009999999776482582
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 79.076
     },
-    "core.clk": {
-      "reported_clock": "core.clk",
-      "requested_mhz": 6.3,
-      "achieved": 58.88241195678711,
-      "constraint": 6.30000638961792
+    "core_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 50.4,
+      "achieved_mhz": 51.128
     },
-    "pixel_clk": {
-      "reported_clock": "pixel_clk",
-      "requested_mhz": 25.2,
-      "achieved": 159.69338989257812,
-      "constraint": 25.20034408569336
+    "pixel_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 186.563
     }
   },
-  "pixel_capture": {
-    "applicable": false,
-    "reason": "GPU-rendered payload disconnected; black raster is entirely pixel-clock synchronous",
-    "unexpected_core_to_pixel_paths": 0
+  "violations_listed": [
+    {
+      "slack_ns": -2.611,
+      "from": "poweron_0_s0/Q",
+      "to": "core_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -2.611,
+      "from": "poweron_0_s0/Q",
+      "to": "core_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -1.294,
+      "from": "poweron_0_s0/Q",
+      "to": "pixel_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -1.294,
+      "from": "poweron_0_s0/Q",
+      "to": "pixel_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[0].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[1].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[2].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[3].serializer/serializer/RESET"
+    }
+  ],
+  "violations_unexpected": [],
+  "violated_endpoint_counts": {
+    "setup": 4,
+    "hold": 4
+  },
+  "timing_passed": true,
+  "resources": {
+    "Logic": "16062/20736  78%",
+    "Register": "6750/15915  43%",
+    "I/O Port": "26",
+    "BSRAM": "100%",
+    "DSP": "53%",
+    "PLL": "1/2(50%)",
+    "CLKDIV": "2/8(25%)"
   },
   "inputs_changed": [],
-  "bitstream_sha256": "ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3",
-  "bitstream_bytes": 7263640
+  "bitstream_generated": true,
+  "bitstream_sha256": "55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170",
+  "bitstream_bytes": 7264137
 }

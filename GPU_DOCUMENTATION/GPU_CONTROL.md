@@ -62,36 +62,26 @@ the GPU core clock is a separate domain connected through native asynchronous
 FIFOs. Simulation selects approximately 25.2 MHz host clock and 100.8 MHz core
 clock. These are nominal profiles, not achieved board timings or a requirement
 that every physical host clock have a fixed phase relative to the core.
-The selected **fixed bus-test board image** uses **6.3 MHz core/SDRAM**, while
-physical HDMI remains **25.2 MHz pixels / 126 MHz DDR serialization**. A
-pixel-domain generator feeds a constant-black 640×480/60 raster to HDMI;
-GPU-rendered pixels are disconnected. This image does not display or qualify
-the terminal, even if protocol transactions succeed. The onboard 27 MHz
-oscillator and PLL still supply video clocks; the core uses a registered
-divide-by-four of 25.2 MHz with a BUFG.
+The board image uses **50.4 MHz core/SDRAM**, **25.2 MHz pixels** and
+**126 MHz DDR serialization**, all from the onboard 27 MHz oscillator through
+one PLL and two CLKDIV5 blocks. Each physical pixel clock edge produces one
+synchronized scanout event in the core, and the core's rendered RGB565 drives
+HDMI at 640×480/60. The capability bank reports **50,400,000 core Hz**,
+host-divider metadata 0 (independent host clock) and pixel divider 2. Default
+logical-core simulation retains 100,800,000 / 4 / 4. Drivers read capabilities
+rather than assuming one profile. The image contains one fixed compile-time
+configuration, with no runtime clock command or hardware compatibility mode.
 
-The capability bank reports **6,300,000 core Hz**, host-divider metadata 0
-(independent host clock) and pixel divider 2. That divider describes the
-core's **3.15 MHz logical scanout / approximately 7.5 Hz frame counter**, not
-the independent physical HDMI raster. Default logical-core simulation retains
-100,800,000 / 4 / 4. Drivers read capabilities rather than assuming one profile.
-This changes no packet or buffer-ownership rule. The image contains one fixed
-compile-time test configuration, with no runtime clock command or hardware
-compatibility mode. A later clock/video change and new validation are required
-to restore visible GPU terminal output.
-
-The GPIO firmware uses at least **50 us per HCLK phase/setup wait**: its
-phase-only ceiling is **10 kHz**, before API overhead. External bus/SDRAM
-margins remain unqualified. The earlier 50.4 MHz board route and the serial
-probe's estimated frequency limits are historical, not evidence for the
-changed sources. The [matching complete-board build](../docs/hardware/tang20k-board.json)
-legally routes the test image, verifies fixed SiP connections and passes its
-selected internal clock gates. Core/pixel/host Fmax estimates are respectively
-58.88 / 159.69 / 87.68 MHz; the configured clocks remain 6.3 / 25.2 / at most
-0.01 MHz.
-The GPU payload capture gate is not applicable because that crossing is
-disconnected, and the build checks its absence. Physical electrical margins
-remain unqualified; lower test-build LUT/RAM use is not GPU-display headroom.
+The GPIO firmware uses at least **2 us per HCLK phase/setup wait**: its
+phase-only ceiling is **250 kHz**, before API overhead. External bus/SDRAM
+margins remain unqualified. The image is built with Gowin EDA; the reasons and
+the gates that could not be applied are recorded in `AGENTS.md`. Its
+[complete-board report](../docs/hardware/tang20k-board.json) verifies every
+package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
+51.13 / 186.56 / 79.08 MHz against 50.4 / 25.2 / 25.2 MHz. The only
+negative-slack paths are reset-release paths, listed in the report. From
+2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
+raster replaced this profile during bus diagnosis; it is historical.
 
 | Signal | Direction at GPU | Current logical meaning |
 | --- | --- | --- |
@@ -343,20 +333,19 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/e09f065)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/cb2eb28)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
 16×16 glyphs. NARM launching and its native graphics interface are disabled;
 PIO/DMA acceleration, color rendering and a graphical mouse cursor are deferred.
 PS/2 mouse input is retained without the old pixel compositor.
-The fixed 6.3 MHz bus-test FPGA image keeps rendered pixels disconnected from
-HDMI; that image exercises the bus first and cannot display this terminal.
+On the board, the terminal displays on HDMI through the GPU's own scanout.
 
 The transport uses the pin table above, always keeps GP39/40 as inputs, selects
 12 mA drive for RP control outputs, and releases D[7:0] before reads. GPIO waits
-are at least **50 us per HCLK phase/setup wait**, so the clock is below the
-10 kHz phase-only ceiling once software overhead is included; this is not a
+are at least **2 us per HCLK phase/setup wait**, so the clock is below the
+250 kHz phase-only ceiling once software overhead is included; this is not a
 measured transfer rate or an electrically qualified clock. WREADY is sampled
 before a write edge; RVALID/data are sampled after a read edge and RD_N is
 released before the next rising edge. The driver uses no video PIO or DMA.
@@ -379,13 +368,26 @@ status, checks the full 0.2 capabilities, and uploads a **64 KiB
 256×128 RGB565 font texture at heap `0x258000`**, and fences. The CPU expands
 immutable font bits into one 512-byte upload row at a time; it allocates no
 screen pixel buffer. The first frame uses 1200 heap-image `COPY_RECT` commands.
-For a changed later frame, it copies the current front to back, updates only
-changed glyphs, fences, presents the back and waits for its matching vertical-
-blank reply before reusing buffer ownership. No-change frames send no packets.
+The client tracks which characters each colour buffer shows. For a changed
+frame it picks the cheapest way to bring the back buffer up to date. Either it
+draws only the glyphs that differ from what that buffer already holds, or it
+first sends one `COPY_RECT` of the front, shifted up by whole 16-pixel rows for
+a scroll, and then draws the rest. A copy counts as 16 glyphs when the options
+are compared. It then fences, presents the back and waits for the matching
+vertical-blank reply before reusing buffer ownership. No-change frames send no
+packets; a cursor blink sends no glyph copies once both buffers are known.
 This exercises the copy engine and scanout, not the triangle renderer.
 
 Each physical byte transfer has a **250 ms timeout**; startup polling also has
-a finite count. Invalid replies, mismatched epoch/sequence/token, or transfer
+a finite count. A reply exists only after every earlier command retires, so its
+first byte can lag far behind one byte timeout. Before reading a reply, the
+client polls sideband register 1 until bit 4 (reply available) is set, within a
+**10 s** CPU-clock deadline. It stops at once on bit 3 (core fault) or bit 7
+(transport fault), because the RTL emits no reply after a fault. The errors are
+`reply wait timeout` and `GPU fault while awaiting reply`. `GPU_STATUS` reports
+`reply_wait_ms=last/max`. `GPU_REGS` decodes two live status snapshots 500 ms
+apart (flags, epoch, completed, fence and present tokens, cycle counter, fault
+codes) and runs automatically after a failed frame. Invalid replies, mismatched epoch/sequence/token, or transfer
 failure latch the client offline. For normal initialization, packet and probe
 transfers, the board glue releases data, drives
 WR_N/RD_N/ALE_N HIGH and **keeps GPU_RESET_N HIGH**. A host error must not
@@ -528,7 +530,7 @@ User-reported results on the received board, in order:
 | `GPU_DRIVE 55` / `2A` at Tang pins 27, 28, 29, 30, 31, 42, 41, 48 | open-flow | Every bit 3.3 V or 0 V as driven; WREADY pin 73 3.25 V | Each RP→Tang data bit arrives, HIGH and LOW, at its constrained pin; no contention |
 | Gate-level simulation of the synthesized netlist, firmware timing | open-flow synthesis | Prefix `00 02 08 20`, `GPU_LATCHTEST` `2 8 20 2`, register 1 after 4 edges | RTL and synthesis are correct |
 | Bus-echo diagnostic image (`experiments/bus-echo`) | open flow, same pin sites | Probe `40`…`4F`, swap test `2 21 23`, `GPU_LATCHTEST` `41 42 43 41`, held `0x41` with pins 27/41 HIGH | Pins, FPGA inputs, address latch rule and FPGA→RP HIGH/LOW levels work |
-| Unchanged `tang20k_top` RTL built by Gowin EDA (`experiments/gowin-ab`) | Gowin V1.9.8.11 Education | `READY`; `GPU_LATCHTEST` `2 8 20 2`; caps `0 2 8 20 0 0 80 0 0 80 25 0 0 4 0 0`; swap test `1 0 0; flags=0x1; edges=4 1 1 1` | The full design works when built by the vendor flow |
+| Unchanged `tang20k_top` RTL built by Gowin EDA (6.3 MHz profile at the time) | Gowin V1.9.8.11 Education | `READY`; `GPU_LATCHTEST` `2 8 20 2`; caps `0 2 8 20 0 0 80 0 0 80 25 0 0 4 0 0`; swap test `1 0 0; flags=0x1; edges=4 1 1 1` | The full design works when built by the vendor flow |
 
 The fault is therefore after synthesis in the open flow, in nextpnr packing or
 placement, or in Apicula bitstream generation, for this full design. It is not
@@ -537,14 +539,24 @@ A gate-level simulation of the decoded bitstream was attempted. It cannot settle
 the question, because `gowin_unpack` output leaves the global clock spines
 unconnected, so even the working echo bitstream fails there.
 
-The Gowin A/B image is a diagnostic, not a qualified board image. It was built
-with an unverified third-party copy of Gowin EDA, from a mega.nz download with
-no Authenticode signature. Its timing report meets every clock and leaves only
-reset and video-path violations. It was programmed with the signed official
-Gowin Programmer V1.9.12.04 (`programmer_cli -r 9`, external flash, verified).
-After `READY`, the first terminal present failed with `read timeout`, and that
-cause is open. The slow 6.3 MHz core and the 250 ms per-byte host timeout are
-one hypothesis, not a finding. Gowin's installer bound the Tang debugger's FTDI
+That A/B build used an unverified third-party copy of Gowin EDA, from a
+mega.nz download with no Authenticode signature. Board images are now built
+with it by `make tang20k`, under the `AGENTS.md` exception. The image was
+programmed with the signed official Gowin Programmer V1.9.12.04
+(`programmer_cli -r 9`, external flash, verified).
+After `READY`, the first terminal frame completed (present 1332). The second
+frame then failed with `read timeout` while the client awaited its fence
+(sequence 1336). `GPU_REGS` showed `busy`, `queue-full`, `completed=1332`, no
+fault codes and the cycle counter advancing about 6.3 million counts per second.
+A later dump showed `completed=1336`, `fence=1336` and a reply available. The
+second frame's 640×480 front-to-back `COPY_RECT` therefore finished, but it
+took far longer than the old 250 ms reply-byte wait at the 6.3 MHz bus-test
+clock. That was at least about 0.8 s, against roughly 218 ms (1.37 M cycles)
+predicted by the C++ copy model with that image's SDRAM parameters. The RTL
+then moved every pixel with a separate one-word read and a separate masked
+write, which the model did not reproduce. The status-polled reply wait above
+replaced that wait. Copies now use SDRAM bursts, and the terminal no longer
+copies the whole screen per frame. Gowin's installer bound the Tang debugger's FTDI
 interfaces to FTDI's driver, so openFPGALoader reported `device not found` until
 a WinUSB-type driver is restored. Gowin Programmer uses the FTDI driver
 directly; its read-back verify after an SRAM load fails because Gowin
@@ -558,8 +570,8 @@ host diagnostic changes no FPGA RTL, constraints, clock or programming image.
 
 For stable measurements, the offline-only `GPU_HOLD` command first releases
 the bus with WR_N/RD_N/ALE_N HIGH and RP data pins as inputs. Before selecting
-an address, it samples RVALID after 50 us with HCLK LOW and after 50 us with
-HCLK HIGH. `GPU IDLE` prints `RVALID_LOWCLK` and `RVALID_HIGHCLK`; both should
+an address, it samples RVALID after one HCLK phase (2 us) with HCLK LOW and
+after one phase with HCLK HIGH. `GPU IDLE` prints `RVALID_LOWCLK` and `RVALID_HIGHCLK`; both should
 be **0** because RD_N is inactive. A clock-linked RVALID miswire is one possible
 cause of an incorrect idle result, not an established diagnosis. The check
 adds one idle rising edge, submits no packet and continues to the held read
@@ -620,21 +632,27 @@ write timeout, read timeout, startup fault and malformed reply. A simulated
 800 ms configuration delay checks the one-second startup guard. These checks
 do not exercise physical GPIO electronics, FPGA RTL or HDMI.
 Firmware compilation/flashing and the first connected-board test are left to
-the user; the project has not qualified this driver on hardware. In the current
-user-reported bring-up before the 6.3 MHz bus-test build, the monitor locked
-to a black image with reset HIGH.
-The RP address-pad echo matches, but status/capability reads have returned all
-ones and, subsequently, all zeros. The user checked continuity of all eight data
-wires. Terminal operation and physical bus
-correctness remain unresolved; adding the two external handshake pull-downs
-did not change the zero capability reads. After installing the 6.3 MHz / 50 us
-test build, the user again reported sixteen zero capability bytes with matching
-address echoes and reset HIGH. Slowing both clocks did not change that
-observation. This is not electrical timing qualification.
-Build settings
-and the first-test procedure are in the firmware README. FPGA RTL, package
-constraints retain the same pin mapping. The subsequent 6.3 MHz bus-test build
-changes RTL clocks/video and ships with its matching image and board report.
+the user. On 2026-11-07 the user reported the terminal running on HDMI with
+the Gowin-built 50.4 MHz image. Earlier all-`FF` and then all-zero capability
+reads were traced to the open-source FPGA flow, as recorded in
+[Address-path isolation](#address-path-isolation-2026-11-07). This is not
+electrical timing qualification. Build settings and the first-test procedure
+are in the firmware README.
+
+**Host stack limit (firmware, 2026-11-07).** With the burst-copy image and the
+2 us bus, the GPU kept presenting frames, but the PS/2 keyboard stopped
+shortly after startup and Core 0 sometimes stopped answering serial commands.
+The cause was in the RP2350 firmware, not the GPU or the bus. Arduino-Pico
+gives each core a fixed 4 KiB stack bank, not main RAM. Core 0's bank
+(SCRATCH_Y, `0x20081000`–`0x20082000`) sits directly above Core 1's
+(SCRATCH_X, `0x20080000`–`0x20081000`), with no guard between them. The
+client's frame code kept about 3.6 KiB of local arrays, plus a 1 KiB upload
+packet, so Core 0 overflowed into Core 1's stack and halted the core that
+serves the keyboard. A standalone sketch confirmed that Core 1 stopped
+exactly when the client code first ran. The client now keeps these buffers in
+the `NanoGpu` object (largest stack frame 208 bytes), and the user then
+reported typing and stability fixed. Host code on any core should keep large
+buffers in static storage, objects or the heap, never in local arrays.
 
 ### Write and read timing
 
@@ -689,20 +707,16 @@ Use the full-board image `bitstreams/tangnano20k/nano-gpu.fs` and its matching
 `docs/hardware/tang20k-board.json` implementation report. Do not program a
 serial-probe image as a working GPU.
 
-> **Hardware result, 2026-11-07:** on the user's board this open-flow image
-> configures, drives video timing and answers bus handshakes, but its host
-> address latch captures addresses other than those sent. Every capability and
-> status read therefore fails, and startup stops at
-> `invalid capability readback`. The same unchanged RTL built with the vendor
-> Gowin EDA passed the bus tests and reached `READY`. The board, wiring, RTL and
-> synthesized netlist were cleared separately. Until the open-flow cause is
-> found, this repository image is **not** a working GPU on that board. See
-> [Address-path isolation](#address-path-isolation-2026-11-07).
+The image is built with Gowin EDA by `make tang20k` (`scripts/build-tang20k.py`).
+The open-source flow is no longer used for board images: its image failed the
+host address latch on the board, as recorded in
+[Address-path isolation](#address-path-isolation-2026-11-07). `AGENTS.md` records
+the gates this vendor build cannot meet.
 
-The current image is **7,263,640 bytes**, SHA-256
-`ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3`.
+The current image is **7,264,137 bytes**, SHA-256
+`55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170`.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
-verifies device ID and frame CRCs against that hash. The
+verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
 wrapper-model and real-core simulation; neither is a physical-board test.
 
@@ -712,21 +726,27 @@ Check the release checksum from the repository root with:
 sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 ```
 
-Install [openFPGALoader](https://trabucayre.github.io/openFPGALoader/guide/installation.html)
-and its USB drivers for your platform. Connect the Tang's onboard USB-C
-programming connection, then load **volatile SRAM first**:
+Connect the Tang's onboard USB-C programming connection. The official Gowin
+Programmer (V1.9.12.04, digitally signed by Gowin) includes `programmer_cli`.
+Load **volatile SRAM** with operation 2, or write the external flash with
+erase, program and verify (operation 9):
 
 ```bash
-openFPGALoader -b tangnano20k --detect
-openFPGALoader -b tangnano20k bitstreams/tangnano20k/nano-gpu.fs
+programmer_cli --cable-index 1 -d GW2AR-18C -r 2 --fsFile bitstreams/tangnano20k/nano-gpu.fs
 ```
-
-An SRAM load is lost on power-off. After validating the SRAM image, persistent
-flash programming uses the same file with `-f`:
 
 ```bash
-openFPGALoader -b tangnano20k -f bitstreams/tangnano20k/nano-gpu.fs
+programmer_cli --cable-index 1 -d GW2AR-18C -r 9 --fsFile bitstreams/tangnano20k/nano-gpu.fs
 ```
+
+Gowin bitstreams enable read-back security, so an SRAM program-and-verify
+(operation 4) reports a verify failure even after a good load. Status
+`0x6020` then includes configuration done, with no CRC error. On Windows,
+`programmer_cli` fails to start if `PYTHONIOENCODING` is set; clear that
+variable first. Installing Gowin software binds the debugger's FTDI interfaces
+to FTDI's driver. [openFPGALoader](https://trabucayre.github.io/openFPGALoader/guide/installation.html)
+(`-b tangnano20k`, with `-f` for flash) then reports `device not found` until
+interface A is bound to WinUSB again, for example with Zadig.
 
 Successful implementation and file generation are not a claim that the
 received board, HDMI connection, SDRAM or RP2350 bus has been qualified physically.
@@ -741,13 +761,12 @@ that jumper while the RP2350 or another output can drive the reset wire LOW.
 Keep that jumper absent while programming; fit it only after this GPU image
 has loaded successfully. Remove it before power-cycling an SRAM-only test,
 since the factory flash image can return and may drive that pin. The expected
-output after reset release is an intentional black 640×480/60 Hz raster from
-the independent pixel-domain generator, even during GPU work. The 6.3 MHz
-bus-test image cannot show GPU-rendered terminal pixels.
+output after reset release is the GPU's own 640×480/60 Hz scanout of its front
+buffer, which is black until a host draws.
 There is no built-in scene, command player, status overlay or visible animation.
 The [current MPC-2350 GPIO implementation](#initial-mpc-2350-terminal-driver)
-can submit the commands documented below, but this bus-test image still shows
-only black. Remove the isolated bring-up jumper before connecting the host.
+draws its terminal with the commands documented below. Remove the isolated
+bring-up jumper before connecting the host.
 
 ## 3. Packets and replies
 
@@ -977,9 +996,9 @@ There is no second host-domain copy of all 64 bytes.
 | 12 | u32 | Maximum request payload: 1024. |
 | 16 | u32 | Primitive record bytes: 320. |
 | 20 | u32 | Maximum pass references: 1,048,576. |
-| 24 | u32 | Configured core Hz: bus-test board 6,300,000; default simulation 100,800,000. Not measured Fmax. |
+| 24 | u32 | Configured core Hz: board 50,400,000; default simulation 100,800,000. Not measured Fmax. |
 | 28 | u32 | Host-divider metadata: board 0 (independent), default simulation 4; host supplies its clock. |
-| 32 | u32 | Logical scanout pixel divider: board 2, default simulation 4; not the independent physical HDMI black-raster clock. |
+| 32 | u32 | Logical scanout pixel divider: board 2 (one synchronized physical pixel event per two core clocks), default simulation 4. |
 | 36 | u32 | RX FIFO bytes: 256. |
 | 40 | u32 | Published command capacity: 2. |
 | 44 | u32 | TX FIFO bytes: 1024. |

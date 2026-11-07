@@ -143,7 +143,7 @@ def main():
     parser.add_argument("--check", action="store_true", help="compile/run a small RTL/C++/SDL toolchain test")
     parser.add_argument("--verbose", action="store_true", help="show compiler output as it is produced")
     parser.add_argument("--synth", action="store_true")
-    parser.add_argument("--board-core", action="store_true", help="Simulate the fixed 6.3 MHz Tang diagnostic core with scaled logical scanout/host")
+    parser.add_argument("--board-core", action="store_true", help="Simulate the Tang board core profile: 50.4 MHz core, 25.2 MHz pixel/host ticks")
     parser.add_argument("--run", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.headless_only and args.require_sdl: parser.error("--headless-only and --require-sdl cannot be combined")
@@ -173,12 +173,8 @@ def main():
         "-Wno-fatal", "-CFLAGS", shlex.join(cflags), "-o", output.as_posix()]
     if ldflags: command += ["-LDFLAGS", shlex.join(ldflags)]
     if args.board_core:
-        command += ["-GCORE_HZ=6300000", "-GPIXEL_DIVIDER=2", "-GEXTERNAL_PIXEL_TICK=0",
-                    "-GPOWERUP_CYCLES=1260", "-GREFRESH_INTERVAL=98", "-GHOST_DIVIDER_METADATA=0",
-                    "-GSDRAM_CAS_LATENCY=3", "-GSDRAM_T_RP=1", "-GSDRAM_T_RCD=1",
-                    "-GSDRAM_T_RFC=1", "-GSDRAM_T_MRD=2", "-GSDRAM_T_WR=1",
-                    "-GSDRAM_T_RAS=1", "-GSDRAM_T_RC=2", "-GSDRAM_READ_TO_WRITE=1",
-                    "-GSDRAM_WRITE_TO_READ=1"]
+        command += ["-GCORE_HZ=50400000", "-GPIXEL_DIVIDER=2", "-GEXTERNAL_PIXEL_TICK=1",
+                    "-GREFRESH_INTERVAL=787", "-GHOST_DIVIDER_METADATA=0"]
     command += [path.as_posix() for path in rtl + cpp]
     print("Building Verilator GPU from functional RTL...", flush=True)
     run(command, build / "verilator-build.log")
@@ -187,7 +183,7 @@ def main():
         "device": "GW2AR-LV18QN88C8/I7", "family": "GW2A-18C",
         "simulation_backend": "verilator", "sdl_enabled": sdl,
         "board_core_profile": args.board_core,
-        "board_core_profile_scope": "6.3 MHz core/SDRAM, 3.15 MHz virtual host and logical scanout; physical 10 kHz host and independent 25.2/126 MHz black HDMI raster are outside this core simulation" if args.board_core else None,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation" if args.board_core else None,
         "cpp_device_backends_linked": False,
         "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
         "whole_gpu_fit_qualified": False,

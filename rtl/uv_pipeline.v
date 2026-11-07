@@ -427,9 +427,12 @@ module nano_uv_texture_pipeline (
     nano_uv_mul #(.AW(16),.BW(18),.SIGNED_B(1)) seed_mul(
         clk,advance,reset,rom3,delta[3],seed_product);
     wire signed [77:0] u_product,v_product;
-    nano_uv_mul #(.AW(43),.BW(35)) uv_mul_u(
+    // Retimed: both operands are advance-enabled register outputs (the native
+    // RAM output and reciprocal), so the sum is registered instead of the
+    // DSP inputs, and integer_estimate gets its own period at 50.4 MHz.
+    nano_uv_mul #(.AW(43),.BW(35),.RETIME(1)) uv_mul_u(
         clk,advance,reset,delayed_magnitude7[42:0],reciprocal,u_product);
-    nano_uv_mul #(.AW(43),.BW(35)) uv_mul_v(
+    nano_uv_mul #(.AW(43),.BW(35),.RETIME(1)) uv_mul_v(
         clk,advance,reset,delayed_magnitude7[85:43],reciprocal,v_product);
     wire signed [54:0] correction_u_product,correction_v_product;
     nano_uv_mul #(.AW(38),.BW(17)) exact_mul_u(

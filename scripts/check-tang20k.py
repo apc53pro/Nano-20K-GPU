@@ -46,7 +46,7 @@ def main():
  report.write_text(json.dumps({'schema':'N20K-BOARD-FUNCTIONAL-1','passed':True,'source_sha256':hashes,
   'board_glue_log_sha256':digest(b/'board-tb.log'),'board_glue_scope':'Clock/pad wrapper with isolated core test model',
   'core_build_report_sha256':digest(core_build/'build-report.json'),
-  'core_scope':'Real GPU at 6.3MHz core, 3.15MHz virtual host/internal pixel rates, no C++ device backends; physical host limited separately to 10kHz',
+  'core_scope':'Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends; physical host limited separately to 10kHz',
   'gpu_regression':results,'hardware_tested':False},indent=2)+'\n',newline='\n')
  print('Board functional evidence: '+str(report))
 if __name__=='__main__':

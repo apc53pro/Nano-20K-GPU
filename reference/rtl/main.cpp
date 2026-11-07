@@ -126,10 +126,10 @@ public:
     void tick(bool check_fault = true) {
         dut.clk = 0; dut.eval(); context.timeInc(1); if (trace) trace->dump(context.time());
 #ifdef NANO_GPU_BOARD_PROFILE
-        // Virtual host runs at half the 6.3 MHz core rate for regression.
-        // Physical diagnostic HCLK and the independent black HDMI raster
-        // belong to the board-wrapper tests, not this logical-core harness.
+        // Board profile: 50.4 MHz core, one external pixel tick per two core
+        // cycles (25.2 MHz) and the virtual host at the same rate.
         const bool next_host = (cycles & 1u) != 0;
+        dut.pixel_advance = (cycles & 1u) != 0;
 #else
         const bool next_host = (cycles & 3u) >= 2u;
 #endif
@@ -433,6 +433,18 @@ void self_test(Simulation& simulation) {
         {"INT32_MAX extents clipped to two pixels", {637, 477}, {638, 478}, int_max, int_max},
         {"zero width with extreme origins", {int_min, int_max}, {int_max, int_min}, 0, int_max},
         {"zero height with extreme origins", {int_max, int_min}, {int_min, int_max}, int_max, 0},
+        // Burst row copy: every source/destination pixel phase, odd and even
+        // widths, rows spanning several 16-word bursts and one-pixel shifts.
+        {"phase 0 to 1 odd width multi-burst", {4, 10}, {41, 70}, 101, 3},
+        {"phase 1 to 0 odd width multi-burst", {5, 10}, {40, 74}, 101, 3},
+        {"phase 1 to 1 even width", {7, 12}, {33, 80}, 100, 2},
+        {"phase 0 to 0 odd width", {8, 12}, {32, 84}, 99, 2},
+        {"phase 0 to 1 even width", {8, 13}, {33, 88}, 100, 2},
+        {"phase 1 to 0 even width", {9, 13}, {32, 92}, 100, 2},
+        {"full 640-pixel rows", {0, 100}, {0, 200}, 640, 4},
+        {"same-row right shift by one", {10, 300}, {11, 300}, 300, 2},
+        {"same-row left shift by one", {11, 302}, {10, 302}, 300, 2},
+        {"downward overlap odd phase", {3, 310}, {6, 315}, 255, 12},
     };
     copy = {}; copy.source = 1; copy.target = 1;
     for (const auto& item : framebuffer_copies) {
@@ -443,12 +455,21 @@ void self_test(Simulation& simulation) {
     // Reading the displayed front is legal; only the back may be written.
     copy.source = 0; copy.source_origin = {0, 0}; copy.destination_origin = {101, 103};
     copy.width = 5; copy.height = 3; check_copy("front-to-back source", copy);
+    // The terminal's two large copies: whole front to back, and a front copy
+    // shifted up one 16-pixel text row.
+    copy.source_origin = {0, 0}; copy.destination_origin = {0, 0};
+    copy.width = 640; copy.height = 480; check_copy("full-screen front-to-back", copy);
+    copy.source_origin = {0, 16}; copy.destination_origin = {0, 0};
+    copy.width = 640; copy.height = 464; check_copy("one-row scroll front-to-back", copy);
     const std::vector<CopyCase> image_copies{
         {"pitched image clipped source", {-2, -1}, {40, 60}, 10, 9},
         {"pitched image clipped destination", {0, 0}, {-3, -2}, 7, 5},
         {"pitched image all upper edges", {5, 3}, {639, 479}, 7, 5},
         {"pitched image huge extents", {6, 4}, {60, 70}, int_max, int_max},
         {"pitched image extreme visible X", {-int_max + 2, 2}, {-int_max + 1, 7}, int_max, 2},
+        {"pitched image odd source to odd destination", {1, 0}, {41, 61}, 6, 5},
+        {"pitched image odd source to even destination", {1, 1}, {42, 62}, 6, 4},
+        {"pitched image even source to odd destination", {0, 1}, {43, 63}, 5, 4},
     };
     copy.image_source = true; copy.source = 0; copy.image = {heap, 7, 5, 20};
     for (const auto& item : image_copies) {
@@ -456,8 +477,8 @@ void self_test(Simulation& simulation) {
         copy.width = item.width; copy.height = item.height;
         check_copy(item.name, copy);
     }
-    std::cout << framebuffer_copies.size() + image_copies.size() + 1
-              << " additional COPY clipping/extreme/overlap oracle cases passed\n";
+    std::cout << framebuffer_copies.size() + image_copies.size() + 3
+              << " additional COPY clipping/extreme/overlap/phase/burst oracle cases passed\n";
 
     pass.color_load = LoadOp::Load; pass.depth_load = LoadOp::Load; pass.primitives.clear();
     pass.primitives.push_back(Line{{0, 0}, {639, 479}, overlay_state({17, 191, 97}), 0});

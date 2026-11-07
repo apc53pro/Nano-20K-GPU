@@ -46,9 +46,10 @@ all: $(BUILD_DIR)/nano-gpu-ref$(EXEEXT)
 tang20k-test:
 	$(PYTHON) scripts/check-tang20k.py --build-dir "$(BUILD_DIR)/tang20k"
 
-TANG20K_SEED ?= 3
+# Board image: Gowin EDA (see AGENTS.md). GOWIN_SH overrides the gw_sh path.
+GOWIN_SH ?= C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe
 tang20k: tang20k-test
-	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --seed "$(TANG20K_SEED)"
+	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --gowin "$(GOWIN_SH)"
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
 $(BUILD_DIR) $(BUILD_DIR)/generated:

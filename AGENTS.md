@@ -69,3 +69,26 @@ until rebuilt; do not qualify changed sources using an earlier route. Distinguis
 tool-estimated internal timing from external electrical margins and physical
 hardware measurements. Placement-seed trials are software build choices, not
 additional hardware modes.
+
+> **Addendum, 2026-11-07: temporary, deliberate exception to the rule above.**
+> The user has decided to break this publishing rule for now, because stopping
+> progress is not an option. The open-source flow (Yosys, nextpnr-himbaechel,
+> Apicula) produced a GPU image that failed on the board: its host address
+> latch did not work, although its RTL, synthesis and wiring were cleared
+> separately. That flow is abandoned for board images. The repository image is
+> now built with Gowin EDA V1.9.8.11 Education. That is the only copy available
+> to the user: an unsigned installer from a third-party mirror, because Gowin's
+> official download returned HTTP 403. Its synthesized netlist is encrypted.
+> As a result:
+>
+> - The **fixed SiP connection check cannot be performed** from the netlist.
+>   The SDRAM connection is evidenced only by hardware behaviour: font upload,
+>   copies and scanout work on the board.
+> - The **toolchain provenance is unverified**.
+>
+> The other gates still apply: source-matched synthesis, legal
+> placement/routing, verified package pins, core/pixel/host timing, functional
+> simulation, and the image checksum kept with its report. Every remaining
+> timing violation must be listed in the report. This exception ends when an
+> official, verifiable Gowin EDA can be obtained. The image must then be
+> rebuilt and fully re-qualified.

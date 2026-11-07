@@ -25,9 +25,6 @@ module ODDR(input CLK,D0,D1,TX,output reg Q0=0,output Q1);
  always @(posedge CLK or negedge CLK) Q0<=CLK ? D0 : D1;
  assign Q1=TX;
 endmodule
-module BUFG(input I,output O);
- assign O=I;
-endmodule
 module tang20k_board_tb;
  reg clk27=0;always #18.5185 clk27=~clk27;
  reg board_reset=0,gpu_hclk=0;always #20 gpu_hclk=~gpu_hclk;
@@ -50,8 +47,23 @@ module tang20k_board_tb;
  end
  always @(posedge dut.serial_clk) serials=serials+1;
  always @(posedge O_sdram_clk) if(!dut.reset) begin
-  if($realtime-last_core<77 || $realtime-last_core>81) $fatal(1,"slow SDRAM forwarded phase mismatch");
+  if($realtime-last_core<9 || $realtime-last_core>11) $fatal(1,"SDRAM forwarded phase mismatch");
   checks=checks+1;
+ end
+ real last_rgb_change=0;
+ integer pixel_samples=0;
+ reg [15:0] previous_rgb=0;
+ always @(dut.rgb) if(!dut.reset) last_rgb_change=$realtime;
+ always @(posedge dut.pixel_clk) begin
+  if(dut.reset || dut.pixel_reset_pipe[1]) pixel_samples=0;
+  else begin
+   if(pixel_samples>5) begin
+    if($realtime-last_rgb_change<17) $fatal(1,"pixel payload lacks safe capture interval");
+    if(dut.rgb!==previous_rgb+16'd1) $fatal(1,"physical pixel handoff lost or duplicated a pixel");
+    checks=checks+2;
+   end
+   previous_rgb=dut.rgb;pixel_samples=pixel_samples+1;
+  end
  end
  task address_write(input [6:0] a);
  begin
@@ -62,14 +74,14 @@ module tang20k_board_tb;
   @(negedge gpu_hclk);gpu_wr_n=1;gpu_ale_n=1;cpu_drive=0;#1;
   checks=checks+1;
  end endtask
- integer before_core,before_serial,release_phase,column,row;
+ integer before_core,before_serial,release_phase;
  initial begin
   wait(dut.locked);repeat(4) @(posedge dut.core_clk);
   if(gpu_wready || gpu_rvalid || gpu_d!==8'bz) $fatal(1,"bus active during reset");
   gpu_reset_n=1;repeat(5) @(posedge gpu_hclk);#1;
   @(posedge dut.pixel_clk);#0.2;before_core=cores;before_serial=serials;
   repeat(20) @(posedge dut.pixel_clk);#0.2;
-  if(cores-before_core!=5 || serials-before_serial!=100) $fatal(1,"slow-core clock ratios incorrect");
+  if(cores-before_core!=40 || serials-before_serial!=100) $fatal(1,"clock ratios incorrect");
   address_write(37);
   if(gpu_wready) $fatal(1,"nonzero bank incorrectly accepts packet writes");
   @(negedge gpu_hclk);gpu_rd_n=0;
@@ -92,22 +104,7 @@ module tang20k_board_tb;
    gpu_reset_n=0;#(23+release_phase*3);gpu_reset_n=1;
    repeat(15) @(posedge dut.pixel_clk);
   end
-  // Check a complete physical raster independently of the slow core. GPU
-  // rendered pixels intentionally do not feed this bus-diagnostic display.
-  gpu_reset_n=0;repeat(3) @(posedge dut.pixel_clk);
-  gpu_reset_n=1;wait(!dut.pixel_reset_pipe[1]);
-  for(row=0;row<525;row=row+1) begin
-   for(column=0;column<800;column=column+1) begin
-    @(posedge dut.pixel_clk);
-    if(dut.video_hs !== !(column>=656 && column<752) ||
-       dut.video_vs !== !(row>=490 && row<492) ||
-       dut.video_de !== (column<640 && row<480))
-     $fatal(1,"black diagnostic raster timing mismatch x=%0d y=%0d",column,row);
-    if(dut.video.rgb565!==16'b0) $fatal(1,"diagnostic raster is not black");
-    checks=checks+1;
-   end
-  end
-  $display("PASS board wrapper: %0d slow-clock/SDRAM pad/bus/black-raster checks",checks);$finish;
+  $display("PASS board wrapper: %0d clock/SDRAM pad/bus checks",checks);$finish;
  end
- initial begin #40000000;$fatal(1,"board wrapper timeout");end
+ initial begin #100000;$fatal(1,"board wrapper timeout");end
 endmodule

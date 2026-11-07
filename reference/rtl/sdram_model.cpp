@@ -7,14 +7,9 @@
 namespace nano_gpu::rtl {
 
 namespace {
-#ifdef NANO_GPU_BOARD_PROFILE
-// Fixed 6.3 MHz diagnostic profile: one edge is approximately 158.73 ns.
-constexpr unsigned kTrp = 1, kTrcd = 1, kTrfc = 1, kTmrd = 2;
-constexpr unsigned kTwr = 1, kTras = 1, kTrc = 2;
-#else
+// Controller timing in core edges; the board and default profiles share them.
 constexpr unsigned kTrp = 3, kTrcd = 3, kTrfc = 9, kTmrd = 3;
 constexpr unsigned kTwr = 3, kTras = 6, kTrc = 9;
-#endif
 }
 
 SdramPinsModel::SdramPinsModel() : words_(8u * 1024u * 1024u / 4, 0xcdcdcdcdu), defined_(words_.size(), 0) {}

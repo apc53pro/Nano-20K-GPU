@@ -1,150 +1,193 @@
 #!/usr/bin/env python3
-"""Build the actual Tang Nano20K target; emit no .fs on a failed fit/timing gate."""
+"""Build the Tang Nano 20K board image with Gowin EDA; emit no image on a failed gate.
+
+The open-source flow produced an image whose host address latch failed on the
+board, so board images use the vendor flow. See AGENTS.md: the fixed SiP
+connection check cannot be made from Gowin's encrypted netlist, and the
+available Gowin EDA copy is unverified. Every other gate below still applies.
+"""
 import argparse
-from collections import Counter
 import hashlib
-import importlib.util
+import html
 import json
-import math
 from pathlib import Path
+import re
+import subprocess
 import sys
 
-ROOT=Path(__file__).resolve().parents[1]
-sys.dont_write_bytecode=True
-def module(name,file):
-    spec=importlib.util.spec_from_file_location(name,ROOT/'scripts'/file)
-    result=importlib.util.module_from_spec(spec);spec.loader.exec_module(result);return result
-HDL=module('board_hdl','rtl-check.py')
-PACK=module('board_pack','rtl-core-pack.py')
-PNR=module('board_pnr','rtl-core-pnr.py')
-def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
-def write(p,j): p.write_text(json.dumps(j,indent=2,allow_nan=False)+'\n',newline='\n')
+ROOT = Path(__file__).resolve().parents[1]
+sys.dont_write_bytecode = True
+DEVICE = "GW2AR-LV18QN88C8/I7"
+FAMILY = "GW2AR-18C"
+DEFAULT_GOWIN = r"C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe"
+# Required clocks (Gowin-derived names) and their targets in MHz.
+REQUIRED = {"clk27": 27.0, "gpu_hclk": 25.2, "core_div/CLKOUT.default_gen_clk": 50.4,
+            "pixel_div/CLKOUT.default_gen_clk": 25.2}
+# Reset-release paths that may show negative slack. Each is an asynchronous
+# assert into a synchronizer (power-on into the core/pixel reset pipes) or the
+# serializer reset released from the synchronized pixel reset. They are listed
+# in the report rather than hidden by constraints.
+ALLOWED_VIOLATIONS = [
+    (re.compile(r"^poweron_\d+_s\d*/Q$"), re.compile(r"^(core|pixel)_reset_pipe_\d+_s\d*/PRESET$")),
+    (re.compile(r"^pixel_reset_pipe_1_s\d*/Q$"), re.compile(r"^video/lanes\[\d\]\.serializer/serializer/RESET$")),
+]
+# Syntax-only rewrites for GowinSynthesis on build copies; RTL stays unchanged.
+REWRITES = {"nano_fragment_pipeline.sv": [(
+    "data4={8'b0,factor_data[23:16]},data5;",
+    "data4={8'b0,factor_data[23:16]};\n    wire [15:0] data5;")]}
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def write(path, value):
+    path.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", newline="\n")
+
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--build-dir',type=Path,default=ROOT/'build/tang20k')
-    ap.add_argument('--pack-only',action='store_true')
-    ap.add_argument('--seed',type=int,default=1)
-    args=ap.parse_args();b=args.build_dir.resolve();b.mkdir(parents=True,exist_ok=True)
-    image=b/'nano-gpu.fs';image.unlink(missing_ok=True)
-    rom=b/'seed_rom.v'
-    HDL.run([sys.executable,str(ROOT/'scripts/rtl-generate-rom.py'),str(rom)],b/'rom.log')
-    sources=[ROOT/'rtl/uv_mult.v',rom,ROOT/'rtl/uv_pipeline.v']+sorted((ROOT/'rtl/gpu').glob('*.sv'))+[ROOT/'rtl/board/tang20k_top.sv']
-    inputs=[p for p in sources if p!=rom]+[ROOT/'rtl/board/tang20k.cst',ROOT/'rtl/board/tang20k-sip.json',Path(__file__).resolve()]
-    inputs+=sorted((ROOT/'rtl/generated').glob('*.hex'))
-    inputs += [ROOT/'scripts'/n for n in ('rtl-check.py','rtl-core-pack.py','rtl-core-pnr.py','rtl-generate-rom.py')]
-    hashes={p.relative_to(ROOT).as_posix():digest(p) for p in inputs}
-    report={'schema':'N20K-TANG20K-BOARD-1','device':'GW2AR-LV18QN88C8/I7',
-        'top':'tang20k_top','source_sha256':hashes,'seed':args.seed,
-        'command_player':False,'hardware_tested':False,'upload_ready':False,
-        'generated_rom_sha256':digest(rom),
-        'external_io_timing_measured':False,
-        'timing_scope':'nextpnr internal-clock setup estimates; external SDRAM/parallel-bus margins require hardware measurement',
-        'profile':'slow-core-bus-test',
-        'display_scope':'Independent constant-black 640x480/60 raster; GPU-rendered video disconnected',
-        'core_mhz':6.3,'pixel_mhz':25.2,'serial_mhz':126.0,'host_max_mhz':0.01,
-        'synthesized':False,'packed':False,'placed':False,'routed':False,
-        'timing_passed':False,'bitstream_generated':False}
-    def save(): write(b/'board-report.json',report)
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--build-dir", type=Path, default=ROOT / "build/tang20k")
+    ap.add_argument("--gowin", default=DEFAULT_GOWIN, help="path to Gowin gw_sh")
+    ap.add_argument("--place-option", type=int, default=2)
+    ap.add_argument("--route-option", type=int, default=1)
+    ap.add_argument("--reuse-gowin", action="store_true",
+                    help="re-run every gate on the existing Gowin output without rebuilding "
+                         "(only valid when its project inputs are unchanged; recorded in the report)")
+    args = ap.parse_args()
+    b = args.build_dir.resolve(); b.mkdir(parents=True, exist_ok=True)
+    image = b / "nano-gpu.fs"; image.unlink(missing_ok=True)
+    project = b / "gowin"; src = project / "src"; src.mkdir(parents=True, exist_ok=True)
+    # Fingerprint the previous Gowin project inputs before regenerating them.
+    project_inputs = lambda: {p.relative_to(project).as_posix(): digest(p) for p in
+                              sorted(src.glob("*")) + [project / "tang20k-gowin.cst", project / "tang20k.sdc",
+                                                       project / "build.tcl"] if p.exists()}
+    previous_inputs = project_inputs() if args.reuse_gowin else {}
+    rom = src / "seed_rom.v"
+    subprocess.run([sys.executable, str(ROOT / "scripts/rtl-generate-rom.py"), str(rom)], cwd=ROOT, check=True)
+    sources = [ROOT / "rtl/uv_mult.v", ROOT / "rtl/uv_pipeline.v"] + sorted((ROOT / "rtl/gpu").glob("*.sv")) + \
+              [ROOT / "rtl/board/tang20k_top.sv"]
+    board_cst = ROOT / "rtl/board/tang20k.cst"
+    inputs = sources + [board_cst, Path(__file__).resolve(), ROOT / "scripts/rtl-generate-rom.py"] + \
+             sorted((ROOT / "rtl/generated").glob("*.hex"))
+    hashes = {p.relative_to(ROOT).as_posix(): digest(p) for p in inputs}
+    report = {"schema": "N20K-TANG20K-BOARD-2", "device": DEVICE, "top": "tang20k_top",
+              "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education", "gowin_shell": args.gowin,
+              "source_sha256": hashes, "place_option": args.place_option, "route_option": args.route_option,
+              "profile": "gpu-video-50mhz", "core_mhz": 50.4, "pixel_mhz": 25.2, "serial_mhz": 126.0,
+              "host_max_mhz": 25.2, "command_player": False, "hardware_tested": False,
+              "external_io_timing_measured": False, "upload_ready": False,
+              "agents_exception": ("AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the "
+                                   "encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer)."),
+              "sip_pins_verified": False,
+              "timing_scope": ("Gowin static timing on its own placement; external SDRAM/parallel-bus margins "
+                               "require hardware measurement")}
+    save = lambda: write(b / "board-report.json", report)
     save()
-    extra={'PYTHONHOME':str(HDL.SUITE)} if HDL.SUITE.is_dir() else {}
-    report['yosys_version']=HDL.run(HDL.tool('yosys')+['-V']).strip()
-    report['nextpnr_version']=HDL.run(HDL.tool('nextpnr-himbaechel')+['--version'],extra_env=extra).strip()
-    netlist=b/'synth.json'
-    script='read_verilog -sv -D SYNTHESIS '+' '.join(json.dumps(str(p)) for p in sources)+'; synth_gowin -family gw2a -top tang20k_top -nowidelut -json '+json.dumps(str(netlist))+'; stat'
-    print('Synthesizing full board: GPU, PLL/dividers, bus pads, SDRAM pads and TMDS...',flush=True)
-    HDL.run(HDL.tool('yosys')+['-Q','-T','-p',script],b/'synth.log')
-    design=json.loads(netlist.read_text())['modules']['tang20k_top']
-    report.update(synthesized=True,synthesis_cells=dict(sorted(Counter(c['type'] for c in design['cells'].values()).items())),synth_sha256=digest(netlist));save()
-    common=HDL.tool('nextpnr-himbaechel')+['--device',report['device'],'-o','family=GW2A-18C','-o','cst='+str(ROOT/'rtl/board/tang20k.cst'),
-        '--json',str(netlist),'--threads','2','--seed',str(args.seed)]
-    db=HDL.SUITE/'share/nextpnr/himbaechel/gowin/chipdb-GW2A-18C.bin'
-    if db.exists(): common+=['--chipdb',str(db)]
-    print('Packing full board on exact QN88 part...',flush=True)
-    HDL.run(common+['--pack-only','--write',str(b/'packed.json')],b/'pack.log',extra)
-    cells=json.loads((b/'packed.json').read_text())['modules']['top']['cells']
-    report.update(packed=True,physical_lut_lower_bound=PACK.physical_lut_lower_bound(cells));save()
-    print(json.dumps(report['physical_lut_lower_bound']),flush=True)
-    if not report['physical_lut_lower_bound']['within_capacity']:raise RuntimeError('Full board exceeds physical LUT lower bound')
-    if args.pack_only:return
-    functional=b/'functional-checks.json'
-    if not functional.exists():raise RuntimeError('Run scripts/check-tang20k.py before full board implementation')
-    checks=json.loads(functional.read_text())
-    if not checks.get('passed') or any(not (ROOT/n).exists() or digest(ROOT/n)!=h for n,h in checks.get('source_sha256',{}).items()):
-        raise RuntimeError('Board functional evidence is missing or stale; run scripts/check-tang20k.py')
-    report['functional_report_sha256']=digest(functional)
-    # Resolve aliases through input buffers before handing exact net names to
-    # nextpnr's embedded Python. PLL/divider outputs are direct scalar nets.
-    clocks={'clk27':27.0,'gpu_hclk':0.01,'serial_clk':126.0,'core.clk':6.3,'pixel_clk':25.2}
-    constraints=[]
-    for hint,freq in clocks.items():
-        bits=set(design['netnames'][hint]['bits'])
-        for c in design['cells'].values():
-            if c['type']=='IBUF' and bits.intersection(c['connections']['I']):bits=set(c['connections']['O'])
-        aliases=[n for n,v in design['netnames'].items() if len(v['bits'])==1 and v['bits'][0] in bits]
-        constraints.append((aliases,freq))
-    clocks_py=b/'clocks.py'
-    clocks_py.write_text('constraints='+repr(constraints)+'\nfor aliases,freq in constraints:\n    names=[n for n in aliases if n in ctx.nets]\n    assert names, str(aliases)\n    ctx.addClock(names[0],freq)\n',newline='\n')
-    report['clock_constraints_sha256']=digest(clocks_py);save()
-    print('Placing/routing the complete board target...',flush=True)
-    command=common+['--pre-place',str(clocks_py),'--freq','6.3','--timing-allow-fail',
-        '--write',str(b/'routed.json'),'--report',str(b/'timing.json'),'--detailed-timing-report']
-    env=HDL.environment();env.update(extra)
-    result=PNR.run_pnr(command,env,b/'pnr.log');report['route_returncode']=result.returncode;save()
-    if result.returncode:raise RuntimeError('Board placement/routing failed; see '+str(b/'pnr.log'))
-    routed=json.loads((b/'routed.json').read_text())['modules']['top']
-    report.update(placed=PNR.setting(routed['settings'].get('place')),routed=PNR.setting(routed['settings'].get('route')),
-        resources=PNR.physical_resources(routed['cells']),routed_sha256=digest(b/'routed.json'))
-    # Fixed embedded SDRAM terminals must never be assigned to external GPIO.
-    sip=json.loads((ROOT/'rtl/board/tang20k-sip.json').read_text())['ports']
-    for port,expected in sip.items():
-        stem=port.split('[')[0];index=int(port.split('[')[1][:-1]) if '[' in port else 0
-        bit=routed['ports'][stem]['bits'][index]
-        pin='IO' if port.startswith('IO_') else 'O'
-        # Generated cell suffixes are enumeration IDs, not bus-bit numbers.
-        matches=[c for c in routed['cells'].values() if bit in c.get('connections',{}).get(pin,[])]
-        if len(matches)!=1 or matches[0].get('attributes',{}).get('NEXTPNR_BEL')!=expected:
-            raise RuntimeError('Fixed SiP pin mismatch '+port+' expected '+expected)
-    report['sip_pins_verified']=True
-    timing=json.loads((b/'timing.json').read_text());fmax=timing.get('fmax',{})
-    report['fmax']=fmax;report['critical_paths']=PNR.critical_paths(timing)
-    if not fmax or any(not isinstance(v,dict) or any(type(v.get(k)) not in (int,float) or not math.isfinite(v[k]) or v[k]<=0 for k in ('achieved','constraint')) for v in fmax.values()):
-        raise RuntimeError('Missing or invalid board clock timing results')
-    required={}
-    for hint in ('clk27','gpu_hclk','core.clk','pixel_clk'):
-        index=list(clocks).index(hint);aliases,target=constraints[index]
-        names=set(aliases).intersection(fmax)
-        if len(names)!=1:raise RuntimeError('Missing or ambiguous board timing clock '+hint)
-        name=names.pop();v=fmax[name]
-        # nextpnr serializes constraints as float32 MHz. At 10 kHz its tiny
-        # representation error exceeds the old fixed 1 ps period tolerance.
-        # Retain that floor and allow 0.1 ppm for floating-point roundoff.
-        period_ps=1e6/target
-        if abs(1e6/v['constraint']-period_ps)>max(1.000001,period_ps*1e-7):
-            raise RuntimeError('Incorrect board timing constraint '+hint)
-        required[hint]={'reported_clock':name,'requested_mhz':target,**v}
-    report['required_clock_results']=required
-    # This fixed test image has no GPU-core-to-pixel payload crossing. Require
-    # its absence rather than reusing the old 50.4 MHz capture-window proof.
-    pixel_paths=[p for p in timing.get('critical_paths',[]) if
-        p.get('from')=='posedge '+required['core.clk']['reported_clock'] and
-        p.get('to')=='posedge '+required['pixel_clk']['reported_clock']]
-    if pixel_paths:raise RuntimeError('Unexpected GPU-core-to-pixel path in black-raster test image')
-    report['pixel_capture']={'applicable':False,
-        'reason':'GPU-rendered payload disconnected; black raster is entirely pixel-clock synchronous',
-        'unexpected_core_to_pixel_paths':len(pixel_paths)}
-    report['timing_passed']=all(v['achieved']>=v['constraint'] for v in fmax.values()) and all(v['achieved']>=v['requested_mhz'] for v in required.values())
-    report['inputs_changed']=[n for n,h in hashes.items() if digest(ROOT/n)!=h];save()
-    if report['inputs_changed']:raise RuntimeError('Sources changed during implementation')
-    if not report['routed'] or not all(v['within_capacity'] for v in report['resources'].values()):raise RuntimeError('Incomplete route or resource overflow')
-    if not report['timing_passed']:raise RuntimeError('Board timing targets not met; no upload image emitted')
-    print('Generating board programming image...',flush=True)
-    HDL.run(HDL.tool('gowin_pack')+['-d','GW2A-18C','-c','-o',str(image),str(b/'routed.json')],b/'bitstream.log',extra)
-    if image.stat().st_size<1000:raise RuntimeError('Invalid short bitstream')
-    report.update(bitstream_generated=True,upload_ready=True,bitstream_sha256=digest(image),bitstream_bytes=image.stat().st_size);save()
-    print('Upload image: '+str(image),flush=True)
+    functional = b / "functional-checks.json"
+    if not functional.exists():
+        sys.exit("build-tang20k: run scripts/check-tang20k.py first (no functional evidence)")
+    checks = json.loads(functional.read_text())
+    stale = [n for n, h in checks.get("source_sha256", {}).items() if not (ROOT / n).exists() or digest(ROOT / n) != h]
+    if not checks.get("passed") or stale:
+        sys.exit("build-tang20k: functional evidence is missing, failed or stale: " + ", ".join(stale))
+    report["functional_report_sha256"] = digest(functional); save()
+    # Gowin sees the same SYNTHESIS view the RTL selects primitives under.
+    copies = [rom]
+    rom.write_text("`define SYNTHESIS\n" + rom.read_text(), newline="\n")
+    for path in sources:
+        text = path.read_text()
+        for old, new in REWRITES.get(path.name, []):
+            if text.count(old) != 1: sys.exit(f"build-tang20k: rewrite not unique in {path.name}")
+            text = text.replace(old, new)
+        copy = src / path.name
+        copy.write_text("`define SYNTHESIS\n" + text, newline="\n")
+        copies.append(copy)
+    # Gowin derives each differential N pin from its P pin and rejects a
+    # second constraint; those lines are checked against the pin report below.
+    cst = project / "tang20k-gowin.cst"
+    cst.write_text("\n".join(l for l in board_cst.read_text().splitlines() if '"hdmi_n[' not in l) + "\n", newline="\n")
+    sdc = project / "tang20k.sdc"
+    sdc.write_text("create_clock -name clk27 -period 37.037 [get_ports {clk27}]\n"
+                   "create_clock -name gpu_hclk -period 39.683 [get_ports {gpu_hclk}]\n"
+                   "set_clock_groups -asynchronous -group [get_clocks {gpu_hclk}]\n"
+                   "report_timing -setup -max_paths 400 -max_common_paths 1\n", newline="\n")
+    tcl = project / "build.tcl"
+    tcl.write_text("\n".join([f"set_device -name {FAMILY} {DEVICE}"] +
+                             [f"add_file {{{p.as_posix()}}}" for p in copies + [cst, sdc]] +
+                             ["set_option -top_module tang20k_top", "set_option -verilog_std sysv2017",
+                              "set_option -output_base_name nano-gpu",
+                              "set_option -use_mspi_as_gpio 1", "set_option -use_sspi_as_gpio 1",
+                              "set_option -use_ready_as_gpio 1", "set_option -use_done_as_gpio 1",
+                              "set_option -use_reconfign_as_gpio 1", "set_option -timing_driven 1",
+                              "set_option -gen_text_timing_rpt 1",
+                              f"set_option -place_option {args.place_option}",
+                              f"set_option -route_option {args.route_option}", "run all"]) + "\n", newline="\n")
+    pnr = project / "impl/pnr"
+    built = pnr / "nano-gpu.fs"
+    log = b / "gowin.log"
+    if args.reuse_gowin:
+        # Accept the existing Gowin output only if this run regenerated
+        # byte-identical project inputs (RTL copies, constraints and script).
+        if project_inputs() != previous_inputs or not built.exists():
+            sys.exit("build-tang20k: --reuse-gowin needs an existing build from identical inputs")
+        report["gowin_reused"] = True; report["gowin_returncode"] = 0
+    else:
+        print("Building the complete board with Gowin EDA (synthesis, place and route)...", flush=True)
+        with log.open("w", encoding="utf-8", errors="replace") as out:
+            result = subprocess.run([args.gowin, str(tcl)], cwd=project, stdout=out, stderr=subprocess.STDOUT)
+        report["gowin_returncode"] = result.returncode
+        if result.returncode or not built.exists():
+            save(); sys.exit("build-tang20k: Gowin build failed; see " + str(log))
+    report.update(synthesized=True, placed=True, routed=True)
+    # Pins: every constrained port, and each HDMI N pin derived from its pair.
+    # Pin report rows are <tr><td>port</td><td>pair</td><td>pin(s)/bank</td>...
+    pin_report = (pnr / "nano-gpu.pin.html").read_text(errors="replace")
+    expected = dict(re.findall(r'IO_LOC "([^"]+)" (\d+);', board_cst.read_text()))
+    rows = {}
+    for row in re.findall(r"<tr>(.*?)</tr>", pin_report, re.S):
+        cells = [html.unescape(re.sub(r"<[^>]+>", "", c)).strip()
+                 for c in re.findall(r"<td.*?>(.*?)</td>", row, re.S)]
+        if len(cells) > 2 and cells[0] in expected:
+            numbers = cells[2].split("/")[0].split(",")
+            rows[cells[0]] = numbers[0]
+            if cells[1].startswith("hdmi_n[") and len(numbers) > 1: rows[cells[1]] = numbers[1]
+    mismatched = sorted(p for p in expected if rows.get(p) != expected[p] and not p.startswith(("O_sdram", "IO_sdram")))
+    report["package_pins_checked"] = len(rows)
+    report["package_pins_verified"] = not mismatched
+    report["pin_mismatches"] = mismatched; save()
+    if mismatched: sys.exit("build-tang20k: pin mismatch: " + ", ".join(mismatched))
+    # Timing: every required clock meets its constraint, and every listed
+    # negative-slack path is one of the documented reset-release paths.
+    timing = (pnr / "nano-gpu.tr").read_text(errors="replace")
+    fmax = {m.group(1): {"constraint_mhz": float(m.group(2)), "achieved_mhz": float(m.group(3))}
+            for m in re.finditer(r"^\s+\d+\s+(\S+)\s+([\d.]+)\(MHz\)\s+([\d.]+)\(MHz\)", timing, re.M)}
+    report["fmax"] = fmax
+    missing = [c for c in REQUIRED if c not in fmax or abs(fmax[c]["constraint_mhz"] - REQUIRED[c]) > 0.01]
+    slow = [c for c in REQUIRED if c in fmax and fmax[c]["achieved_mhz"] < fmax[c]["constraint_mhz"]]
+    negative = sorted({(float(s), a, d) for s, a, d in
+                       re.findall(r"^\s+\d+\s+(-[\d.]+)\s+(\S+)\s+(\S+)\s+\S+:\[[RF]\]", timing, re.M)})
+    unexpected = [n for n in negative if not any(f.match(n[1]) and t.match(n[2]) for f, t in ALLOWED_VIOLATIONS)]
+    report["violations_listed"] = [{"slack_ns": s, "from": a, "to": d} for s, a, d in negative]
+    report["violations_unexpected"] = [{"slack_ns": s, "from": a, "to": d} for s, a, d in unexpected]
+    counts = dict(re.findall(r"<Numbers of (Setup|Hold) Violated Endpoints>:(\d+)", timing))
+    report["violated_endpoint_counts"] = {k.lower(): int(v) for k, v in counts.items()}
+    report["timing_passed"] = not missing and not slow and not unexpected; save()
+    if not report["timing_passed"]:
+        sys.exit(f"build-tang20k: timing gate failed (missing={missing}, slow={slow}, "
+                 f"unexpected={len(unexpected)}); no image emitted")
+    resources = (pnr / "nano-gpu.rpt.txt").read_text(errors="replace")
+    report["resources"] = {name.strip(): value.strip() for name, value in
+                           re.findall(r"^\s+(Logic|Register|BSRAM|DSP|PLL|CLKDIV|I/O Port)\s+\|\s*([^\n]+)", resources, re.M)}
+    changed = [n for n, h in hashes.items() if digest(ROOT / n) != h]
+    report["inputs_changed"] = changed
+    if changed: save(); sys.exit("build-tang20k: sources changed during the build")
+    image.write_bytes(built.read_bytes())
+    report.update(bitstream_generated=True, upload_ready=True, bitstream_sha256=digest(image),
+                  bitstream_bytes=image.stat().st_size)
+    save()
+    print("Upload image: " + str(image) + "\nSHA-256: " + report["bitstream_sha256"])
 
-if __name__=='__main__':
-    try:main()
-    except Exception as e:
-        print('build-tang20k: '+str(e),file=sys.stderr);sys.exit(1)
+
+if __name__ == "__main__":
+    main()

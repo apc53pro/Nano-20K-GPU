@@ -59,7 +59,7 @@ module nano_gpu_core #(
         S_READ_CMD=47, S_READ_DATA=48, S_READ_BYTES=49, S_READ_DONE=50,
         S_COPY_VALIDATE=51, S_COPY_INIT_ADDR=52,
         S_COPY_READ_CMD=53, S_COPY_READ_DATA=54, S_COPY_READ_DONE=55,
-        S_COPY_RAM_REQ=56, S_COPY_RAM_WAIT=57, S_COPY_WRITE_CMD=58,
+        S_COPY_PREFETCH=56, S_COPY_FLUSH=57, S_COPY_WRITE_CMD=58,
         S_COPY_WRITE_DATA=59, S_COPY_WRITE_DONE=60,
         S_FAULT=61, S_RECOVER=62,
         S_UPLOAD_STAGE_LOW=63, S_UPLOAD_STAGE_HIGH=64,
@@ -67,7 +67,8 @@ module nano_gpu_core #(
         S_COPY_FETCH_REQ=68, S_COPY_FETCH_WAIT=69, S_COPY_CLIP_CHECK=70,
         S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72,
         S_UPLOAD_HEADER_REQ=73, S_UPLOAD_HEADER_WAIT=74,
-        S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77;
+        S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77,
+        S_COPY_INIT_PREP=78;
     reg [7:0] state;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
@@ -260,16 +261,42 @@ module nano_gpu_core #(
     wire copy_clip_equal = copy_clip_candidate == copy_clip_bound;
     wire copy_clip_better = copy_clip_minimum ? copy_clip_less :
         !(copy_clip_less || copy_clip_equal);
-    reg [10:0] copy_count_x, copy_count_y, copy_column, copy_row_number;
+    reg [10:0] copy_count_x, copy_count_y, copy_row_number;
     reg [10:0] copy_address_steps, copy_extent_steps;
     reg [23:0] copy_extent_address;
-    reg [15:0] copy_pixel_hold;
+    // Burst row copy. Each row is read as whole 32-bit source words in bursts
+    // of up to 16, realigned on arrival into destination-aligned words held
+    // in one 512x32 native row RAM, then written back in bursts of up to 16
+    // with per-word half strobes. The whole row is read before any of it is
+    // written, so a same-row overlap cannot read already-written pixels.
+    reg [9:0] copy_word, copy_burst_end, copy_comp;
+    reg [31:0] copy_prev;
     reg copy_ram_we, copy_ram_re;
-    reg [9:0] copy_ram_waddr, copy_ram_raddr;
-    reg [15:0] copy_ram_wdata;
-    wire [15:0] copy_ram_rdata;
-    wire [22:0] copy_pixel_source_address = copy_source_row + {11'd0,copy_column,1'b0};
-    wire [22:0] copy_pixel_destination_address = copy_destination_row + {11'd0,copy_column,1'b0};
+    reg [8:0] copy_ram_waddr, copy_ram_raddr;
+    reg [31:0] copy_ram_wdata;
+    wire [31:0] copy_ram_rdata;
+    wire copy_src_off = copy_source_row[1], copy_dst_off = copy_destination_row[1];
+    // A one-pixel source/destination phase difference pairs each source
+    // word's low half with the previous word's high half.
+    wire copy_shifted = copy_src_off != copy_dst_off;
+    wire [11:0] copy_src_span = {1'b0,copy_count_x} + {11'd0,copy_src_off} + 12'd1;
+    wire [11:0] copy_dst_span = {1'b0,copy_count_x} + {11'd0,copy_dst_off} + 12'd1;
+    wire [9:0] copy_src_words = copy_src_span[10:1];
+    wire [9:0] copy_dst_words = copy_dst_span[10:1];
+    wire [9:0] copy_read_left = copy_src_words - copy_word;
+    wire [9:0] copy_write_left = copy_dst_words - copy_word;
+    wire [4:0] copy_read_burst = copy_read_left > 10'd16 ? 5'd16 : copy_read_left[4:0];
+    wire [4:0] copy_write_burst = copy_write_left > 10'd16 ? 5'd16 : copy_write_left[4:0];
+    wire [31:0] copy_read_word = mem_r_data[5*32 +:32];
+    wire [31:0] copy_composed = copy_shifted ? {copy_read_word[15:0],copy_prev[31:16]} : copy_read_word;
+    // With source phase 1 and destination phase 0, the first source word only
+    // supplies the high half for destination word zero.
+    wire copy_skip_compose = copy_src_off && !copy_dst_off && copy_word==0;
+    // Destination word w holds row pixels 2w-dst_off (low) and +1 (high).
+    // The 12-bit wrap of -1 for word zero falls outside the row by compare.
+    wire [11:0] copy_low_pixel = {1'b0,copy_word,1'b0} - {11'd0,copy_dst_off};
+    wire copy_low_valid = copy_low_pixel < {1'b0,copy_count_x};
+    wire copy_high_valid = (copy_low_pixel + 12'd1) < {1'b0,copy_count_x};
 
     // These bounded origins are retained only after complete signed clipping.
     // Raw coordinates/extents remain in the owned native packet bank and are
@@ -282,7 +309,11 @@ module nano_gpu_core #(
         {2'd0,copy_first_destination_y}>copy_first_source_y;
     wire [8:0] copy_last_destination_y = copy_first_destination_y + copy_count_y - 11'd1;
     wire [8:0] copy_destination_start_y = copy_should_reverse ? copy_last_destination_y : copy_first_destination_y;
-    wire [18:0] copy_destination_start_pixel = global_pixel(copy_first_destination_x,copy_destination_start_y);
+    // S_COPY_INIT_PREP registers the direction and starting destination row,
+    // so the overlap compare/row select and the y*640+x address arithmetic
+    // fall in separate core periods.
+    reg [8:0] copy_destination_start_y_r;
+    wire [18:0] copy_destination_start_pixel = global_pixel(copy_first_destination_x,copy_destination_start_y_r);
     wire [21:0] pass_reference_total = {1'b0,references_seen} + {1'b0,reference_count};
 
     integer i;
@@ -452,9 +483,8 @@ module nano_gpu_core #(
         tile_pix_re=0; tile_pix_raddr=store_pixel_address;
         reply_ram_we=0; reply_ram_re=0; reply_ram_waddr=read_cursor;
         reply_ram_raddr=reply_index-36; reply_ram_wdata={8'd0,read_word_hold[read_lane*8 +:8]};
-        copy_ram_we=0; copy_ram_re=0; copy_ram_waddr=copy_column[9:0];
-        copy_ram_raddr=copy_column[9:0];
-        copy_ram_wdata=copy_pixel_source_address[1] ? mem_r_data[5*32+16 +:16] : mem_r_data[5*32 +:16];
+        copy_ram_we=0; copy_ram_re=0; copy_ram_waddr=copy_comp[8:0];
+        copy_ram_raddr=copy_word[8:0]; copy_ram_wdata=copy_composed;
         upload_ram_we=0; upload_ram_re=0;
         upload_ram_waddr={5'd0,beat[3:0],1'b0};
         upload_ram_raddr={5'd0,beat[3:0],1'b0};
@@ -551,19 +581,27 @@ module nano_gpu_core #(
         S_READ_DATA: mem_r_ready[2]=1;
         S_READ_BYTES: reply_ram_we=read_cursor<read_length;
         S_COPY_READ_CMD: begin
-            mem_cmd_valid[5]=1; mem_cmd_addr[115 +:23]=copy_pixel_source_address&23'h7ffffc;
-            mem_cmd_words[25 +:5]=1;
+            mem_cmd_valid[5]=1;
+            mem_cmd_addr[115 +:23]={copy_source_row[22:2],2'b00}+{11'd0,copy_word,2'b00};
+            mem_cmd_words[25 +:5]=copy_read_burst;
         end
-        S_COPY_READ_DATA: begin mem_r_ready[5]=1; copy_ram_we=mem_r_valid[5]; end
-        S_COPY_RAM_REQ: copy_ram_re=1;
+        S_COPY_READ_DATA: begin
+            mem_r_ready[5]=1; copy_ram_we=mem_r_valid[5] && !copy_skip_compose;
+        end
+        // Odd phase-shifted rows end with one high half from the last word.
+        S_COPY_FLUSH: begin copy_ram_we=1; copy_ram_wdata={16'd0,copy_prev[31:16]}; end
         S_COPY_WRITE_CMD: begin
             mem_cmd_valid[5]=1; mem_cmd_write[5]=1;
-            mem_cmd_addr[115 +:23]=copy_pixel_destination_address&23'h7ffffc; mem_cmd_words[25 +:5]=1;
+            mem_cmd_addr[115 +:23]={copy_destination_row[22:2],2'b00}+{11'd0,copy_word,2'b00};
+            mem_cmd_words[25 +:5]=copy_write_burst;
         end
+        S_COPY_PREFETCH: copy_ram_re=1;
         S_COPY_WRITE_DATA: begin
-            mem_w_valid[5]=1;
-            mem_w_data[160 +:32]=copy_pixel_destination_address[1] ? {copy_pixel_hold,16'd0} : {16'd0,copy_pixel_hold};
-            mem_w_strb[20 +:4]=copy_pixel_destination_address[1] ? 4'b1100 : 4'b0011;
+            // The RAM output holds word copy_word; prefetch the next one as
+            // this one is accepted, so the burst fills at one word per edge.
+            mem_w_valid[5]=1; mem_w_data[160 +:32]=copy_ram_rdata;
+            mem_w_strb[20 +:4]={copy_high_valid,copy_high_valid,copy_low_valid,copy_low_valid};
+            if(mem_w_ready[5]) begin copy_ram_re=1; copy_ram_raddr=copy_word[8:0]+9'd1; end
         end
         default: begin end
         endcase
@@ -619,11 +657,13 @@ module nano_gpu_core #(
             copy_source_kind<=0; copy_source_id<=0; copy_target_id<=0;
             copy_base<=0; copy_pitch<=0; copy_image_width<=0; copy_image_height<=0;
             copy_reverse<=0; copy_previous_valid<=0; copy_source_row<=0; copy_destination_row<=0;
+            copy_destination_start_y_r<=0;
             copy_low<=0; copy_high<=0; copy_setup_step<=0;
             copy_first_source_x<=0; copy_first_source_y<=0;
             copy_first_destination_x<=0; copy_first_destination_y<=0;
-            copy_count_x<=0; copy_count_y<=0; copy_column<=0; copy_row_number<=0;
-            copy_address_steps<=0; copy_extent_steps<=0; copy_extent_address<=0; copy_pixel_hold<=0;
+            copy_count_x<=0; copy_count_y<=0; copy_row_number<=0;
+            copy_word<=0; copy_burst_end<=0; copy_comp<=0; copy_prev<=0;
+            copy_address_steps<=0; copy_extent_steps<=0; copy_extent_address<=0;
         end else begin
             cycle_counter<=cycle_counter+1;
             pixel_phase<=pixel_phase+1; video_pixel_ce<=pixel_tick;
@@ -998,7 +1038,7 @@ module nano_gpu_core #(
                         if(copy_extent_address+{1'b0,copy_pitch}>24'h800000) raise_fault(3);
                     end else begin
                         copy_low<=0; copy_setup_step<=0;
-                        copy_address_steps<=0; copy_source_row<=copy_base; copy_row_number<=0; copy_column<=0;
+                        copy_address_steps<=0; copy_source_row<=copy_base; copy_row_number<=0;
                         capture_index<=copy_parameter_offset(0); state<=S_COPY_FETCH_REQ;
                     end
                 end
@@ -1023,7 +1063,7 @@ module nano_gpu_core #(
                     default: raise_fault(9);
                     endcase
                     if(copy_setup_step==4 || copy_setup_step==11) state<=S_COPY_CLIP_CHECK;
-                    else if(copy_setup_step==13) state<=S_COPY_INIT_ADDR;
+                    else if(copy_setup_step==13) state<=S_COPY_INIT_PREP;
                     else begin
                         copy_setup_step<=copy_setup_step+1;
                         capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
@@ -1038,31 +1078,50 @@ module nano_gpu_core #(
                         capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
                     end
                 end
+                S_COPY_INIT_PREP: begin
+                    copy_reverse<=copy_should_reverse;
+                    copy_destination_start_y_r<=copy_destination_start_y;
+                    state<=S_COPY_INIT_ADDR;
+                end
                 S_COPY_INIT_ADDR: begin
                     if(copy_address_steps==0) begin
-                        copy_reverse<=copy_should_reverse;
-                        copy_row_number<=copy_should_reverse ? copy_count_y-11'd1 : 0;
+                        copy_row_number<=copy_reverse ? copy_count_y-11'd1 : 0;
                         copy_destination_row<=color_base(copy_target_id)+{3'd0,copy_destination_start_pixel,1'b0};
                         copy_address_steps<=1;
                     end else if(copy_address_steps-11'd1 < copy_source_start_y) begin
                         copy_source_row<=copy_source_row+copy_pitch; copy_address_steps<=copy_address_steps+1;
                     end else begin
-                        copy_source_row<=copy_source_row+{11'd0,copy_first_source_x,1'b0}; copy_column<=0; copy_active<=1;
+                        copy_source_row<=copy_source_row+{11'd0,copy_first_source_x,1'b0};
+                        copy_word<=0; copy_comp<=0; copy_active<=1;
                         color_valid[copy_target_id]<=0; state<=S_COPY_READ_CMD;
                     end
                 end
-                S_COPY_READ_CMD: if(mem_cmd_ready[5]) state<=S_COPY_READ_DATA;
-                S_COPY_READ_DATA: if(mem_r_valid[5]) state<=S_COPY_READ_DONE;
-                S_COPY_READ_DONE: if(mem_done[5]) begin
-                    if(copy_column+1==copy_count_x) begin copy_column<=0; state<=S_COPY_RAM_REQ; end
-                    else begin copy_column<=copy_column+1; state<=S_COPY_READ_CMD; end
+                S_COPY_READ_CMD: if(mem_cmd_ready[5]) begin
+                    copy_burst_end<=copy_word+{5'd0,copy_read_burst}; state<=S_COPY_READ_DATA;
                 end
-                S_COPY_RAM_REQ: state<=S_COPY_RAM_WAIT;
-                S_COPY_RAM_WAIT: begin copy_pixel_hold<=copy_ram_rdata; state<=S_COPY_WRITE_CMD; end
-                S_COPY_WRITE_CMD: if(mem_cmd_ready[5]) state<=S_COPY_WRITE_DATA;
-                S_COPY_WRITE_DATA: if(mem_w_ready[5]) state<=S_COPY_WRITE_DONE;
+                S_COPY_READ_DATA: if(mem_r_valid[5]) begin
+                    copy_prev<=copy_read_word; copy_word<=copy_word+1;
+                    if(!copy_skip_compose) copy_comp<=copy_comp+1;
+                    if(copy_word+1==copy_burst_end) state<=S_COPY_READ_DONE;
+                end
+                S_COPY_READ_DONE: if(mem_done[5]) begin
+                    if(copy_word!=copy_src_words) state<=S_COPY_READ_CMD;
+                    else begin
+                        copy_word<=0;
+                        state<=copy_comp!=copy_dst_words ? S_COPY_FLUSH : S_COPY_WRITE_CMD;
+                    end
+                end
+                S_COPY_FLUSH: state<=S_COPY_WRITE_CMD;
+                S_COPY_WRITE_CMD: if(mem_cmd_ready[5]) begin
+                    copy_burst_end<=copy_word+{5'd0,copy_write_burst}; state<=S_COPY_PREFETCH;
+                end
+                S_COPY_PREFETCH: state<=S_COPY_WRITE_DATA;
+                S_COPY_WRITE_DATA: if(mem_w_ready[5]) begin
+                    copy_word<=copy_word+1;
+                    if(copy_word+1==copy_burst_end) state<=S_COPY_WRITE_DONE;
+                end
                 S_COPY_WRITE_DONE: if(mem_done[5]) begin
-                    if(copy_column+1!=copy_count_x) begin copy_column<=copy_column+1; state<=S_COPY_RAM_REQ; end
+                    if(copy_word!=copy_dst_words) state<=S_COPY_WRITE_CMD;
                     else if((!copy_reverse && copy_row_number+1==copy_count_y) || (copy_reverse && copy_row_number==0)) begin
                         color_valid[copy_target_id]<=copy_previous_valid ||
                             (copy_first_destination_x==0 && copy_first_destination_y==0 && copy_count_x==640 && copy_count_y==480);
@@ -1071,7 +1130,7 @@ module nano_gpu_core #(
                         copy_row_number<=copy_reverse ? copy_row_number-1 : copy_row_number+1;
                         copy_source_row<=copy_reverse ? copy_source_row-copy_pitch : copy_source_row+copy_pitch;
                         copy_destination_row<=copy_reverse ? copy_destination_row-1280 : copy_destination_row+1280;
-                        copy_column<=0; state<=S_COPY_READ_CMD;
+                        copy_word<=0; copy_comp<=0; state<=S_COPY_READ_CMD;
                     end
                 end
                 S_RECOVER: if(!host_abort && !host_recovering) begin
@@ -1150,7 +1209,7 @@ module nano_gpu_core #(
         .tex_rsp_valid(tex_rsp_valid),.tex_rsp_ready(tex_rsp_ready),.tex_rsp_texel(tex_rsp_texel),.tex_rsp_tag(tex_rsp_tag),.tex_fault(tex_fault));
     nano_sdp16 reply_ram (.wclk(clk),.wce(1'b1),.we(reply_ram_we),.waddr(reply_ram_waddr),.wdata(reply_ram_wdata),
         .rclk(clk),.rce(1'b1),.re(reply_ram_re),.raddr(reply_ram_raddr),.reset_output(reset),.rdata(reply_ram_rdata));
-    nano_sdp16 copy_row_ram (.wclk(clk),.wce(1'b1),.we(copy_ram_we),.waddr(copy_ram_waddr),.wdata(copy_ram_wdata),
+    nano_sdp32 copy_row_ram (.wclk(clk),.wce(1'b1),.we(copy_ram_we),.waddr(copy_ram_waddr),.wdata(copy_ram_wdata),
         .rclk(clk),.rce(1'b1),.re(copy_ram_re),.raddr(copy_ram_raddr),.reset_output(reset),.rdata(copy_ram_rdata));
     nano_sdp16 upload_ram (.wclk(clk),.wce(1'b1),.we(upload_ram_we),.waddr(upload_ram_waddr),.wdata(upload_ram_wdata),
         .rclk(clk),.rce(1'b1),.re(upload_ram_re),.raddr(upload_ram_raddr),.reset_output(reset),.rdata(upload_ram_rdata));
