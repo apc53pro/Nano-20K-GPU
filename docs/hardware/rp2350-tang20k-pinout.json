@@ -4,7 +4,7 @@
   "rp_wiring_revision": "2026-11-06",
   "status": "Fixed slow bus-test board build selected: 6.3 MHz GPU core/SDRAM, independent constant-black HDMI raster, and 50 us GPIO host phases. GPU-rendered video is disconnected; terminal display, PIO/DMA, NARM integration and external electrical qualification remain unresolved.",
   "firmware_modified": true,
-  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/bd65b05",
+  "firmware_source": "https://github.com/apc53pro/MPC-2350/commit/5ca5190",
   "rtl_modified": true,
   "modification_flags_scope": "MPC-2350 host bus slowed to 50 us phases; fixed Tang bus-test build changes core/SDRAM clock and physical video source. Pin mappings and packet ABI are unchanged; the earlier 50.4 MHz image/report cannot qualify these changed sources.",
   "hardware_tested": false,

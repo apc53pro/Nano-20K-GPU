@@ -343,7 +343,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 
 ### Initial MPC-2350 terminal driver
 
-The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/bd65b05)
+The separate [MPC-2350 firmware implementation](https://github.com/apc53pro/MPC-2350/commit/5ca5190)
 contains `gpu_display.cpp` (RP2350 GPIO transport), `nano_gpu.cpp` (serialized
 N20K-SYS-0.2 client and terminal copies), and `font.cpp` (bitmap source).
 This first version is deliberately a **40×30 black-on-white terminal**, using
@@ -424,12 +424,14 @@ sweep in `GPU_PROBE` (including its automatic run after failed startup), and
 can also be requested over USB Serial. A capability-transfer timeout skips this
 automatic test. It first reads sideband register `0x01` to refresh the status
 snapshot, then reads requested addresses **`0x02`, `0x21`, `0x23`**. It prints
-`GPU SWAPTEST: <three HEX bytes>; flags=0x<raw flags>` without decoding or
-classifying the result. It submits no packet and refuses while the client is
-online or a read is held; use `GPU_RELEASE` before running it after `GPU_HOLD`.
-Completion or a timeout releases the bus; a timeout identifies the register.
+`GPU SWAPTEST: <three HEX bytes>; flags=0x<raw flags>; edges=<a b c d>; pre=<a b c d>`
+without decoding or classifying the result. It submits no packet and refuses
+while the client is online or a read is held; use `GPU_RELEASE` before running
+it after `GPU_HOLD`. Completion or a timeout releases the bus; a timeout
+identifies the register.
 
-After a fresh hard reset, with epoch 1 and zero fault-code upper bytes:
+After a fresh hard reset, epoch is 1. Status bytes 33 and 35 are upper bytes
+of the fault code, which `nano_gpu_core` always reports as `{24'd0, fault_code}`:
 
 | Wiring hypothesis | Expected `GPU SWAPTEST` bytes | Reason |
 | --- | --- | --- |
@@ -438,11 +440,31 @@ After a fresh hard reset, with epoch 1 and zero fault-code upper bytes:
 
 The latter pattern strongly supports that interchange under these assumptions;
 it is not a unique fault diagnosis. `1 0 0` does not verify every bus line.
-All-zero results or timeouts still require the held-read voltage checks below.
-No swap-test result has yet been reported. The sixteen zero capability bytes
-alone neither rule out firmware nor establish a D5/D6 interchange. In the
-startup prefix check, register 64's expected zero can pass; register **65** is
-the first mismatch when it returns zero instead of `0x02`.
+Under an interchange, the raw flags also arrive with bits 5 and 6 exchanged.
+
+`edges` gives, in decimal for registers `0x01 0x02 0x21 0x23`, the HCLK rising
+edges after RD_N went LOW until the RP sampled RVALID HIGH. `pre` is RVALID
+sampled once with RD_N LOW and HCLK LOW, before the first such edge.
+
+| Handshake observation | Interpretation |
+| --- | --- |
+| `edges=4 1 1 1; pre=0 0 0 0` | Genuine handshake. A register-`0x01` request toggles a snapshot request that the core clock acknowledges; the result returns after the fourth HCLK edge in an Icarus simulation of `nano_host_link`. Capability reads and later status reads answer on the first edge. |
+| Register-`0x01` count `1` | RVALID did not come from the snapshot handshake (for example, RVALID following HCLK), or the FPGA latched another address such as a capability register. |
+| Any `pre` value `1` | RVALID was HIGH before any read edge requested data. |
+
+`tang20k_top` drives `gpu_d` and `gpu_rvalid` under the same `reading`
+condition, so genuine handshake counts with zero data point at the data wires
+or their Tang endpoints. These are diagnostic expectations, not measured
+electrical margins.
+
+**Reported 2026-11-06, before edge counting existed:** `GPU CAPS` showed sixteen
+zero bytes and `GPU SWAPTEST: 0 0 0; flags=0x0`, with no timeouts. This matches
+neither table row. Register `0x02` uses neither D5 nor D6, so a pure interchange
+still returns `1`. Every byte read was zero, including capability bytes `0x02`,
+`0x08` and `0x20`. A D5/D6 interchange alone cannot explain this result. The
+`edges`/`pre` result and the held-read voltages below have not yet been
+reported. In the startup prefix check, register 64's expected zero can pass;
+register **65** is the first mismatch when it returns zero instead of `0x02`.
 
 The mapping remains D5 **GP23 / Core P3.9 → Tang J5.5 / FPGA pin 42**, D6
 **GP24 / Core P3.12 → Tang J5.6 / FPGA pin 41**; the Arduino driver still uses

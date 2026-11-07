@@ -184,7 +184,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/bd65b05).** That terminal uploads a
+are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/5ca5190).** That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. On later changes it copies
 the current front to back, copies changed glyphs, fences, then presents and waits
@@ -230,13 +230,23 @@ The offline-only `GPU_SWAPTEST`, also run after a completed sixteen-byte
 capability probe, refreshes status through register `0x01`, then reads requested
 HEX addresses `02`, `21`, `23` and prints these bytes with the raw flags. A
 capability-transfer timeout skips the automatic test; the manual command
-remains available. With fresh-reset epoch 1 and zero fault-code upper
+remains available. With fresh-reset epoch 1 and the always-zero fault-code upper
 bytes, expected HEX output is `1 0 0`; a pure D5/D6 interchange in both address
 and return data instead gives `1 2 40`. That pattern would strongly support the
 interchange under these assumptions, without uniquely diagnosing it; `1 0 0`
-does not establish that every line is correct. No swap-test result has been
-reported. The existing all-zero capability reads do not rule out firmware or
-establish a wiring cause. Startup can accept register 64's expected zero before
+does not establish that every line is correct. The output also gives, for
+registers `01 02 21 23`, the HCLK rising edges until RVALID was sampled HIGH and
+RVALID before the first edge. A genuine handshake gives `edges=4 1 1 1;
+pre=0 0 0 0`. Register `0x01` always requests a status snapshot, whose
+acknowledgement crosses the core clock domain. An Icarus simulation of
+`nano_host_link` shows it answering after the fourth edge. Register-`01`
+`edges=1` means that RVALID did not come from this handshake, or that the FPGA
+latched another address. The 2026-11-06 report, from firmware without edge
+counting, was sixteen zero capability bytes and swap-test `0 0 0`, flags `0`,
+with no timeouts. That matches neither pattern. Register `02` uses neither D5
+nor D6, and every read returned zero, including nonzero capability bytes. A
+D5/D6 interchange alone therefore cannot explain it; the edge-count result and
+held-read voltages remain unreported. Startup can accept register 64's expected zero before
 failing register 65, which should return `0x02`. D5 remains GP23 / Core P3.9 to
 Tang J5.5 / pin 42, and D6 remains GP24 / Core P3.12 to Tang J5.6 / pin 41;
 Arduino data indexing remains `GPIO18 + bit_index`. RP pad echoes do not verify
