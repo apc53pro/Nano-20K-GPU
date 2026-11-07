@@ -50,6 +50,30 @@ tang20k-test:
 GOWIN_SH ?= C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe
 tang20k: tang20k-test
 	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --gowin "$(GOWIN_SH)"
+
+# Programming: only the signed standalone Gowin Programmer V1.9.12.04 writes
+# this board's SPI flash. The Education IDE's own programmer_cli cannot; see
+# GPU_CONTROL.md "Programming and first board bring-up".
+GOWIN_PROGRAMMER ?= C:/Gowin/Gowin_Programmer_V1.9.12.04/Programmer/bin/programmer_cli.exe
+# Windows path for the native programmer (MSYS2 provides cygpath).
+TANG20K_IMAGE := $(shell cygpath -m "$(abspath bitstreams/tangnano20k/nano-gpu.fs)" 2>/dev/null)
+GOWIN_PROGRAM = env -u PYTHONIOENCODING "$(GOWIN_PROGRAMMER)" --cable-index 1 -d GW2AR-18C
+.PHONY: tang20k-flash tang20k-sram tang20k-status
+# Erase, program and verify the SPI flash, then reload the FPGA from it.
+tang20k-flash:
+	sha256sum -c bitstreams/tangnano20k/SHA256SUMS
+	$(GOWIN_PROGRAM) -r 9 --fsFile "$(TANG20K_IMAGE)"
+	$(GOWIN_PROGRAM) -r 1
+	sleep 3
+	$(GOWIN_PROGRAM) -r 0
+# Volatile load: lost at power-off; the flash keeps its previous image.
+tang20k-sram:
+	sha256sum -c bitstreams/tangnano20k/SHA256SUMS
+	$(GOWIN_PROGRAM) -r 2 --fsFile "$(TANG20K_IMAGE)"
+	$(GOWIN_PROGRAM) -r 0
+# Configured image: Status 0x00006020 and that image's user code.
+tang20k-status:
+	$(GOWIN_PROGRAM) -r 0
 headless: $(BUILD_DIR)/nano-gpu-ref-headless$(EXEEXT)
 
 $(BUILD_DIR) $(BUILD_DIR)/generated:

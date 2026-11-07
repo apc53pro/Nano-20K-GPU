@@ -752,10 +752,12 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`.
-It accepts the depth-DISCARD load flag (bit 2). It has not yet run on the
-board; the previous image (`55ebdfbd…d170`) rejects that flag with fault 6,
-so program this image before running software that sets it.
+`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`, user
+code `0x3354`. It accepts the depth-DISCARD load flag (bit 2); the previous
+image (`55ebdfbd…d170`, user code `0x33E2`) rejects that flag with fault 6.
+On 2026-11-07 it was written to the board's SPI flash and verified, and the
+FPGA reloaded it (status `0x6020`, user code `0x3354`). It has not yet been
+run with the RP2350.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
@@ -767,25 +769,67 @@ Check the release checksum from the repository root with:
 sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 ```
 
-Connect the Tang's onboard USB-C programming connection. The official Gowin
-Programmer (V1.9.12.04, digitally signed by Gowin) includes `programmer_cli`.
-Load **volatile SRAM** with operation 2, or write the external flash with
-erase, program and verify (operation 9):
+#### Tools: one for building, a different one for programming
+
+| Job | Tool (exact) | Location on the user's PC |
+| --- | --- | --- |
+| Build the image (`make tang20k`) | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
+| Program SRAM or flash | Standalone Gowin Programmer **V1.9.12.04 (64-bit)** `programmer_cli.exe`, Authenticode-signed by Gowin | `C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe` |
+
+**Never program the flash with the Education IDE's own
+`C:\Gowin\Gowin_V1.9.8.11_Education\Programmer\bin\programmer_cli.exe`.** It
+detects the Tang's SPI flash (`0x0B4017`) but fails every flash operation at
+0% with `Error found!`. Each attempt leaves the FPGA unconfigured (status
+`0x00000020`) and the flash contents uncertain. It can still load SRAM. The
+signed V1.9.12.04 programmer came from Gowin's
+`Gowin_Programmer_V1.9.12.04_x64.zip`; check `Get-AuthenticodeSignature`
+reports `Valid` if it is reinstalled. Copy it to the location above, or set
+`GOWIN_PROGRAMMER` to its `programmer_cli.exe`.
+
+#### Programming commands
+
+Connect the Tang's onboard USB-C programming connection. From an MSYS2 shell
+at the repository root:
 
 ```bash
-programmer_cli --cable-index 1 -d GW2AR-18C -r 2 --fsFile bitstreams/tangnano20k/nano-gpu.fs
+make tang20k-flash
 ```
 
 ```bash
-programmer_cli --cable-index 1 -d GW2AR-18C -r 9 --fsFile bitstreams/tangnano20k/nano-gpu.fs
+make tang20k-sram
 ```
+
+```bash
+make tang20k-status
+```
+
+`tang20k-flash` checks the image hash, then erases, programs and verifies the
+external SPI flash (operation 9; expect `SPI program and verify success!`).
+It then reloads the FPGA from flash (operation 1) and reads its codes. The
+image persists across power cycles. `tang20k-sram` loads volatile SRAM
+(operation 2) for a quick test; power-off returns to the flash image. The
+equivalent PowerShell commands are:
+
+```powershell
+Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
+$cli = 'C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe'
+& $cli --cable-index 1 -d GW2AR-18C -r 9 --fsFile "$PWD\bitstreams\tangnano20k\nano-gpu.fs"
+& $cli --cable-index 1 -d GW2AR-18C -r 1
+& $cli --cable-index 1 -d GW2AR-18C -r 0
+```
+
+A configured image reads **status `0x00006020`** (configuration done, no CRC
+error) and that image's user code. Immediately after a flash write or a
+reload, the device can read `0x00004460` with user code 0 for a few seconds
+while it configures; read again before deciding it failed. If the codes are
+missing entirely or the IDE programmer reports `Cable open failed`, the board
+is unplugged or another programmer holds the cable.
 
 Gowin bitstreams enable read-back security, so an SRAM program-and-verify
-(operation 4) reports a verify failure even after a good load. Status
-`0x6020` then includes configuration done, with no CRC error. On Windows,
+(operation 4) reports a verify failure even after a good load. On Windows,
 `programmer_cli` fails to start if `PYTHONIOENCODING` is set; clear that
-variable first. Installing Gowin software binds the debugger's FTDI interfaces
-to FTDI's driver. [openFPGALoader](https://trabucayre.github.io/openFPGALoader/guide/installation.html)
+variable first (the make targets do). Installing Gowin software binds the
+debugger's FTDI interfaces to FTDI's driver. [openFPGALoader](https://trabucayre.github.io/openFPGALoader/guide/installation.html)
 (`-b tangnano20k`, with `-f` for flash) then reports `device not found` until
 interface A is bound to WinUSB again, for example with Zadig.
 

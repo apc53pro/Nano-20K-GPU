@@ -20,7 +20,9 @@ focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
 the user reported the terminal running on the previous image. The current
-image adds burst tile transfers and has not yet run on the board. It is built with
+image adds burst tile transfers; it was written to the board's flash and
+verified on 2026-11-07, and its rendering with the RP2350 is not yet reported.
+It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
 clock, with the core at 54.64 MHz Fmax. It uses **16,076/20,736 logic
@@ -996,7 +998,11 @@ covers two layers:
 - five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-**This image has not yet been run on the board.** Earlier GPIO firmware mocks
+On 2026-11-07 this image was written to the Tang's SPI flash with the signed
+Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded
+it with status `0x6020`, user code `0x3354`), and the user confirmed the
+programming succeeded. Its rendering with the RP2350 is not yet reported; the
+control guide lists the exact build and programming tools. Earlier GPIO firmware mocks
 verify the 2 µs phase floor. On 2026-11-07 the user programmed the previous
 image (SHA-256 `55ebdfbd…d170`, per-pixel LOAD; Gowin Programmer verified the
 flash write) and reported it displaying and refreshing the MPC-2350 terminal

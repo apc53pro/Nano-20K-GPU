@@ -54,8 +54,8 @@ constraints, SDRAM pads and the physical host bus. It runs a **50.4 MHz GPU
 core/SDRAM clock**, with **25.2 MHz HDMI pixels and 126 MHz DDR serialization**;
 the GPU's rendered output drives HDMI. The MPC-2350 firmware's terminal ran on
 the previous image (user-reported, 2026-11-07). The current image adds burst
-tile LOAD/STORE, empty-tile skipping and depth DISCARD, and has not yet run on
-the board.
+tile LOAD/STORE, empty-tile skipping and depth DISCARD; it was flashed and
+verified on 2026-11-07, and its rendering with the RP2350 is not yet reported.
 
 The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
 image failed the host address latch on the board, and `AGENTS.md` records this
@@ -72,12 +72,16 @@ Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.
 
-Check the image, then load it with the official Gowin Programmer's
-`programmer_cli`. Operation 2 is SRAM; operation 9 is external flash:
+Program it with the **signed standalone Gowin Programmer V1.9.12.04**, never
+with the Education IDE's bundled programmer, which cannot write this board's
+flash. From MSYS2 at the repository root, `make tang20k-flash` checks the hash,
+writes and verifies the flash and reloads the FPGA; `make tang20k-sram` loads
+volatile SRAM. The
+[programming section](GPU_DOCUMENTATION/GPU_CONTROL.md#programming-and-first-board-bring-up)
+lists the exact tool paths and expected status codes.
 
 ```bash
-sha256sum -c bitstreams/tangnano20k/SHA256SUMS
-programmer_cli --cable-index 1 -d GW2AR-18C -r 2 --fsFile bitstreams/tangnano20k/nano-gpu.fs
+make tang20k-flash
 ```
 
 Read the [first-board instructions](GPU_DOCUMENTATION/GPU_CONTROL.md#programming-and-first-board-bring-up)
