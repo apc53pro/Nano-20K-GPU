@@ -72,10 +72,10 @@ logical-core simulation retains 100,800,000 / 4 / 4. Drivers read capabilities
 rather than assuming one profile. The image contains one fixed compile-time
 configuration, with no runtime clock command or hardware compatibility mode.
 
-The PIO firmware uses at least **2 µs per HCLK phase**, giving a phase-only
-ceiling of **250 kHz**. Extra cycles and FIFO service reduce the sustained
-rate. External bus/SDRAM
-margins remain unqualified. The image is built with Gowin EDA; the reasons and
+The PIO firmware targets **25 MHz HCLK during active bursts**. It idles the
+clock between byte operations, so the sustained transfer rate depends on
+handshakes and FIFO service. External bus/SDRAM margins remain unqualified.
+The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
@@ -336,7 +336,7 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 `nano_gpu.cpp` serializes N20K-SYS-0.2 packets and issues terminal commands.
 `font.cpp` supplies the bitmap font for the **40×30 black-on-white terminal**.
 The FPGA copies each 16×16 glyph and scans out the front buffer over HDMI.
-See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0c9f096d9551b4d99c442bf1157d7edd8312bfb9).
+See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/7d29945d8b6c0db9104a0e225000e6c6911f3033).
 
 The CPU submits each byte operation through the TX FIFO of one PIO2 state
 machine and waits for its completion in the RX FIFO. PIO controls the clock,
@@ -347,9 +347,14 @@ it releases D[7:0] before asserting RD_N, samples RVALID and data after the
 rising edge, and releases RD_N before another rising edge. PIO returns the
 pre-edge RVALID sample and the read-edge count for diagnostics. The CPU
 handles packet encoding, deadlines and reset, and uses GPIO for startup and
-offline static measurements. RP control outputs use 12 mA drive. The driver
-uses FIFO polling. Its four-cycle phase at a PIO clock of at most 2 MHz gives
-a 2 µs minimum and a 250 kHz phase-only ceiling. These are configured limits.
+offline static measurements. RP control outputs use 12 mA drive.
+Read retries use seven PIO cycles high and five low. Write retries use six
+cycles per phase. Both take 12 cycles, so the 300 MHz PIO rate at the firmware's
+375 MHz RP system clock gives a 40 ns HCLK period. The PIO state-machine
+divider is 1.25, so 12 PIO cycles take exactly 15 system clock cycles.
+The driver refuses a system clock above 375 MHz with this divider.
+These rates describe the programmed clock. Electrical timing at the pads
+still needs measurement.
 
 Startup asserts GPU_RESET_N and keeps the data bus released for **1000 ms**
 before any host clock/transfer, allowing for FPGA flash configuration. This is
