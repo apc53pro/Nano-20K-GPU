@@ -19,14 +19,13 @@ one PIO state machine and shares its GPU client between the terminal and the
 focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
-the user reported the terminal running on the previous image. The current
-image adds burst tile transfers; it was written to the board's flash and
-verified on 2026-11-07, and its rendering with the RP2350 is not yet reported.
-It is built with
+the user reported the terminal running on an earlier image. The current
+image adds a pipelined SDRAM controller, a word-wide display FIFO and tile
+clearing during stores; it has not yet run on the board. It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
-clock, with the core at 54.64 MHz Fmax. It uses **16,076/20,736 logic
-(Gowin count)**, **6,729 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
+clock, with the core at 51.67 MHz Fmax. It uses **18,185/20,736 logic
+(Gowin count)**, **6,780 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -425,17 +424,22 @@ For each tile the current executor fetches the tile entry, then:
   RAM. A pass that loads color and discards or loads depth skips the tile
   entirely, so an update costs only the tiles it draws in.
 - **Tile with draws.**
-  1. Writes clear values into the cleared resident attachments (1,024 clocks)
-     and burst-loads the loaded ones: one 16-word color burst and two 16-word
-     depth bursts per tile row. A color word fills its two pixels on
-     consecutive clocks while the read response is held.
+  1. Burst-loads the loaded attachments: one 16-word color burst and two
+     16-word depth bursts per tile row. A color word fills its two pixels on
+     consecutive clocks while the read response is held. Cleared attachments
+     are written with their clear values (1,024 clocks) only for the pass's
+     first tile with draws; see step 4.
   2. Fetches each reference and prepared primitive record in list order.
   3. Runs the primitive in the tile and drains its fragment work before
      changing draw state.
   4. Streams color, and depth unless discarded, back to SDRAM in 16-word
      bursts. Depth supplies one word per clock and RGB565 one word per two
      clocks; the tile RAM output register holds a word while the SDRAM payload
-     slot is not ready.
+     slot is not ready. The tile write port is otherwise idle during a store,
+     so each pixel read is rewritten with its clear value on the next clock
+     (color during the color store; depth during its own store, or with color
+     when depth is discarded). The tile RAM is therefore already cleared for
+     the next tile, and later tiles of the pass skip the 1,024-clock clear.
 
 The GPU currently has **one resident tile attachment set**. RGB565 uses one
 native 1024×16 RAM; D24 uses two more, with 16 low bits in one bank and eight
@@ -679,6 +683,19 @@ implements initialization, bank/row timing, read/write turnaround, refresh and
 response backpressure. Its selected physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
 
+A transaction is split into BL8 segments, each one 32-byte-aligned column
+block. **Column commands are pipelined**: the next segment's READ or WRITE
+issues eight edges after the previous one whenever its row is open, so a
+16-word read returns data on consecutive edges and writes stream back to back.
+The next segment's PRECHARGE or ACTIVE may issue during the current burst,
+except that no PRECHARGE truncates an in-flight read. A WRITE segment issues
+as soon as its own words are staged and its first word is in the RAM output
+register, while the client keeps staging later segments. A write retires with
+its last data beat: tWR is enforced per bank before any later PRECHARGE, and
+read/write turnaround only separates bursts of opposite direction. Refresh
+waits for in-flight bursts, then runs between segments; staging and the read
+response stream continue meanwhile.
+
 Read responses stream from the native RAM as soon as captured words are
 available, including while the physical BL8 tail or another burst is in flight.
 The existing fill counter tracks captured words; a read never consumes an
@@ -781,7 +798,12 @@ physical pixel event advances scanout by one pixel, giving 60 Hz frames.
 Video-only DVI-compatible signaling through the HDMI connector is sufficient;
 audio and HDMI data packets are not required.
 
-Two native RAM banks form the **2,048-pixel display FIFO**. Scanout queues its
+Two native RAM banks form the **2,048-pixel display FIFO**, organized as 1,024
+words: one bank holds each word's even pixel and the other its odd pixel. A
+16-word refill is accepted at one word per edge, so it does not hold the shared
+SDRAM service while pixels drain; each FIFO word read supplies two pixels.
+(The previous FIFO accepted one pixel per edge, keeping the service owned for
+about 32 edges per refill: roughly 40% of SDRAM time in a clear pass.) Scanout queues its
 next refill before the current transaction retires, reserves room for pending
 responses, and discards obsolete responses across front swaps. This keeps it
 eligible for memory arbitration during foreground traffic. Underflow produces
@@ -954,8 +976,8 @@ including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **16,076 (78%)** | 20,736 |
-| Registers | 6,729 (43%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **18,185 (88%)** | 20,736 |
+| Registers | 6,780 (43%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
 | DSP | 53% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
@@ -965,27 +987,29 @@ counts of earlier reports. No BSRAM bank is spare.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **54.64 MHz** |
-| Host | 25.2 MHz | 75.00 MHz |
-| Physical pixel | 25.2 MHz | 177.55 MHz |
-| Reference | 27 MHz | 408.21 MHz |
+| Core/SDRAM | 50.4 MHz | **51.67 MHz** |
+| Host | 25.2 MHz | 75.88 MHz |
+| Physical pixel | 25.2 MHz | 175.51 MHz |
+| Reference | 27 MHz | 432.22 MHz |
 
-The core closes with about 8.4% margin in this placement (1.54 ns slack). The
-previous image, before burst tile transfers, closed at 51.13 MHz; an earlier
-placement reached 62.8 MHz. The closest path now runs from the core reset
-through the SDRAM write-ready decision into the tile color-RAM read address
-used by streaming STORE. Two RTL timing fixes took the core from 41.2 MHz to
+The core closes with about 2.5% margin in this placement (0.49 ns slack).
+Its closest paths are again the renderer's depth-RAM output into the
+fragment-ready enables. The burst-transfer image before it closed at
+54.64 MHz with 16,076 logic; earlier placements ranged from 51.13 to 62.8 MHz.
+Gowin's logic count rose by 2,109 for this image, while a Yosys `synth_gowin`
+of the same core sources maps about 110 fewer LUTs than the previous sources,
+so the increase reflects Gowin's mapping of this netlist rather than added
+logic; CLS use is 94%. Two RTL timing fixes took the core from 41.2 MHz to
 these results:
 - the retimed U/V reciprocal multipliers (section 6);
 - registering the copy direction and starting row before the address
   arithmetic (section 9).
 
-Eight reset-release paths have negative slack, and the report lists each one:
-- power-on into the core and pixel reset synchronizers, −2.65 ns and
-  −1.23 ns. This is an asynchronous preset into two-flop synchronizers that
-  release synchronously.
-- the synchronized pixel reset into the four OSER10 serializer resets,
-  −0.26 ns.
+Four reset-release paths have negative slack, and the report lists each one:
+power-on into the core and pixel reset synchronizers, −2.81 ns and −1.48 ns.
+This is an asynchronous preset into two-flop synchronizers that release
+synchronously. (The synchronized pixel reset into the OSER10 serializer
+resets, listed for earlier images, meets timing in this placement.)
 
 The build fails on any other negative-slack path.
 
@@ -994,7 +1018,7 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`. The
+`3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
@@ -1004,11 +1028,12 @@ covers two layers:
 - five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-On 2026-11-07 this image was written to the Tang's SPI flash with the signed
-Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded
-it with status `0x6020`, user code `0x3354`), and the user confirmed the
-programming succeeded. Its rendering with the RP2350 is not yet reported; the
-control guide lists the exact build and programming tools. Earlier GPIO firmware mocks
+**This image has not yet run on the board.** On 2026-11-07 the previous
+burst-transfer image (`a249064f…9ef9`) was written to the Tang's SPI flash with
+the signed Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA
+reloaded it with status `0x6020`, user code `0x3354`), and the user confirmed
+the programming succeeded. The control guide lists the exact build and
+programming tools. Earlier GPIO firmware mocks
 verify the 2 µs phase floor. On 2026-11-07 the user programmed the previous
 image (SHA-256 `55ebdfbd…d170`, per-pixel LOAD; Gowin Programmer verified the
 flash write) and reported it displaying and refreshing the MPC-2350 terminal
@@ -1076,36 +1101,47 @@ retains the pre-retiming cycle counts.
 The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
 retains the original blackout regression and pre-area-optimization counts.
 
-### Tile attachment bursts (current board profile)
+### Tile attachments and SDRAM pipelining (current board profile)
 
 `nano-gpu-rtl --benchmark` times passes and a copy on the board-profile core
 (50.4 MHz core, 25.2 MHz pixel and virtual host, refresh interval 787) and
 compares every case's color buffers and D24 words with the SRR. Times run from
 the first host byte through the fence reply, so they include delivery of the
-descriptor, 2,400-byte tile table, lists and records. Before burst loading,
-LOAD read one word per SDRAM transaction for every pixel; every pass also
-loaded and stored all 300 tiles.
+descriptor, 2,400-byte tile table, lists and records. *Original* is the
+per-pixel LOAD design, in which every pass also loaded and stored all 300
+tiles. *Bursts* adds burst tile transfers, empty-tile skipping and depth
+DISCARD. *Now* adds pipelined SDRAM column commands with overlapped write
+staging, the word-wide display FIFO and tile clearing during stores.
 
-| Case | Before (ms) | Now (ms) |
-| --- | ---: | ---: |
-| Empty pass, clear color and depth (first after boot) | 93.15 | 38.87 |
-| Empty pass, clear color and depth | 105.41 | 53.59 |
-| Empty pass, load color, clear depth | 324.73 | 35.24 |
-| Empty pass, load color and depth | 580.62 | 0.44 |
-| Full-screen front-to-back copy | 28.61 | 28.38 |
-| 148-rectangle UI frame, clear color and depth | 140.82 | 98.75 |
-| 6×9 update, load color and depth | 580.68 | 0.88 |
-| Empty pass, clear color, discard depth | — | 18.82 |
-| 148-rectangle UI frame, clear color, discard depth | — | 63.63 |
-| 6×9 update, load color, discard depth | — | 0.68 |
+| Case | Original (ms) | Bursts (ms) | Now (ms) |
+| --- | ---: | ---: | ---: |
+| Empty pass, clear color and depth (first after boot) | 93.15 | 38.87 | 18.30 |
+| Empty pass, clear color and depth | 105.41 | 53.59 | 23.56 |
+| Empty pass, load color, clear depth | 324.73 | 35.24 | 15.59 |
+| Empty pass, load color and depth | 580.62 | 0.44 | 0.33 |
+| Full-screen front-to-back copy | 28.61 | 28.38 | 14.85 |
+| 148-rectangle UI frame, clear color and depth | 140.82 | 98.75 | 55.03 |
+| 6×9 update, load color and depth | 580.68 | 0.88 | 0.44 |
+| Empty pass, clear color, discard depth | — | 18.82 | 8.23 |
+| 148-rectangle UI frame, clear color, discard depth | — | 63.63 | 39.99 |
+| 6×9 update, load color, discard depth | — | 0.68 | 0.48 |
+| Showcase scene, second verified frame | 196.40 | 154.43 | 100.09 |
+| Perspective scene | 176.57 | 134.62 | 84.55 |
+| Overdraw scene | 219.53 | 178.20 | 127.66 |
+| Opaque scene | 215.35 | 170.73 | 124.47 |
 
-The DISCARD rows have no "before" value because that operation did not exist.
-Clear passes are now limited by the SDRAM service, which completes each
-16-word write before arbitrating again and pays its fill, row and recovery
-clocks per burst, while scanout keeps priority. The four demo scenes with
-`--verify` on the same profile are listed in
-[the attachment-burst regression](../docs/benchmarks/rtl-attachment-bursts.json).
-These are simulation measurements, not observed FPGA frame rates.
+DISCARD did not exist in the original design. The scene rows are each scene's
+second `--verify` submission; all checked display frames match the SRR with
+zero scanout underflows. A `--profile` run attributes the remaining time: in
+the 2D UI frame, covered rectangle pixels (one per clock) take about 40% and
+record fetches about 13%; in the showcase scene, one-at-a-time texture-cache
+refills stall the rasterizer for about 19% and uncovered triangle
+bounding-box samples take about 6%; in the overdraw scene, uncovered samples
+take about 15% and the plane offset walk about 9%. Results are in
+[the SDRAM-pipeline regression](../docs/benchmarks/rtl-sdram-pipeline.json);
+[the attachment-burst regression](../docs/benchmarks/rtl-attachment-bursts.json)
+retains the previous step. These are simulation measurements, not observed
+FPGA frame rates.
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests

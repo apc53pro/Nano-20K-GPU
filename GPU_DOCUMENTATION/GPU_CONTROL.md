@@ -81,7 +81,7 @@ The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
-54.64 / 177.55 / 75.00 MHz against 50.4 / 25.2 / 25.2 MHz. The only
+51.67 / 175.51 / 75.88 MHz against 50.4 / 25.2 / 25.2 MHz. The only
 negative-slack paths are reset-release paths, listed in the report. From
 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
 raster replaced this profile during bus diagnosis; it is historical.
@@ -777,12 +777,13 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`, user
-code `0x3354`. It accepts the depth-DISCARD load flag (bit 2); the previous
-image (`55ebdfbd…d170`, user code `0x33E2`) rejects that flag with fault 6.
-On 2026-11-07 it was written to the board's SPI flash and verified, and the
-FPGA reloaded it (status `0x6020`, user code `0x3354`). It has not yet been
-run with the RP2350.
+`3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`. It adds the
+pipelined SDRAM controller, word-wide display FIFO and tile clearing during
+stores; the host interface is unchanged. It has not yet run on the board.
+The previous image (`a249064f…9ef9`, user code `0x3354`) was written to the
+board's SPI flash and verified on 2026-11-07. Both accept the depth-DISCARD
+load flag (bit 2); the image before them (`55ebdfbd…d170`, user code
+`0x33E2`) rejects that flag with fault 6.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes

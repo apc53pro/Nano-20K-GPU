@@ -53,21 +53,21 @@ The hardware-3921 target is `rtl/board/tang20k_top.sv`, with exact QN88
 constraints, SDRAM pads and the physical host bus. It runs a **50.4 MHz GPU
 core/SDRAM clock**, with **25.2 MHz HDMI pixels and 126 MHz DDR serialization**;
 the GPU's rendered output drives HDMI. The MPC-2350 firmware's terminal ran on
-the previous image (user-reported, 2026-11-07). The current image adds burst
-tile LOAD/STORE, empty-tile skipping and depth DISCARD; it was flashed and
-verified on 2026-11-07, and its rendering with the RP2350 is not yet reported.
+an earlier image (user-reported, 2026-11-07). The current image adds burst
+tile LOAD/STORE, empty-tile skipping, depth DISCARD, a pipelined SDRAM
+controller and a word-wide display FIFO; it has not yet run on the board.
 
 The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
 image failed the host address latch on the board, and `AGENTS.md` records this
 exception and the gate it cannot meet. The
 [source-matched board report](docs/hardware/tang20k-board.json) verifies every
-package pin and meets every required clock: the core reaches 54.64 MHz Fmax
+package pin and meets every required clock: the core reaches 51.67 MHz Fmax
 against 50.4 MHz. The only negative-slack paths are listed reset-release paths.
-It uses **16,076/20,736 logic (Gowin count)**, **6,729 registers**,
+It uses **18,185/20,736 logic (Gowin count)**, **6,780 registers**,
 **46/46 BSRAM** and 53% DSP.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`.
+`3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`.
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.

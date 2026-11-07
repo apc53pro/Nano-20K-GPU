@@ -66,7 +66,7 @@ module nano_gpu_core #(
         S_UPLOAD_HEADER_REQ=73, S_UPLOAD_HEADER_WAIT=74,
         S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77,
         S_COPY_INIT_PREP=78;
-    reg [7:0] state;
+    reg [7:0] state /*verilator public_flat_rd*/;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
     reg [31:0] epoch, completed_sequence, fence_token, present_token;
@@ -172,6 +172,17 @@ module nano_gpu_core #(
     // never reads tile RAM. load_half selects the second pixel of a color word.
     reg [1:0] store_kind;
     reg xfer_color, xfer_depth, store_constant, load_half;
+    // The tile write port is idle during STORE: each pixel read for a store
+    // is rewritten with its attachment's clear value on the next edge. After
+    // a tile with draws, every cleared attachment already holds its clear
+    // value (tile_ram_clear), so later tiles of the pass skip TILE_INIT.
+    // Depth is cleared when it is read for its own store, or with color when
+    // depth is discarded.
+    reg tile_ram_clear, clear_back_valid;
+    reg [1:0] clear_back_we;
+    reg [9:0] clear_back_addr;
+    wire clear_back_color = store_kind==0 && clear_color_enable;
+    wire clear_back_depth = clear_depth_enable && (store_kind!=0 || depth_discard);
     wire xfer_last = row==31 && (store_kind==2 || (store_kind==0 && !xfer_depth));
     reg [15:0] held_color;
     reg [31:0] packed_word;
@@ -623,6 +634,12 @@ module nano_gpu_core #(
         end
         default: begin end
         endcase
+        // Clear-back of the pixel read for STORE on the previous edge. No
+        // other tile write occurs during a store.
+        if(clear_back_valid) begin
+            tile_pix_we=clear_back_we; tile_pix_addr=clear_back_addr;
+            tile_pix_color=clear_color; tile_pix_depth=clear_depth;
+        end
         // Stop issuing foreground work during recovery, but continue the
         // accepted payload/response handshakes so native transactions drain.
         if(abort_pending || fault_pending) begin
@@ -662,6 +679,7 @@ module nano_gpu_core #(
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; depth_discard<=0;
             clear_color<=0; clear_depth<=24'hffffff;
             xfer_color<=0; xfer_depth<=0; store_constant<=0; load_half<=0;
+            tile_ram_clear<=0; clear_back_valid<=0; clear_back_we<=0; clear_back_addr<=0;
             descriptor_invalid<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
@@ -688,6 +706,8 @@ module nano_gpu_core #(
             cycle_counter<=cycle_counter+1;
             pixel_phase<=pixel_phase+1; video_pixel_ce<=pixel_tick;
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0;
+            clear_back_valid<=tile_pix_re && !store_constant && (clear_back_color || clear_back_depth);
+            clear_back_addr<=tile_pix_raddr; clear_back_we<={clear_back_depth,clear_back_color};
             abort_sync1<=abort_request; abort_sync2<=abort_sync1; abort_previous<=abort_sync2;
             if(abort_sync2 && !abort_previous) begin
                 abort_pending<=1;
@@ -954,7 +974,7 @@ module nano_gpu_core #(
                     if(descriptor_invalid || target_id==front_id || sealed) raise_fault(6);
                     else if((!clear_color_enable && !color_valid[target_id]) || (!clear_depth_enable && !depth_valid)) raise_fault(5);
                     else begin
-                        color_valid[target_id]<=0; depth_valid<=0; pass_active<=1;
+                        color_valid[target_id]<=0; depth_valid<=0; pass_active<=1; tile_ram_clear<=0;
                         tile_index<=0; tile_x_index<=0; tile_y_index<=0; references_seen<=0; state<=S_ENTRY_CMD;
                     end
                 end
@@ -980,17 +1000,19 @@ module nano_gpu_core #(
                             if(clear_color_enable || (clear_depth_enable && !depth_discard)) state<=S_STORE_CMD;
                             else next_tile();
                         end else begin
-                            store_constant<=0; xfer_color<=1; xfer_depth<=1; store_kind<=0;
-                            if(clear_color_enable || clear_depth_enable) state<=S_TILE_INIT;
+                            // Loaded attachments burst-load; cleared ones need
+                            // TILE_INIT only until a store has cleared them.
+                            store_constant<=0;
+                            xfer_color<=!clear_color_enable; xfer_depth<=!clear_depth_enable;
+                            store_kind<=clear_color_enable ? 2'd1 : 2'd0;
+                            if((clear_color_enable || clear_depth_enable) && !tile_ram_clear) state<=S_TILE_INIT;
+                            else if(clear_color_enable && clear_depth_enable) state<=S_REF_CMD;
                             else state<=S_LOAD_CMD;
                         end
                     end
                 end
                 S_TILE_INIT: begin
-                    // Clears the cleared attachments; the others burst-load.
                     if(pixel_index==1023) begin
-                        xfer_color<=!clear_color_enable; xfer_depth<=!clear_depth_enable;
-                        store_kind<=clear_color_enable ? 2'd1 : 2'd0;
                         if(clear_color_enable && clear_depth_enable) state<=S_REF_CMD; else state<=S_LOAD_CMD;
                     end else pixel_index<=pixel_index+1;
                 end
@@ -1042,7 +1064,10 @@ module nano_gpu_core #(
                     end
                 end
                 S_STORE_DONE: if(mem_done[3]) begin
-                    if(xfer_last) next_tile();
+                    if(xfer_last) begin
+                        if(!store_constant) tile_ram_clear<=1;
+                        next_tile();
+                    end
                     else begin next_transfer(); state<=S_STORE_CMD; end
                 end
                 S_PRESENT: if(vblank_pulse) begin front_id<=target_id; present_token<=packet_word; sealed<=0; start_reply(packet_word,0,0); end

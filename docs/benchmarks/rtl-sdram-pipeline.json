@@ -1,0 +1,177 @@
+{
+  "schema": "N20K-RTL-SDRAM-PIPELINE-1",
+  "profile": "Verilator board-core profile: 50.4 MHz core/SDRAM, external 25.2 MHz pixel ticks, 25.2 MHz virtual host, refresh interval 787",
+  "stages": {
+    "original": "5f3cdc4: per-pixel single-word LOAD, every tile loaded/stored",
+    "bursts": "c620300: burst tile LOAD/STORE, empty-tile skip, constant clears, depth DISCARD",
+    "now": "this commit: pipelined SDRAM column commands and overlapped write staging, word-wide scanout FIFO, tile clear during STORE"
+  },
+  "timing_scope": "First host byte through fence reply; includes descriptor, table, list and record delivery. Simulation only, not an observed FPGA frame time.",
+  "oracle_checked": "Every benchmark case compares both color buffers and every D24 word with the SRR; scenes run --verify for two frames.",
+  "now_benchmark_scanout_underflows": 0,
+  "cases": [
+    {
+      "case": "warm-up: empty, clear color and depth",
+      "original_core_cycles": 4694848,
+      "original_ms": 93.15,
+      "bursts_core_cycles": 1958878,
+      "bursts_ms": 38.87,
+      "now_core_cycles": 922292,
+      "now_ms": 18.3
+    },
+    {
+      "case": "empty pass, clear color and depth",
+      "original_core_cycles": 5312504,
+      "original_ms": 105.41,
+      "bursts_core_cycles": 2700738,
+      "bursts_ms": 53.59,
+      "now_core_cycles": 1187586,
+      "now_ms": 23.56
+    },
+    {
+      "case": "empty pass, load color, clear depth",
+      "original_core_cycles": 16366608,
+      "original_ms": 324.73,
+      "bursts_core_cycles": 1775950,
+      "bursts_ms": 35.24,
+      "now_core_cycles": 785762,
+      "now_ms": 15.59
+    },
+    {
+      "case": "empty pass, load color and depth",
+      "original_core_cycles": 29263332,
+      "original_ms": 580.62,
+      "bursts_core_cycles": 22144,
+      "bursts_ms": 0.44,
+      "now_core_cycles": 16862,
+      "now_ms": 0.33
+    },
+    {
+      "case": "full-screen front-to-back copy",
+      "original_core_cycles": 1441922,
+      "original_ms": 28.61,
+      "bursts_core_cycles": 1430256,
+      "bursts_ms": 28.38,
+      "now_core_cycles": 748398,
+      "now_ms": 14.85
+    },
+    {
+      "case": "UI frame (148 rects), clear color and depth",
+      "original_core_cycles": 7097130,
+      "original_ms": 140.82,
+      "bursts_core_cycles": 4977096,
+      "bursts_ms": 98.75,
+      "now_core_cycles": 2773610,
+      "now_ms": 55.03
+    },
+    {
+      "case": "pointer-sized update, load color and depth",
+      "original_core_cycles": 29266422,
+      "original_ms": 580.68,
+      "bursts_core_cycles": 44232,
+      "bursts_ms": 0.88,
+      "now_core_cycles": 22070,
+      "now_ms": 0.44
+    },
+    {
+      "case": "empty pass, clear color, discard depth",
+      "bursts_core_cycles": 948586,
+      "bursts_ms": 18.82,
+      "now_core_cycles": 414848,
+      "now_ms": 8.23
+    },
+    {
+      "case": "UI frame (148 rects), clear color, discard depth",
+      "bursts_core_cycles": 3206776,
+      "bursts_ms": 63.63,
+      "now_core_cycles": 2015432,
+      "now_ms": 39.99
+    },
+    {
+      "case": "pointer-sized update, load color, discard depth",
+      "bursts_core_cycles": 34092,
+      "bursts_ms": 0.68,
+      "now_core_cycles": 24406,
+      "now_ms": 0.48
+    },
+    {
+      "case": "empty pass, load color, discard depth",
+      "bursts_core_cycles": 21746,
+      "bursts_ms": 0.43,
+      "now_core_cycles": 16072,
+      "now_ms": 0.32
+    },
+    {
+      "case": "showcase scene frame (t=1.2)",
+      "now_core_cycles": 5021028,
+      "now_ms": 99.62
+    },
+    {
+      "case": "overdraw scene frame (t=1.2)",
+      "now_core_cycles": 6433430,
+      "now_ms": 127.65
+    }
+  ],
+  "scenes": [
+    {
+      "scene": "showcase",
+      "original_last_submission_cycles": 9898610,
+      "original_ms": 196.4,
+      "original_verified": true,
+      "original_scanout_underflows": 0,
+      "bursts_last_submission_cycles": 7783436,
+      "bursts_ms": 154.43,
+      "bursts_verified": true,
+      "bursts_scanout_underflows": 0,
+      "now_last_submission_cycles": 5044722,
+      "now_ms": 100.09,
+      "now_verified": true,
+      "now_scanout_underflows": 0
+    },
+    {
+      "scene": "perspective",
+      "original_last_submission_cycles": 8899144,
+      "original_ms": 176.57,
+      "original_verified": true,
+      "original_scanout_underflows": 0,
+      "bursts_last_submission_cycles": 6784694,
+      "bursts_ms": 134.62,
+      "bursts_verified": true,
+      "bursts_scanout_underflows": 0,
+      "now_last_submission_cycles": 4261538,
+      "now_ms": 84.55,
+      "now_verified": true,
+      "now_scanout_underflows": 0
+    },
+    {
+      "scene": "overdraw",
+      "original_last_submission_cycles": 11064484,
+      "original_ms": 219.53,
+      "original_verified": true,
+      "original_scanout_underflows": 0,
+      "bursts_last_submission_cycles": 8981260,
+      "bursts_ms": 178.2,
+      "bursts_verified": true,
+      "bursts_scanout_underflows": 0,
+      "now_last_submission_cycles": 6434074,
+      "now_ms": 127.66,
+      "now_verified": true,
+      "now_scanout_underflows": 0
+    },
+    {
+      "scene": "opaque",
+      "original_last_submission_cycles": 10853496,
+      "original_ms": 215.35,
+      "original_verified": true,
+      "original_scanout_underflows": 0,
+      "bursts_last_submission_cycles": 8604976,
+      "bursts_ms": 170.73,
+      "bursts_verified": true,
+      "bursts_scanout_underflows": 0,
+      "now_last_submission_cycles": 6273478,
+      "now_ms": 124.47,
+      "now_verified": true,
+      "now_scanout_underflows": 0
+    }
+  ]
+}

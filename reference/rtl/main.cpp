@@ -1,4 +1,5 @@
 #include "Vnano_gpu_core.h"
+#include "Vnano_gpu_core___024root.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 #include "sdram_model.hpp"
@@ -13,6 +14,7 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -27,7 +29,7 @@ using namespace nano_gpu;
 struct WindowClosed {};
 
 struct Options {
-    bool headless = false, verify = false, self_test = false, benchmark = false;
+    bool headless = false, verify = false, self_test = false, benchmark = false, profile = false;
     unsigned frames = 0;
     DemoScene scene = DemoScene::Showcase;
     long double time = 0, step = 1.0L / 60;
@@ -45,6 +47,7 @@ Options parse(int argc, char** argv) {
         if (arg == "--headless") out.headless = true;
         else if (arg == "--self-test") { out.self_test = true; out.headless = true; }
         else if (arg == "--benchmark") { out.benchmark = true; out.headless = true; }
+        else if (arg == "--profile") out.profile = true;
         else if (arg == "--verify") out.verify = true;
         else if (arg == "--frames") out.frames = static_cast<unsigned>(std::stoul(value()));
         else if (arg == "--time") out.time = std::stold(value());
@@ -66,7 +69,7 @@ Options parse(int argc, char** argv) {
                 "--frames N --time S --step S --stats FILE.json --output FILE.ppm --trace FILE.vcd\n"
                 "--scanout-log FILE.csv (every complete displayed frame, including failures)\n"
                 "--self-test (command, copy, LOAD and recovery regressions)\n"
-                "--benchmark (oracle-checked attachment/pass timing; --stats FILE.json)\n";
+                "--benchmark (oracle-checked attachment/pass timing; --stats FILE.json; --profile state shares)\n";
             std::exit(0);
         } else throw std::invalid_argument("unknown argument " + arg);
     }
@@ -104,6 +107,21 @@ public:
     std::string phase = "boot";
     bool host_rising = false, host_falling = false, write_accepted = false;
     std::function<void()> pump;
+    // Simulation-only state histograms (Verilator public_flat_rd metadata).
+    bool profiling = false;
+    std::array<std::uint64_t, 256> core_states{}, memory_states{}, tile_states{};
+    std::array<std::uint64_t, 3> raster_cycles{}; // covered, empty, texture stall
+    void sample_states() {
+        if (dut.rootp->nano_gpu_core__DOT__tile_renderer__DOT__state == 8) {
+            const bool inside = dut.rootp->nano_gpu_core__DOT__tile_renderer__DOT__inside_sample;
+            const bool texture = dut.rootp->nano_gpu_core__DOT__tile_renderer__DOT__need_texture;
+            const bool ready = dut.rootp->nano_gpu_core__DOT__tile_renderer__DOT__fragment_ready;
+            ++raster_cycles[!inside ? 1 : (texture && !ready ? 2 : 0)];
+        }
+        ++core_states[dut.rootp->nano_gpu_core__DOT__state];
+        ++memory_states[dut.rootp->nano_gpu_core__DOT__memory_service__DOT__state];
+        ++tile_states[dut.rootp->nano_gpu_core__DOT__tile_renderer__DOT__state];
+    }
 
     explicit Simulation(const std::string& trace_path, const std::string& scanout_path = {}) {
         dut.clk = 0; dut.reset = 1; dut.host_clk = 0; dut.abort_request = 0;
@@ -148,6 +166,7 @@ public:
         dut.sd_dq_in = memory.rising_edge(pins); dut.eval();
         context.timeInc(1); if (trace) trace->dump(context.time());
         ++cycles;
+        if (profiling) sample_states();
         if (pixel_tick && !dut.reset) {
             if (dut.video_de && dut.video_x < screen_width && dut.video_y < screen_height) {
                 if (dut.video_x == 0 && dut.video_y == 0) active_pixels = 0;
@@ -736,15 +755,63 @@ void self_test(Simulation& simulation) {
 // Attachment-traffic benchmark. Every case is compared with the SRR oracle,
 // so the timing table is also a functional regression. Times include host
 // delivery of the descriptor, tile table and records through the fence.
-void benchmark(Simulation& simulation, const std::string& stats) {
+void print_profile(const char* machine, const std::array<std::uint64_t, 256>& counts,
+                   const std::map<unsigned, const char*>& names) {
+    std::uint64_t total = 0;
+    std::vector<std::pair<std::uint64_t, unsigned>> order;
+    for (unsigned state = 0; state < counts.size(); ++state)
+        if (counts[state]) { total += counts[state]; order.push_back({counts[state], state}); }
+    std::sort(order.rbegin(), order.rend());
+    std::cout << "    " << machine << ":";
+    for (std::size_t i = 0; i < order.size() && i < 8; ++i) {
+        const auto name = names.count(order[i].second) ? names.at(order[i].second) : "?";
+        std::cout << ' ' << name << '(' << order[i].second << ")=" << std::fixed << std::setprecision(1)
+                  << 100.0 * static_cast<double>(order[i].first) / static_cast<double>(total) << '%';
+    }
+    std::cout << '\n';
+}
+
+void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
     Renderer oracle;
     std::uint32_t sequence = 1;
     std::vector<std::uint8_t> token(4); hw::write_u32(token, 0, 0xbe7c);
     std::string rows;
+    const std::map<unsigned, const char*> core_names{
+        {4, "IDLE"}, {5, "CAPTURE_REQ"}, {6, "CAPTURE_WAIT"}, {8, "UPLOAD_PREP"}, {9, "UPLOAD_CMD"},
+        {10, "UPLOAD_NEXT"}, {11, "UPLOAD_EMIT"}, {12, "UPLOAD_WORD"}, {13, "UPLOAD_DONE"},
+        {17, "ENTRY_CMD"}, {18, "ENTRY_DATA"}, {19, "ENTRY_DONE"}, {20, "TILE_INIT"},
+        {21, "LOAD_CMD"}, {22, "LOAD_DATA"}, {23, "LOAD_DONE"}, {28, "REF_CMD"}, {29, "REF_DATA"},
+        {30, "REF_DONE"}, {31, "RECORD_CMD"}, {32, "RECORD_DATA"}, {33, "RECORD_DONE"},
+        {34, "DRAW_START"}, {35, "DRAW_WAIT"}, {36, "STORE_CMD"}, {37, "STORE_PREFETCH"},
+        {38, "STORE_HIGH"}, {41, "STORE_WORD"}, {42, "STORE_DONE"}, {44, "REPLY"},
+        {53, "COPY_READ_CMD"}, {54, "COPY_READ_DATA"}, {55, "COPY_READ_DONE"},
+        {58, "COPY_WRITE_CMD"}, {59, "COPY_WRITE_DATA"}, {60, "COPY_WRITE_DONE"},
+        {63, "UPLOAD_STAGE_LOW"}, {64, "UPLOAD_STAGE_HIGH"}, {71, "UPLOAD_STAGE_MASK"},
+        {73, "UPLOAD_HEADER_REQ"}, {74, "UPLOAD_HEADER_WAIT"}, {76, "UPLOAD_CODE_REQ"}, {77, "UPLOAD_CODE_WAIT"}};
+    const std::map<unsigned, const char*> memory_names{
+        {9, "IDLE"}, {10, "ACTIVE"}, {18, "REFRESH_WAIT"},
+        {19, "REFRESH_PRE_WAIT"}, {20, "REFRESH_COMMAND"}, {21, "REFRESH_RECOVERY"}, {22, "CHECK_REQUEST"}};
+    const std::map<unsigned, const char*> tile_names{
+        {0, "IDLE"}, {1, "START"}, {2, "CONFIG"}, {3, "EDGE_LAUNCH"}, {4, "EDGE_WAIT"}, {5, "EDGE_CAPTURE"},
+        {6, "OFFSET_Y"}, {7, "OFFSET_X"}, {8, "RASTER"}, {9, "SEED_CAPTURE"}, {10, "CLIP_SCISSOR"},
+        {11, "CLIP_TILE"}, {12, "PREPARE"}, {17, "DRAIN"}};
+    const auto begin_case = [&] {
+        simulation.profiling = profile;
+        simulation.core_states.fill(0); simulation.memory_states.fill(0); simulation.tile_states.fill(0);
+        simulation.raster_cycles.fill(0);
+    };
     const auto record = [&](const char* name, std::uint64_t cycles) {
         const double ms = static_cast<double>(cycles) * 1000.0 / 50400000.0;
         std::cout << std::left << std::setw(52) << name << std::right << std::setw(12) << cycles
                   << " cycles " << std::fixed << std::setprecision(2) << std::setw(9) << ms << " ms at 50.4 MHz\n";
+        if (profile) {
+            print_profile("core", simulation.core_states, core_names);
+            print_profile("sdram", simulation.memory_states, memory_names);
+            print_profile("tile", simulation.tile_states, tile_names);
+            const auto& r = simulation.raster_cycles;
+            std::cout << "    raster: covered=" << r[0] << " empty=" << r[1] << " texture_stall=" << r[2] << std::endl;
+        }
+        begin_case();
         if (!rows.empty()) rows += ",\n";
         rows += "    {\"case\": \"" + std::string(name) + "\", \"core_cycles\": " + std::to_string(cycles) + "}";
     };
@@ -772,6 +839,7 @@ void benchmark(Simulation& simulation, const std::string& stats) {
         result.push_back(Rect{{0, 448, 640, 480}, overlay_state({40, 80, 160}), 0});
         return result;
     };
+    begin_case();
     Pass pass; pass.target = 1;
     run_pass("warm-up: empty, clear color and depth", pass);
     run_pass("empty pass, clear color and depth", pass);
@@ -803,6 +871,8 @@ void benchmark(Simulation& simulation, const std::string& stats) {
     run_pass("pointer-sized update, load color, discard depth", pass);
     pass.primitives.clear();
     run_pass("empty pass, load color, discard depth", pass);
+    run_pass("showcase scene frame (t=1.2)", make_demo_pass(DemoScene::Showcase, 1, 1.2L));
+    run_pass("overdraw scene frame (t=1.2)", make_demo_pass(DemoScene::Overdraw, 1, 1.2L));
     const std::string report = "{\n  \"profile\": \"N20K-RTL-BENCH-1\",\n  \"clock_hz\": 50400000,\n"
         "  \"scanout_underflows\": " + std::to_string(simulation.scanout_underflows()) +
         ",\n  \"cases\": [\n" + rows + "\n  ]\n}\n";
@@ -863,7 +933,7 @@ int main(int argc, char** argv) {
 #endif
         Simulation simulation(options.trace, options.scanout_log); Renderer oracle;
         if (options.self_test) { self_test(simulation); return 0; }
-        if (options.benchmark) { benchmark(simulation, options.stats); return 0; }
+        if (options.benchmark) { benchmark(simulation, options.stats, options.profile); return 0; }
 #ifdef NANO_GPU_RTL_SDL
         if (presenter) simulation.pump = [&] {
             if (!presenter->events()) throw WindowClosed{};

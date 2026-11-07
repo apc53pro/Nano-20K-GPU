@@ -1,6 +1,6 @@
 {
   "schema": "N20K-BITSTREAM-READCHECK-1",
-  "bitstream_sha256": "a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9",
+  "bitstream_sha256": "3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef",
   "device_id": "0x0000081b",
   "frame_crcs_verified": true,
   "bitmap_rows": 2110,

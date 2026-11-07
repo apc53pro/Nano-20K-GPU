@@ -1,9 +1,15 @@
 // Shared 8 MiB, x32 SDR SDRAM service for the GW2AR QN88 SiP device.
 // Every external access is a physical sequential BL8 command. A single native
-// 16x32 logical payload slot (two SDPB banks) stages an unpausable write burst
-// or retains a completed read response. Client zero has bounded scanout
-// priority; the other clients rotate fairly. No RAM content lives in a host
-// simulation back door.
+// 16x32 logical payload slot (two SDPB banks) stages write data or retains a
+// read response. Client zero has bounded scanout priority; the other clients
+// rotate fairly. No RAM content lives in a host simulation back door.
+//
+// A transaction of 1..16 words is split into BL8 segments (32-byte aligned
+// column blocks). Column commands are pipelined: the next segment's READ or
+// WRITE issues eight edges after the previous one when its row is open, so
+// read data and write beats stream back to back. A WRITE segment issues as
+// soon as all of its words are staged, while the client keeps filling later
+// segments. The next segment's PRECHARGE/ACTIVE may issue during a burst.
 //
 // Commands/DQ are sampled on rising clk edges. WRITE carries beat zero on its
 // command edge, then seven data edges. READ beat zero is captured exactly
@@ -76,12 +82,10 @@ module nano_sdram_service #(
     localparam [4:0] POWER_WAIT = 0, INIT_PRE = 1, INIT_PRE_WAIT = 2,
         INIT_REF_ONE = 3, INIT_REF_ONE_WAIT = 4, INIT_REF_TWO = 5,
         INIT_REF_TWO_WAIT = 6, INIT_MODE = 7, INIT_MODE_WAIT = 8,
-        IDLE = 9, FILL = 10, CHOOSE = 11, PREPARE = 12,
-        READ_WAIT = 13, READ_DATA = 14, WRITE_DATA = 15,
-        WRITE_RECOVERY = 16, DRAIN = 17, REFRESH_WAIT = 18,
+        IDLE = 9, ACTIVE = 10, REFRESH_WAIT = 18,
         REFRESH_PRE_WAIT = 19, REFRESH_COMMAND = 20, REFRESH_RECOVERY = 21,
         CHECK_REQUEST = 22;
-    reg [4:0] state, refresh_resume;
+    reg [4:0] state /*verilator public_flat_rd*/, refresh_resume;
     reg [POWER_BITS-1:0] power_count;
     reg [WAIT_BITS-1:0] wait_count;
     reg [AGE_BITS-1:0] refresh_age;
@@ -93,10 +97,20 @@ module nano_sdram_service #(
     reg [STREAK_BITS-1:0] scanout_streak;
     reg request_write;
     reg [22:0] request_address;
-    reg [4:0] request_words, fill_index, processed;
-    reg [22:0] burst_base;
-    reg [2:0] burst_prefix, burst_beat;
-    reg [4:0] burst_useful;
+    reg [4:0] request_words, fill_index;
+    // A validated transaction owns the slot from CHECK until completion.
+    // issued counts request words whose column command has been sent; the
+    // seg_* registers describe the next segment so no address adder sits on
+    // the command path.
+    reg txn;
+    reg [4:0] issued;
+    reg [22:0] seg_base;
+    reg [2:0] seg_prefix;
+    reg [3:0] seg_useful;
+    wire seg_pending = txn && issued != request_words;
+    wire [4:0] remaining_after = request_words - issued - {1'b0,seg_useful};
+    wire [3:0] next_useful = remaining_after > 5'd8 ? 4'd8 : remaining_after[3:0];
+    wire [3:0] first_room = 4'd8 - {1'b0,request_address[4:2]};
 
     reg [3:0] bank_open;
     reg [10:0] bank_row [0:3];
@@ -106,12 +120,79 @@ module nano_sdram_service #(
     reg [RC_BITS-1:0] rc_wait [0:3];
     reg [WR_BITS-1:0] wr_wait [0:3];
     reg [TURN_BITS-1:0] turnaround;
-    wire [1:0] burst_bank = burst_base[11:10];
-    wire [10:0] burst_row = burst_base[22:12];
+    // Direction of the last burst: turnaround only separates opposite
+    // directions; same-direction bursts may follow each other directly.
+    reg last_write_dir;
+    // Eight edges between column commands: one BL8 data window each.
+    reg [2:0] column_gap;
+
+    // Read capture: a READ issued on edge t returns beat zero at t+CL+1.
+    // Column commands are at least eight edges apart, so at most one segment
+    // waits (pend_*) while another is captured (cap_*).
+    reg [CAS_LATENCY:0] read_pipe;
+    reg [2:0] pend_prefix, cap_prefix, cap_beat;
+    reg [3:0] pend_useful, cap_useful;
+    reg [4:0] pend_index, cap_index;
+    reg cap_active;
+    wire cap_start = read_pipe[CAS_LATENCY];
+    wire read_capture = cap_start || cap_active;
+    wire read_in_flight = (|read_pipe) || cap_active;
+    wire [2:0] capture_beat = cap_start ? 3'd0 : cap_beat;
+    wire [2:0] capture_prefix = cap_start ? pend_prefix : cap_prefix;
+    wire [3:0] capture_useful = cap_start ? pend_useful : cap_useful;
+    wire [4:0] capture_index = cap_start ? pend_index : cap_index;
+    wire useful_read = read_capture && capture_beat >= capture_prefix &&
+        {1'b0, capture_beat} < {1'b0, capture_prefix} + capture_useful;
+    wire [4:0] read_buffer_index = capture_index + {2'b0, capture_beat} - {2'b0, capture_prefix};
+
+    wire [1:0] burst_bank = seg_base[11:10];
+    wire [10:0] burst_row = seg_base[22:12];
     wire row_matches = bank_open[burst_bank] && bank_row[burst_bank] == burst_row;
-    wire may_precharge = ras_wait[burst_bank] == 0 && wr_wait[burst_bank] == 0;
+    // A PRECHARGE never truncates an in-flight read burst.
+    wire may_precharge = ras_wait[burst_bank] == 0 && wr_wait[burst_bank] == 0 && !read_in_flight;
     wire may_activate = !bank_open[burst_bank] && rp_wait[burst_bank] == 0 && rc_wait[burst_bank] == 0;
-    wire may_column = row_matches && rcd_wait[burst_bank] == 0 && turnaround == 0;
+    wire turn_ok = turnaround == 0 || last_write_dir == request_write;
+    wire may_column = row_matches && rcd_wait[burst_bank] == 0 && turn_ok && column_gap == 0;
+
+    // Write beats. The RAM output register holds the segment's first word
+    // (head_loaded) before its WRITE; each useful beat prefetches the next.
+    // Configuration-initialized like write_tail, which depends on it.
+    reg wbeat_active = 1'b0;
+    reg head_loaded;
+    reg [2:0] wbeat, w_prefix;
+    reg [3:0] w_useful;
+    reg [4:0] w_index;
+    reg [1:0] w_bank;
+    wire seg_filled = {1'b0, fill_index} >= {1'b0, issued} + {2'b0, seg_useful};
+
+    wire command_slot = state == ACTIVE && seg_pending && !refresh_due;
+    wire want_precharge = bank_open[burst_bank] && !row_matches && may_precharge;
+    wire do_precharge = command_slot && want_precharge;
+    wire do_activate = command_slot && !want_precharge && may_activate;
+    wire do_column = command_slot && !want_precharge && !may_activate && may_column &&
+        (!request_write || (head_loaded && seg_filled));
+    wire write_command = do_column && request_write;
+    wire read_command = do_column && !request_write;
+
+    wire write_beat_active = write_command || wbeat_active;
+    wire [2:0] physical_beat = write_command ? 3'd0 : wbeat;
+    wire [2:0] beat_prefix = write_command ? seg_prefix : w_prefix;
+    wire [3:0] beat_useful = write_command ? seg_useful : w_useful;
+    wire [4:0] beat_index = write_command ? issued : w_index;
+    wire useful_write = write_beat_active && physical_beat >= beat_prefix &&
+        {1'b0, physical_beat} < {1'b0, beat_prefix} + beat_useful;
+    wire last_useful_write = useful_write &&
+        {1'b0, physical_beat} + 4'd1 == {1'b0, beat_prefix} + beat_useful;
+    wire [4:0] write_buffer_index = beat_index + {2'b0, physical_beat} - {2'b0, beat_prefix};
+    wire [4:0] next_head = beat_index + {1'b0, beat_useful};
+    wire next_head_ready = next_head != request_words && fill_index > next_head;
+    wire head_prefetch = txn && request_write && !head_loaded && !write_beat_active &&
+        issued != request_words && fill_index > issued;
+    // This small physically initialized tracker deliberately survives runtime
+    // logic reset until a physical WRITE finishes. FPGA configuration sets it
+    // to zero; runtime reset must not erase the remaining-beat obligation.
+    reg [2:0] write_tail = 3'd0;
+    wire draining_reset_tail = write_tail != 0 && !wbeat_active;
 
     // The native RAM output itself is the elastic read-response register.
     // Holding its read enable low holds valid/data under response backpressure.
@@ -121,6 +202,7 @@ module nano_sdram_service #(
     reg [4:0] read_index;
     wire read_handshake = read_stream_active && read_output_valid && r_ready[owner];
     wire [4:0] next_read_index = read_index + {4'b0,read_handshake};
+    wire fill_accept = txn && request_write && fill_index != request_words && w_valid[owner];
     reg ram_we, ram_re;
     reg [9:0] ram_waddr, ram_raddr;
     reg [31:0] ram_wdata;
@@ -133,11 +215,11 @@ module nano_sdram_service #(
         .wclk(clk), .wce(1'b1), .we(ram_we), .waddr(ram_waddr), .wdata(ram_wdata[31:16]),
         .rclk(clk), .rce(1'b1), .re(ram_re), .raddr(ram_raddr), .reset_output(reset), .rdata(ram_rdata[31:16]));
     // Byte masks follow the same synchronous address/enable as write data.
-    // Every accepted write fills all useful entries before CHOOSE reads them;
-    // no reset or combinational read of a mask register array is required.
+    // Every staged word is written before its segment can be read for a
+    // WRITE; no reset or combinational read of a mask register array is needed.
     nano_sdp16 buffer_masks (
         .wclk(clk), .wce(1'b1),
-        .we(state == FILL && !refresh_due && w_valid[owner] && !reset),
+        .we(fill_accept && !reset && !draining_reset_tail),
         .waddr({5'b0,fill_index}), .wdata({12'b0,w_strb[owner*4 +: 4]}),
         .rclk(clk), .rce(1'b1), .re(ram_re && request_write),
         .raddr(ram_raddr), .reset_output(reset), .rdata(mask_rdata));
@@ -179,36 +261,16 @@ module nano_sdram_service #(
     reg refresh_safe;
     integer bank;
     always @* begin
-        refresh_safe = turnaround == 0;
+        refresh_safe = turnaround == 0 && !read_in_flight && !write_beat_active;
         for (integer k = 0; k < 4; k = k + 1)
             if (ras_wait[k] != 0 || wr_wait[k] != 0 || rc_wait[k] != 0 || rp_wait[k] != 0)
                 refresh_safe = 0;
     end
 
-    wire read_capture = state == READ_DATA || (state == READ_WAIT && wait_count == 0);
-    wire write_command = state == PREPARE && !refresh_due && may_column && request_write;
-    wire write_beat_active = write_command || state == WRITE_DATA;
-    // This small physically initialized tracker deliberately survives runtime
-    // logic reset until a physical WRITE finishes. FPGA configuration sets it
-    // to zero; runtime reset must not erase the remaining-beat obligation.
-    reg [2:0] write_tail = 3'd0;
-    wire draining_reset_tail = write_tail != 0 && state != WRITE_DATA;
-    wire [2:0] physical_beat = write_command ? 3'd0 : burst_beat;
-    wire useful_read = read_capture && burst_beat >= burst_prefix &&
-        {2'b0, burst_beat} < {2'b0, burst_prefix} + burst_useful;
-    wire useful_write = write_beat_active && physical_beat >= burst_prefix &&
-        {2'b0, physical_beat} < {2'b0, burst_prefix} + burst_useful;
-    wire [4:0] read_buffer_index = processed + {2'b0, burst_beat} - {2'b0, burst_prefix};
-    wire [4:0] write_buffer_index = processed + {2'b0, physical_beat} - {2'b0, burst_prefix};
-    wire [22:0] next_address = request_address + {16'b0, processed, 2'b0};
-    wire [4:0] segment_room = 5'd8 - {2'b0, next_address[4:2]};
-    wire [4:0] remaining_words = request_words - processed;
     wire [22:0] winner_address = cmd_addr[winner*23 +: 23];
     wire [4:0] winner_words = cmd_words[winner*5 +: 5];
-    // With an aligned address and 1..16 words, only the final 64-byte line
-    // can cross the 8 MiB boundary. Keep malformed alignment/count rejection,
-    // but check that last line with a six-bit sum instead of carrying through
-    // the complete byte address. Ending exactly at 8 MiB remains valid.
+    // Unregistered reference for the arbiter testbench; CHECK_REQUEST makes
+    // the actual decision from retained fields, so this logic is unused.
     wire [5:0] winner_last_line_end = {2'b0, winner_address[5:2]} + {1'b0, winner_words};
     wire winner_past_end = (&winner_address[22:6]) && winner_last_line_end > 6'd16;
     wire winner_invalid = winner_address[1:0] != 0 || winner_words == 0 ||
@@ -216,6 +278,10 @@ module nano_sdram_service #(
 
     // Capture command fields on the handshake before evaluating their range.
     // This stage consumes only the retained request, never live client inputs.
+    // With an aligned address and 1..16 words, only the final 64-byte line
+    // can cross the 8 MiB boundary. Keep malformed alignment/count rejection,
+    // but check that last line with a six-bit sum instead of carrying through
+    // the complete byte address. Ending exactly at 8 MiB remains valid.
     wire [5:0] request_last_line_end = {2'b0, request_address[5:2]} + {1'b0, request_words};
     wire request_past_end = (&request_address[22:6]) && request_last_line_end > 6'd16;
     wire request_invalid = request_address[1:0] != 0 || request_words == 0 ||
@@ -225,24 +291,25 @@ module nano_sdram_service #(
     always @* begin
         cmd_ready = 0; w_ready = 0; r_valid = 0; r_data = 0; r_last = 0;
         if (state == IDLE && initialized && !refresh_due) cmd_ready = arbitration_grant;
-        if (state == FILL && !refresh_due) w_ready[owner] = 1;
+        if (txn && request_write && fill_index != request_words) w_ready[owner] = 1;
         if (read_stream_active && read_output_valid) begin
             r_valid[owner] = 1;
             r_data[owner*32 +: 32] = ram_rdata;
             r_last[owner] = read_index + 1 == request_words;
         end
         ram_we = 0; ram_re = 0; ram_waddr = 0; ram_raddr = 0; ram_wdata = 0;
-        if (state == FILL && !refresh_due && w_valid[owner]) begin
+        if (fill_accept) begin
             ram_we = 1; ram_waddr = {5'b0, fill_index}; ram_wdata = w_data[owner*32 +: 32];
         end
         if (useful_read) begin
             ram_we = 1; ram_waddr = {5'b0, read_buffer_index}; ram_wdata = sd_dq_in;
         end
-        if (state == CHOOSE && !refresh_due && request_write) begin
-            ram_re = 1; ram_raddr = {5'b0, processed};
-        end
-        if (useful_write && {2'b0, physical_beat} + 1 < {2'b0, burst_prefix} + burst_useful) begin
+        if (useful_write && !last_useful_write) begin
             ram_re = 1; ram_raddr = {5'b0, write_buffer_index + 5'd1};
+        end else if (last_useful_write && next_head_ready) begin
+            ram_re = 1; ram_raddr = {5'b0, next_head};
+        end else if (head_prefetch) begin
+            ram_re = 1; ram_raddr = {5'b0, issued};
         end
         // fill_index counts captured read words as well as accepted write
         // words. Never read the address currently being written by SDRAM.
@@ -260,15 +327,13 @@ module nano_sdram_service #(
         end else if (state == INIT_MODE) begin
             sd_ras_n = 0; sd_cas_n = 0; sd_we_n = 0;
             sd_addr = 11'((CAS_LATENCY << 4) | 3); sd_ba = 0;
-        end else if (state == PREPARE && !refresh_due) begin
-            if (bank_open[burst_bank] && !row_matches && may_precharge) begin
-                sd_ras_n = 0; sd_we_n = 0;
-            end else if (may_activate) begin
-                sd_ras_n = 0; sd_addr = burst_row;
-            end else if (may_column) begin
-                sd_cas_n = 0; sd_we_n = !request_write;
-                sd_addr = {3'b0, burst_base[9:2]}; // auto-precharge disabled
-            end
+        end else if (do_precharge) begin
+            sd_ras_n = 0; sd_we_n = 0;
+        end else if (do_activate) begin
+            sd_ras_n = 0; sd_addr = burst_row;
+        end else if (do_column) begin
+            sd_cas_n = 0; sd_we_n = !request_write;
+            sd_addr = {3'b0, seg_base[9:2]}; // auto-precharge disabled
         end
         if (write_beat_active) begin
             sd_dq_oe = 1;
@@ -296,9 +361,13 @@ module nano_sdram_service #(
             power_count <= 0; wait_count <= 0; refresh_age <= 0; refresh_running <= 0;
             initialized <= 0; owner <= 0; round_robin <= 1; scanout_streak <= 0;
             request_write <= 0; request_address <= 0; request_words <= 0;
-            fill_index <= 0; processed <= 0; burst_base <= 0;
-            burst_prefix <= 0; burst_beat <= 0; burst_useful <= 0;
-            bank_open <= 0; turnaround <= 0;
+            fill_index <= 0; txn <= 0; issued <= 0;
+            seg_base <= 0; seg_prefix <= 0; seg_useful <= 0;
+            bank_open <= 0; turnaround <= 0; last_write_dir <= 0; column_gap <= 0;
+            read_pipe <= 0; cap_active <= 0; cap_beat <= 0; cap_prefix <= 0; cap_useful <= 0; cap_index <= 0;
+            pend_prefix <= 0; pend_useful <= 0; pend_index <= 0;
+            wbeat_active <= 0; wbeat <= 0; w_prefix <= 0; w_useful <= 0; w_index <= 0; w_bank <= 0;
+            head_loaded <= 0;
             read_stream_active <= 0; read_output_valid <= 0; read_index <= 0;
             for (bank = 0; bank < 4; bank = bank + 1) begin
                 bank_row[bank] <= 0; rp_wait[bank] <= 0; rcd_wait[bank] <= 0;
@@ -307,6 +376,7 @@ module nano_sdram_service #(
         end else begin
             if (refresh_running && refresh_age < AGE_BITS'(REFRESH_INTERVAL + 1)) refresh_age <= refresh_age + 1'b1;
             if (turnaround != 0) turnaround <= turnaround - 1'b1;
+            if (column_gap != 0) column_gap <= column_gap - 1'b1;
             for (bank = 0; bank < 4; bank = bank + 1) begin
                 if (rp_wait[bank] != 0) rp_wait[bank] <= rp_wait[bank] - 1'b1;
                 if (rcd_wait[bank] != 0) rcd_wait[bank] <= rcd_wait[bank] - 1'b1;
@@ -314,7 +384,25 @@ module nano_sdram_service #(
                 if (rc_wait[bank] != 0) rc_wait[bank] <= rc_wait[bank] - 1'b1;
                 if (wr_wait[bank] != 0) wr_wait[bank] <= wr_wait[bank] - 1'b1;
             end
-            if (useful_read) fill_index <= fill_index + 1'b1;
+            read_pipe <= {read_pipe[CAS_LATENCY-1:0], read_command};
+            if (cap_start) begin
+                cap_active <= 1; cap_beat <= 1;
+                cap_prefix <= pend_prefix; cap_useful <= pend_useful; cap_index <= pend_index;
+            end else if (cap_active) begin
+                if (cap_beat == 7) begin
+                    cap_active <= 0; turnaround <= TURN_BITS'(READ_TO_WRITE - 1);
+                end else cap_beat <= cap_beat + 1'b1;
+            end
+            if (wbeat_active) begin
+                wr_wait[w_bank] <= WR_BITS'(T_WR - 1);
+                if (wbeat == 7) begin
+                    wbeat_active <= 0; turnaround <= TURN_BITS'(WRITE_TO_READ - 1);
+                end else wbeat <= wbeat + 1'b1;
+            end
+            if (useful_read || fill_accept) fill_index <= fill_index + 1'b1;
+            if (last_useful_write) head_loaded <= next_head_ready;
+            else if (write_command) head_loaded <= 0;
+            else if (head_prefetch) head_loaded <= 1;
             if (read_stream_active) begin
                 if (ram_re) read_output_valid <= 1;
                 else if (read_handshake) read_output_valid <= 0;
@@ -322,7 +410,6 @@ module nano_sdram_service #(
                     read_index <= read_index + 1'b1;
                     if (read_index + 1 == request_words) begin
                         read_stream_active <= 0; read_output_valid <= 0;
-                        if(state==DRAIN) begin done[owner]<=1;read_index<=0;end
                     end
                 end
             end
@@ -353,7 +440,7 @@ module nano_sdram_service #(
                         end
                         owner <= winner; request_address <= winner_address;
                         request_words <= winner_words; request_write <= cmd_write[winner];
-                        fill_index <= 0; processed <= 0;
+                        fill_index <= 0;
                         read_stream_active <= 0; read_output_valid <= 0;
                         state <= CHECK_REQUEST;
                     end
@@ -362,75 +449,49 @@ module nano_sdram_service #(
                     if (refresh_due) begin refresh_resume <= CHECK_REQUEST; state <= REFRESH_WAIT; end
                     else if (request_invalid) begin done[owner] <= 1; error[owner] <= 1; state <= IDLE; end
                     else begin
-                        if(!request_write) begin
-                            read_stream_active<=1;read_output_valid<=0;read_index<=0;
+                        txn <= 1; issued <= 0; head_loaded <= 0;
+                        seg_base <= {request_address[22:5], 5'b0};
+                        seg_prefix <= request_address[4:2];
+                        seg_useful <= request_words < {1'b0, first_room} ? request_words[3:0] : first_room;
+                        if (!request_write) begin
+                            read_stream_active <= 1; read_output_valid <= 0; read_index <= 0;
                         end
-                        state <= request_write ? FILL : CHOOSE;
+                        state <= ACTIVE;
                     end
                 end
-                FILL: begin
-                    if (refresh_due) begin refresh_resume <= FILL; state <= REFRESH_WAIT; end
-                    else if (w_valid[owner]) begin
-                        if (fill_index + 1 == request_words) state <= CHOOSE;
-                        else fill_index <= fill_index + 1'b1;
-                    end
-                end
-                CHOOSE: begin
-                    if (refresh_due) begin refresh_resume <= CHOOSE; state <= REFRESH_WAIT; end
-                    else begin
-                        burst_base <= {next_address[22:5], 5'b0};
-                        burst_prefix <= next_address[4:2]; burst_beat <= 0;
-                        burst_useful <= remaining_words < segment_room ? remaining_words : segment_room;
-                        state <= PREPARE;
-                    end
-                end
-                PREPARE: begin
-                    if (refresh_due) begin refresh_resume <= PREPARE; state <= REFRESH_WAIT; end
-                    else if (bank_open[burst_bank] && !row_matches && may_precharge) begin
-                        bank_open[burst_bank] <= 0; rp_wait[burst_bank] <= RP_BITS'(T_RP - 1);
-                    end else if (may_activate) begin
-                        bank_open[burst_bank] <= 1; bank_row[burst_bank] <= burst_row;
-                        rcd_wait[burst_bank] <= RCD_BITS'(T_RCD - 1);
-                        ras_wait[burst_bank] <= RAS_BITS'(T_RAS - 1); rc_wait[burst_bank] <= RC_BITS'(T_RC - 1);
-                    end else if (may_column) begin
-                        if (request_write) begin
-                            burst_beat <= 1; wr_wait[burst_bank] <= WR_BITS'(T_WR - 1); state <= WRITE_DATA;
-                        end else begin
-                            burst_beat <= 0; wait_count <= WAIT_BITS'(CAS_LATENCY); state <= READ_WAIT;
+                ACTIVE: begin
+                    // Refresh only between bursts; staging and the read
+                    // response stream continue while it runs.
+                    if (refresh_due && !read_in_flight && !write_beat_active) begin
+                        refresh_resume <= ACTIVE; state <= REFRESH_WAIT;
+                    end else begin
+                        if (do_precharge) begin
+                            bank_open[burst_bank] <= 0; rp_wait[burst_bank] <= RP_BITS'(T_RP - 1);
                         end
-                    end
-                end
-                READ_WAIT: if (wait_count == 0) begin burst_beat <= 1; state <= READ_DATA; end
-                           else wait_count <= wait_count - 1'b1;
-                READ_DATA: begin
-                    if (burst_beat == 7) begin
-                        turnaround <= TURN_BITS'(READ_TO_WRITE - 1);
-                        processed <= processed + burst_useful;
-                        if (processed + burst_useful == request_words) begin
-                            state <= DRAIN;
-                        end else state <= CHOOSE;
-                    end else burst_beat <= burst_beat + 1'b1;
-                end
-                WRITE_DATA: begin
-                    wr_wait[burst_bank] <= WR_BITS'(T_WR - 1);
-                    if (burst_beat == 7) begin
-                        turnaround <= TURN_BITS'(WRITE_TO_READ - 1); wait_count <= WAIT_BITS'(T_WR - 1); state <= WRITE_RECOVERY;
-                    end else burst_beat <= burst_beat + 1'b1;
-                end
-                WRITE_RECOVERY: begin
-                    if (wait_count == 0) begin
-                        processed <= processed + burst_useful;
-                        if (processed + burst_useful == request_words) begin done[owner] <= 1; state <= IDLE; end
-                        else state <= CHOOSE;
-                    end else wait_count <= wait_count - 1'b1;
-                end
-                DRAIN: begin
-                    if (refresh_due) begin refresh_resume <= DRAIN; state <= REFRESH_WAIT; end
-                    else if (!read_stream_active) begin
-                        // An early response can retire before the physical
-                        // burst tail. Its completion waits for this state.
-                        if(read_index==request_words) done[owner]<=1;
-                        read_index<=0;state <= IDLE;
+                        if (do_activate) begin
+                            bank_open[burst_bank] <= 1; bank_row[burst_bank] <= burst_row;
+                            rcd_wait[burst_bank] <= RCD_BITS'(T_RCD - 1);
+                            ras_wait[burst_bank] <= RAS_BITS'(T_RAS - 1); rc_wait[burst_bank] <= RC_BITS'(T_RC - 1);
+                        end
+                        if (do_column) begin
+                            column_gap <= 3'd7; last_write_dir <= request_write;
+                            issued <= issued + {1'b0, seg_useful};
+                            seg_base <= seg_base + 23'd32; seg_prefix <= 0; seg_useful <= next_useful;
+                            if (request_write) begin
+                                wbeat_active <= 1; wbeat <= 1; w_bank <= burst_bank;
+                                w_prefix <= seg_prefix; w_useful <= seg_useful; w_index <= issued;
+                                wr_wait[burst_bank] <= WR_BITS'(T_WR - 1);
+                            end else begin
+                                pend_prefix <= seg_prefix; pend_useful <= seg_useful; pend_index <= issued;
+                            end
+                        end
+                        // A write retires with its last physical beat (tWR
+                        // is enforced per bank before any PRECHARGE). A read
+                        // retires after its final capture and handshake.
+                        if (request_write ? (issued == request_words && wbeat_active && wbeat == 7)
+                                          : (issued == request_words && !read_stream_active && !read_in_flight)) begin
+                            done[owner] <= 1; txn <= 0; state <= IDLE;
+                        end
                     end
                 end
                 REFRESH_WAIT: if (refresh_safe) begin

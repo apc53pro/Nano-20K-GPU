@@ -4,16 +4,16 @@
   "source_sha256": {
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "960c3fa552505246613fa4ac7f7ae80509dbef34260cfeeb55199366fe086063",
+    "rtl/gpu/nano_gpu_core.sv": "c8fedce758e5eaeecbff021548ef3128bb1adcfa17b22192633fdf29d04eeebc",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
-    "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
+    "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
     "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
     "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
-    "rtl/gpu/nano_sdram_service.sv": "df7087939617421900e3b31b92a7038a12df493ac98428a7186f4f8d9096d8c4",
+    "rtl/gpu/nano_sdram_service.sv": "8b5f46ea5142050f296cea884548c5c1d741b28a33de96e167b95625ef9307bd",
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
-    "rtl/gpu/nano_tile_renderer.sv": "b98effe60ae7c62eec53fa24b2581cfa91dcc905354d8e20be841489a2737362",
+    "rtl/gpu/nano_tile_renderer.sv": "5bd0b2ba557451862365c85a1946347c389795cf86666f6a6dd450621333e86b",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/gpu_probe.sv": "e6fd7872f631da49cccdf37689176a6195cf839beac955e1ef5527e103187f71",
     "rtl/tests/core_recovery_quiesce_tb.sv": "971f8da449046a672b31ff30b101897c6024e4c7626c18bba5355805416c1203",
@@ -24,7 +24,7 @@
     "rtl/tests/native_mult_modes_tb.sv": "699762ab727555ea95c3577c5626451508ef262dea2a6f8e97edd80685610e33",
     "rtl/tests/native_video_tb.sv": "1ad15db49581fb7f20097e41d743e829610daa834c0587d2ad5a02d38943a056",
     "rtl/tests/sdp32_tb.sv": "38b03d9b1f37c1d12a85ba74fda01feecad4f40b0e28a8163bdf667ad44a6a07",
-    "rtl/tests/sdram_accept_check_tb.sv": "b7ff704c2abb3a25008ff643f307d23941beeddd96428608e2e1f4ab50fd700a",
+    "rtl/tests/sdram_accept_check_tb.sv": "88c406ca904bd610419ba601256304498d52ff6a3a17148581c4a15b83606163",
     "rtl/tests/sdram_arbiter_tb.sv": "f98a212f25c570b96e716e9a871a8d205c3cea7e48e68bbf9c07475022be8064",
     "rtl/tests/tang20k_board_tb.sv": "6500e5f292a3ff27ef397ee37e89aa23e9d56dadc1ee2fa2e44df639f7bca73a",
     "rtl/tests/tang20k_core_stub.sv": "c9548cdf71c0da86037222f7d11d9b9f5eec3aaeb94f1806382a7148569e37d5",
@@ -70,24 +70,24 @@
     "reference/src/renderer.cpp": "b66db4b21ecc07497c0b907fed6953d238eb03aca779f4e2a734a46c131d342c",
     "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
     "reference/src/hw_protocol.cpp": "ae4439d51f0e65f0a66fd268c977402fd78c03fc33085a8e3133f40f2f778841",
-    "reference/rtl/main.cpp": "07bc2b55a275c994be214f4e83d89b82bc8bacb38e41040ab19ef07d7552f044",
+    "reference/rtl/main.cpp": "a14185185fa262cccbad2c08a7c2cd4bd8797c3f413f6bda4cf5933ed822a8c3",
     "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
     "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
     "scripts/check-tang20k.py": "709e2d9decaf9adc73c0cba4c9cb22cb4eaad885b7cef068ebb74be5facda44a",
     "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
     "scripts/rtl-gpu-check.py": "f47a285d92adf60c9082b0b8372b81503dca1871c7b6c1f6eea7e211988611b3",
-    "scripts/rtl-check.py": "c8e84c1519f25fdb9deb4e2e5d4e305937980964bd5375a4664fa73cd4a633d8"
+    "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
   },
   "board_glue_log_sha256": "67f6a5f150640ea3027ddaad100ecf9c8559f1d5b0f52a9a8b8bb06e32e0babf",
   "board_glue_scope": "Clock/pad wrapper with isolated core test model",
-  "core_build_report_sha256": "e20839e072000f95085c723c32298052921d4b0ec8c5e39f9dac552ec326dc7c",
+  "core_build_report_sha256": "4bc554d7150d181bf1d4da8f3929594bbb3e69b74d62d31d3d20906850b6f357",
   "core_scope": "Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends; physical host limited separately to 10kHz",
   "gpu_regression": {
     "schema": "N20K-RTL-GPU-TEST-1",
     "scope": "Functional logical GPU; host bus, physical SDRAM commands and logical scanout",
     "whole_gpu_fit_qualified": false,
     "simulation_passed": true,
-    "executable_sha256": "12245e054f6fb23f4299fc63e80a3fce87cfbf012e997a37819784ce45c844b2",
+    "executable_sha256": "ad1d950f4784b2077266a6aefcc06b18abe4dde4e9713348622dcceaf937fb31",
     "cases": [
       {
         "name": "commands",
@@ -105,14 +105,14 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 20087715,
-          "last_submission_cycles": 7739024,
-          "checked_scanout_frames": 12,
-          "black_scanout_frames_including_startup": 12,
+          "core_cycles": 13367715,
+          "last_submission_cycles": 5019810,
+          "checked_scanout_frames": 8,
+          "black_scanout_frames_including_startup": 8,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 30.274759,
+          "wall_seconds_excluding_boot": 17.549564,
           "color_fnv1a64": "d9644de9ed405e88",
-          "sdram_refreshes": 30345
+          "sdram_refreshes": 20185
         }
       },
       {
@@ -126,14 +126,14 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 18407715,
-          "last_submission_cycles": 6778206,
-          "checked_scanout_frames": 11,
-          "black_scanout_frames_including_startup": 11,
+          "core_cycles": 12527715,
+          "last_submission_cycles": 4262904,
+          "checked_scanout_frames": 8,
+          "black_scanout_frames_including_startup": 7,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 27.515713,
+          "wall_seconds_excluding_boot": 16.279758,
           "color_fnv1a64": "9df8090c6f9d95e7",
-          "sdram_refreshes": 27807
+          "sdram_refreshes": 18919
         }
       },
       {
@@ -147,14 +147,14 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 21767715,
-          "last_submission_cycles": 8983352,
-          "checked_scanout_frames": 13,
-          "black_scanout_frames_including_startup": 13,
+          "core_cycles": 16727715,
+          "last_submission_cycles": 6429232,
+          "checked_scanout_frames": 10,
+          "black_scanout_frames_including_startup": 10,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 33.632674,
+          "wall_seconds_excluding_boot": 22.593024,
           "color_fnv1a64": "4ab23a6c05d8e2b8",
-          "sdram_refreshes": 32893
+          "sdram_refreshes": 25276
         }
       },
       {
@@ -168,14 +168,14 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 20927715,
-          "last_submission_cycles": 8545752,
-          "checked_scanout_frames": 13,
-          "black_scanout_frames_including_startup": 12,
+          "core_cycles": 15887715,
+          "last_submission_cycles": 6239922,
+          "checked_scanout_frames": 10,
+          "black_scanout_frames_including_startup": 9,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 30.630526,
+          "wall_seconds_excluding_boot": 21.498928,
           "color_fnv1a64": "c847f4fde6907f38",
-          "sdram_refreshes": 31626
+          "sdram_refreshes": 24007
         }
       }
     ]

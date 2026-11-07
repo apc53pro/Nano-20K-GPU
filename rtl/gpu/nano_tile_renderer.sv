@@ -32,7 +32,7 @@ module nano_tile_renderer (
         EDGE_WAIT=4, EDGE_CAPTURE=5, OFFSET_Y=6, OFFSET_X=7, RASTER=8,
         SEED_CAPTURE=9, CLIP_SCISSOR=10, CLIP_TILE=11, PREPARE=12,
         DRAIN=17, FAILED=18;
-    reg [4:0] state;
+    reg [4:0] state /*verilator public_flat_rd*/;
     reg sticky_fault;
     // Individual sticky arithmetic flags terminate the wide-adder paths.
     // Their OR is visible immediately after the same edge as the old fault
@@ -61,7 +61,7 @@ module nano_tile_renderer (
     wire [1:0] depth_func=words[1][9:8];
     wire color_write=words[0][16],depth_test=words[0][17];
     wire depth_write=words[0][18],key_enable=words[0][19];
-    wire need_texture=(words[0][7:0]==3||(words[0][7:0]==0&&(|words[1][7:1])))&&
+    wire need_texture /*verilator public_flat_rd*/=(words[0][7:0]==3||(words[0][7:0]==0&&(|words[1][7:1])))&&
         (words[0][16]||words[0][19]);
     wire [15:0] key_color=words[3][15:0];
     wire [23:0] constant_color=words[2][23:0],constant_depth=words[16][23:0];
@@ -289,7 +289,7 @@ module nano_tile_renderer (
     wire triangle_inside=(edge_current[0]>0||(edge_current[0]==0&&words[29][0]))&&
         (edge_current[1]>0||(edge_current[1]==0&&words[33][0]))&&
         (edge_current[2]>0||(edge_current[2]==0&&words[37][0]));
-    wire inside_sample=(kind==0)?triangle_inside:grid_inside;
+    wire inside_sample /*verilator public_flat_rd*/=(kind==0)?triangle_inside:grid_inside;
     wire [9:0] sample_addr={y[4:0],x[4:0]};
     wire [23:0] sample_depth=(kind==0)?quantize_depth(plane_current[0]):constant_depth;
     wire use_rgb_planes=(kind==0)&&color_write&&(shade==1||shade==4);
@@ -302,7 +302,7 @@ module nano_tile_renderer (
     reg [9:0] pending_addr;
     reg [23:0] pending_depth;
     reg [15:0] pending_color;
-    wire fragment_ready,fragment_busy,fragment_fault,fragment_retired;
+    wire fragment_ready /*verilator public_flat_rd*/,fragment_busy,fragment_fault,fragment_retired;
     wire fragment_color_write,fragment_depth_write;
     wire [9:0] fragment_address;
     wire [23:0] fragment_depth;

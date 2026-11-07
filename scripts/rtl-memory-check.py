@@ -88,6 +88,8 @@ def main():
 
     binary = build / ("sdram-service-test.exe" if os.name == "nt" else "sdram-service-test")
     cflags = ["-std=c++17", "-O2", "-I" + str(ROOT / "reference/rtl")]
+    # MinGW has no weak sc_time_stamp hook; the testbench advances context time.
+    if os.name == "nt": cflags.append("-DVL_TIME_CONTEXT=1")
     command = HDL["tool"]("verilator") + [
         "--cc", "--exe", "--build", "--assert", "-j", str(args.jobs), "-Wno-fatal",
         "--top-module", "nano_sdram_service", "--Mdir", str(build / "sdram-obj"),

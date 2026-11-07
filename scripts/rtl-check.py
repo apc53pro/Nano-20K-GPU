@@ -29,6 +29,19 @@ def tool(name):
     installed = shutil.which(name)
     if installed:
         return [installed]
+    if name == "verilator" and os.name == "nt":
+        # Native Python cannot execute the extensionless Perl launcher shipped
+        # by the suite or MSYS2; run it through MSYS2 Perl, as gpu-rtl.py does.
+        env = environment()
+        search = [SUITE / "bin"] + [Path(p.strip('"')) for p in env.get("PATH", "").split(os.pathsep) if p]
+        cygpath = shutil.which("cygpath", path=env.get("PATH"))
+        for directory in search:
+            launcher = directory / "verilator"
+            if launcher.is_file() and cygpath:
+                perl = subprocess.check_output([cygpath, "-w", "/usr/bin/perl.exe"], env=env, text=True).strip()
+                script = subprocess.check_output([cygpath, "-u", launcher.as_posix()], env=env, text=True).strip()
+                if Path(perl).is_file():
+                    return [Path(perl).as_posix(), script]
     raise RuntimeError(f"missing {name}; run ./scripts/setup-rtl-tools.sh or add your toolchain to PATH")
 
 

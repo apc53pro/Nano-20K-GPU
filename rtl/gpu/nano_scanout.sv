@@ -1,5 +1,8 @@
 // Independent 640x480 RGB565 scanout. All pixels arrive through memory client
 // zero and two native 1024x16 BSRAM banks. No framebuffer exists in this module.
+// The banks form one 1024-word FIFO: bank 0 holds each word's low (even) pixel
+// and bank 1 its high (odd) pixel. A response word is accepted every edge, so a
+// refill never holds the shared SDRAM service while pixels trickle out.
 module nano_scanout (
     input wire clk, input wire reset, input wire pixel_ce,
     input wire memory_ready, input wire front_id,
@@ -25,13 +28,12 @@ module nano_scanout (
     reg [22:0] request_address;
     reg outstanding, discard_response;
     reg [4:0] received_words;
-    reg [31:0] response_word;
-    reg response_valid, response_lane;
-    reg [10:0] read_pointer, write_pointer;
-    reg [11:0] stored;
-    reg read_pending, read_bank;
-    reg output_valid;
-    reg [15:0] output_word;
+    reg [9:0] read_pointer, write_pointer;
+    reg [10:0] stored; // words, 0..1024
+    reg read_pending;
+    // Current pixel and the second pixel of the same word.
+    reg output_valid, spare_valid;
+    reg [15:0] output_word, spare_word;
     wire [15:0] fifo0_data, fifo1_data;
 
     wire active_pixel = horizontal < 10'd640 && vertical < 10'd480;
@@ -45,24 +47,24 @@ module nano_scanout (
     wire bad_response = mem_r_valid && mem_r_ready && !discard_response && streaming &&
         (mem_r_last != (received_words == 5'd15));
     wire flush_stream = base_flush || bad_response;
-    wire [12:0] fifo_level = {1'b0,stored} + {12'b0,read_pending} + {12'b0,output_valid};
-    wire fifo_push = response_valid && !discard_response && streaming &&
-        fifo_level < 13'd2048 && !flush_stream;
-    wire fifo_read = !read_pending && (!output_valid || consume_pixel) && stored != 0 &&
-        streaming && !flush_stream;
-    wire [15:0] fifo_write_data = response_lane ? response_word[31:16] : response_word[15:0];
+    wire fifo_room = stored != 11'd1024;
+    wire fifo_push = mem_r_valid && mem_r_ready && !discard_response && streaming && !flush_stream;
+    // A word supplies two pixels. Read the next one when the current pixel is
+    // being consumed (or absent) and its partner has already been shown.
+    wire fifo_read = !read_pending && !spare_valid && (!output_valid || consume_pixel) &&
+        stored != 0 && streaming && !flush_stream;
 
     nano_sdp16 fifo0 (
-        .wclk(clk), .wce(1'b1), .we(fifo_push && !write_pointer[10]),
-        .waddr(write_pointer[9:0]), .wdata(fifo_write_data),
-        .rclk(clk), .rce(1'b1), .re(fifo_read && !read_pointer[10]),
-        .raddr(read_pointer[9:0]), .reset_output(reset), .rdata(fifo0_data)
+        .wclk(clk), .wce(1'b1), .we(fifo_push),
+        .waddr(write_pointer), .wdata(mem_r_data[15:0]),
+        .rclk(clk), .rce(1'b1), .re(fifo_read),
+        .raddr(read_pointer), .reset_output(reset), .rdata(fifo0_data)
     );
     nano_sdp16 fifo1 (
-        .wclk(clk), .wce(1'b1), .we(fifo_push && write_pointer[10]),
-        .waddr(write_pointer[9:0]), .wdata(fifo_write_data),
-        .rclk(clk), .rce(1'b1), .re(fifo_read && read_pointer[10]),
-        .raddr(read_pointer[9:0]), .reset_output(reset), .rdata(fifo1_data)
+        .wclk(clk), .wce(1'b1), .we(fifo_push),
+        .waddr(write_pointer), .wdata(mem_r_data[31:16]),
+        .rclk(clk), .rce(1'b1), .re(fifo_read),
+        .raddr(read_pointer), .reset_output(reset), .rdata(fifo1_data)
     );
 
     // A command already offered to the service remains stable until accepted,
@@ -75,8 +77,7 @@ module nano_scanout (
     assign mem_w_valid = 1'b0;
     assign mem_w_data = 32'b0;
     assign mem_w_strb = 4'b0;
-    assign mem_r_ready = outstanding && (discard_response || !streaming || base_flush ||
-        !response_valid || (response_lane && fifo_level < 13'd2048 && !base_flush));
+    assign mem_r_ready = outstanding && (discard_response || !streaming || base_flush || fifo_room);
 
     always @(posedge clk) begin
         if (reset) begin
@@ -86,9 +87,9 @@ module nano_scanout (
             streaming <= 0; frame_ready <= 0; frame_black <= 0;
             next_fetch <= 0; outstanding <= 0; discard_response <= 0; received_words <= 0;
             request_valid <= 0; request_discard <= 0; request_address <= 0;
-            response_word <= 0; response_valid <= 0; response_lane <= 0;
             read_pointer <= 0; write_pointer <= 0; stored <= 0;
-            read_pending <= 0; read_bank <= 0; output_valid <= 0; output_word <= 0;
+            read_pending <= 0; output_valid <= 0; output_word <= 0;
+            spare_valid <= 0; spare_word <= 0;
         end else begin
             vblank_pulse <= 0;
             seen_front <= front_id;
@@ -98,11 +99,11 @@ module nano_scanout (
             // for mem_done to clear outstanding leaves a request bubble in
             // which a slow foreground WRITE can win every arbitration turn,
             // defeating the service's bounded scanout priority.
-            // Reserve 32 pixels for the active transaction, two for a retained
-            // response word, and 32 for this queued transaction. The command
-            // remains stable until accepted; no extra memory port is added.
+            // Reserve 16 words for the active transaction and 16 for this
+            // queued one. The command remains stable until accepted; no extra
+            // memory port is added.
             if (!request_valid && streaming && memory_ready &&
-                    next_fetch < FRAME_PIXELS && fifo_level <= 13'd1982 && !flush_stream) begin
+                    next_fetch < FRAME_PIXELS && stored <= 11'd992 && !flush_stream) begin
                 request_valid <= 1;
                 request_discard <= 0;
                 request_address <= (front_id ? 23'h096000 : 23'b0) + {3'b0,next_fetch,1'b0};
@@ -120,33 +121,24 @@ module nano_scanout (
                 received_words <= 0;
                 if (!request_discard && !flush_stream) next_fetch <= next_fetch + 19'd32;
             end
-            if (fifo_push) begin
-                write_pointer <= write_pointer + 11'd1;
-                response_lane <= !response_lane;
-                if (response_lane) response_valid <= 0;
+            if (fifo_push) write_pointer <= write_pointer + 10'd1;
+            if (mem_r_valid && mem_r_ready) received_words <= received_words + 5'd1;
+            if (consume_pixel && output_valid) begin
+                if (spare_valid) begin output_word <= spare_word; spare_valid <= 0; end
+                else output_valid <= 0;
             end
-            if (mem_r_valid && mem_r_ready) begin
-                received_words <= received_words + 5'd1;
-                if (!discard_response && streaming && !flush_stream) begin
-                    response_word <= mem_r_data;
-                    response_valid <= 1;
-                    response_lane <= 0;
-                end
-            end
-            if (consume_pixel && output_valid) output_valid <= 0;
             if (read_pending) begin
-                output_word <= read_bank ? fifo1_data : fifo0_data;
-                output_valid <= 1;
+                output_word <= fifo0_data; spare_word <= fifo1_data;
+                output_valid <= 1; spare_valid <= 1;
                 read_pending <= 0;
             end
             if (fifo_read) begin
-                read_bank <= read_pointer[10];
                 read_pending <= 1;
-                read_pointer <= read_pointer + 11'd1;
+                read_pointer <= read_pointer + 10'd1;
             end
             case ({fifo_push,fifo_read})
-                2'b10: stored <= stored + 12'd1;
-                2'b01: stored <= stored - 12'd1;
+                2'b10: stored <= stored + 11'd1;
+                2'b01: stored <= stored - 11'd1;
                 default: begin end
             endcase
 
@@ -170,8 +162,7 @@ module nano_scanout (
                 // discarded until its completion; new requests use the new
                 // front and restart from pixel zero during vertical blank.
                 read_pointer <= 0; write_pointer <= 0; stored <= 0;
-                read_pending <= 0; output_valid <= 0;
-                response_valid <= 0; response_lane <= 0;
+                read_pending <= 0; output_valid <= 0; spare_valid <= 0;
                 next_fetch <= 0;
                 if (request_valid && !mem_cmd_ready) request_discard <= 1;
                 discard_response <= (request_valid && mem_cmd_ready) ||
