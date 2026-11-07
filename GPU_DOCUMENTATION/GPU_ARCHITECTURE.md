@@ -60,7 +60,10 @@ the currently implemented profile remains unchanged.
 
 The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 **`GW2AR-LV18QN88C8/I7`**. The open-source implementation tools select the
-**`GW2A-18C`** device database and that exact package/part.
+**`GW2A-18C`** device database and that exact package/part. On the received
+board, the open-flow GPU image's host address latch failed while the same RTL
+built by the vendor Gowin EDA worked (section 14). The qualified build flow
+remains the open flow until a toolchain decision is made.
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -257,8 +260,16 @@ instead of `0x02`. This indicates, without isolating the cause, that the FPGA
 latched a different capability-range address from the one sent. Address
 acceptance cannot reveal this, because address-phase WREADY is `!gpu_d[7]`. The
 offline `GPU_LATCHTEST` reset-and-read sequence and the edge-free `GPU_DRIVE`
-address-phase hold test that path without any FPGA change; their results are
-unreported. Startup can accept register 64's expected zero before
+address-phase hold test that path without any FPGA change. On 2026-11-07 the
+open-flow image gave `GPU_LATCHTEST` `0 0 0 0` (first read 4 edges, status
+path), while `GPU_DRIVE 55`/`2A` delivered every bit correctly to its Tang pin.
+A gate-level simulation of the synthesized netlist passed, and a pin-identical
+bus-echo image built by the same open flow worked on the board. The unchanged
+RTL built by Gowin EDA reached `READY` with correct latch, capability and status
+reads. The address-latch fault is therefore specific to the open-flow
+implementation of this design, after synthesis, and is not yet isolated to one
+stage. The control guide's address-path isolation table lists the evidence.
+Startup can accept register 64's expected zero before
 failing register 65, which should return `0x02`. D5 remains GP23 / Core P3.9 to
 Tang J5.5 / pin 42, and D6 remains GP24 / Core P3.12 to Tang J5.6 / pin 41;
 Arduino data indexing remains `GPIO18 + bit_index`. RP pad echoes do not verify
@@ -1094,6 +1105,17 @@ under `docs/benchmarks/` remains historical for the changed board profile. See t
 [control guide's programming instructions](GPU_CONTROL.md#programming-and-first-board-bring-up)
 for SRAM loading with openFPGALoader, reset release and expected idle output.
 The FPGA contains no command player or demo assets; a host must submit work.
+
+**This repository image failed on the received board** (2026-11-07). It
+configures, drives video timing and answers handshakes, but it latches wrong
+host addresses, so it never passes startup. Board wiring, pins, RTL and
+synthesis were cleared independently. The same RTL built with Gowin EDA
+(`experiments/gowin-ab/build.py`, a diagnostic and not a qualified image)
+reached `READY`. The diagnostic `experiments/bus-echo` image, built with the
+open flow on the same pin sites, also worked. The open-flow fault lies in
+packing, placement or bitstream generation for the full design and is not yet
+isolated. After `READY`, the Gowin build's first terminal present timed out;
+that cause is open.
 
 Remaining hardware work is the RP2350 PIO/DMA driver and firmware integration,
 external bus/SDRAM timing measurement, and correctness/performance testing on

@@ -516,8 +516,39 @@ address path without an FPGA change:
 
 Both diagnostics submit no packet and refuse while the client is online.
 `GPU_PROBE`, `GPU_SWAPTEST` and `GPU_LATCHTEST` refuse while a `GPU_HOLD` or
-`GPU_DRIVE` hold is active. No result from either new diagnostic has been
-reported yet.
+`GPU_DRIVE` hold is active.
+
+#### Address-path isolation, 2026-11-07
+
+User-reported results on the received board, in order:
+
+| Test | Image | Result | Conclusion |
+| --- | --- | --- | --- |
+| `GPU_LATCHTEST` | open-flow `nano-gpu.fs` | `0 0 0 0; edges=4 1 1 1` | First read used the status path: the FPGA latched a status-range address, not `0x41` |
+| `GPU_DRIVE 55` / `2A` at Tang pins 27, 28, 29, 30, 31, 42, 41, 48 | open-flow | Every bit 3.3 V or 0 V as driven; WREADY pin 73 3.25 V | Each RP→Tang data bit arrives, HIGH and LOW, at its constrained pin; no contention |
+| Gate-level simulation of the synthesized netlist, firmware timing | open-flow synthesis | Prefix `00 02 08 20`, `GPU_LATCHTEST` `2 8 20 2`, register 1 after 4 edges | RTL and synthesis are correct |
+| Bus-echo diagnostic image (`experiments/bus-echo`) | open flow, same pin sites | Probe `40`…`4F`, swap test `2 21 23`, `GPU_LATCHTEST` `41 42 43 41`, held `0x41` with pins 27/41 HIGH | Pins, FPGA inputs, address latch rule and FPGA→RP HIGH/LOW levels work |
+| Unchanged `tang20k_top` RTL built by Gowin EDA (`experiments/gowin-ab`) | Gowin V1.9.8.11 Education | `READY`; `GPU_LATCHTEST` `2 8 20 2`; caps `0 2 8 20 0 0 80 0 0 80 25 0 0 4 0 0`; swap test `1 0 0; flags=0x1; edges=4 1 1 1` | The full design works when built by the vendor flow |
+
+The fault is therefore after synthesis in the open flow, in nextpnr packing or
+placement, or in Apicula bitstream generation, for this full design. It is not
+yet isolated to one stage; the routed netlist's latch logic reads correctly.
+A gate-level simulation of the decoded bitstream was attempted. It cannot settle
+the question, because `gowin_unpack` output leaves the global clock spines
+unconnected, so even the working echo bitstream fails there.
+
+The Gowin A/B image is a diagnostic, not a qualified board image. It was built
+with an unverified third-party copy of Gowin EDA, from a mega.nz download with
+no Authenticode signature. Its timing report meets every clock and leaves only
+reset and video-path violations. It was programmed with the signed official
+Gowin Programmer V1.9.12.04 (`programmer_cli -r 9`, external flash, verified).
+After `READY`, the first terminal present failed with `read timeout`, and that
+cause is open. The slow 6.3 MHz core and the 250 ms per-byte host timeout are
+one hypothesis, not a finding. Gowin's installer bound the Tang debugger's FTDI
+interfaces to FTDI's driver, so openFPGALoader reported `device not found` until
+a WinUSB-type driver is restored. Gowin Programmer uses the FTDI driver
+directly; its read-back verify after an SRAM load fails because Gowin
+bitstreams enable read-back security (status `0x6020`).
 
 The mapping remains D5 **GP23 / Core P3.9 → Tang J5.5 / FPGA pin 42**, D6
 **GP24 / Core P3.12 → Tang J5.6 / FPGA pin 41**; the Arduino driver still uses
@@ -657,6 +688,16 @@ retransmission in this protocol revision.
 Use the full-board image `bitstreams/tangnano20k/nano-gpu.fs` and its matching
 `docs/hardware/tang20k-board.json` implementation report. Do not program a
 serial-probe image as a working GPU.
+
+> **Hardware result, 2026-11-07:** on the user's board this open-flow image
+> configures, drives video timing and answers bus handshakes, but its host
+> address latch captures addresses other than those sent. Every capability and
+> status read therefore fails, and startup stops at
+> `invalid capability readback`. The same unchanged RTL built with the vendor
+> Gowin EDA passed the bus tests and reached `READY`. The board, wiring, RTL and
+> synthesized netlist were cleared separately. Until the open-flow cause is
+> found, this repository image is **not** a working GPU on that board. See
+> [Address-path isolation](#address-path-isolation-2026-11-07).
 
 The current image is **7,263,640 bytes**, SHA-256
 `ede2657f0fa74c0db6b3a4e23d334d8d9e3c3ff0ec29ba0166c6f6ab7f24f7d3`.
