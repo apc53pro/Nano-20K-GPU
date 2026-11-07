@@ -4,10 +4,9 @@ This is the architecture guide for the **current SystemVerilog GPU** in this
 repository. Read [GPU_CONTROL.md](GPU_CONTROL.md) for the CPU-facing bus,
 registers, binary commands, data structures and generic host-code examples.
 
-The current command/data profile is **`N20K-SYS-0.2`**, a provisional development
-ABI. It is implemented in the RTL simulator but is not a released RP2350 board
-interface. Older M0 design documents describe the original requirements; this
-guide describes what the current implementation actually does.
+The current command/data profile is **`N20K-SYS-0.2`**, a provisional wire ABI
+implemented in the RTL, board image and MPC-2350 host. Older M0 design documents
+describe the original requirements. This guide describes the current implementation.
 
 **Current status:** rendering and CPU control execute functional RTL under
 Verilator, with an independent software reference renderer (SRR) checking the
@@ -15,9 +14,9 @@ results. The board target now includes clocks/reset, bidirectional host pads,
 registered SDRAM pads, video serialization and exact Tang Nano 20K constraints.
 The complete board implementation report, rather than the earlier logical-core
 probe, is the authority for board resource and timing results. Hardware
-qualification remains incomplete. The MPC-2350 firmware now has an initial GPIO transport and
-monochrome GPU terminal; PIO/DMA optimization and NARM GPU integration remain
-separate work. Its host regression uses the software oracle, not Verilator.
+qualification remains incomplete. The MPC-2350 firmware drives the GPU with
+one PIO state machine and shares its GPU client between the terminal and the
+focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI,
 and the user has reported the terminal running on it. The image is built with
@@ -58,8 +57,8 @@ The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 **`GW2AR-LV18QN88C8/I7`**. The open-source implementation tools select the
 **`GW2A-18C`** device database and that exact package/part. On the received
 board, the open-flow GPU image's host address latch failed while the same RTL
-built by the vendor Gowin EDA worked (section 14). The qualified build flow
-remains the open flow until a toolchain decision is made.
+built by the vendor Gowin EDA worked (section 14). Board images now use Gowin
+EDA V1.9.8.11 Education under the temporary exception in `AGENTS.md`.
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -94,14 +93,20 @@ identify manufacturer header contacts and package pins.
 [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) implements that wiring:
 seven-bit address latching on ALE_N writes, active-low read/write controls,
 shared-data output enable, WREADY/RVALID gating and GPU_RESET_N logic reset.
-[`tang20k.cst`](../rtl/board/tang20k.cst) fixes the external package pins;
-the embedded SDRAM uses the part database's fixed SiP terminals, checked
-against [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) after routing.
-The MPC-2350 firmware implements the revised pins with GPIO transfers using
-at least **2 us per clock phase/setup wait**, below a phase-only ceiling of
-**250 kHz HCLK** once API overhead is included. The bus was first proven at
-50 us phases. External electrical margins remain unqualified, and the pin
-remap changes no FPGA package constraint.
+[`tang20k.cst`](../rtl/board/tang20k.cst) fixes the external package pins.
+[`tang20k-sip.json`](../rtl/board/tang20k-sip.json) records the expected fixed
+SDRAM terminals. The current Gowin build's encrypted netlist prevents that
+connection check. Font upload, copies and scanout exercise the SDRAM on the
+board.
+
+The MPC-2350 bus driver claims one **PIO2** state machine with GPIO base
+**16** to reach both control groups and the contiguous data pins. PIO drives
+HCLK, write/address/read strobes and data direction, and samples WREADY and
+RVALID. The CPU owns packet construction, FIFO deadlines and GPU reset. A
+four-cycle minimum phase at a PIO clock of at most 2 MHz gives **at least
+2 µs per phase** and a phase-only HCLK ceiling of **250 kHz**. Bus overhead
+reduces the sustained rate. The earlier GPIO driver first ran on the board
+at 50 µs phases. External electrical margins remain unqualified.
 
 The board image uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel clock**
 and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from 27 MHz
@@ -180,8 +185,9 @@ example, Gouraud mode interpolates RGB values supplied by the CPU; the FPGA
 does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
-valid commands. **The initial RP2350 GPIO driver and 40×30 monochrome terminal
-are implemented in the separate [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/cb2eb28).** That terminal uploads a
+valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
+implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350).
+That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. It tracks which characters
 each of the two colour buffers shows. For a changed frame, it picks the
@@ -189,19 +195,23 @@ cheapest way to bring the back buffer up to date. Either it draws only the
 glyphs that differ from what that buffer already holds, or it first copies the
 front buffer with one `COPY_RECT`, shifted up by whole text rows for a scroll,
 and then draws the rest. It then fences, presents and waits for the
-vertical-blank reply. Once both buffers are known, a cursor blink needs no
-glyph copies, and a one-line scroll needs one copy plus at most a line of
-glyphs. Idle terminal frames send no commands. Font asset
-decoding uses a 512-byte CPU row; there is no RP pixel framebuffer, software
-2D/3D rasterizer, VGA scanout, or pixel cursor/overlay compositor. Mouse input
-is retained, with graphical mouse-cursor rendering deferred.
+vertical-blank reply. The terminal uploads a 6×9 RGB565 mouse arrow at
+`0x268000` and copies each opaque row span with `COPY_RECT`. The glyph cache
+restores cells under an old arrow, including an arrow moved by a shifted front
+copy. A stationary terminal sends no packets. Font decoding uses a 512-byte
+CPU row, and the GPU holds both pixel framebuffers.
 
-NARM launching is disabled in this milestone, and the retained native runtime
-does not advertise a graphics capability or expose a video service. Its GPU
-integration and PIO/DMA acceleration are later work. The firmware-client host
-test checks every displayed pixel through packet readback using the clocked
-software oracle; it does not qualify RTL equivalence, the physical bus or HDMI.
-Firmware compilation/flashing and the first physical test are left to the user.
+The terminal and the focused NARM application share one GPU session, including
+command ordering, sequence numbers and front/back ownership. Native programs
+with the GPU capability can upload assets to `0x280000`–`0x7fffff`, submit
+passes, copy rectangles, fence, present and read back memory through the
+native GPU interface. They prepare their own rendering data and handle their
+own pointer visuals. On return to terminal focus the terminal rebuilds its
+cached view of the buffers. See the [native interface in the control guide](GPU_CONTROL.md#narm-gpu-interface).
+
+The firmware-client host test checks displayed pixels through packet readback
+using the clocked software oracle. The board results below cover the earlier
+GPIO terminal. The new PIO transport and NARM graphics require an on-board test.
 
 The RP driver keeps **GPU_RESET_N HIGH after a normal host/session failure**, with
 the data bus released and read/write/address strobes inactive. The earlier
@@ -215,14 +225,13 @@ cold power-up the FPGA had not finished configuring within this allowance:
 the first startup read all `FF` with idle WREADY/RVALID HIGH, while startup after
 an RP-only reset reached the configured image. The offline `GPU_LATCHTEST`
 diagnostic also pulses reset, without the configuration wait. USB diagnostics retain the startup fault snapshot and
-show reset/handshake GPIO levels. A GPIO/time host mock tests these failure
-paths; it does not establish physical HDMI operation.
+show reset/handshake GPIO levels. Host mocks cover failure handling.
 
 **Board result, 2026-11-07:** the Gowin-built 50.4 MHz image runs the
-terminal on HDMI with the GPU's rendered output. Earlier bring-up returned
-all-`FF` and then all-zero capability reads. The cause was isolated to the
-open-source FPGA flow's implementation of the address latch, as recorded
-below and in the control guide, not to wiring, firmware or RTL.
+terminal on HDMI with the GPU's rendered output. Cold starts initially read
+all `FF` before the FPGA finished configuring. Later all-zero capability
+reads on the configured image were isolated to the open-source FPGA flow's
+implementation of the address latch, as recorded below and in the control guide.
 The client validates the fixed capability prefix before polling ready status and
 offers an offline immutable-capability probe (also automatic after failed
 startup) plus RP address-pad echo to help
@@ -959,7 +968,7 @@ covers two layers:
 - five real-core cases at the 50.4 MHz board profile: the command/copy self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-Firmware mocks separately verify the 2 us GPIO phase floor. On 2026-11-07 the
+Earlier GPIO firmware mocks verify the 2 µs phase floor. On 2026-11-07 the
 user programmed this exact image (Gowin Programmer verified the flash write)
 and reported it displaying and refreshing the MPC-2350 terminal on HDMI. A
 standalone RP2350 sketch also kept the 2 us bus running a continuously moving
@@ -1121,9 +1130,9 @@ The FPGA contains no command player or demo assets; a host must submit work.
   - the board returned to 50.4 MHz with GPU video. The user reported the
     terminal on HDMI with the 50.4 MHz Gowin build before burst copies.
 
-Remaining hardware work is the RP2350 PIO/DMA driver and firmware integration,
-external bus/SDRAM timing measurement, and correctness/performance testing on
-the received board. Gowin's static timing uses its device delay models;
+Remaining hardware work includes testing the PIO transport and native GPU
+services on the board, measuring the external bus and SDRAM timing margins,
+and measuring rendering performance. Gowin's static timing uses its device delay models;
 external setup/hold margins and real maximum clock are not established by
 Verilator or a successful bitstream generation. The board image does not claim
 a measured silicon frequency limit or 30 FPS scenes.
@@ -1133,7 +1142,7 @@ a measured silicon frequency limit or 30 FPS scenes.
 | Source | Architectural responsibility |
 | --- | --- |
 | [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Board clocks/reset, synchronized pixel-event handoff, shared host pads, SDRAM boundary and TMDS integration |
-| [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and verified fixed embedded SDRAM terminals |
+| [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and expected fixed embedded SDRAM terminals |
 | [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, copies, presentation/recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |
