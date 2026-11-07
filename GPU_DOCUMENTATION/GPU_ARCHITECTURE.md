@@ -186,7 +186,7 @@ does not transform normals or calculate a lighting model.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
-implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350).
+implemented in the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0c9f096d9551b4d99c442bf1157d7edd8312bfb9).
 That terminal uploads a
 64 KiB RGB565 bitmap-font texture to heap `0x258000` once per hard-reset session.
 It builds the first frame from 16×16 glyph copies. It tracks which characters

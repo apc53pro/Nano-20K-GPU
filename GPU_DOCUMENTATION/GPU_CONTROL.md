@@ -336,12 +336,13 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 `nano_gpu.cpp` serializes N20K-SYS-0.2 packets and issues terminal commands.
 `font.cpp` supplies the bitmap font for the **40×30 black-on-white terminal**.
 The FPGA copies each 16×16 glyph and scans out the front buffer over HDMI.
-See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350).
+See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/0c9f096d9551b4d99c442bf1157d7edd8312bfb9).
 
 The CPU submits each byte operation through the TX FIFO of one PIO2 state
 machine and waits for its completion in the RX FIFO. PIO controls the clock,
-strobes and D[7:0] direction. It samples WREADY before the write edge and
-can advance HCLK with writes disabled while waiting for WREADY. For reads,
+strobes and D[7:0] direction. It samples WREADY before the write edge. While
+WREADY is LOW, it advances HCLK so the host domain can progress. The FPGA
+accepts the write only when WREADY is HIGH. For reads,
 it releases D[7:0] before asserting RD_N, samples RVALID and data after the
 rising edge, and releases RD_N before another rising edge. PIO returns the
 pre-edge RVALID sample and the read-edge count for diagnostics. The CPU
