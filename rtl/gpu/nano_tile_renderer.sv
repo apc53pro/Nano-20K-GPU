@@ -10,7 +10,8 @@ module nano_tile_renderer (
     input wire cmd_valid, output wire cmd_ready,
     input wire [9:0] cmd_tile_x, input wire [8:0] cmd_tile_y,
     output wire busy, output reg done, output wire fault,
-    input wire pix_we, input wire [9:0] pix_addr,
+    // External attachment port: pix_we[0] writes color, pix_we[1] depth.
+    input wire [1:0] pix_we, input wire [9:0] pix_addr,
     input wire [15:0] pix_color, input wire [23:0] pix_depth,
     input wire pix_re, input wire [9:0] pix_raddr,
     output reg pix_rvalid, output wire [15:0] pix_rcolor,
@@ -309,9 +310,9 @@ module nano_tile_renderer (
     wire [15:0] ram_color,ram_depth_low,ram_depth_high;
     wire [23:0] stored_depth={ram_depth_high[7:0],ram_depth_low};
     wire fast_commit=pending&&(!depth_test||depth_pass(pending_depth,stored_depth))&&!fault&&!reset;
-    wire ext_write=(state==IDLE)&&pix_we&&!fault&&!reset;
-    wire color_we=ext_write||(fast_commit&&color_write)||(fragment_color_write&&!fault&&!reset);
-    wire depth_we=ext_write||(fast_commit&&depth_write)||(fragment_depth_write&&!fault&&!reset);
+    wire ext_write=(state==IDLE)&&(|pix_we)&&!fault&&!reset;
+    wire color_we=(ext_write&&pix_we[0])||(fast_commit&&color_write)||(fragment_color_write&&!fault&&!reset);
+    wire depth_we=(ext_write&&pix_we[1])||(fast_commit&&depth_write)||(fragment_depth_write&&!fault&&!reset);
     wire [9:0] write_addr=ext_write?pix_addr:(fragment_retired?fragment_address:pending_addr);
     wire [15:0] write_color=ext_write?pix_color:(fragment_retired?fragment_color:pending_color);
     wire [23:0] write_depth=ext_write?pix_depth:(fragment_retired?fragment_depth:pending_depth);
@@ -710,7 +711,10 @@ module nano_tile_renderer (
                     edge_current[edge_index]<=edge_sum[31:0];
                 end
                 if(edge_term==5) begin
-                    if(offset_y!=0) state<=OFFSET_Y;
+                    // Edges are evaluated at the clipped start by multiply.
+                    // Only enabled attribute planes need the offset walk.
+                    if(!(|plane_enable)) state<=RASTER;
+                    else if(offset_y!=0) state<=OFFSET_Y;
                     else if(offset_x!=0) state<=OFFSET_X;
                     else state<=RASTER;
                 end else begin edge_term<=edge_term+1;state<=EDGE_LAUNCH;end

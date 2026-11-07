@@ -18,12 +18,13 @@ qualification remains incomplete. The MPC-2350 firmware drives the GPU with
 one PIO state machine and shares its GPU client between the terminal and the
 focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
-pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI,
-and the user has reported the terminal running on it. The image is built with
+pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
+the user reported the terminal running on the previous image. The current
+image adds burst tile transfers and has not yet run on the board. It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
-clock, with the core at 51.13 MHz Fmax. It uses **16,062/20,736 logic
-(Gowin count)**, **6,750 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
+clock, with the core at 54.64 MHz Fmax. It uses **16,076/20,736 logic
+(Gowin count)**, **6,729 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -107,7 +108,8 @@ Each retry takes **12 PIO cycles per HCLK period**. The firmware derives
 the PIO divider from the system clock and one requested HCLK burst rate,
 `kHostClockHz`, which defaults to **250 kHz**. HCLK pauses between byte
 transactions. The earlier GPIO driver first ran on the board at 50 µs
-phases. The user reported that 25 MHz failed on their wired setup.
+phases. The user reported that 25 MHz failed on their wired setup, and later
+that a 21 MHz HCLK works (local firmware setting, 2026-11-07).
 
 The board image uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel clock**
 and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from 27 MHz
@@ -398,17 +400,34 @@ current CPU implementation. Rasterization applies the exact coverage/scissor
 test within those bins.
 
 A pass identifies physical color target 0 or 1, independent color/depth
-`LOAD` or `CLEAR` operations, clear values and the tile table. Those attachment
-operations apply to the **entire pass**, including tiles whose lists are empty.
+`LOAD` or `CLEAR` operations, a depth `STORE` or `DISCARD` operation, clear
+values and the tile table. Those attachment operations apply to the **entire
+pass**, including tiles whose lists are empty. `DISCARD` makes depth pass-local
+scratch: it is cleared or loaded into the tile as requested and tested
+normally, but never written back. The external depth attachment keeps its old
+words and becomes invalid, so a later depth `LOAD` faults until a stored
+depth clear. Passes that never test depth (2D work) should clear and discard
+it; then no depth traffic reaches SDRAM.
 
-For each tile the current executor:
+For each tile the current executor fetches the tile entry, then:
 
-1. Fetches the tile entry and initializes the resident attachments from clear
-   values or the named external attachments.
-2. Fetches each reference and prepared primitive record in list order.
-3. Runs the primitive in the tile and drains its fragment work before changing
-   draw state.
-4. Writes the resulting color and depth back to SDRAM before advancing.
+- **Tile without draws.** Loaded attachments are already correct in SDRAM, so
+  nothing is read or written for them. A cleared color, and a cleared depth
+  that is stored, are written as constant 16-word bursts without touching tile
+  RAM. A pass that loads color and discards or loads depth skips the tile
+  entirely, so an update costs only the tiles it draws in.
+- **Tile with draws.**
+  1. Writes clear values into the cleared resident attachments (1,024 clocks)
+     and burst-loads the loaded ones: one 16-word color burst and two 16-word
+     depth bursts per tile row. A color word fills its two pixels on
+     consecutive clocks while the read response is held.
+  2. Fetches each reference and prepared primitive record in list order.
+  3. Runs the primitive in the tile and drains its fragment work before
+     changing draw state.
+  4. Streams color, and depth unless discarded, back to SDRAM in 16-word
+     bursts. Depth supplies one word per clock and RGB565 one word per two
+     clocks; the tile RAM output register holds a word while the SDRAM payload
+     slot is not ready.
 
 The GPU currently has **one resident tile attachment set**. RGB565 uses one
 native 1024×16 RAM; D24 uses two more, with 16 low bits in one bank and eight
@@ -430,7 +449,12 @@ ownership without cracks or double coverage.
 The CPU supplies signed 64-bit `{seed, step_x, step_y}` planes. The renderer
 initializes them at each tile's clipped sample start and advances them through
 clocked additions. They retain the primitive's original anchor; there is no
-independent rounding of a new plane for every tile.
+independent rounding of a new plane for every tile. Reaching that start walks
+one row or column step per clock from the primitive origin, so a large
+attributed triangle can spend up to about 1,100 setup clocks in a far tile.
+Triangle edges are evaluated at the start by multiplication, so a triangle
+with no enabled plane (flat color, no depth or texture) skips the walk.
+Rectangles, sprites and lines do not use it.
 
 | Quantity | Stored plane scale |
 | --- | --- |
@@ -740,7 +764,8 @@ continues reading the existing front instead of exposing unfinished rendering.
 Depth is **one shared attachment** and is not swapped. The newly writable color
 buffer contains an older frame, while shared depth describes the most recent
 pass. A normal new 3D frame clears depth; `LOAD` alone does not make an old color
-buffer and shared depth a matched pair.
+buffer and shared depth a matched pair. A depth-`DISCARD` pass leaves shared
+depth invalid.
 
 Logical core scanout runs independently at 640×480 active pixels in an 800×525
 timing frame, with active-low sync. On the board, each synchronized 25.2 MHz
@@ -921,8 +946,8 @@ including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **16,062 (78%)** | 20,736 |
-| Registers | 6,750 (43%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **16,076 (78%)** | 20,736 |
+| Registers | 6,729 (43%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
 | DSP | 53% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
@@ -932,25 +957,27 @@ counts of earlier reports. No BSRAM bank is spare.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **51.13 MHz** |
-| Host | 25.2 MHz | 79.08 MHz |
-| Physical pixel | 25.2 MHz | 186.56 MHz |
-| Reference | 27 MHz | 410.86 MHz |
+| Core/SDRAM | 50.4 MHz | **54.64 MHz** |
+| Host | 25.2 MHz | 75.00 MHz |
+| Physical pixel | 25.2 MHz | 177.55 MHz |
+| Reference | 27 MHz | 408.21 MHz |
 
-The core closes with about 1.4% margin in this placement; an earlier placement
-of the same timing fixes reached 62.8 MHz. Its closest paths are in the
-renderer (depth RAM output to fragment-ready enables). Two RTL timing fixes
-took the core from 41.2 MHz to these results:
+The core closes with about 8.4% margin in this placement (1.54 ns slack). The
+previous image, before burst tile transfers, closed at 51.13 MHz; an earlier
+placement reached 62.8 MHz. The closest path now runs from the core reset
+through the SDRAM write-ready decision into the tile color-RAM read address
+used by streaming STORE. Two RTL timing fixes took the core from 41.2 MHz to
+these results:
 - the retimed U/V reciprocal multipliers (section 6);
 - registering the copy direction and starting row before the address
   arithmetic (section 9).
 
 Eight reset-release paths have negative slack, and the report lists each one:
-- power-on into the core and pixel reset synchronizers, −2.61 ns and
-  −1.29 ns. This is an asynchronous preset into two-flop synchronizers that
+- power-on into the core and pixel reset synchronizers, −2.65 ns and
+  −1.23 ns. This is an asynchronous preset into two-flop synchronizers that
   release synchronously.
 - the synchronized pixel reset into the four OSER10 serializer resets,
-  −0.40 ns.
+  −0.26 ns.
 
 The build fails on any other negative-slack path.
 
@@ -959,19 +986,22 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170`. The
+`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
 covers two layers:
 - the board-wrapper testbench (773 clock/pad/bus checks with an isolated core
   model);
-- five real-core cases at the 50.4 MHz board profile: the command/copy self-test
+- five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-Earlier GPIO firmware mocks verify the 2 µs phase floor. On 2026-11-07 the
-user programmed this exact image (Gowin Programmer verified the flash write)
-and reported it displaying and refreshing the MPC-2350 terminal on HDMI. A
+**This image has not yet been run on the board.** Earlier GPIO firmware mocks
+verify the 2 µs phase floor. On 2026-11-07 the user programmed the previous
+image (SHA-256 `55ebdfbd…d170`, per-pixel LOAD; Gowin Programmer verified the
+flash write) and reported it displaying and refreshing the MPC-2350 terminal
+on HDMI. The user later reported filemgr running near 1 FPS on it, and the
+PIO bus working at a 21 MHz HCLK on their wiring. A
 standalone RP2350 sketch also kept the 2 us bus running a continuously moving
 screen without locking up. These are functional observations, not electrical
 or timing qualification. A keyboard stall seen during these runs was an RP2350
@@ -1033,6 +1063,37 @@ The earlier [area-optimization baseline](../docs/benchmarks/rtl-fit-optimized.js
 retains the pre-retiming cycle counts.
 The earlier [continuous-scanout baseline](../docs/benchmarks/rtl-scanout-fixed.json)
 retains the original blackout regression and pre-area-optimization counts.
+
+### Tile attachment bursts (current board profile)
+
+`nano-gpu-rtl --benchmark` times passes and a copy on the board-profile core
+(50.4 MHz core, 25.2 MHz pixel and virtual host, refresh interval 787) and
+compares every case's color buffers and D24 words with the SRR. Times run from
+the first host byte through the fence reply, so they include delivery of the
+descriptor, 2,400-byte tile table, lists and records. Before burst loading,
+LOAD read one word per SDRAM transaction for every pixel; every pass also
+loaded and stored all 300 tiles.
+
+| Case | Before (ms) | Now (ms) |
+| --- | ---: | ---: |
+| Empty pass, clear color and depth (first after boot) | 93.15 | 38.87 |
+| Empty pass, clear color and depth | 105.41 | 53.59 |
+| Empty pass, load color, clear depth | 324.73 | 35.24 |
+| Empty pass, load color and depth | 580.62 | 0.44 |
+| Full-screen front-to-back copy | 28.61 | 28.38 |
+| 148-rectangle UI frame, clear color and depth | 140.82 | 98.75 |
+| 6×9 update, load color and depth | 580.68 | 0.88 |
+| Empty pass, clear color, discard depth | — | 18.82 |
+| 148-rectangle UI frame, clear color, discard depth | — | 63.63 |
+| 6×9 update, load color, discard depth | — | 0.68 |
+
+The DISCARD rows have no "before" value because that operation did not exist.
+Clear passes are now limited by the SDRAM service, which completes each
+16-word write before arbitrating again and pays its fill, row and recovery
+clocks per burst, while scanout keeps priority. The four demo scenes with
+`--verify` on the same profile are listed in
+[the attachment-burst regression](../docs/benchmarks/rtl-attachment-bursts.json).
+These are simulation measurements, not observed FPGA frame rates.
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests

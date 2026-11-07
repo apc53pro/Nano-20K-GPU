@@ -1,0 +1,127 @@
+{
+  "schema": "N20K-RTL-ATTACHMENT-BURSTS-1",
+  "profile": "Verilator board-core profile: 50.4 MHz core/SDRAM, external 25.2 MHz pixel ticks, 25.2 MHz virtual host, refresh interval 787",
+  "before_source": "5f3cdc4 (per-pixel single-word LOAD, every tile loaded/stored)",
+  "after_source": "this commit (burst LOAD/STORE, empty-tile skip, constant clears, depth DISCARD)",
+  "timing_scope": "First host byte through fence reply; includes descriptor, table, list and record delivery. Simulation only, not an observed FPGA frame time.",
+  "oracle_checked": "Every benchmark case compares both color buffers and every D24 word with the SRR; scenes run --verify for two frames.",
+  "after_benchmark_scanout_underflows": 0,
+  "before_benchmark_scanout_underflows": 0,
+  "cases": [
+    {
+      "case": "warm-up: empty, clear color and depth",
+      "after_core_cycles": 1958878,
+      "after_ms": 38.87,
+      "before_core_cycles": 4694848,
+      "before_ms": 93.15
+    },
+    {
+      "case": "empty pass, clear color and depth",
+      "after_core_cycles": 2700738,
+      "after_ms": 53.59,
+      "before_core_cycles": 5312504,
+      "before_ms": 105.41
+    },
+    {
+      "case": "empty pass, load color, clear depth",
+      "after_core_cycles": 1775950,
+      "after_ms": 35.24,
+      "before_core_cycles": 16366608,
+      "before_ms": 324.73
+    },
+    {
+      "case": "empty pass, load color and depth",
+      "after_core_cycles": 22144,
+      "after_ms": 0.44,
+      "before_core_cycles": 29263332,
+      "before_ms": 580.62
+    },
+    {
+      "case": "full-screen front-to-back copy",
+      "after_core_cycles": 1430256,
+      "after_ms": 28.38,
+      "before_core_cycles": 1441922,
+      "before_ms": 28.61
+    },
+    {
+      "case": "UI frame (148 rects), clear color and depth",
+      "after_core_cycles": 4977096,
+      "after_ms": 98.75,
+      "before_core_cycles": 7097130,
+      "before_ms": 140.82
+    },
+    {
+      "case": "pointer-sized update, load color and depth",
+      "after_core_cycles": 44232,
+      "after_ms": 0.88,
+      "before_core_cycles": 29266422,
+      "before_ms": 580.68
+    },
+    {
+      "case": "empty pass, clear color, discard depth",
+      "after_core_cycles": 948586,
+      "after_ms": 18.82
+    },
+    {
+      "case": "UI frame (148 rects), clear color, discard depth",
+      "after_core_cycles": 3206776,
+      "after_ms": 63.63
+    },
+    {
+      "case": "pointer-sized update, load color, discard depth",
+      "after_core_cycles": 34092,
+      "after_ms": 0.68
+    },
+    {
+      "case": "empty pass, load color, discard depth",
+      "after_core_cycles": 21746,
+      "after_ms": 0.43
+    }
+  ],
+  "scenes": [
+    {
+      "scene": "showcase",
+      "frames": 2,
+      "verified": true,
+      "before_last_submission_cycles": 9898610,
+      "after_last_submission_cycles": 7783436,
+      "before_ms": 196.4,
+      "after_ms": 154.43,
+      "after_checked_scanout_frames": 12,
+      "after_scanout_underflows": 0
+    },
+    {
+      "scene": "perspective",
+      "frames": 2,
+      "verified": true,
+      "before_last_submission_cycles": 8899144,
+      "after_last_submission_cycles": 6784694,
+      "before_ms": 176.57,
+      "after_ms": 134.62,
+      "after_checked_scanout_frames": 11,
+      "after_scanout_underflows": 0
+    },
+    {
+      "scene": "overdraw",
+      "frames": 2,
+      "verified": true,
+      "before_last_submission_cycles": 11064484,
+      "after_last_submission_cycles": 8981260,
+      "before_ms": 219.53,
+      "after_ms": 178.2,
+      "after_checked_scanout_frames": 13,
+      "after_scanout_underflows": 0
+    },
+    {
+      "scene": "opaque",
+      "frames": 2,
+      "verified": true,
+      "before_last_submission_cycles": 10853496,
+      "after_last_submission_cycles": 8604976,
+      "before_ms": 215.35,
+      "after_ms": 170.73,
+      "after_checked_scanout_frames": 13,
+      "after_scanout_underflows": 0
+    }
+  ]
+}

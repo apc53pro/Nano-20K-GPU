@@ -42,7 +42,8 @@ constexpr std::uint32_t maximum_primitive_records = 16384;
 // 152 i64[21]: {seed,step_x,step_y} for z,r,g,b,q,u,v.
 // Unused kind-specific bytes MUST be zero.
 //
-// Pass descriptor: magic,target,load flags(bit0=colorCLEAR,bit1=depthCLEAR),
+// Pass descriptor: magic,target,load flags(bit0=colorCLEAR,bit1=depthCLEAR,
+// bit2=depthDISCARD: depth is never stored and becomes invalid),
 // clearRGB565,clearD24,tileTableAddress,tileCount(300),reservedZero (all u32).
 // Tile table: 300 {listAddress,count} u32 pairs. Empty lists have address zero.
 // Each nonempty list is an ordered array of u32 primitive-record addresses.
@@ -53,6 +54,7 @@ struct PassDescriptor {
     std::uint16_t clear_color = 0;
     std::uint32_t clear_depth = depth_max;
     std::uint32_t tile_table_address = 0;
+    StoreOp depth_store = StoreOp::Store;
 };
 struct TileEntry {
     std::uint32_t address = 0;

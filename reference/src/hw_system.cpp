@@ -676,6 +676,13 @@ struct SystemModel::Impl {
         writer.start_words(address, 64, MemoryClient::Tile,
             [this](unsigned index) { return row_word(index); });
     }
+    void finish_store_row() {
+        if (++row != 32) { beat = 0; state = State::StoreLocal; }
+        else {
+            ++counts.tiles_processed;
+            if (++tile_index != tile_count) fetch_entry(); else finish_pass();
+        }
+    }
     bool can_overlap_tile_export() const {
         return pass.color_load == LoadOp::Clear && pass.depth_load == LoadOp::Clear;
     }
@@ -695,7 +702,11 @@ struct SystemModel::Impl {
             prepare_store(false, 0, true); tile_export = TileExport::Color; break;
         case TileExport::Color:
             writer.tick(memory);
-            if (writer.done()) { prepare_store(true, 0, true); tile_export = TileExport::DepthLow; }
+            if (writer.done()) {
+                if (pass.depth_store == StoreOp::Store) { prepare_store(true, 0, true); tile_export = TileExport::DepthLow; }
+                else if (++tile_export_row == tile_size) tile_export = TileExport::Idle;
+                else tile_export = TileExport::PrepareColor;
+            }
             break;
         case TileExport::DepthLow:
             writer.tick(memory);
@@ -721,7 +732,7 @@ struct SystemModel::Impl {
         counts.hardware_perspective_cycles = c.perspective_cycles;
         counts.hardware_texture_cycles = c.texture_cycles; counts.hardware_texture_hits = c.texture_hits;
         counts.hardware_texture_misses = c.texture_misses; counts.hardware_texture_refill_words = c.texture_refill_words;
-        valid[pass.target] = valid_depth = true; pass_active = false;
+        valid[pass.target] = true; valid_depth = pass.depth_store == StoreOp::Store; pass_active = false;
         totals.last_pass_cycles = totals.core_cycles - pass_start + 1; ++totals.passes_completed; finish();
     }
     void execute() {
@@ -887,7 +898,10 @@ struct SystemModel::Impl {
             break;
         case State::StoreColor:
             writer.tick(memory);
-            if (writer.done()) { prepare_store(true); state = State::StoreDepthLow; }
+            if (writer.done()) {
+                if (pass.depth_store == StoreOp::Store) { prepare_store(true); state = State::StoreDepthLow; }
+                else finish_store_row();
+            }
             break;
         case State::StoreDepthLow:
             writer.tick(memory);
@@ -895,13 +909,7 @@ struct SystemModel::Impl {
             break;
         case State::StoreDepthHigh:
             writer.tick(memory);
-            if (writer.done()) {
-                if (++row != 32) { beat = 0; state = State::StoreLocal; }
-                else {
-                    ++counts.tiles_processed;
-                    if (++tile_index != tile_count) fetch_entry(); else finish_pass();
-                }
-            }
+            if (writer.done()) finish_store_row();
             break;
         case State::Copy:
             copier.tick(memory, tile);

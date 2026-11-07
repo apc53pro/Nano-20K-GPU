@@ -3,7 +3,8 @@
 // RGB565/D24 attachment value. The texture interface responder deliberately
 // stalls requests; this is a raster unit test, not cache or SDRAM qualification.
 module nano_tile_testbench;
- reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_we=0,pix_re=0,tex_flush=0;
+ reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_re=0,tex_flush=0;
+ reg [1:0] pix_we=0;
  reg [6:0]cmd_word_index=0;reg[31:0]cmd_word_data=0;reg[9:0]cmd_tile_x=0;reg[8:0]cmd_tile_y=0;
  wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[15:0]pix_color=0;reg[23:0]pix_depth=0;
  wire pix_rvalid;wire[15:0]pix_rcolor;wire[23:0]pix_rdepth;
@@ -57,7 +58,7 @@ module nano_tile_testbench;
    if(ncmd<=0||ncmd>1024)$fatal(1,"invalid tile command count");
    cmd_tile_x=tx;cmd_tile_y=ty;
    for(j=0;j<64;j=j+1)begin rv=$fscanf(fd,"%h",image[j]);require_read(1);end
-   for(j=0;j<1024;j=j+1)begin pix_we=1;pix_addr=j;pix_color=clear_color;pix_depth=clear_depth;tick();end
+   for(j=0;j<1024;j=j+1)begin pix_we=3;pix_addr=j;pix_color=clear_color;pix_depth=clear_depth;tick();end
    pix_we=0;tick();
    for(n=0;n<ncmd;n=n+1)begin
     for(j=0;j<80;j=j+1)begin rv=$fscanf(fd,"%h",cmd_word_data);require_read(1);cmd_word_index=j;cmd_word_we=1;tick();end

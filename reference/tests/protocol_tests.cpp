@@ -315,6 +315,14 @@ void record_tests() {
         expect_throws([&] { decode_pass_descriptor(corrupt); }, "out-of-memory tile table accepted");
         corrupt = packed; write_u32(corrupt, 28, 1);
         expect_throws([&] { decode_pass_descriptor(corrupt); }, "reserved pass field accepted");
+        auto discard = pass; discard.depth_store = StoreOp::Discard;
+        const auto discard_packed = encode_pass_descriptor(discard);
+        expect(read_u32(discard_packed, 8) == 6 &&
+               decode_pass_descriptor(discard_packed).depth_store == StoreOp::Discard &&
+               encode_pass_descriptor(decode_pass_descriptor(discard_packed)) == discard_packed,
+               "depth DISCARD flag did not round-trip as bit 2");
+        corrupt = packed; write_u32(corrupt, 8, 8);
+        expect_throws([&] { decode_pass_descriptor(corrupt); }, "reserved load-flag bit accepted");
         std::vector<std::uint8_t> entry(8);
         expect(decode_tile_entry(entry).count == 0, "zero empty tile entry rejected");
         write_u32(entry, 0, heap_base);

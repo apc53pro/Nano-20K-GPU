@@ -445,9 +445,11 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
         throw std::invalid_argument("unsupported render mode");
     }
     if ((pass.color_load != LoadOp::Load && pass.color_load != LoadOp::Clear) ||
-        (pass.depth_load != LoadOp::Load && pass.depth_load != LoadOp::Clear)) {
-        throw std::invalid_argument("unsupported attachment load operation");
+        (pass.depth_load != LoadOp::Load && pass.depth_load != LoadOp::Clear) ||
+        (pass.depth_store != StoreOp::Store && pass.depth_store != StoreOp::Discard)) {
+        throw std::invalid_argument("unsupported attachment load/store operation");
     }
+    const bool store_depth = pass.depth_store == StoreOp::Store;
     check_constant_depth(pass.clear_depth);
     if ((pass.color_load == LoadOp::Load && !color_valid_[pass.target]) ||
         (pass.depth_load == LoadOp::Load && !depth_valid_)) {
@@ -464,7 +466,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
 #else
             hw::render_pass(pass, color_[pass.target], depth_, statistics_);
             color_valid_[pass.target] = true;
-            depth_valid_ = true;
+            depth_valid_ = store_depth;
             return;
 #endif
         }
@@ -475,6 +477,8 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
         auto& output = color_[pass.target];
         if (mode == RenderMode::Monolithic) {
             statistics_.tiles_processed = 1;
+            // A discarded depth attachment is pass-local scratch storage.
+            const auto external_depth = store_depth ? std::vector<std::uint32_t>{} : depth_;
             if (pass.color_load == LoadOp::Clear) {
                 std::fill(output.begin(), output.end(), pass.clear_color);
             }
@@ -490,6 +494,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
                              [&](std::uint16_t value) { output[index] = value; });
                 });
             }
+            if (!store_depth) depth_ = external_depth;
         } else {
             // These are the actual tile-local attachments, not aliases of the frame.
             std::array<std::uint16_t, tile_size * tile_size> tile_color{};
@@ -529,13 +534,13 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
                         const auto global = static_cast<std::size_t>(y0 + ly) *
                                             screen_width + x0 + lx;
                         output[global] = tile_color[local];
-                        depth_[global] = tile_depth[local];
+                        if (store_depth) depth_[global] = tile_depth[local];
                     }
                 }
             }
         }
         color_valid_[pass.target] = true;
-        depth_valid_ = true;
+        depth_valid_ = store_depth;
     } catch (...) {
         // A pass is not transactional. Do not permit stale validity after failure.
         color_valid_[pass.target] = false;

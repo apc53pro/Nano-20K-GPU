@@ -2,7 +2,8 @@
 // Prove the tile's registered coefficient lookahead, not only the downstream
 // fragment block, can sustain a complete warm 32x32 tile at II1 across rows.
 module nano_tile_coefficient_throughput_tb;
- reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_we=0,pix_re=0,tex_flush=0;
+ reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_re=0,tex_flush=0;
+ reg [1:0] pix_we=0;
  reg [6:0]cmd_word_index=0;reg[31:0]cmd_word_data=0;reg[9:0]cmd_tile_x=0;reg[8:0]cmd_tile_y=0;
  wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[15:0]pix_color=0;reg[23:0]pix_depth=24'hffffff;
  wire pix_rvalid;wire[15:0]pix_rcolor;wire[23:0]pix_rdepth;
@@ -42,7 +43,7 @@ module nano_tile_coefficient_throughput_tb;
  initial begin
   for(kind=0;kind<3;kind=kind+1)begin
    reset=1;tick();reset=0;tick();
-   for(i=0;i<1024;i=i+1)begin pix_we=1;pix_addr=i;tick();end
+   for(i=0;i<1024;i=i+1)begin pix_we=3;pix_addr=i;tick();end
    pix_we=0;
    for(i=0;i<80;i=i+1)record[i]=0;
    record[0]=(kind==0)?32'h00070103:32'h00070100;

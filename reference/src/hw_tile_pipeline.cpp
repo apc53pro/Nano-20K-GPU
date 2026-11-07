@@ -687,8 +687,9 @@ void render_pass(const Pass& pass, std::vector<std::uint16_t>& color,
     if (color.size() != frame_words || depth.size() != frame_words)
         throw std::invalid_argument("hardware pass attachments must be 640x480");
     if ((pass.color_load != LoadOp::Load && pass.color_load != LoadOp::Clear) ||
-        (pass.depth_load != LoadOp::Load && pass.depth_load != LoadOp::Clear))
-        throw std::invalid_argument("unsupported hardware pass load operation");
+        (pass.depth_load != LoadOp::Load && pass.depth_load != LoadOp::Clear) ||
+        (pass.depth_store != StoreOp::Store && pass.depth_store != StoreOp::Discard))
+        throw std::invalid_argument("unsupported hardware pass load/store operation");
     require_depth(pass.clear_depth);
     if (pass.depth_load == LoadOp::Load) for (const auto value : depth) require_depth(value);
     for (const auto& primitive : pass.primitives) validate_record(primitive);
@@ -714,7 +715,8 @@ void render_pass(const Pass& pass, std::vector<std::uint16_t>& color,
         for (int y = 0; y < tile_size; ++y) for (int x = 0; x < tile_size; ++x) {
             const auto local = static_cast<std::size_t>((y << 5) | x);
             const auto global = static_cast<std::size_t>(origin.y + y) * screen_width + origin.x + x;
-            color[global] = output.color[local]; depth[global] = output.depth[local];
+            color[global] = output.color[local];
+            if (pass.depth_store == StoreOp::Store) depth[global] = output.depth[local];
         }
         ++statistics.tiles_processed;
     }

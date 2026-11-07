@@ -27,7 +27,7 @@ using namespace nano_gpu;
 struct WindowClosed {};
 
 struct Options {
-    bool headless = false, verify = false, self_test = false;
+    bool headless = false, verify = false, self_test = false, benchmark = false;
     unsigned frames = 0;
     DemoScene scene = DemoScene::Showcase;
     long double time = 0, step = 1.0L / 60;
@@ -44,6 +44,7 @@ Options parse(int argc, char** argv) {
         };
         if (arg == "--headless") out.headless = true;
         else if (arg == "--self-test") { out.self_test = true; out.headless = true; }
+        else if (arg == "--benchmark") { out.benchmark = true; out.headless = true; }
         else if (arg == "--verify") out.verify = true;
         else if (arg == "--frames") out.frames = static_cast<unsigned>(std::stoul(value()));
         else if (arg == "--time") out.time = std::stold(value());
@@ -64,7 +65,8 @@ Options parse(int argc, char** argv) {
                 "--headless --verify --scene showcase|perspective|overdraw|opaque\n"
                 "--frames N --time S --step S --stats FILE.json --output FILE.ppm --trace FILE.vcd\n"
                 "--scanout-log FILE.csv (every complete displayed frame, including failures)\n"
-                "--self-test (command, copy, LOAD and recovery regressions)\n";
+                "--self-test (command, copy, LOAD and recovery regressions)\n"
+                "--benchmark (oracle-checked attachment/pass timing; --stats FILE.json)\n";
             std::exit(0);
         } else throw std::invalid_argument("unknown argument " + arg);
     }
@@ -607,7 +609,7 @@ void self_test(Simulation& simulation) {
         {"target high bit", 4, 2, 6},
         {"target high bit before LOAD", 4, 2, 6, true},
         {"front target", 4, 1, 6},
-        {"load flag reserved bit", 8, 4, 6},
+        {"load flag reserved bit", 8, 8, 6},
         {"RGB565 upper bit", 12, 0x10000, 6},
         {"D24 upper bit", 16, 0x1000000, 6},
         {"unaligned table", 20, heap + 65, 6},
@@ -696,7 +698,115 @@ void self_test(Simulation& simulation) {
     require(simulation.command(hw::Opcode::GetCaps, 1).at(5) == 2,
             "codec and obsolete-version faults recover to sole0.2 stream");
     std::cout << upload_faults.size() << " malformed encoded-upload cases and obsolete-version rejection passed\n";
+    // Depth DISCARD never writes the external depth attachment and leaves it
+    // invalid, so a later depth LOAD must fault before any attachment write.
+    {
+        std::vector<std::uint32_t> depth_before(screen_width * screen_height);
+        for (unsigned index = 0; index < depth_before.size(); ++index)
+            depth_before[index] = simulation.memory.inspect_word(hw::depth_buffer_base + index * 4);
+        Pass discard; discard.target = 0; discard.depth_store = StoreOp::Discard; discard.clear_color = 0x1234;
+        discard.primitives.push_back(Rect{{40, 40, 200, 120}, overlay_state({250, 10, 10}), 0});
+        program = hw::compile_pass(discard, 2); simulation.render(program);
+        for (unsigned index = 0; index < depth_before.size(); ++index)
+            require(simulation.memory.inspect_word(hw::depth_buffer_base + index * 4) == depth_before[index],
+                    "depth DISCARD leaves every external depth word unchanged");
+        const auto red = simulation.memory.inspect_word(hw::color_buffer_base(0) + (50 * screen_width + 50) * 2);
+        const auto clear = simulation.memory.inspect_word(hw::color_buffer_base(0) + (300 * screen_width + 300) * 2);
+        require((red & 0xffffu) == pack_rgb565({250, 10, 10}) && (clear & 0xffffu) == 0x1234, "DISCARD pass color");
+        const auto after = simulation.command(hw::Opcode::GetStatus, program.next_sequence);
+        require((after.at(43) & 4) == 0 && (after.at(43) & 1) != 0, "DISCARD invalidates depth, validates color");
+        discard.depth_load = LoadOp::Load; discard.depth_store = StoreOp::Store;
+        observed_fault = false;
+        try {
+            simulation.render(hw::compile_pass(discard, program.next_sequence + 1));
+        } catch (const std::runtime_error&) {
+            if (!simulation.dut.fault) throw;
+            observed_fault = true;
+        }
+        require(observed_fault && simulation.dut.fault_code == 5, "depth LOAD after DISCARD faults");
+        for (unsigned index = 0; index < depth_before.size(); ++index)
+            require(simulation.memory.inspect_word(hw::depth_buffer_base + index * 4) == depth_before[index],
+                    "rejected depth LOAD writes no depth word");
+        simulation.recover();
+    }
+    std::cout << "depth DISCARD and invalid-depth LOAD cases passed\n";
     std::cout << "RTL command/copy/LOAD/scanout/recovery self-test passed\n";
+}
+
+// Attachment-traffic benchmark. Every case is compared with the SRR oracle,
+// so the timing table is also a functional regression. Times include host
+// delivery of the descriptor, tile table and records through the fence.
+void benchmark(Simulation& simulation, const std::string& stats) {
+    Renderer oracle;
+    std::uint32_t sequence = 1;
+    std::vector<std::uint8_t> token(4); hw::write_u32(token, 0, 0xbe7c);
+    std::string rows;
+    const auto record = [&](const char* name, std::uint64_t cycles) {
+        const double ms = static_cast<double>(cycles) * 1000.0 / 50400000.0;
+        std::cout << std::left << std::setw(52) << name << std::right << std::setw(12) << cycles
+                  << " cycles " << std::fixed << std::setprecision(2) << std::setw(9) << ms << " ms at 50.4 MHz\n";
+        if (!rows.empty()) rows += ",\n";
+        rows += "    {\"case\": \"" + std::string(name) + "\", \"core_cycles\": " + std::to_string(cycles) + "}";
+    };
+    const auto run_pass = [&](const char* name, const Pass& pass) {
+        const auto program = hw::compile_pass(pass, sequence); sequence = program.next_sequence;
+        simulation.render(program);
+        oracle.render(pass, RenderMode::Monolithic); simulation.compare(oracle);
+        record(name, simulation.last_submission_cycles);
+    };
+    // A file-manager-like 2D frame: background, panels, list rows, labels.
+    const auto ui_primitives = [] {
+        std::vector<Primitive> result;
+        result.push_back(Rect{{0, 0, 640, 480}, overlay_state({16, 24, 48}), 0});
+        result.push_back(Rect{{0, 0, 640, 24}, overlay_state({40, 80, 160}), 0});
+        result.push_back(Rect{{8, 32, 632, 440}, overlay_state({220, 220, 220}), 0});
+        for (int row = 0; row < 32; ++row) {
+            const int y = 36 + row * 12;
+            if (row % 2) result.push_back(Rect{{10, y, 630, y + 12}, overlay_state({200, 200, 210}), 0});
+            for (int word = 0; word < 4; ++word) {
+                const int x = 16 + word * 150 + (row * 7) % 30;
+                result.push_back(Rect{{x, y + 2, x + 40 + (row * 13 + word * 17) % 80, y + 10},
+                                      overlay_state({20, 20, 20}), 0});
+            }
+        }
+        result.push_back(Rect{{0, 448, 640, 480}, overlay_state({40, 80, 160}), 0});
+        return result;
+    };
+    Pass pass; pass.target = 1;
+    run_pass("warm-up: empty, clear color and depth", pass);
+    run_pass("empty pass, clear color and depth", pass);
+    pass.color_load = LoadOp::Load;
+    run_pass("empty pass, load color, clear depth", pass);
+    pass.depth_load = LoadOp::Load;
+    run_pass("empty pass, load color and depth", pass);
+    hw::CopyCommand copy; copy.source = 0; copy.target = 1; copy.width = 640; copy.height = 480;
+    {
+        const auto start = simulation.cycles;
+        simulation.send(hw::encode_packet(hw::Opcode::CopyRect, sequence++, hw::encode_copy_command(copy)));
+        (void)simulation.command(hw::Opcode::Fence, sequence++, token);
+        oracle.copy_rect(0, 1, {0, 0}, {0, 0}, 640, 480, RenderMode::Monolithic);
+        simulation.compare(oracle);
+        record("full-screen front-to-back copy", simulation.cycles - start);
+    }
+    pass = Pass{}; pass.target = 1; pass.primitives = ui_primitives();
+    run_pass("UI frame (148 rects), clear color and depth", pass);
+    pass.color_load = LoadOp::Load; pass.depth_load = LoadOp::Load;
+    pass.primitives = {Rect{{300, 200, 306, 209}, overlay_state({255, 255, 255}), 0}};
+    run_pass("pointer-sized update, load color and depth", pass);
+    // 2D passes: depth is cleared in tile RAM and DISCARDed.
+    pass = Pass{}; pass.target = 1; pass.depth_store = StoreOp::Discard;
+    run_pass("empty pass, clear color, discard depth", pass);
+    pass.primitives = ui_primitives();
+    run_pass("UI frame (148 rects), clear color, discard depth", pass);
+    pass.color_load = LoadOp::Load;
+    pass.primitives = {Rect{{300, 200, 306, 209}, overlay_state({255, 255, 255}), 0}};
+    run_pass("pointer-sized update, load color, discard depth", pass);
+    pass.primitives.clear();
+    run_pass("empty pass, load color, discard depth", pass);
+    const std::string report = "{\n  \"profile\": \"N20K-RTL-BENCH-1\",\n  \"clock_hz\": 50400000,\n"
+        "  \"scanout_underflows\": " + std::to_string(simulation.scanout_underflows()) +
+        ",\n  \"cases\": [\n" + rows + "\n  ]\n}\n";
+    if (!stats.empty()) { std::ofstream out(stats); if (!out) throw std::runtime_error("cannot write statistics"); out << report; }
 }
 
 #ifdef NANO_GPU_RTL_SDL
@@ -753,6 +863,7 @@ int main(int argc, char** argv) {
 #endif
         Simulation simulation(options.trace, options.scanout_log); Renderer oracle;
         if (options.self_test) { self_test(simulation); return 0; }
+        if (options.benchmark) { benchmark(simulation, options.stats); return 0; }
 #ifdef NANO_GPU_RTL_SDL
         if (presenter) simulation.pump = [&] {
             if (!presenter->events()) throw WindowClosed{};

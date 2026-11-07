@@ -75,12 +75,13 @@ configuration, with no runtime clock command or hardware compatibility mode.
 The PIO firmware defaults to **250 kHz HCLK during active bursts**. It idles
 the clock between byte operations, so the sustained transfer rate depends on
 handshakes and FIFO service. The user reported a link failure at 25 MHz on
-their wired setup. External bus/SDRAM margins remain unqualified.
+their wired setup, and later a working 21 MHz HCLK (local firmware setting,
+2026-11-07). External bus/SDRAM margins remain unqualified.
 The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
-51.13 / 186.56 / 79.08 MHz against 50.4 / 25.2 / 25.2 MHz. The only
+54.64 / 177.55 / 75.00 MHz against 50.4 / 25.2 / 25.2 MHz. The only
 negative-slack paths are reset-release paths, listed in the report. From
 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
 raster replaced this profile during bus diagnosis; it is historical.
@@ -751,7 +752,10 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170`.
+`a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9`.
+It accepts the depth-DISCARD load flag (bit 2). It has not yet run on the
+board; the previous image (`55ebdfbd…d170`) rejects that flag with fault 6,
+so program this image before running software that sets it.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
@@ -944,7 +948,7 @@ The CPU may copy front to back first when preservation of that image is needed.
 | --- | --- | --- |
 | 0 | u32 | Magic `0x3153504E`, bytes `4E 50 53 31` (`NPS1`). |
 | 4 | u32 | Physical target color ID, 0 or 1. |
-| 8 | u32 | Bit 0 color CLEAR, bit 1 depth CLEAR; a clear bit of 0 means LOAD. Other bits zero. |
+| 8 | u32 | Bit 0 color CLEAR, bit 1 depth CLEAR; a clear bit of 0 means LOAD. Bit 2 depth DISCARD: depth is never written back. Other bits zero. |
 | 12 | u32 | Clear RGB565 in low 16 bits; upper bits zero. |
 | 16 | u32 | Clear D24 in low 24 bits; upper bits zero. |
 | 20 | u32 | Four-byte-aligned tile-table heap address. |
@@ -958,7 +962,23 @@ address zero. Nonempty lists and records are four-byte aligned heap ranges.
 Total references per pass must not exceed `1,048,576`; the supplied CPU compiler
 additionally limits its input to 16,384 primitive records.
 
-Every tile is visited for LOAD/CLEAR and store, including empty tiles. Each
+The load flags apply to every tile, including empty ones; the result is as if
+each tile were loaded or cleared and then stored. Only the work differs:
+
+| Flags | Use | Tile without draws | Tile with draws |
+| --- | --- | --- | --- |
+| `3` | New 3D frame | Constant color and depth written | Clear, draw, store color and depth |
+| `7` | New 2D frame | Constant color written | Clear, draw, store color |
+| `6` | 2D update over valid color | **Skipped** | Load color, draw, store color |
+| `0` | Incremental 3D over valid color and depth | **Skipped** | Load both, draw, store both |
+
+With bit 2 set, depth is cleared or loaded into each tile and tested as usual,
+but the external depth attachment is left unchanged and becomes **invalid**:
+any later pass with bit 1 clear (depth LOAD) faults with category 5 until a
+pass with bit 1 set and bit 2 clear stores a depth CLEAR. Use flags `7`/`6` for work that
+never tests depth; then no depth crosses SDRAM. A LOAD-color pass costs only
+the tiles that have references, so small updates should bin only the tiles
+they touch. Each
 primitive must appear once in every tile whose clipped bounds overlap it; use
 the original logical draw order within each list. It is safe to include a tile
 that ultimately has no covered pixels. Do not omit a tile that can contain a

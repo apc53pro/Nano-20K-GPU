@@ -47,6 +47,8 @@ enum class AddressMode { Clamp, Repeat };
 enum class DepthFunc { Less, LessEqual, Always };
 enum class ShadeMode { Flat, Gouraud, TextureReplace, TextureFlatModulate, TextureGouraudModulate };
 enum class LoadOp { Load, Clear };
+// Discard leaves the external depth attachment unchanged and invalid.
+enum class StoreOp { Store, Discard };
 enum class RenderMode { Tiled, TiledReverse, Monolithic, HardwareBlocks };
 
 // Generic bounded RGB565 image. Texture bindings additionally require POT sizes.
@@ -169,6 +171,7 @@ struct Pass {
     int target = 1;
     LoadOp color_load = LoadOp::Clear;
     LoadOp depth_load = LoadOp::Clear;
+    StoreOp depth_store = StoreOp::Store;
     std::uint16_t clear_color = 0;
     std::uint32_t clear_depth = depth_max;
     std::vector<Primitive> primitives;

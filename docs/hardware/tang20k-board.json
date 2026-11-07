@@ -3,12 +3,12 @@
   "device": "GW2AR-LV18QN88C8/I7",
   "top": "tang20k_top",
   "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education",
-  "gowin_shell": "C:\\Gowin\\Gowin_V1.9.8.11_Education\\IDE\\bin\\gw_sh.exe",
+  "gowin_shell": "C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe",
   "source_sha256": {
     "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
     "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "e6efd8bf6c862559d1e3d6fd30ce340ba09c199c0592ff42aa86efd767186e35",
+    "rtl/gpu/nano_gpu_core.sv": "960c3fa552505246613fa4ac7f7ae80509dbef34260cfeeb55199366fe086063",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "41944ac053f9f3869263cde33507bb71e76402a4c0e0714532d2525ef6eafd37",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -17,7 +17,7 @@
     "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
     "rtl/gpu/nano_sdram_service.sv": "df7087939617421900e3b31b92a7038a12df493ac98428a7186f4f8d9096d8c4",
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
-    "rtl/gpu/nano_tile_renderer.sv": "12d0f1e839531ebdeef5475185e1c744944806b7cda8df799c195e2c7a56a9b4",
+    "rtl/gpu/nano_tile_renderer.sv": "b98effe60ae7c62eec53fa24b2581cfa91dcc905354d8e20be841489a2737362",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
@@ -42,8 +42,7 @@
   "agents_exception": "AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer).",
   "sip_pins_verified": false,
   "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
-  "functional_report_sha256": "aeb20685e1679585282109bb505401467fc64888c071a12cb260671c5be479b2",
-  "gowin_reused": true,
+  "functional_report_sha256": "38e82ceab53ff5b2817c5576a6c2d8f0a76c4552a64f39fbda839d67e7c41204",
   "gowin_returncode": 0,
   "synthesized": true,
   "placed": true,
@@ -54,59 +53,59 @@
   "fmax": {
     "clk27": {
       "constraint_mhz": 27.0,
-      "achieved_mhz": 410.864
+      "achieved_mhz": 408.207
     },
     "gpu_hclk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 79.076
+      "achieved_mhz": 75.003
     },
     "core_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 50.4,
-      "achieved_mhz": 51.128
+      "achieved_mhz": 54.643
     },
     "pixel_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 186.563
+      "achieved_mhz": 177.554
     }
   },
   "violations_listed": [
     {
-      "slack_ns": -2.611,
-      "from": "poweron_0_s0/Q",
+      "slack_ns": -2.654,
+      "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -2.611,
-      "from": "poweron_0_s0/Q",
+      "slack_ns": -2.654,
+      "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -1.294,
-      "from": "poweron_0_s0/Q",
+      "slack_ns": -1.228,
+      "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -1.294,
-      "from": "poweron_0_s0/Q",
+      "slack_ns": -1.228,
+      "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -0.397,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[0].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.397,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[1].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.397,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[2].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.397,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[3].serializer/serializer/RESET"
     }
@@ -118,8 +117,8 @@
   },
   "timing_passed": true,
   "resources": {
-    "Logic": "16062/20736  78%",
-    "Register": "6750/15915  43%",
+    "Logic": "16076/20736  78%",
+    "Register": "6729/15915  43%",
     "I/O Port": "26",
     "BSRAM": "100%",
     "DSP": "53%",
@@ -128,6 +127,6 @@
   },
   "inputs_changed": [],
   "bitstream_generated": true,
-  "bitstream_sha256": "55ebdfbdc7a834480d90b9dadda4f7604c106bec52ed8981039e8a39e0c4d170",
+  "bitstream_sha256": "a249064f15adeceff1663955e14e9166d1f3c72e1d90d394f046d3f3ef829ef9",
   "bitstream_bytes": 7264137
 }
