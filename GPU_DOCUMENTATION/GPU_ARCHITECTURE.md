@@ -229,12 +229,16 @@ the data bus released and read/write/address strobes inactive. The earlier
 LOW-on-error path also held scanout and the TMDS serializers in reset, masking
 the original bus fault as missing video. Explicit initialization/recovery
 still pulses reset LOW and waits **1000 ms with data released before any host
-clock or transfer**, allowing time for FPGA flash configuration. This fixed
-allowance does not read a configuration-DONE signal; if the Tang starts later,
-explicitly retry after it has configured. A 2026-11-06 report shows that at
-cold power-up the FPGA had not finished configuring within this allowance:
-the first startup read all `FF` with idle WREADY/RVALID HIGH, while startup after
-an RP-only reset reached the configured image. The offline `GPU_LATCHTEST`
+clock or transfer**, allowing time for FPGA flash configuration. A 2026-11-06
+report shows that at cold power-up the FPGA had not finished configuring
+within this allowance: the first startup read all `FF` with idle WREADY/RVALID
+HIGH, while startup after an RP-only reset reached the configured image. The
+firmware therefore treats the allowance as a minimum. Until the immutable
+capability prefix answers, it re-pulses reset and retries every 100 ms, for up
+to **10 s** from the start of initialization. The prefix stands in for a
+configuration-DONE signal, which is not read. On 2026-11-08 the user reported
+that the first boot after a full power cycle now connects. If the Tang starts after that deadline,
+explicitly retry once it has configured. The offline `GPU_LATCHTEST`
 diagnostic also pulses reset, without the configuration wait. USB diagnostics retain the startup fault snapshot and
 show reset/handshake GPIO levels. Host mocks cover failure handling.
 

@@ -363,9 +363,17 @@ needs measurement.
 
 Startup asserts GPU_RESET_N and keeps the data bus released for **1000 ms**
 before any host clock/transfer, allowing for FPGA flash configuration. This is
-a fixed startup allowance, not a configuration-DONE detector. It then clocks
-the host domain during reset and release, checks the immutable sideband
-capability prefix `0 2 8 20` before interpreting status, polls coherent startup
+a minimum allowance, not a configuration-DONE detector. It then clocks
+the host domain during reset and release, and checks the immutable sideband
+capability prefix `0 2 8 20` before interpreting status. An unconfigured FPGA
+reads all `FF` or times out. While the prefix is wrong, the driver releases the
+bus, waits 100 ms and repeats the reset pulse and prefix check. It stops at the
+first match or **10 s** after initialization began; without a PIO state machine
+it stops at once. A cold power-up that configures after the allowance therefore
+still connects (host-mock tested; on 2026-11-08 the user reported the first
+boot after a full power cycle connecting on the board). The firmware
+starts this sequence only after its final system-clock change, because the HCLK
+divider is derived from `clk_sys`. It then polls coherent startup
 status, checks the full 0.2 capabilities, and uploads a **64 KiB
 256×128 RGB565 font texture at heap `0x258000`**, and fences. The CPU expands
 immutable font bits into one 512-byte upload row at a time; it allocates no
@@ -594,7 +602,7 @@ RP pad readings, not measurements at the Tang end of the wires.
 `GPU_SWAPTEST` and `GPU_LATCHTEST` refuse while a read is held. Use `GPU_RELEASE` to end the
 read, release data
 and return to inactive strobes with reset HIGH, or `GPU_RESET` to clear the
-hold and perform the normal one-second hard-initialization sequence. The
+hold and perform the normal hard-initialization sequence. The
 hold sends no packet, retries no partial packet and leaves the client offline;
 it is not a rendering mode or an FPGA implementation change.
 
@@ -619,9 +627,10 @@ check the Tang-side control levels. Keep the two fitted handshake pull-downs.
 The held measurement avoids averaging brief read pulses on a multimeter.
 The earlier measurements above apply to the open-flow diagnostic session.
 
-`GPU_RESET` repeats the one-second allowance. If the Tang is powered later or
-reprogrammed while the RP is already running, wait for configuration to finish
-and issue `GPU_RESET` or restart the RP before expecting a connection.
+`GPU_RESET` repeats the one-second allowance and the 10 s prefix retry. If the
+Tang is powered or reprogrammed later than that, while the RP is already
+running, wait for configuration to finish and issue `GPU_RESET` or restart the
+RP before expecting a connection.
 At Tang J5.18 / FPGA pin 71, approximately 3.3 V releases GPU reset; 0 V asserts
 it. A `GPU startup fault` message alone does not distinguish a real core fault
 from incorrect bus readback; inspect the numeric snapshot and physical levels.
@@ -633,7 +642,10 @@ Historical host tests compiled the GPIO board glue with stubbed Arduino
 GPIO/time APIs to check all 256 write/read byte patterns, direction changes,
 reset polarity, failure release and saved fault diagnostics across
 write timeout, read timeout, startup fault and malformed reply. A simulated
-800 ms configuration delay checks the one-second startup guard. These checks
+800 ms configuration delay checks the one-second startup guard. A simulated
+cold power-up checks the prefix retry: the pins read HIGH until configuration
+finishes at 2.5 s, and an FPGA that never configures fails after 10 s with
+reset released. These checks
 cover the software mock. On 2026-11-07 the user reported the GPIO-driven terminal
 running on HDMI with the Gowin-built 50.4 MHz image. The earlier all-zero
 capability reads on the configured image were traced to the open-source FPGA
