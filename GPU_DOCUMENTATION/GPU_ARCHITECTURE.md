@@ -217,7 +217,13 @@ application prepares geometry and bins, manages resource lifetimes, and
 draws its pointer. In a realtime loop, NARM programs should keep running
 while the GPU works and submit a new present only when it is ready. The
 firmware tracks one asynchronous present and updates front/back ownership
-when it drains that command's matching completion. On return to terminal
+when it drains that command's matching completion. MMBasic can stage the next
+frame's draw records in CPU memory during that time. Its host draw SDK
+tracks tiles that may differ between the two color buffers and synchronizes
+only those tiles for incremental updates.
+[MMBasic and its draw SDK](https://github.com/apc53pro/MPC-2350/commit/b5af504eb1378e80bed713ddbbc6451ecc610eb6)
+
+On return to terminal
 focus the terminal drains any pending presentation and rebuilds its cached
 view of the buffers. See the [native interface in the control guide](GPU_CONTROL.md#narm-gpu-interface).
 
@@ -1050,12 +1056,16 @@ On 2026-11-08 this image was written to the Tang's SPI flash with
 `make tang20k-flash` (program and verify succeeded; the FPGA reloaded it with
 status `0x6020`, user code `0x72CD`). With the RP2350, the user measured
 `demo_3d_engine6` (draw SDK with SKIP, blocking present, no frame sleep) at a
-stable 60 fps without faults. With the MPC-2350 firmware's asynchronous presentation (`try_present` and
-`frame_ready` polling), the same demo loses one byte at the start of a
-PRESENT reply on the board, so the firmware rejects the reply header and
-takes the link offline until the RP2350 is reset. The software-model client
-test of the same call order passes; the cause (firmware, PIO sampling or
-host-link timing) is not yet isolated. Blocking presentation is unaffected. Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
+stable 60 fps without faults. With the earlier MPC-2350 firmware's asynchronous
+presentation (`try_present` and `frame_ready` polling), the same demo lost one
+byte at the start of a PRESENT reply. The firmware rejected the header and
+took the link offline until the RP2350 was reset. The software model passed
+with the earlier read order. The updated host reads asynchronous PRESENT
+replies in the same register order as blocking PRESENT. The cause of the
+missing byte remains open, and board validation of the updated host path is
+pending.
+
+Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
 to the Tang's SPI flash with the signed Gowin Programmer V1.9.12.04
 (`make tang20k-flash`: program and verify succeeded; the FPGA reloaded it with
 status `0x6020`, user code `0xE7A9`). On it, the user measured

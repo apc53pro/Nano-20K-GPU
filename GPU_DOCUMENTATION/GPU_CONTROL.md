@@ -721,8 +721,10 @@ recovery or eviction. A redraw alone never requires another asset upload.
 **Strong recommendation for realtime NARM programs. Keep processing input
 and updating simulation while the GPU is busy. Check `narm_gpu_frame_ready()`
 once per iteration and use `narm_gpu_try_present()` when the completed frame
-is ready.** The readiness check compares the completed sequence with the
-last submitted sequence and consumes the async swap reply once available.
+is ready.** With no swap pending, the readiness check compares the completed
+sequence with the last submitted sequence. With a swap pending, it polls
+register 1 and reads the matching PRESENT reply directly from register 0,
+using the same register order as blocking presentation.
 It does not wait for GPU rendering or vertical blank. Query the back target
 again after a completed swap. Avoid spin loops, synchronous PRESENT and
 blocking fences in the realtime frame path. The PIO transport still performs
@@ -730,6 +732,7 @@ bounded bus transfers. An upload of at most 216 decoded bytes after a
 successful readiness check fits the empty RX FIFO even with worst-case
 encoding. After recovery, follow the resource and attachment rules in
 [section 5](#fault-codes-and-recovery).
+[MPC-2350 host implementation](https://github.com/apc53pro/MPC-2350/commit/b5af504eb1378e80bed713ddbbc6451ecc610eb6)
 
 ### Write and read timing
 
@@ -798,13 +801,14 @@ The current image is **7,264,137 bytes**, SHA-256
 bit 3 (SKIP). On 2026-11-08 it was written to the board's SPI flash and
 verified, and the FPGA reloaded it (status `0x6020`, user code `0x72CD`). The
 user measured `demo_3d_engine6` on it, with blocking presentation, at a stable
-60 fps. With the MPC-2350 firmware's asynchronous presentation (`try_present` and
-`frame_ready` polling), the same demo loses one byte at the start of a
-PRESENT reply on the board, so the firmware rejects the reply header and
-takes the link offline until the RP2350 is reset. The software-model client
-test of the same call order passes; the cause (firmware, PIO sampling or
-host-link timing) is not yet isolated. Blocking presentation is unaffected. The previous
-image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
+60 fps. With the earlier MPC-2350 firmware's asynchronous presentation
+(`try_present` and `frame_ready` polling), the same demo lost one byte at the
+start of a PRESENT reply. The firmware rejected the header and took the link
+offline until the RP2350 was reset. The software model passed with the earlier
+read order. The cause of the missing byte remains open, and board validation
+of the revised asynchronous reply polling order is pending.
+
+The previous image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
 2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
 reject SKIP with fault 6 but accept the depth-DISCARD flag (bit 2); the image
 before those (`55ebdfbd…d170`, user code `0x33E2`) rejects DISCARD too.
@@ -1088,7 +1092,9 @@ physical buffer. A tile that must be cleared but has nothing to draw needs one
 reference to a record that draws nothing; a rectangle with an empty scissor
 (words 4..7 zero) is binned by its bounds and is clipped away at once. The
 MPC-2350 draw SDK tracks those dirty tiles per color buffer and uses SKIP
-after the first full clear of each buffer. Each
+after the first full clear of each buffer. For incremental updates it also
+tracks tiles that can differ between the two buffers, copies only those tiles
+from front to back, and submits new draws with color LOAD. Each
 primitive must appear once in every tile whose clipped bounds overlap it; use
 the original logical draw order within each list. It is safe to include a tile
 that ultimately has no covered pixels. Do not omit a tile that can contain a
