@@ -423,10 +423,10 @@ retains the reproducible pre-fix blackout failure, tool versions and earlier
 hashes/cycles. The older [initial baseline](../benchmarks/rtl-initial.json) checked
 selected post-PRESENT frames and did not catch the intermediate blackout.
 
-The current RTL still uploads textures on every frame, serializes tile
-transfers, and performs LOAD and COPY as individual
-pixel transactions. The older C++ model's resident-texture cache, primitive
-prefetch and overlapping tile writeback have not been ported to this RTL.
+This historical run used a host demo that reuploaded textures every frame.
+Its RTL serialized tile transfers and performed LOAD and COPY as individual
+pixel transactions. The current demo keeps reusable assets resident in GPU
+SDRAM using the CPU-side pass compiler.
 
 These counts belong to the earlier 0.1 integrated RTL serialized schedule, with
 continuous scanout maintained. Dividing the showcase submission count by

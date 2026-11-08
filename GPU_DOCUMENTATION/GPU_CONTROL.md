@@ -1296,7 +1296,8 @@ ranges for dynamic content. Reclaim or overwrite an allocation only after
 all submitted users finish. The RTL demo uses `HostPassCompiler` to retain
 its texture, glyph and sprite allocations across frames. Its statistics
 report the total texture bytes uploaded and the number of frames with
-texture uploads. Drivers that queue work must preserve sequence/epoch
+texture uploads. For the two-frame showcase, `texture_upload_frames` is 1.
+Drivers that queue work must preserve sequence/epoch
 identity and physical buffer ownership.
 
 ## 8. COPY_RECT payload: 56 bytes

@@ -940,7 +940,10 @@ int main(int argc, char** argv) {
             presenter->show(simulation.display);
         };
 #endif
+        hw::HostPassCompiler host;
         std::uint32_t sequence = 1; int target = 1; unsigned frames = 0;
+        std::uint64_t texture_upload_bytes = 0;
+        unsigned texture_upload_frames = 0;
         auto time = options.time;
         const auto start = std::chrono::steady_clock::now();
         while (options.frames == 0 || frames < options.frames) {
@@ -948,9 +951,12 @@ int main(int argc, char** argv) {
             if (presenter && !presenter->events()) break;
 #endif
             const auto pass = make_demo_pass(options.scene, target, time);
-            const auto program = hw::compile_pass(pass, sequence);
+            const auto program = host.compile(pass, sequence);
             sequence = program.next_sequence;
             simulation.render(program);
+            host.complete();
+            texture_upload_bytes += program.texture_upload_bytes;
+            if (program.texture_upload_bytes) ++texture_upload_frames;
             if (options.verify) { oracle.render(pass, RenderMode::Monolithic); simulation.compare(oracle); }
             simulation.present(target, sequence++, options.verify ? &oracle.color(target) : nullptr);
             if (options.verify) {
@@ -966,7 +972,10 @@ int main(int argc, char** argv) {
         const auto underflows = simulation.scanout_underflows();
         std::string report = "{\n  \"profile\": \"N20K-RTL-SIM-0.1\",\n  \"backend\": \"verilator\",\n"
             "  \"cpp_device_backends_linked\": false,\n  \"whole_gpu_fit_qualified\": false,\n  \"frames\": " + std::to_string(frames) +
-            ",\n  \"verified\": " + (options.verify ? "true" : "false") + ",\n  \"core_cycles\": " + std::to_string(simulation.cycles) +
+            ",\n  \"verified\": " + (options.verify ? "true" : "false") +
+            ",\n  \"texture_upload_bytes\": " + std::to_string(texture_upload_bytes) +
+            ",\n  \"texture_upload_frames\": " + std::to_string(texture_upload_frames) +
+            ",\n  \"core_cycles\": " + std::to_string(simulation.cycles) +
             ",\n  \"last_submission_cycles\": " + std::to_string(simulation.last_submission_cycles) +
             ",\n  \"checked_scanout_frames\": " + std::to_string(simulation.checked_scanout_frames) +
             ",\n  \"black_scanout_frames_including_startup\": " + std::to_string(simulation.black_scanout_frames) +

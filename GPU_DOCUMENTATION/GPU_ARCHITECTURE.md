@@ -392,7 +392,8 @@ The host tracks these addresses across frame boundaries and allocates
 transient geometry and bins separately. Per-pass sampler tag invalidation
 does not remove resident SDRAM data. The RTL demo uses the host pass
 compiler's persistent texture allocations and reports how many frames upload
-texture bytes.
+texture bytes. The verified two-frame showcase uploads its textures only
+for the first frame.
 
 Only ordered heap uploads may write resource memory. Textures cannot sample
 the framebuffer/depth regions, and there is no render-target feedback sampling

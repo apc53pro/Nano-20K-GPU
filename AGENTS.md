@@ -14,6 +14,14 @@ and resource evidence rather than assuming a legacy branch is free.
 Required current functionality and input validation are not compatibility-only logic; do not remove them
 merely because they involve formats, versions or multiple data encodings.
 
+# GPU asset residency
+
+Always cache reusable textures, fonts, glyphs, sprites and image tiles in GPU
+VRAM. A new frame or pass must never upload an unchanged resident asset.
+Use stable heap addresses and upload on first use, actual content change or
+loss of residency. Upload only dirty ranges of dynamic images when practical.
+Preserve live allocations until all submitted users retire.
+
 # GPU documentation maintenance
 
 The user requires a single obvious home for the GPU's current documentation:
