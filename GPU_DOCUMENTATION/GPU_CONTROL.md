@@ -796,8 +796,14 @@ SDRAM on the board.
 The current image is **7,264,137 bytes**, SHA-256
 `5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`. It accepts load-flag
 bit 3 (SKIP). On 2026-11-08 it was written to the board's SPI flash and
-verified, and the FPGA reloaded it (status `0x6020`, user code `0x72CD`); its
-rendering with the RP2350 is not yet reported. The previous
+verified, and the FPGA reloaded it (status `0x6020`, user code `0x72CD`). The
+user measured `demo_3d_engine6` on it, with blocking presentation, at a stable
+60 fps. With the MPC-2350 firmware's asynchronous presentation (`try_present` and
+`frame_ready` polling), the same demo loses one byte at the start of a
+PRESENT reply on the board, so the firmware rejects the reply header and
+takes the link offline until the RP2350 is reset. The software-model client
+test of the same call order passes; the cause (firmware, PIO sampling or
+host-link timing) is not yet isolated. Blocking presentation is unaffected. The previous
 image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
 2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
 reject SKIP with fault 6 but accept the depth-DISCARD flag (bit 2); the image

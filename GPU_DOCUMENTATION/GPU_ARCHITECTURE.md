@@ -21,8 +21,9 @@ The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
 the user reported the terminal running on an earlier image. The current
 image adds the SKIP load flag to the pipelined SDRAM controller, word-wide
-display FIFO and tile clearing during stores; it was flashed and verified on 2026-11-08, and its
-rendering with the RP2350 is not yet reported. It is built with
+display FIFO and tile clearing during stores; it was flashed and verified on
+2026-11-08, and the user reported `demo_3d_engine6` running on it with the
+RP2350 at a stable 60 fps. It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
 clock, with the core at 56.46 MHz Fmax. It uses **16,481/20,736 logic
@@ -1047,8 +1048,14 @@ covers two layers:
 
 On 2026-11-08 this image was written to the Tang's SPI flash with
 `make tang20k-flash` (program and verify succeeded; the FPGA reloaded it with
-status `0x6020`, user code `0x72CD`); its rendering with the RP2350 is not
-yet reported. Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
+status `0x6020`, user code `0x72CD`). With the RP2350, the user measured
+`demo_3d_engine6` (draw SDK with SKIP, blocking present, no frame sleep) at a
+stable 60 fps without faults. With the MPC-2350 firmware's asynchronous presentation (`try_present` and
+`frame_ready` polling), the same demo loses one byte at the start of a
+PRESENT reply on the board, so the firmware rejects the reply header and
+takes the link offline until the RP2350 is reset. The software-model client
+test of the same call order passes; the cause (firmware, PIO sampling or
+host-link timing) is not yet isolated. Blocking presentation is unaffected. Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
 to the Tang's SPI flash with the signed Gowin Programmer V1.9.12.04
 (`make tang20k-flash`: program and verify succeeded; the FPGA reloaded it with
 status `0x6020`, user code `0xE7A9`). On it, the user measured

@@ -56,8 +56,8 @@ the GPU's rendered output drives HDMI. The MPC-2350 firmware's terminal ran on
 an earlier image (user-reported, 2026-11-07). The current image adds burst
 tile LOAD/STORE, empty-tile skipping, depth DISCARD, a pipelined SDRAM
 controller, a word-wide display FIFO and the SKIP pass flag; it was flashed
-and verified on 2026-11-08, and its rendering with the RP2350 is not yet
-reported.
+and verified on 2026-11-08; the user measured `demo_3d_engine6` on it with
+the RP2350 at a stable 60 fps (blocking presentation).
 
 The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
 image failed the host address latch on the board, and `AGENTS.md` records this
