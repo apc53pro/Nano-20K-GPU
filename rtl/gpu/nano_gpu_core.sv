@@ -153,6 +153,10 @@ module nano_gpu_core #(
 
     reg descriptor_invalid;
     reg target_id, clear_color_enable, clear_depth_enable, depth_discard;
+    // Load-flag bit 3: tiles without references keep their SDRAM contents
+    // (no clear, load or store). depth_keep is the depth validity at pass
+    // start, which untouched tiles retain.
+    reg skip_empty, depth_keep;
     reg [15:0] clear_color;
     reg [23:0] clear_depth;
     reg [22:0] table_address, list_address, record_address;
@@ -428,7 +432,7 @@ module nano_gpu_core #(
     task automatic next_tile;
         begin
             if(tile_index==299) begin
-                color_valid[target_id]<=1; depth_valid<=!depth_discard; pass_active<=0;
+                color_valid[target_id]<=1; depth_valid<=!depth_discard && (!skip_empty || depth_keep); pass_active<=0;
                 complete_command();
             end else begin
                 tile_index<=tile_index+1;
@@ -677,6 +681,7 @@ module nano_gpu_core #(
             capture_index<=0; capture_length<=0;
             packet_word<=0; capture_invalid<=0; copy_command_invalid<=0;
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; depth_discard<=0;
+            skip_empty<=0; depth_keep<=0;
             clear_color<=0; clear_depth<=24'hffffff;
             xfer_color<=0; xfer_depth<=0; store_constant<=0; load_half<=0;
             tile_ram_clear<=0; clear_back_valid<=0; clear_back_we<=0; clear_back_addr<=0;
@@ -955,8 +960,8 @@ module nano_gpu_core #(
                     1: begin target_id<=mem_r_data[64]; if(mem_r_data[64 +:32]>1) descriptor_invalid<=1; end
                     2: begin
                         clear_color_enable<=mem_r_data[64]; clear_depth_enable<=mem_r_data[65];
-                        depth_discard<=mem_r_data[66];
-                        if(mem_r_data[64 +:32]>7) descriptor_invalid<=1;
+                        depth_discard<=mem_r_data[66]; skip_empty<=mem_r_data[67];
+                        if(mem_r_data[64 +:32]>15) descriptor_invalid<=1;
                     end
                     3: begin clear_color<=mem_r_data[64 +:16]; if(|mem_r_data[80 +:16]) descriptor_invalid<=1; end
                     4: begin clear_depth<=mem_r_data[64 +:24]; if(|mem_r_data[88 +:8]) descriptor_invalid<=1; end
@@ -972,8 +977,12 @@ module nano_gpu_core #(
                 end
                 S_DESC_DONE: if(mem_done[2]) begin
                     if(descriptor_invalid || target_id==front_id || sealed) raise_fault(6);
-                    else if((!clear_color_enable && !color_valid[target_id]) || (!clear_depth_enable && !depth_valid)) raise_fault(5);
+                    // SKIP keeps untouched tiles, so the target color must
+                    // already be valid, exactly as for a color LOAD.
+                    else if(((!clear_color_enable || skip_empty) && !color_valid[target_id]) ||
+                            (!clear_depth_enable && !depth_valid)) raise_fault(5);
                     else begin
+                        depth_keep<=depth_valid;
                         color_valid[target_id]<=0; depth_valid<=0; pass_active<=1; tile_ram_clear<=0;
                         tile_index<=0; tile_x_index<=0; tile_y_index<=0; references_seen<=0; state<=S_ENTRY_CMD;
                     end
@@ -990,7 +999,8 @@ module nano_gpu_core #(
                     else begin
                         references_seen<=pass_reference_total[20:0]; reference_index<=0; pixel_index<=0;
                         row<=0; beat<=0; load_half<=0;
-                        if(reference_count==0) begin
+                        if(reference_count==0 && skip_empty) next_tile();
+                        else if(reference_count==0) begin
                             // No draws: a loaded attachment is already correct
                             // in SDRAM. Only stored clears are written, as
                             // constants, without touching tile RAM.

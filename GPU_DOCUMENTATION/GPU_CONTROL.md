@@ -81,7 +81,7 @@ The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
-51.67 / 175.51 / 75.88 MHz against 50.4 / 25.2 / 25.2 MHz. The only
+56.46 / 174.90 / 80.01 MHz against 50.4 / 25.2 / 25.2 MHz. The only
 negative-slack paths are reset-release paths, listed in the report. From
 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
 raster replaced this profile during bus diagnosis; it is historical.
@@ -794,14 +794,15 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`. It adds the
-pipelined SDRAM controller, word-wide display FIFO and tile clearing during
-stores; the host interface is unchanged. On 2026-11-08 it was written to the
-board's SPI flash and verified, and the FPGA reloaded it (status `0x6020`,
-user code `0xE7A9`); its rendering with the RP2350 is not yet reported. The
-previous image (`a249064f…9ef9`, user code `0x3354`) was flashed on 2026-11-07. Both accept the depth-DISCARD
-load flag (bit 2); the image before them (`55ebdfbd…d170`, user code
-`0x33E2`) rejects that flag with fault 6.
+`5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`. It accepts load-flag
+bit 3 (SKIP). On 2026-11-08 it was written to the board's SPI flash and
+verified, and the FPGA reloaded it (status `0x6020`, user code `0x72CD`); its
+rendering with the RP2350 is not yet reported. The previous
+image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
+2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
+reject SKIP with fault 6 but accept the depth-DISCARD flag (bit 2); the image
+before those (`55ebdfbd…d170`, user code `0x33E2`) rejects DISCARD too.
+Program this image before running software built with the current draw SDK.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
@@ -1036,7 +1037,7 @@ The CPU may copy front to back first when preservation of that image is needed.
 | --- | --- | --- |
 | 0 | u32 | Magic `0x3153504E`, bytes `4E 50 53 31` (`NPS1`). |
 | 4 | u32 | Physical target color ID, 0 or 1. |
-| 8 | u32 | Bit 0 color CLEAR, bit 1 depth CLEAR; a clear bit of 0 means LOAD. Bit 2 depth DISCARD: depth is never written back. Other bits zero. |
+| 8 | u32 | Bit 0 color CLEAR, bit 1 depth CLEAR; a clear bit of 0 means LOAD. Bit 2 depth DISCARD: depth is never written back. Bit 3 SKIP: tiles without references are left untouched. Other bits zero. |
 | 12 | u32 | Clear RGB565 in low 16 bits; upper bits zero. |
 | 16 | u32 | Clear D24 in low 24 bits; upper bits zero. |
 | 20 | u32 | Four-byte-aligned tile-table heap address. |
@@ -1050,8 +1051,9 @@ address zero. Nonempty lists and records are four-byte aligned heap ranges.
 Total references per pass must not exceed `1,048,576`; the supplied CPU compiler
 additionally limits its input to 16,384 primitive records.
 
-The load flags apply to every tile, including empty ones; the result is as if
-each tile were loaded or cleared and then stored. Only the work differs:
+Without bit 3, the load flags apply to every tile, including empty ones; the
+result is as if each tile were loaded or cleared and then stored. Only the
+work differs:
 
 | Flags | Use | Tile without draws | Tile with draws |
 | --- | --- | --- | --- |
@@ -1059,6 +1061,7 @@ each tile were loaded or cleared and then stored. Only the work differs:
 | `7` | New 2D frame | Constant color written | Clear, draw, store color |
 | `6` | 2D update over valid color | **Skipped** | Load color, draw, store color |
 | `0` | Incremental 3D over valid color and depth | **Skipped** | Load both, draw, store both |
+| `15` | New 2D or single-pass 3D frame, dirty tiles only | **Skipped** | Clear, draw, store color |
 
 With bit 2 set, depth is cleared or loaded into each tile and tested as usual,
 but the external depth attachment is left unchanged and becomes **invalid**:
@@ -1066,7 +1069,20 @@ any later pass with bit 1 clear (depth LOAD) faults with category 5 until a
 pass with bit 1 set and bit 2 clear stores a depth CLEAR. Use flags `7`/`6` for work that
 never tests depth; then no depth crosses SDRAM. A LOAD-color pass costs only
 the tiles that have references, so small updates should bin only the tiles
-they touch. Each
+they touch.
+
+With bit 3 (SKIP) set, a tile whose list is empty is not processed at all: its
+color and depth stay exactly as they are in SDRAM, even when the pass clears.
+Tiles with references are cleared or loaded, drawn and stored as usual. SKIP
+therefore needs a valid target color, like a color LOAD (fault 5 otherwise),
+and the external depth stays valid afterwards only if it was valid before or
+is discarded. Use it to redraw only part of a frame with a CLEAR: list every
+tile drawn now **and** every tile that may still hold earlier drawing in that
+physical buffer. A tile that must be cleared but has nothing to draw needs one
+reference to a record that draws nothing; a rectangle with an empty scissor
+(words 4..7 zero) is binned by its bounds and is clipped away at once. The
+MPC-2350 draw SDK tracks those dirty tiles per color buffer and uses SKIP
+after the first full clear of each buffer. Each
 primitive must appear once in every tile whose clipped bounds overlap it; use
 the original logical draw order within each list. It is safe to include a tile
 that ultimately has no covered pixels. Do not omit a tile that can contain a

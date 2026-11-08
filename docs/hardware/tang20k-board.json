@@ -8,7 +8,7 @@
     "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
     "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "c8fedce758e5eaeecbff021548ef3128bb1adcfa17b22192633fdf29d04eeebc",
+    "rtl/gpu/nano_gpu_core.sv": "848801d0d840a0897f09dc7335b9bb987586d31e72cd0a1a0c489a05da5afa30",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -42,7 +42,7 @@
   "agents_exception": "AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer).",
   "sip_pins_verified": false,
   "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
-  "functional_report_sha256": "37c7e662c13d8d6febd22c302a0ff981d72d351dc58516288a6bd839dc0b1532",
+  "functional_report_sha256": "51b30502a9d35c64eb6f3412b3155b8f605d52844305e1385c1ed1d8ef781373",
   "gowin_returncode": 0,
   "synthesized": true,
   "placed": true,
@@ -53,40 +53,40 @@
   "fmax": {
     "clk27": {
       "constraint_mhz": 27.0,
-      "achieved_mhz": 432.221
+      "achieved_mhz": 435.136
     },
     "gpu_hclk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 75.875
+      "achieved_mhz": 80.008
     },
     "core_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 50.4,
-      "achieved_mhz": 51.673
+      "achieved_mhz": 56.462
     },
     "pixel_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 175.508
+      "achieved_mhz": 174.895
     }
   },
   "violations_listed": [
     {
-      "slack_ns": -2.814,
-      "from": "poweron_2_s0/Q",
+      "slack_ns": -2.634,
+      "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -2.814,
-      "from": "poweron_2_s0/Q",
+      "slack_ns": -2.634,
+      "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -1.481,
-      "from": "poweron_2_s0/Q",
+      "slack_ns": -1.301,
+      "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -1.481,
-      "from": "poweron_2_s0/Q",
+      "slack_ns": -1.301,
+      "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_1_s0/PRESET"
     }
   ],
@@ -97,8 +97,8 @@
   },
   "timing_passed": true,
   "resources": {
-    "Logic": "18185/20736  88%",
-    "Register": "6780/15915  43%",
+    "Logic": "16481/20736  80%",
+    "Register": "6778/15915  43%",
     "I/O Port": "26",
     "BSRAM": "100%",
     "DSP": "53%",
@@ -107,6 +107,6 @@
   },
   "inputs_changed": [],
   "bitstream_generated": true,
-  "bitstream_sha256": "3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef",
+  "bitstream_sha256": "5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6",
   "bitstream_bytes": 7264137
 }

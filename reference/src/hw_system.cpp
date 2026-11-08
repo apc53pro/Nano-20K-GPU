@@ -338,6 +338,7 @@ struct SystemModel::Impl {
     std::uint32_t boot_address = 0;
     std::array<bool, 2> valid{{false, false}};
     bool valid_depth = false, sealed = false, driver_present_pending = false;
+    bool depth_valid_at_pass = false;
     std::uint32_t next_sequence = 1, driver_present_sequence = 0;
     SystemFault error = SystemFault::None;
     std::string message;
@@ -732,7 +733,9 @@ struct SystemModel::Impl {
         counts.hardware_perspective_cycles = c.perspective_cycles;
         counts.hardware_texture_cycles = c.texture_cycles; counts.hardware_texture_hits = c.texture_hits;
         counts.hardware_texture_misses = c.texture_misses; counts.hardware_texture_refill_words = c.texture_refill_words;
-        valid[pass.target] = true; valid_depth = pass.depth_store == StoreOp::Store; pass_active = false;
+        valid[pass.target] = true;
+        valid_depth = pass.depth_store == StoreOp::Store && (!pass.skip_empty_tiles || depth_valid_at_pass);
+        pass_active = false;
         totals.last_pass_cycles = totals.core_cycles - pass_start + 1; ++totals.passes_completed; finish();
     }
     void execute() {
@@ -761,9 +764,10 @@ struct SystemModel::Impl {
             reader.tick(memory);
             if (completed) {
                 pass = decode_pass_descriptor(reader.view()); require_writable(pass.target);
-                if ((pass.color_load == LoadOp::Load && !valid[pass.target]) ||
+                if (((pass.color_load == LoadOp::Load || pass.skip_empty_tiles) && !valid[pass.target]) ||
                     (pass.depth_load == LoadOp::Load && !valid_depth))
                     throw std::logic_error("LOAD requires valid attachments");
+                depth_valid_at_pass = valid_depth;
                 pass_active = true; valid[pass.target] = valid_depth = false;
                 tile.reset(); counts = {}; tile_index = 0; references_seen = 0; fetch_entry();
             }
@@ -777,6 +781,10 @@ struct SystemModel::Impl {
                 references_seen += bin.count;
                 if (references_seen > maximum_pass_references) throw std::out_of_range("pass reference limit");
                 counts.tile_references += bin.count; row = 0; state = State::LoadRow;
+                if (pass.skip_empty_tiles && bin.count == 0) {
+                    // An untouched tile keeps its SDRAM contents.
+                    if (++tile_index != tile_count) fetch_entry(); else state = State::StoreDrain;
+                }
             }
             break;
         }

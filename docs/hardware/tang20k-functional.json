@@ -4,7 +4,7 @@
   "source_sha256": {
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "c8fedce758e5eaeecbff021548ef3128bb1adcfa17b22192633fdf29d04eeebc",
+    "rtl/gpu/nano_gpu_core.sv": "848801d0d840a0897f09dc7335b9bb987586d31e72cd0a1a0c489a05da5afa30",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -52,7 +52,7 @@
     "reference/include/nano_gpu/hw/host_link.hpp": "d9f7f0529098dfeea758380dd27ef4b8b97d18ba6c2749d5798874c36a605350",
     "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
     "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
-    "reference/include/nano_gpu/hw/protocol.hpp": "8d41e23d48678cdf32ba57132134b3ca0805aa605c3b71a43a326add518e4a02",
+    "reference/include/nano_gpu/hw/protocol.hpp": "6e4cf7bad61f8601d5d7cf92e1e21da73905c64586379875bbf171ec780d2bcf",
     "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
     "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
     "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
@@ -65,12 +65,12 @@
     "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
     "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
     "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
-    "reference/include/nano_gpu/reference.hpp": "1f8b7ec9d070f70b53bf89569075405eea793b958f151417d463c3c06092fc39",
+    "reference/include/nano_gpu/reference.hpp": "b39c451d1583a587b4c0c6740f1b2b4b9f28513dd1cd10b0e6c3565656c8057e",
     "reference/src/setup.cpp": "7994c74412e6496dcb10205f1ede388a6d059d330e8ca19c71049d2f0a9da733",
-    "reference/src/renderer.cpp": "b66db4b21ecc07497c0b907fed6953d238eb03aca779f4e2a734a46c131d342c",
+    "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
     "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
-    "reference/src/hw_protocol.cpp": "ae4439d51f0e65f0a66fd268c977402fd78c03fc33085a8e3133f40f2f778841",
-    "reference/rtl/main.cpp": "a14185185fa262cccbad2c08a7c2cd4bd8797c3f413f6bda4cf5933ed822a8c3",
+    "reference/src/hw_protocol.cpp": "b0980fbfd122887bd37801fb6b1fad2b157f88db22a017ebfbb610261b752b69",
+    "reference/rtl/main.cpp": "bda8199314dd5fd848831911479ea3af5015c293269546f496b39c61931cc693",
     "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
     "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
     "scripts/check-tang20k.py": "709e2d9decaf9adc73c0cba4c9cb22cb4eaad885b7cef068ebb74be5facda44a",
@@ -80,14 +80,14 @@
   },
   "board_glue_log_sha256": "67f6a5f150640ea3027ddaad100ecf9c8559f1d5b0f52a9a8b8bb06e32e0babf",
   "board_glue_scope": "Clock/pad wrapper with isolated core test model",
-  "core_build_report_sha256": "4bc554d7150d181bf1d4da8f3929594bbb3e69b74d62d31d3d20906850b6f357",
+  "core_build_report_sha256": "6d500b4ee4f724cd834aa47e183dc3e4fb1debaa2d59a80445a7e4d9a47d7f9a",
   "core_scope": "Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends; physical host limited separately to 10kHz",
   "gpu_regression": {
     "schema": "N20K-RTL-GPU-TEST-1",
     "scope": "Functional logical GPU; host bus, physical SDRAM commands and logical scanout",
     "whole_gpu_fit_qualified": false,
     "simulation_passed": true,
-    "executable_sha256": "ad1d950f4784b2077266a6aefcc06b18abe4dde4e9713348622dcceaf937fb31",
+    "executable_sha256": "cd6b517bada7174ce9fba2eb9b3adffba6bf5e6642c3e011b2edb7477238c129",
     "cases": [
       {
         "name": "commands",
@@ -105,14 +105,16 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 13367715,
-          "last_submission_cycles": 5019810,
-          "checked_scanout_frames": 8,
+          "texture_upload_bytes": 155648,
+          "texture_upload_frames": 1,
+          "core_cycles": 12527715,
+          "last_submission_cycles": 4159274,
+          "checked_scanout_frames": 7,
           "black_scanout_frames_including_startup": 8,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 17.549564,
+          "wall_seconds_excluding_boot": 18.18953,
           "color_fnv1a64": "d9644de9ed405e88",
-          "sdram_refreshes": 20185
+          "sdram_refreshes": 18914
         }
       },
       {
@@ -126,14 +128,16 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 12527715,
-          "last_submission_cycles": 4262904,
-          "checked_scanout_frames": 8,
+          "texture_upload_bytes": 147456,
+          "texture_upload_frames": 1,
+          "core_cycles": 11687715,
+          "last_submission_cycles": 3453722,
+          "checked_scanout_frames": 7,
           "black_scanout_frames_including_startup": 7,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 16.279758,
+          "wall_seconds_excluding_boot": 16.911751,
           "color_fnv1a64": "9df8090c6f9d95e7",
-          "sdram_refreshes": 18919
+          "sdram_refreshes": 17648
         }
       },
       {
@@ -147,14 +151,16 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
-          "core_cycles": 16727715,
-          "last_submission_cycles": 6429232,
-          "checked_scanout_frames": 10,
+          "texture_upload_bytes": 139264,
+          "texture_upload_frames": 1,
+          "core_cycles": 15887715,
+          "last_submission_cycles": 5662958,
+          "checked_scanout_frames": 9,
           "black_scanout_frames_including_startup": 10,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 22.593024,
+          "wall_seconds_excluding_boot": 23.92905,
           "color_fnv1a64": "4ab23a6c05d8e2b8",
-          "sdram_refreshes": 25276
+          "sdram_refreshes": 24006
         }
       },
       {
@@ -168,12 +174,14 @@
           "whole_gpu_fit_qualified": false,
           "frames": 2,
           "verified": true,
+          "texture_upload_bytes": 0,
+          "texture_upload_frames": 0,
           "core_cycles": 15887715,
           "last_submission_cycles": 6239922,
           "checked_scanout_frames": 10,
           "black_scanout_frames_including_startup": 9,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 21.498928,
+          "wall_seconds_excluding_boot": 23.641568,
           "color_fnv1a64": "c847f4fde6907f38",
           "sdram_refreshes": 24007
         }

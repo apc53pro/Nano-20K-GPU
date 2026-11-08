@@ -321,7 +321,12 @@ void record_tests() {
                decode_pass_descriptor(discard_packed).depth_store == StoreOp::Discard &&
                encode_pass_descriptor(decode_pass_descriptor(discard_packed)) == discard_packed,
                "depth DISCARD flag did not round-trip as bit 2");
-        corrupt = packed; write_u32(corrupt, 8, 8);
+        auto skip = discard; skip.skip_empty_tiles = true;
+        const auto skip_packed = encode_pass_descriptor(skip);
+        expect(read_u32(skip_packed, 8) == 14 && decode_pass_descriptor(skip_packed).skip_empty_tiles &&
+               encode_pass_descriptor(decode_pass_descriptor(skip_packed)) == skip_packed,
+               "SKIP flag did not round-trip as bit 3");
+        corrupt = packed; write_u32(corrupt, 8, 16);
         expect_throws([&] { decode_pass_descriptor(corrupt); }, "reserved load-flag bit accepted");
         std::vector<std::uint8_t> entry(8);
         expect(decode_tile_entry(entry).count == 0, "zero empty tile entry rejected");

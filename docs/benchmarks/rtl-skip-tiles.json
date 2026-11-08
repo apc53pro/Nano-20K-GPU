@@ -1,0 +1,116 @@
+{
+  "schema": "N20K-RTL-SKIP-1",
+  "profile": "Verilator board-core profile: 50.4 MHz core/SDRAM, external 25.2 MHz pixel ticks, 25.2 MHz virtual host, refresh interval 787",
+  "change": "Load-flag bit 3 (SKIP): tiles without references are left untouched",
+  "timing_scope": "First host byte through fence reply; includes descriptor, table, list and record delivery. Simulation only.",
+  "oracle_checked": "Every case compares both color buffers and every D24 word with the SRR; the SKIP icosahedron frame matches a full-clear SRR render.",
+  "scanout_underflows": 0,
+  "cases": [
+    {
+      "case": "warm-up: empty, clear color and depth",
+      "core_cycles": 922292,
+      "ms": 18.3
+    },
+    {
+      "case": "empty pass, clear color and depth",
+      "core_cycles": 1187586,
+      "ms": 23.56
+    },
+    {
+      "case": "empty pass, load color, clear depth",
+      "core_cycles": 785762,
+      "ms": 15.59
+    },
+    {
+      "case": "empty pass, load color and depth",
+      "core_cycles": 16862,
+      "ms": 0.33
+    },
+    {
+      "case": "full-screen front-to-back copy",
+      "core_cycles": 748398,
+      "ms": 14.85
+    },
+    {
+      "case": "UI frame (148 rects), clear color and depth",
+      "core_cycles": 2773610,
+      "ms": 55.03
+    },
+    {
+      "case": "pointer-sized update, load color and depth",
+      "core_cycles": 22070,
+      "ms": 0.44
+    },
+    {
+      "case": "empty pass, clear color, discard depth",
+      "core_cycles": 414848,
+      "ms": 8.23
+    },
+    {
+      "case": "UI frame (148 rects), clear color, discard depth",
+      "core_cycles": 2015432,
+      "ms": 39.99
+    },
+    {
+      "case": "pointer-sized update, load color, discard depth",
+      "core_cycles": 24406,
+      "ms": 0.48
+    },
+    {
+      "case": "empty pass, load color, discard depth",
+      "core_cycles": 16072,
+      "ms": 0.32
+    },
+    {
+      "case": "showcase scene frame (t=1.2)",
+      "core_cycles": 5021028,
+      "ms": 99.62
+    },
+    {
+      "case": "overdraw scene frame (t=1.2)",
+      "core_cycles": 6433430,
+      "ms": 127.65
+    },
+    {
+      "case": "icosahedron frame, full clear (SDK flags 7)",
+      "core_cycles": 640656,
+      "ms": 12.71
+    },
+    {
+      "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+      "core_cycles": 344230,
+      "ms": 6.83
+    }
+  ],
+  "scenes": [
+    {
+      "scene": "showcase",
+      "last_submission_cycles": 4195454,
+      "ms": 83.24,
+      "verified": true,
+      "scanout_underflows": 0
+    },
+    {
+      "scene": "perspective",
+      "last_submission_cycles": 3446732,
+      "ms": 68.39,
+      "verified": true,
+      "scanout_underflows": 0
+    },
+    {
+      "scene": "overdraw",
+      "last_submission_cycles": 5672656,
+      "ms": 112.55,
+      "verified": true,
+      "scanout_underflows": 0
+    },
+    {
+      "scene": "opaque",
+      "last_submission_cycles": 6273478,
+      "ms": 124.47,
+      "verified": true,
+      "scanout_underflows": 0
+    }
+  ],
+  "scenes_scope": "Demo scenes use the resident-texture host compiler (commit 0529f2c), so their times are not comparable with rtl-sdram-pipeline.json scene rows."
+}

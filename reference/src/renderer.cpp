@@ -451,10 +451,13 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
     }
     const bool store_depth = pass.depth_store == StoreOp::Store;
     check_constant_depth(pass.clear_depth);
-    if ((pass.color_load == LoadOp::Load && !color_valid_[pass.target]) ||
+    if (((pass.color_load == LoadOp::Load || pass.skip_empty_tiles) && !color_valid_[pass.target]) ||
         (pass.depth_load == LoadOp::Load && !depth_valid_)) {
-        throw std::invalid_argument("LOAD requires initialized attachment contents");
+        throw std::invalid_argument("LOAD or SKIP requires initialized attachment contents");
     }
+    // Untouched (skipped) tiles keep their depth, so it stays valid only
+    // if it was valid before the pass.
+    const bool depth_valid_after = store_depth && (!pass.skip_empty_tiles || depth_valid_);
     statistics_ = {};
     try {
         for (const auto& primitive : pass.primitives) {
@@ -466,7 +469,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
 #else
             hw::render_pass(pass, color_[pass.target], depth_, statistics_);
             color_valid_[pass.target] = true;
-            depth_valid_ = store_depth;
+            depth_valid_ = depth_valid_after;
             return;
 #endif
         }
@@ -479,6 +482,8 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
             statistics_.tiles_processed = 1;
             // A discarded depth attachment is pass-local scratch storage.
             const auto external_depth = store_depth ? std::vector<std::uint32_t>{} : depth_;
+            const auto kept_color = pass.skip_empty_tiles ? output : std::vector<std::uint16_t>{};
+            const auto kept_depth = pass.skip_empty_tiles ? depth_ : std::vector<std::uint32_t>{};
             if (pass.color_load == LoadOp::Clear) {
                 std::fill(output.begin(), output.end(), pass.clear_color);
             }
@@ -495,6 +500,18 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
                 });
             }
             if (!store_depth) depth_ = external_depth;
+            if (pass.skip_empty_tiles) {
+                // Tiles without primitives were never touched.
+                for (int tile = 0; tile < tile_count; ++tile) {
+                    if (!bins[static_cast<std::size_t>(tile)].empty()) continue;
+                    const int x0 = (tile % tile_columns) * tile_size;
+                    const int y0 = (tile / tile_columns) * tile_size;
+                    for (int y = y0; y < y0 + tile_size; ++y) for (int x = x0; x < x0 + tile_size; ++x) {
+                        const auto index = static_cast<std::size_t>(y) * screen_width + x;
+                        output[index] = kept_color[index]; depth_[index] = kept_depth[index];
+                    }
+                }
+            }
         } else {
             // These are the actual tile-local attachments, not aliases of the frame.
             std::array<std::uint16_t, tile_size * tile_size> tile_color{};
@@ -504,6 +521,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
                     ? tile_count - 1 - visit : visit;
                 const int x0 = (tile % tile_columns) * tile_size;
                 const int y0 = (tile / tile_columns) * tile_size;
+                if (pass.skip_empty_tiles && bins[static_cast<std::size_t>(tile)].empty()) continue;
                 for (int ly = 0; ly < tile_size; ++ly) {
                     for (int lx = 0; lx < tile_size; ++lx) {
                         const auto local = static_cast<std::size_t>(ly * tile_size + lx);
@@ -540,7 +558,7 @@ void Renderer::render(const Pass& pass, RenderMode mode) {
             }
         }
         color_valid_[pass.target] = true;
-        depth_valid_ = store_depth;
+        depth_valid_ = depth_valid_after;
     } catch (...) {
         // A pass is not transactional. Do not permit stale validity after failure.
         color_valid_[pass.target] = false;

@@ -172,6 +172,9 @@ struct Pass {
     LoadOp color_load = LoadOp::Clear;
     LoadOp depth_load = LoadOp::Clear;
     StoreOp depth_store = StoreOp::Store;
+    // Tiles without primitives keep their attachment contents (no clear,
+    // load or store). Requires valid target color, like a color LOAD.
+    bool skip_empty_tiles = false;
     std::uint16_t clear_color = 0;
     std::uint32_t clear_depth = depth_max;
     std::vector<Primitive> primitives;

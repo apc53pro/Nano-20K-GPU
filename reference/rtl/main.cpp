@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -628,7 +629,7 @@ void self_test(Simulation& simulation) {
         {"target high bit", 4, 2, 6},
         {"target high bit before LOAD", 4, 2, 6, true},
         {"front target", 4, 1, 6},
-        {"load flag reserved bit", 8, 8, 6},
+        {"load flag reserved bit", 8, 16, 6},
         {"RGB565 upper bit", 12, 0x10000, 6},
         {"D24 upper bit", 16, 0x1000000, 6},
         {"unaligned table", 20, heap + 65, 6},
@@ -640,6 +641,7 @@ void self_test(Simulation& simulation) {
         {"invalid color/depth LOAD", 8, 0, 5},
         {"invalid depth LOAD", 8, 1, 5},
         {"invalid color LOAD", 8, 2, 5},
+        {"invalid color SKIP", 8, 15, 5},
     };
     for (const auto& item : descriptor_faults) {
         sequence = 1; // Each preceding soft recovery starts a fresh stream.
@@ -749,6 +751,35 @@ void self_test(Simulation& simulation) {
         simulation.recover();
     }
     std::cout << "depth DISCARD and invalid-depth LOAD cases passed\n";
+    // SKIP: tiles without references keep every color and depth word; tiles
+    // with references clear, draw and store as usual.
+    {
+        std::vector<std::uint32_t> color_before(screen_width * screen_height / 2), depth_before(screen_width * screen_height);
+        for (unsigned index = 0; index < color_before.size(); ++index)
+            color_before[index] = simulation.memory.inspect_word(hw::color_buffer_base(0) + index * 4);
+        for (unsigned index = 0; index < depth_before.size(); ++index)
+            depth_before[index] = simulation.memory.inspect_word(hw::depth_buffer_base + index * 4);
+        Pass skip; skip.target = 0; skip.depth_store = StoreOp::Discard; skip.skip_empty_tiles = true;
+        skip.clear_color = 0x0841;
+        skip.primitives.push_back(Rect{{70, 70, 90, 90}, overlay_state({10, 250, 10}), 0});
+        simulation.render(hw::compile_pass(skip, 1));
+        for (unsigned index = 0; index < color_before.size(); ++index) {
+            const unsigned x = (index * 2) % screen_width, y = (index * 2) / screen_width;
+            const bool drawn_tile = x / 32 == 2 && y / 32 == 2;
+            const auto word = simulation.memory.inspect_word(hw::color_buffer_base(0) + index * 4);
+            if (!drawn_tile) require(word == color_before[index], "SKIP leaves untouched tiles unchanged");
+            else for (unsigned half = 0; half < 2; ++half) {
+                const unsigned px = x + half;
+                const bool inside = px >= 70 && px < 90 && y >= 70 && y < 90;
+                require(((word >> (16 * half)) & 0xffffu) ==
+                        (inside ? pack_rgb565({10, 250, 10}) : 0x0841u), "SKIP clears and draws touched tiles");
+            }
+        }
+        for (unsigned index = 0; index < depth_before.size(); ++index)
+            require(simulation.memory.inspect_word(hw::depth_buffer_base + index * 4) == depth_before[index],
+                    "SKIP with DISCARD writes no depth word");
+    }
+    std::cout << "SKIP untouched-tile case passed\n";
     std::cout << "RTL command/copy/LOAD/scanout/recovery self-test passed\n";
 }
 
@@ -769,6 +800,61 @@ void print_profile(const char* machine, const std::array<std::uint64_t, 256>& co
                   << 100.0 * static_cast<double>(order[i].first) / static_cast<double>(total) << '%';
     }
     std::cout << '\n';
+}
+
+// The programs/demo_3d_engine6 frame: geometry, culling and shading as in
+// its NARM source (320x240 projection drawn at 2x), RGB332 vertex colors.
+Pass icosahedron_pass(float ax, float ay, float az, Bounds& box) {
+    static const float ox[12] = {-6200, 6200, -6200, 6200, 0, 0, 0, 0, 10032, 10032, -10032, -10032};
+    static const float oy[12] = {10032, 10032, -10032, -10032, -6200, 6200, -6200, 6200, 0, 0, 0, 0};
+    static const float oz[12] = {0, 0, 0, 0, 10032, 10032, -10032, -10032, -6200, 6200, -6200, 6200};
+    static const int f0[20] = {0,0,0,0,0,1,5,11,10,7,3,3,3,3,3,4,2,6,8,9};
+    static const int f1[20] = {11,5,1,7,10,5,11,10,7,1,9,4,2,6,8,9,4,2,6,8};
+    static const int f2[20] = {5,1,7,10,11,9,4,2,6,8,4,2,6,8,9,5,11,10,7,1};
+    static const int fr[20] = {7,7,7,2,0,0,1,3,7,7,7,7,7,2,0,0,1,3,7,7};
+    static const int fg[20] = {1,4,7,7,7,4,2,0,0,2,1,4,7,7,7,4,2,0,0,2};
+    static const int fb[20] = {1,0,0,1,3,3,3,3,3,2,1,0,0,1,3,3,3,3,3,2};
+    const auto shaded = [](int r0, int g0, int b0, float s) {
+        s = s < 0 ? 0 : (s > 1 ? 1 : s);
+        int r = static_cast<int>(r0 * s), g = static_cast<int>(g0 * s), b = static_cast<int>(b0 * s);
+        if (s > 0.20f) { if (r0 > 0 && r < 1) r = 1; if (g0 > 0 && g < 1) g = 1; if (b0 > 0 && b < 1) b = 1; }
+        return r * 32 + g * 4 + b;
+    };
+    const float sx_ = std::sin(ax), cx = std::cos(ax), sy_ = std::sin(ay), cy = std::cos(ay);
+    const float sz_ = std::sin(az), cz = std::cos(az);
+    int sx[12], sy[12], sz[12]; float bright[12];
+    int x0 = 640, y0 = 480, x1 = 0, y1 = 0;
+    for (int i = 0; i < 12; ++i) {
+        const float x2 = ox[i] * cy + oz[i] * sy_, y2 = oy[i], z2 = oz[i] * cy - ox[i] * sy_;
+        const float x3 = x2, y3 = y2 * cx - z2 * sx_, z3 = z2 * cx + y2 * sx_;
+        const float x4 = x3 * cz - y3 * sz_, y4 = x3 * sz_ + y3 * cz, z4 = z3;
+        float dot = (x4 * -0.58f + y4 * 0.58f + z4 * -0.57f) * 0.000084794183f;
+        if (dot < 0) dot = 0;
+        const float intensity = 0.28f + 0.72f * dot; bright[i] = intensity > 1 ? 1 : intensity;
+        const float denom = z4 + 46000.0f;
+        sx[i] = static_cast<int>(160.0f + x4 * 250.0f / denom);
+        sy[i] = static_cast<int>(126.0f - y4 * 250.0f / denom);
+        sz[i] = static_cast<int>(denom);
+        x0 = std::min(x0, 2 * sx[i]); y0 = std::min(y0, 2 * sy[i]);
+        x1 = std::max(x1, 2 * sx[i] + 1); y1 = std::max(y1, 2 * sy[i] + 1);
+    }
+    box = {std::max(0, x0), std::max(0, y0), std::min(640, x1), std::min(480, y1)};
+    Pass pass; pass.target = 1; pass.clear_color = 0; pass.depth_store = StoreOp::Discard;
+    RenderState state; state.shade = ShadeMode::Gouraud;
+    for (int f = 0; f < 20; ++f) {
+        const int id[3] = {f0[f], f1[f], f2[f]};
+        if ((sx[id[1]] - sx[id[0]]) * (sy[id[2]] - sy[id[0]]) -
+            (sy[id[1]] - sy[id[0]]) * (sx[id[2]] - sx[id[0]]) <= 0) continue;
+        std::array<ScreenVertex, 3> v{};
+        for (int k = 0; k < 3; ++k) {
+            const int code = shaded(fr[f], fg[f], fb[f], bright[id[k]]);
+            v[k].x = 2 * sx[id[k]]; v[k].y = 2 * sy[id[k]]; v[k].depth = sz[id[k]] / 16777215.0L;
+            v[k].r = ((code >> 5) & 7) * 255 / 7; v[k].g = ((code >> 2) & 7) * 255 / 7;
+            v[k].b = (code & 3) * 255 / 3;
+        }
+        if (auto triangle = setup_triangle(v, state)) pass.primitives.push_back(*triangle);
+    }
+    return pass;
 }
 
 void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
@@ -873,6 +959,21 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
     run_pass("empty pass, load color, discard depth", pass);
     run_pass("showcase scene frame (t=1.2)", make_demo_pass(DemoScene::Showcase, 1, 1.2L));
     run_pass("overdraw scene frame (t=1.2)", make_demo_pass(DemoScene::Overdraw, 1, 1.2L));
+    // demo_3d_engine6: a Gouraud, depth-tested icosahedron, CPU back-face
+    // culled. Frame A uses the SDK's full clear; frame B, the next pose into
+    // the same buffer, uses SKIP and lists only the tiles drawn now or in A.
+    // The oracle comparison proves B equals a full clear.
+    Bounds frame_a_box{};
+    run_pass("icosahedron frame, full clear (SDK flags 7)", icosahedron_pass(0.42f, 0.75f, 0.18f, frame_a_box));
+    {
+        Bounds frame_b_box{};
+        auto pass_b = icosahedron_pass(0.62f, 0.95f, 0.30f, frame_b_box);
+        pass_b.skip_empty_tiles = true;
+        RenderState marker = overlay_state({0, 0, 0});
+        marker.scissor = {0, 0, 0, 0}; marker.depth_test = false; marker.depth_write = false;
+        pass_b.primitives.push_back(Rect{frame_a_box, marker, 0});
+        run_pass("icosahedron next frame, SKIP + dirty tiles (flags 15)", pass_b);
+    }
     const std::string report = "{\n  \"profile\": \"N20K-RTL-BENCH-1\",\n  \"clock_hz\": 50400000,\n"
         "  \"scanout_underflows\": " + std::to_string(simulation.scanout_underflows()) +
         ",\n  \"cases\": [\n" + rows + "\n  ]\n}\n";

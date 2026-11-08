@@ -698,6 +698,8 @@ void render_pass(const Pass& pass, std::vector<std::uint16_t>& color,
     for (const auto& bin : bins) statistics.tile_references += bin.size();
     OpaqueTile slice;
     for (int tile = 0; tile < tile_count; ++tile) {
+        // A SKIP pass leaves tiles without primitives untouched.
+        if (pass.skip_empty_tiles && bins[static_cast<std::size_t>(tile)].empty()) continue;
         const Point origin{(tile % tile_columns) * tile_size, (tile / tile_columns) * tile_size};
         TileImage input;
         for (int y = 0; y < tile_size; ++y) for (int x = 0; x < tile_size; ++x) {

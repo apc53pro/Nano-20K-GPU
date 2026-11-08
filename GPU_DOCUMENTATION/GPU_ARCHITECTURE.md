@@ -20,13 +20,13 @@ focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
 the user reported the terminal running on an earlier image. The current
-image adds a pipelined SDRAM controller, a word-wide display FIFO and tile
-clearing during stores; it was flashed and verified on 2026-11-08, and its
+image adds the SKIP load flag to the pipelined SDRAM controller, word-wide
+display FIFO and tile clearing during stores; it was flashed and verified on 2026-11-08, and its
 rendering with the RP2350 is not yet reported. It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
-clock, with the core at 51.67 MHz Fmax. It uses **18,185/20,736 logic
-(Gowin count)**, **6,780 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
+clock, with the core at 56.46 MHz Fmax. It uses **16,481/20,736 logic
+(Gowin count)**, **6,778 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -427,12 +427,17 @@ scratch: it is cleared or loaded into the tile as requested and tested
 normally, but never written back. The external depth attachment keeps its old
 words and becomes invalid, so a later depth `LOAD` faults until a stored
 depth clear. Passes that never test depth (2D work) should clear and discard
-it; then no depth traffic reaches SDRAM.
+it; then no depth traffic reaches SDRAM. A pass with `SKIP` leaves every tile
+without references untouched in SDRAM, even when it clears; it requires a
+valid target color, like a color `LOAD`. The host lists only the tiles that
+change, so a frame that redraws a small object costs only the tiles it covers
+now or covered before in that buffer.
 
 For each tile the current executor fetches the tile entry, then:
 
-- **Tile without draws.** Loaded attachments are already correct in SDRAM, so
-  nothing is read or written for them. A cleared color, and a cleared depth
+- **Tile without draws.** With `SKIP`, nothing is read or written. Otherwise,
+  loaded attachments are already correct in SDRAM, so nothing is read or
+  written for them. A cleared color, and a cleared depth
   that is stored, are written as constant 16-word bursts without touching tile
   RAM. A pass that loads color and discards or loads depth skips the tile
   entirely, so an update costs only the tiles it draws in.
@@ -989,8 +994,8 @@ including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **18,185 (88%)** | 20,736 |
-| Registers | 6,780 (43%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **16,481 (80%)** | 20,736 |
+| Registers | 6,778 (43%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
 | DSP | 53% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
@@ -1000,26 +1005,25 @@ counts of earlier reports. No BSRAM bank is spare.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **51.67 MHz** |
-| Host | 25.2 MHz | 75.88 MHz |
-| Physical pixel | 25.2 MHz | 175.51 MHz |
-| Reference | 27 MHz | 432.22 MHz |
+| Core/SDRAM | 50.4 MHz | **56.46 MHz** |
+| Host | 25.2 MHz | 80.01 MHz |
+| Physical pixel | 25.2 MHz | 174.90 MHz |
+| Reference | 27 MHz | 435.14 MHz |
 
-The core closes with about 2.5% margin in this placement (0.49 ns slack).
-Its closest paths are again the renderer's depth-RAM output into the
-fragment-ready enables. The burst-transfer image before it closed at
-54.64 MHz with 16,076 logic; earlier placements ranged from 51.13 to 62.8 MHz.
-Gowin's logic count rose by 2,109 for this image, while a Yosys `synth_gowin`
-of the same core sources maps about 110 fewer LUTs than the previous sources,
-so the increase reflects Gowin's mapping of this netlist rather than added
-logic; CLS use is 94%. Two RTL timing fixes took the core from 41.2 MHz to
-these results:
+The core closes with about 12% margin in this placement (2.13 ns slack); its
+closest path runs from the SDRAM controller's issued-word counter to the
+registered SDRAM DQM pad. CLS use is 88%. The previous image (pipelined SDRAM
+without SKIP) closed at 51.67 MHz with a Gowin count of 18,185 logic, although
+a Yosys `synth_gowin` of its sources mapped slightly fewer LUTs than before;
+Gowin's count varies with its mapping of each netlist. Earlier placements
+ranged from 51.13 to 62.8 MHz. Two RTL timing fixes took the core from
+41.2 MHz to these results:
 - the retimed U/V reciprocal multipliers (section 6);
 - registering the copy direction and starting row before the address
   arithmetic (section 9).
 
 Four reset-release paths have negative slack, and the report lists each one:
-power-on into the core and pixel reset synchronizers, −2.81 ns and −1.48 ns.
+power-on into the core and pixel reset synchronizers, −2.63 ns and −1.30 ns.
 This is an asynchronous preset into two-flop synchronizers that release
 synchronously. (The synchronized pixel reset into the OSER10 serializer
 resets, listed for earlier images, meets timing in this placement.)
@@ -1031,22 +1035,27 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`. The
+`5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
 covers two layers:
 - the board-wrapper testbench (773 clock/pad/bus checks with an isolated core
   model);
-- five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD self-test
+- five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD/SKIP self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-On 2026-11-08 this image was written to the Tang's SPI flash with the signed
-Gowin Programmer V1.9.12.04 (`make tang20k-flash`: program and verify
-succeeded; the FPGA reloaded it with status `0x6020`, user code `0xE7A9`).
-Its rendering with the RP2350 is not yet reported. On 2026-11-07 the previous
-burst-transfer image (`a249064f…9ef9`, user code `0x3354`) was flashed the
-same way. The control guide lists the exact build and programming tools. Earlier GPIO firmware mocks
+On 2026-11-08 this image was written to the Tang's SPI flash with
+`make tang20k-flash` (program and verify succeeded; the FPGA reloaded it with
+status `0x6020`, user code `0x72CD`); its rendering with the RP2350 is not
+yet reported. Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
+to the Tang's SPI flash with the signed Gowin Programmer V1.9.12.04
+(`make tang20k-flash`: program and verify succeeded; the FPGA reloaded it with
+status `0x6020`, user code `0xE7A9`). On it, the user measured
+`demo_3d_engine6` at 25 fps; an instrumented build showed 12.6 ms of GPU
+rendering, 7.8 ms of CPU and bus work and 12.8 ms waiting for vertical blank
+per 33.3 ms frame. On 2026-11-07 the burst-transfer image (`a249064f…9ef9`,
+user code `0x3354`) was flashed the same way. The control guide lists the exact build and programming tools. Earlier GPIO firmware mocks
 verify the 2 µs phase floor. On 2026-11-07 the user programmed the previous
 image (SHA-256 `55ebdfbd…d170`, per-pixel LOAD; Gowin Programmer verified the
 flash write) and reported it displaying and refreshing the MPC-2350 terminal
@@ -1155,6 +1164,15 @@ take about 15% and the plane offset walk about 9%. Results are in
 [the attachment-burst regression](../docs/benchmarks/rtl-attachment-bursts.json)
 retains the previous step. These are simulation measurements, not observed
 FPGA frame rates.
+
+The benchmark also renders the `demo_3d_engine6` icosahedron (nine visible
+Gouraud, depth-tested triangles, depth discarded). A frame with a full color
+clear takes **12.71 ms**, about 70% of it writing all 300 tiles back to
+SDRAM; the covered pixels take about 0.8 ms. The next pose drawn into the same
+buffer with `SKIP`, listing only the tiles drawn now and those drawn by the
+earlier frame (an empty-scissor marker for the latter), takes **6.83 ms** and
+matches the full-clear SRR image exactly. Results are in
+[the SKIP regression](../docs/benchmarks/rtl-skip-tiles.json).
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests

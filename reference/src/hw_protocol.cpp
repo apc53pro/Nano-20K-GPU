@@ -408,7 +408,8 @@ std::vector<std::uint8_t> encode_pass_descriptor(const PassDescriptor& descripto
     write_u32(result, 4, static_cast<std::uint32_t>(descriptor.target));
     write_u32(result, 8, (descriptor.color_load == LoadOp::Clear ? 1u : 0u) |
                           (descriptor.depth_load == LoadOp::Clear ? 2u : 0u) |
-                          (descriptor.depth_store == StoreOp::Discard ? 4u : 0u));
+                          (descriptor.depth_store == StoreOp::Discard ? 4u : 0u) |
+                          (descriptor.skip_empty_tiles ? 8u : 0u));
     write_u32(result, 12, descriptor.clear_color); write_u32(result, 16, descriptor.clear_depth);
     write_u32(result, 20, descriptor.tile_table_address); write_u32(result, 24, tile_count);
     return result;
@@ -416,7 +417,7 @@ std::vector<std::uint8_t> encode_pass_descriptor(const PassDescriptor& descripto
 PassDescriptor decode_pass_descriptor(const std::vector<std::uint8_t>& bytes) {
     require_size(bytes, pass_descriptor_bytes);
     if (read_u32(bytes, 0) != pass_descriptor_magic || read_u32(bytes, 4) > 1 ||
-        (read_u32(bytes, 8) & ~7u) != 0 || read_u32(bytes, 12) > 0xffffu ||
+        (read_u32(bytes, 8) & ~15u) != 0 || read_u32(bytes, 12) > 0xffffu ||
         read_u32(bytes, 16) > depth_max || read_u32(bytes, 24) != tile_count || read_u32(bytes, 28) != 0)
         throw std::invalid_argument("invalid pass descriptor fields");
     PassDescriptor result;
@@ -424,6 +425,7 @@ PassDescriptor decode_pass_descriptor(const std::vector<std::uint8_t>& bytes) {
     result.color_load = (read_u32(bytes, 8) & 1u) ? LoadOp::Clear : LoadOp::Load;
     result.depth_load = (read_u32(bytes, 8) & 2u) ? LoadOp::Clear : LoadOp::Load;
     result.depth_store = (read_u32(bytes, 8) & 4u) ? StoreOp::Discard : StoreOp::Store;
+    result.skip_empty_tiles = (read_u32(bytes, 8) & 8u) != 0;
     result.clear_color = read_u16(bytes, 12); result.clear_depth = read_u32(bytes, 16);
     result.tile_table_address = read_u32(bytes, 20);
     validate_pass(result);
@@ -521,7 +523,7 @@ HostProgram build_pass_heap(const Pass& pass, const TileBins& bins,
     }
     result.descriptor_address = heap.allocate(pass_descriptor_bytes);
     heap.put(result.descriptor_address, encode_pass_descriptor({pass.target, pass.color_load, pass.depth_load,
-        pass.clear_color, pass.clear_depth, table, pass.depth_store}));
+        pass.clear_color, pass.clear_depth, table, pass.depth_store, pass.skip_empty_tiles}));
     result.heap_bytes_used = heap.base - heap_base + heap.bytes.size();
     return result;
 }
