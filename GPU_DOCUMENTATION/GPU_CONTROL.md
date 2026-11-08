@@ -701,6 +701,11 @@ and device failure (`-5`). The record builders cover all current primitive
 settings. Applications prepare geometry, build ordered lists of primitive
 addresses, and keep assets immutable while the GPU uses them.
 
+**Always cache reusable textures, fonts, glyphs and sprites in GPU VRAM.**
+Retain their addresses across frames and passes. Upload new or changed data
+and restore allocations whose residency was lost after a focus handoff,
+recovery or eviction. A redraw alone never requires another asset upload.
+
 **Strong recommendation for realtime NARM programs. Keep processing input
 and updating simulation while the GPU is busy. Check `narm_gpu_frame_ready()`
 once per iteration and use `narm_gpu_try_present()` when the completed frame
@@ -779,9 +784,10 @@ SDRAM on the board.
 The current image is **7,264,137 bytes**, SHA-256
 `3fc16700d47de938c0648b316a628a5b5017308a9b89b8c5858ab736405d06ef`. It adds the
 pipelined SDRAM controller, word-wide display FIFO and tile clearing during
-stores; the host interface is unchanged. It has not yet run on the board.
-The previous image (`a249064f…9ef9`, user code `0x3354`) was written to the
-board's SPI flash and verified on 2026-11-07. Both accept the depth-DISCARD
+stores; the host interface is unchanged. On 2026-11-08 it was written to the
+board's SPI flash and verified, and the FPGA reloaded it (status `0x6020`,
+user code `0xE7A9`); its rendering with the RP2350 is not yet reported. The
+previous image (`a249064f…9ef9`, user code `0x3354`) was flashed on 2026-11-07. Both accept the depth-DISCARD
 load flag (bit 2); the image before them (`55ebdfbd…d170`, user code
 `0x33E2`) rejects that flag with fault 6.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
@@ -1276,7 +1282,7 @@ For a new session, first establish initialization and a fault-free epoch through
 sideband status, then query capabilities. A simple serialized frame is:
 
 ```text
-WRITE_HEAP(texture pixels, only when new or changed)
+WRITE_HEAP(new, changed or missing asset ranges only)
 WRITE_HEAP(immutable primitive records)
 WRITE_HEAP(ordered reference lists, 300-entry table, pass descriptor)
 SUBMIT_PASS(descriptor address)
@@ -1284,11 +1290,14 @@ FENCE(render token) -> wait for matching successful reply
 PRESENT(back buffer, presentation token) -> wait for matching reply
 ```
 
-Reuse resident texture allocations after their prior users finish. The current
-RTL demo's standalone pass compiler still reuploads its assets each frame;
-that convenience behavior is not a protocol requirement. More advanced drivers
-can queue work safely, but must preserve sequence/epoch identity and physical
-buffer ownership. Do not modify the active pass's records or lists in place.
+Allocate resident assets separately from transient records and tile lists.
+Keep a valid asset's VRAM address across frames and upload only changed
+ranges for dynamic content. Reclaim or overwrite an allocation only after
+all submitted users finish. The RTL demo uses `HostPassCompiler` to retain
+its texture, glyph and sprite allocations across frames. Its statistics
+report the total texture bytes uploaded and the number of frames with
+texture uploads. Drivers that queue work must preserve sequence/epoch
+identity and physical buffer ownership.
 
 ## 8. COPY_RECT payload: 56 bytes
 

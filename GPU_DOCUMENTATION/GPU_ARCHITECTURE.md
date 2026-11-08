@@ -21,7 +21,8 @@ The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
 the user reported the terminal running on an earlier image. The current
 image adds a pipelined SDRAM controller, a word-wide display FIFO and tile
-clearing during stores; it has not yet run on the board. It is built with
+clearing during stores; it was flashed and verified on 2026-11-08, and its
+rendering with the RP2350 is not yet reported. It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
 clock, with the core at 51.67 MHz Fmax. It uses **18,185/20,736 logic
@@ -385,6 +386,13 @@ table and pass descriptors. The CPU owns allocation, non-overlap and lifetime.
 The GPU validates supported address ranges, alignment and extents; it does not
 maintain a general-purpose allocator or allocation registry. Resources used by
 an executing pass must remain immutable until that work completes.
+
+Keep reusable texture, font, sprite and image data resident in the SDRAM heap.
+The host tracks these addresses across frame boundaries and allocates
+transient geometry and bins separately. Per-pass sampler tag invalidation
+does not remove resident SDRAM data. The RTL demo uses the host pass
+compiler's persistent texture allocations and reports how many frames upload
+texture bytes.
 
 Only ordered heap uploads may write resource memory. Textures cannot sample
 the framebuffer/depth regions, and there is no render-target feedback sampling
@@ -1028,12 +1036,12 @@ covers two layers:
 - five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-**This image has not yet run on the board.** On 2026-11-07 the previous
-burst-transfer image (`a249064f…9ef9`) was written to the Tang's SPI flash with
-the signed Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA
-reloaded it with status `0x6020`, user code `0x3354`), and the user confirmed
-the programming succeeded. The control guide lists the exact build and
-programming tools. Earlier GPIO firmware mocks
+On 2026-11-08 this image was written to the Tang's SPI flash with the signed
+Gowin Programmer V1.9.12.04 (`make tang20k-flash`: program and verify
+succeeded; the FPGA reloaded it with status `0x6020`, user code `0xE7A9`).
+Its rendering with the RP2350 is not yet reported. On 2026-11-07 the previous
+burst-transfer image (`a249064f…9ef9`, user code `0x3354`) was flashed the
+same way. The control guide lists the exact build and programming tools. Earlier GPIO firmware mocks
 verify the 2 µs phase floor. On 2026-11-07 the user programmed the previous
 image (SHA-256 `55ebdfbd…d170`, per-pixel LOAD; Gowin Programmer verified the
 flash write) and reported it displaying and refreshing the MPC-2350 terminal
