@@ -8,7 +8,7 @@
     "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
     "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "848801d0d840a0897f09dc7335b9bb987586d31e72cd0a1a0c489a05da5afa30",
+    "rtl/gpu/nano_gpu_core.sv": "7d2f7d6a4cf970be73482e629ed199fe9e254d6cb573bec5381348ee15907f2a",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -19,6 +19,7 @@
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
     "rtl/gpu/nano_tile_renderer.sv": "5bd0b2ba557451862365c85a1946347c389795cf86666f6a6dd450621333e86b",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "rtl/gpu/nano_triangle_setup.sv": "2cfe003300ce39cc4302acfc54e1537a6c4f455144289881bfea21b45f5601c6",
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
     "scripts/build-tang20k.py": "3a985180ab3f100e329e4b436788bae7b28599f7edce5dd41d55f2089e77bd02",
@@ -28,8 +29,8 @@
     "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
     "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
   },
-  "place_option": 2,
-  "route_option": 1,
+  "place_option": 0,
+  "route_option": 2,
   "profile": "gpu-video-50mhz",
   "core_mhz": 50.4,
   "pixel_mhz": 25.2,
@@ -42,7 +43,7 @@
   "agents_exception": "AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer).",
   "sip_pins_verified": false,
   "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
-  "functional_report_sha256": "51b30502a9d35c64eb6f3412b3155b8f605d52844305e1385c1ed1d8ef781373",
+  "functional_report_sha256": "829103f2186c58094ba2970989527c43c722381d14172715d0f23780cfa0adbf",
   "gowin_returncode": 0,
   "synthesized": true,
   "placed": true,
@@ -53,60 +54,80 @@
   "fmax": {
     "clk27": {
       "constraint_mhz": 27.0,
-      "achieved_mhz": 435.136
+      "achieved_mhz": 376.355
     },
     "gpu_hclk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 80.008
+      "achieved_mhz": 68.178
     },
     "core_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 50.4,
-      "achieved_mhz": 56.462
+      "achieved_mhz": 54.972
     },
     "pixel_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 174.895
+      "achieved_mhz": 178.04
     }
   },
   "violations_listed": [
     {
-      "slack_ns": -2.634,
+      "slack_ns": -2.633,
       "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -2.634,
+      "slack_ns": -2.633,
       "from": "poweron_6_s0/Q",
       "to": "core_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -1.301,
+      "slack_ns": -2.121,
       "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -1.301,
+      "slack_ns": -2.121,
       "from": "poweron_6_s0/Q",
       "to": "pixel_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[0].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[1].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[2].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.397,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[3].serializer/serializer/RESET"
     }
   ],
   "violations_unexpected": [],
   "violated_endpoint_counts": {
     "setup": 4,
-    "hold": 0
+    "hold": 4
   },
   "timing_passed": true,
   "resources": {
-    "Logic": "16481/20736  80%",
-    "Register": "6778/15915  43%",
+    "Logic": "18058/20736  88%",
+    "Register": "7395/15915  47%",
     "I/O Port": "26",
     "BSRAM": "100%",
-    "DSP": "53%",
+    "DSP": "63%",
     "PLL": "1/2(50%)",
     "CLKDIV": "2/8(25%)"
   },
   "inputs_changed": [],
   "bitstream_generated": true,
-  "bitstream_sha256": "5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6",
+  "bitstream_sha256": "93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886",
   "bitstream_bytes": 7264137
 }

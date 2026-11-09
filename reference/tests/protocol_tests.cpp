@@ -284,6 +284,51 @@ void record_tests() {
                    "documented plane offsets changed");
         }
     });
+    run_case("kind-4 vertex triangles carry vertices and decode to the GPU's setup", [] {
+        // A right triangle 16 pixels on a side; depth rises 1000 codes along Y.
+        VertexSource source;
+        source.points = {Point{0, 0}, Point{256, 0}, Point{0, 256}};
+        source.depth = {0, 0, 256000};
+        RenderState state = overlay_state({1, 2, 3});
+        state.depth_test = state.depth_write = true;
+        const auto bytes = encode_vertex_triangle(source, state);
+        expect(bytes.size() == vertex_triangle_record_bytes && read_u32(bytes, 0) == 0x00070104u &&
+               read_u32(bytes, 8) == 0x030201u && read_u32(bytes, 16) == 256u &&
+               read_u32(bytes, 20) == (256u << 16) && read_u32(bytes, 32) == 256000u,
+               "vertex triangle differs from packed ABI offsets");
+        expect(record_bytes_for_kind(read_u32(bytes, 0)) == 64, "kind-4 record size");
+        const auto decoded = decode_primitive(bytes);
+        const auto& triangle = std::get<Triangle>(decoded.primitive);
+        // Gy = 1000*256*256 * 4096 / 65536 = 62.5 codes per pixel in Q16;
+        // the seed at pixel (0,0) is floor((8*Gy + 8)/16) = 31.25 codes.
+        expect(decoded.draws && triangle.bounds.x0 == 0 && triangle.bounds.x1 == 16 &&
+               triangle.bounds.y1 == 16 && triangle.z.step_x == 0 && triangle.z.step_y == 4096000 &&
+               triangle.z.seed == 2048000, "vertex triangle setup arithmetic changed");
+        expect(encode_primitive(decoded.primitive) == bytes, "vertex triangle roundtrip failed");
+        // Reversed winding: culled when requested, otherwise the same triangle.
+        auto reversed = source;
+        std::swap(reversed.points[1], reversed.points[2]); std::swap(reversed.depth[1], reversed.depth[2]);
+        const auto swapped = std::get<Triangle>(decode_primitive(encode_vertex_triangle(reversed, state)).primitive);
+        expect(swapped.snapped == triangle.snapped && swapped.z.seed == triangle.z.seed &&
+               swapped.z.step_y == triangle.z.step_y, "negative area was not oriented");
+        reversed.cull_negative = true;
+        expect(!decode_primitive(encode_vertex_triangle(reversed, state)).draws, "negative area not culled");
+        auto flat = source; flat.points[2] = flat.points[1];
+        expect(!decode_primitive(encode_vertex_triangle(flat, state)).draws, "zero area drew");
+        for (const auto& [offset, value] : std::array<std::pair<std::size_t, std::uint8_t>, 7>{{
+                 {2, 0x08}, {3, 0x01}, {5, 0x03}, {12 + 1, 0x40}, {12 + 3, 0x20}, {36 + 1, 0x08}, {44, 1}}}) {
+            auto corrupt = bytes; corrupt[offset] |= value;
+            expect_throws([&] { decode_primitive(corrupt); }, "malformed vertex triangle accepted");
+        }
+        // The bounds field is a drawing rectangle (a scissor within the viewport).
+        auto clipped = source; clipped.bounds = {4, 2, 9, 30};
+        const auto& narrow = std::get<Triangle>(decode_primitive(encode_vertex_triangle(clipped, state)).primitive);
+        expect(narrow.bounds.x0 == 4 && narrow.bounds.x1 == 9 && narrow.bounds.y0 == 2 &&
+               narrow.bounds.y1 == 16 && narrow.state.scissor.y1 == 30, "vertex triangle bounds not applied");
+        expect(narrow.z.seed == triangle.z.seed + 4 * triangle.z.step_x + 2 * triangle.z.step_y,
+               "vertex triangle depth depends on its anchor");
+        expect(read_u32(bytes, 36) == (640u << 16) && read_u32(bytes, 40) == (480u << 16), "bounds field offsets");
+    });
     run_case("reserved and malformed primitive fields cannot enter execution", [] {
         const auto original = encode_primitive(Rect{{1, 2, 3, 4}, overlay_state(), 0});
         for (const auto offset : std::array<std::size_t, 5>{3, 11, 15, 76, 152}) {

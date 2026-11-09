@@ -20,6 +20,8 @@ static_assert(maximum_packet_payload == host_max_payload_bytes);
 // Worst case:239 literal words plus60 descriptors =1016 encoded bytes.
 constexpr std::size_t maximum_upload_decoded_bytes = 956;
 constexpr std::size_t primitive_record_bytes = 320;
+// Kind 4: a flat triangle whose setup the GPU computes from its vertices.
+constexpr std::size_t vertex_triangle_record_bytes = 64;
 constexpr std::size_t pass_descriptor_bytes = 32;
 constexpr std::size_t tile_entry_bytes = 8;
 constexpr std::uint32_t pass_descriptor_magic = 0x3153504eu; // "NPS1"
@@ -41,6 +43,17 @@ constexpr std::uint32_t maximum_primitive_records = 16384;
 // 104 i32/u32[12]: three {a,b,c,inclusive} edges, inclusive is 0 or1.
 // 152 i64[21]: {seed,step_x,step_y} for z,r,g,b,q,u,v.
 // Unused kind-specific bytes MUST be zero.
+//
+// Vertex triangle (kind 4) records are 64 bytes:
+//   0 u32: kind 4, version[15:8]=1, color-write/depth-test/depth-write bits
+//          [18:16], bit 20 culls a negative signed area; others zero.
+//   4 u32: DepthFunc in bits 9:8; others zero.
+//   8 u32: R,G,B in bits 0..23.
+//  12 u32[3]: vertex X (bits 15:0, Q4 0..10240) and Y (bits 31:16, Q4 0..7680).
+//  24 u32[3]: vertex depth, D24 code * 256.
+//  36..63: zero.
+// The GPU derives edges, bounds and the depth plane (vertex_triangle_setup).
+// The scissor is the full viewport; shading is flat without texture or key.
 //
 // Pass descriptor: magic,target,load flags(bit0=colorCLEAR,bit1=depthCLEAR,
 // bit2=depthDISCARD: depth is never stored and becomes invalid,
@@ -65,7 +78,14 @@ struct TileEntry {
 struct DecodedPrimitive {
     Primitive primitive;
     std::optional<TextureDescriptor> texture;
+    // False for a vertex triangle that draws nothing (zero area, culled or
+    // empty bounds); primitive is then an empty rectangle.
+    bool draws = true;
 };
+// Encoded record size for a primitive: 64 bytes for a GPU-setup triangle.
+std::size_t record_bytes(const Primitive& primitive);
+// Record size from its first word, as the GPU decides after its first burst.
+std::size_t record_bytes_for_kind(std::uint32_t first_word);
 
 std::uint16_t read_u16(const std::vector<std::uint8_t>& bytes, std::size_t offset);
 std::uint32_t read_u32(const std::vector<std::uint8_t>& bytes, std::size_t offset);
@@ -95,6 +115,8 @@ std::vector<std::uint8_t> encode_heap_upload(std::uint32_t address,
 HeapUpload decode_heap_upload(const std::vector<std::uint8_t>& payload);
 std::vector<std::uint8_t> encode_primitive(const Primitive& primitive,
                                          std::optional<TextureDescriptor> texture = {});
+// Encodes any kind-4 record, including one that draws nothing.
+std::vector<std::uint8_t> encode_vertex_triangle(const VertexSource& source, const RenderState& state);
 DecodedPrimitive decode_primitive(const std::vector<std::uint8_t>& bytes);
 std::vector<std::uint8_t> encode_pass_descriptor(const PassDescriptor& descriptor);
 PassDescriptor decode_pass_descriptor(const std::vector<std::uint8_t>& bytes);

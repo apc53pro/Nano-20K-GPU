@@ -124,12 +124,28 @@ struct Edge {
     std::int32_t c = 0;
     bool inclusive = false;
 };
+// The submitted vertices of a GPU-setup (kind 4) flat triangle, in record
+// order: Q4 positions within 0..16383 x 0..8191 and depths as D24 codes with
+// eight fractional bits. `bounds` (pixels, each field 0..2047) is the drawing
+// rectangle: the triangle is drawn within bounds and viewport, so it acts as
+// a scissor; usually it is the triangle's pixel-center bounds.
+// vertex_triangle_setup() defines the triangle the GPU derives from them.
+struct VertexSource {
+    std::array<Point, 3> points{};
+    std::array<std::uint32_t, 3> depth{};
+    Bounds bounds{};
+    bool cull_negative = false;
+};
+// Pixel-center bounds of three Q4 vertices: the usual VertexSource bounds.
+Bounds vertex_bounds(const std::array<Point, 3>& points);
 struct Triangle {
     std::array<Point, 3> snapped{}; // Q4 subpixel coordinates.
     std::array<Edge, 3> edges{};
     Bounds bounds{};              // Also defines the immutable plane anchor.
     RenderState state{};
     Plane z{}, r{}, g{}, b{}, q{}, u{}, v{};
+    // Set when the GPU computes this triangle's setup (record kind 4).
+    std::optional<VertexSource> source;
 };
 struct Rect {
     Bounds bounds{};
@@ -158,6 +174,16 @@ std::uint8_t color_code(std::int64_t q16);
 int floor_q16(std::int32_t value);
 std::optional<Triangle> setup_triangle(std::array<ScreenVertex, 3> vertices,
                                       const RenderState& state = {});
+// GPU triangle setup for kind-4 records. Returns no triangle for zero area,
+// culled negative area or empty bounds. The state must be flat and untextured;
+// its scissor is replaced by source.bounds within the viewport. Depth planes
+// use Q16 D24 codes:
+//   G = sign(N) * min(floor(|N|*4096/area + 1/2), 2^42-1), with
+//   N_x = D1*(Y2-Y0) - D2*(Y1-Y0), N_y = D2*(X1-X0) - D1*(X2-X0), Di = Zi-Z0;
+//   value(x,y) = Z0*256 + floor((SX*G_x + SY*G_y + 8)/16),
+//   SX = 16x+8-X0, SY = 16y+8-Y0, anchored at the bounds corner.
+std::optional<Triangle> vertex_triangle_setup(const VertexSource& source,
+                                              const RenderState& state);
 std::vector<std::array<ScreenVertex, 3>> clip_project_triangle(
     const std::array<ClipVertex, 3>& vertices);
 void validate_triangle(const Triangle& triangle);

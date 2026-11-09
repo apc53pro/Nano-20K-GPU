@@ -81,7 +81,7 @@ The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
-56.46 / 174.90 / 80.01 MHz against 50.4 / 25.2 / 25.2 MHz. The only
+54.97 / 178.04 / 68.18 MHz against 50.4 / 25.2 / 25.2 MHz. The only
 negative-slack paths are reset-release paths, listed in the report. From
 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
 raster replaced this profile during bus diagnosis; it is historical.
@@ -799,10 +799,13 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`. It accepts load-flag
-bit 3 (SKIP). On 2026-11-08 it was written to the board's SPI flash and
-verified, and the FPGA reloaded it (status `0x6020`, user code `0x72CD`). The
-user measured `demo_3d_engine6` on it, with blocking presentation, at a stable
+`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It adds
+kind-4 vertex triangles (capability feature bit 8) and has not yet been
+programmed or tested on the board. The previous image (`5b6f75aa…08e6`)
+accepts load-flag bit 3 (SKIP) but faults on kind 4. On 2026-11-08 that image
+was written to the board's SPI flash and verified, and the FPGA reloaded it
+(status `0x6020`, user code `0x72CD`). The user measured `demo_3d_engine6` on
+it, with blocking presentation, at a stable
 60 fps. With the earlier MPC-2350 firmware's asynchronous presentation
 (`try_present` and `frame_ready` polling), the same demo lost one byte at the
 start of a PRESENT reply. The firmware rejected the header and took the link
@@ -1170,7 +1173,7 @@ There is no second host-domain copy of all 64 bytes.
 | 4 | u32 | SDRAM bytes: `0x800000`. |
 | 8 | u32 | Heap base: `0x258000`. |
 | 12 | u32 | Maximum request payload: 1024. |
-| 16 | u32 | Primitive record bytes: 320. |
+| 16 | u32 | Largest primitive record bytes: 320 (a kind-4 record is 64). |
 | 20 | u32 | Maximum pass references: 1,048,576. |
 | 24 | u32 | Configured core Hz: board 50,400,000; default simulation 100,800,000. Not measured Fmax. |
 | 28 | u32 | Host-divider metadata: board 0 (independent), default simulation 4; host supplies its clock. |
@@ -1181,7 +1184,7 @@ There is no second host-domain copy of all 64 bytes.
 | 48 | u32 | Display FIFO pixels: 2048. |
 | 52 | u32 | Width: 640. |
 | 56 | u32 | Height: 480. |
-| 60 | u32 | Current feature mask `0x000000FF`; do not infer future features from reserved bits. |
+| 60 | u32 | Current feature mask `0x000001FF`. Bit 8 means kind-4 vertex triangles are supported; earlier images report `0x000000FF` and fault on kind 4. Do not infer future features from reserved bits. |
 
 ### Fault codes and recovery
 
@@ -1229,11 +1232,19 @@ reinitializes attachments, and invalidates heap assumptions. Therefore epoch
 is not a globally unique power-cycle identifier: a reconnecting driver must
 establish a fresh transport session and discard stale bytes/completions.
 
-## 6. Primitive record format: 320 bytes
+## 6. Primitive record formats: 320 bytes, or 64 for a vertex triangle
 
 Zero the entire record before encoding it. Primitive kinds are triangle 0,
-rectangle 1, line 2, sprite 3. Version is 1. All unused/reserved bytes and bits
-must be zero.
+rectangle 1, line 2, sprite 3 and vertex triangle 4. Kinds 0..3 use the
+320-byte layout below; kind 4 uses the 64-byte layout in
+[Vertex triangle records](#vertex-triangle-records-kind-4-64-bytes). Version
+is 1. All unused/reserved bytes and bits must be zero.
+
+The GPU fetches the first 64 bytes of every referenced record, then the other
+256 bytes only for kinds 0..3. A reference faults (code 3) unless its first
+64 bytes lie in the heap, and a kind 0..3 record also needs all 320 bytes in
+the heap. Records may be packed at their own sizes; each list entry holds the
+record's four-byte-aligned address.
 
 `WRITE_HEAP` decodes into this unchanged record layout. The
 [earlier standalone experiment](../docs/hardware/upload-codec.md) measured a
@@ -1294,12 +1305,63 @@ sampling. A depth-only triangle with both disabled may omit texture sampling
 and the descriptor even if a textured shade mode is selected. Sprites always
 require a compatible descriptor.
 
+### Vertex triangle records (kind 4): 64 bytes
+
+A vertex triangle is a flat-shaded triangle whose setup the GPU computes. The
+CPU still transforms, clips, projects and snaps the vertices to Q4, but it does
+not orient the winding, cull, compute edges or bounds, or prepare a depth
+plane. It sends 64 bytes instead of 320; the upload encoding compresses the
+zero tail.
+
+| Offset | Type / size | Meaning |
+| --- | --- | --- |
+| 0 | u32 | Kind 4 in bits 0..7; version 1 in bits 8..15; color write bit 16, depth test bit 17, depth write bit 18; **cull negative area** bit 20. Bit 19 (key) and bits 21..31 zero. |
+| 4 | u32 | Depth function in bits 8..9 (0 LESS, 1 LEQUAL, 2 ALWAYS); all other bits zero. |
+| 8 | u32 | Constant RGB888 as in kinds 0..3; high byte zero. |
+| 12 | u32 × 3 | Vertex 0..2: Q4 X in bits 0..13 (0..16383), Q4 Y in bits 16..28 (0..8191); other bits zero. The viewport is X 0..10240, Y 0..7680; larger values form a right/bottom guard band. |
+| 24 | u32 × 3 | Vertex 0..2 depth: D24 code × 256 (eight fractional bits). |
+| 36 | u32 | Bounds X: `x0` in bits 0..10, `x1` in bits 16..26 (pixels, half-open); other bits zero. |
+| 40 | u32 | Bounds Y: `y0` in bits 0..10, `y1` in bits 16..26; other bits zero. |
+| 44 | 20 bytes | Reserved zero. |
+
+The bounds are the triangle's drawing rectangle. The GPU draws only covered
+pixels inside both the bounds and the viewport, so they act as a scissor.
+Normally they are the triangle's pixel-center bounds,
+`x0 = (minX+7)>>4`, `y0 = (minY+7)>>4`, `x1 = (maxX+8)>>4`, `y1 = (maxY+8)>>4`,
+which the CPU computes anyway to bin it. Shading is flat, without texture or
+color key. A record with any invalid field faults the pass with code 6.
+
+For each tile reference the GPU computes, exactly as the reference function
+[`vertex_triangle_setup()`](../reference/src/setup.cpp) does:
+
+- **Orientation.** `area = (X1-X0)(Y2-Y0) - (Y1-Y0)(X2-X0)`. A zero area draws
+  nothing. A negative area draws nothing when bit 20 is set; otherwise the
+  triangle is drawn as if vertices 1 and 2 were exchanged. With Y pointing
+  down, a negative area is a counterclockwise screen winding.
+- **Edges.** The same top-left edges as a CPU-prepared kind-0 triangle, with
+  its bounds being the pixel-center bounds intersected with the record's
+  bounds and the viewport.
+- **Depth plane, in Q16 D24 codes.** With `Di = Zi - Z0`,
+  `Nx = D1(Y2-Y0) - D2(Y1-Y0)` and `Ny = D2(X1-X0) - D1(X2-X0)`, each gradient is
+  `G = sign(N) * min(floor(|N|*4096/area + 1/2), 2^42-1)` per pixel. A pixel
+  center `(x,y)` has depth
+  `Z0*256 + floor((SX*Gx + SY*Gy + 8)/16)`, with `SX = 16x+8-X0` and
+  `SY = 16y+8-Y0`. The value does not depend on which tile computes it.
+  Only depth slopes steeper than 2^26 codes per pixel saturate; that needs
+  a triangle narrower than about 1/4 pixel.
+
+A tile reference whose window cannot contain a covered pixel center is
+rejected without rasterizing. List a vertex triangle in the tiles its bounds
+cover, clipped to the viewport; an exact CPU tile test is unnecessary. Use
+kinds 0..3 for Gouraud or textured triangles.
+
 ### Preparing triangle records
 
-The CPU transforms, clips, projects, snaps vertices to Q4, normalizes winding,
-computes edges/bounds and prepares the attribute planes. It also performs any
-lighting used to produce constant or vertex RGB values. No vertex/index buffer
-or projection matrix command exists in this revision.
+For kinds 0..3, the CPU transforms, clips, projects, snaps vertices to Q4,
+normalizes winding, computes edges/bounds and prepares the attribute planes.
+It also performs any lighting used to produce constant or vertex RGB values.
+A flat triangle can instead be a kind-4 vertex triangle (above). No
+vertex/index buffer or projection matrix command exists in this revision.
 
 For sample anchor `(x0,y0)` from the triangle's clipped bounds, each plane is
 `seed + (x-x0)*step_x + (y-y0)*step_y`. Depth is D24-code units with 16 fractional
@@ -1642,6 +1704,36 @@ void gpu_make_example_triangle(uint8_t record[320]) {
         gpu_put32(record + 104 + 16 * i + 4 * j, (uint32_t)edges[i][j]);
     gpu_put64(record + 152, INT64_C(0x4000000000)); /* Constant D24 0x400000, Q16. */
 }
+/* Kind-4 vertex triangle: the GPU orients, culls and sets it up. x/y are Q4
+ * (0..16383, 0..8191; the viewport is 0..10240 x 0..7680), z is D24 * 256.
+ * Records its pixel-center bounds and returns them, clipped, for binning. */
+bool gpu_make_vertex_triangle(uint8_t record[320], const int32_t x[3], const int32_t y[3],
+                              const uint32_t z[3], uint32_t flags, uint32_t rgb888,
+                              bool cull, GpuBounds *bounds) {
+    int32_t min_x = x[0], max_x = x[0], min_y = y[0], max_y = y[0];
+    unsigned i;
+    for (i = 0; i < 3; ++i) {
+        if (x[i] < 0 || x[i] > 16383 || y[i] < 0 || y[i] > 8191) return false;
+        if (x[i] < min_x) min_x = x[i];
+        if (x[i] > max_x) max_x = x[i];
+        if (y[i] < min_y) min_y = y[i];
+        if (y[i] > max_y) max_y = y[i];
+    }
+    memset(record, 0, 320); /* The GPU reads only the first 64 bytes. */
+    gpu_put32(record, 4u | UINT32_C(0x100) | ((flags & 7u) << 16) | (cull ? UINT32_C(1) << 20 : 0u));
+    gpu_put32(record + 8, rgb888 & UINT32_C(0xffffff));
+    for (i = 0; i < 3; ++i) {
+        gpu_put32(record + 12 + 4 * i, (uint32_t)x[i] | ((uint32_t)y[i] << 16));
+        gpu_put32(record + 24 + 4 * i, z[i]);
+    }
+    bounds->x0 = (min_x + 7) >> 4; bounds->y0 = (min_y + 7) >> 4;
+    bounds->x1 = (max_x + 8) >> 4; bounds->y1 = (max_y + 8) >> 4;
+    gpu_put32(record + 36, (uint32_t)bounds->x0 | ((uint32_t)bounds->x1 << 16));
+    gpu_put32(record + 40, (uint32_t)bounds->y0 | ((uint32_t)bounds->y1 << 16));
+    if (bounds->x1 > 640) bounds->x1 = 640;
+    if (bounds->y1 > 480) bounds->y1 = 480;
+    return true;
+}
 bool gpu_make_sprite(uint8_t record[320], GpuBounds bounds, int32_t source_x,
                      int32_t source_y, uint32_t base, uint32_t width,
                      uint32_t height, uint32_t pitch, bool key_on, uint16_t key) {
@@ -1738,6 +1830,20 @@ if (!gpu_submit_one(&gpu, target, 0, record, bounds) ||
     !gpu_fence(&gpu, 104) || !gpu_present(&gpu, target, 105)) return false;
 target = 1u - target;
 ```
+
+A vertex triangle needs only its snapped vertices and depths:
+
+```c
+const int32_t vx[3] = {1600, 6400, 1600}, vy[3] = {1600, 1600, 4800}; /* Q4 */
+const uint32_t vz[3] = {UINT32_C(0x40000000), UINT32_C(0x40000000), UINT32_C(0x80000000)};
+if (!gpu_make_vertex_triangle(record, vx, vy, vz, 7, 0x40ff20, true, &bounds) ||
+    !gpu_submit_one(&gpu, target, 0, record, bounds) ||
+    !gpu_fence(&gpu, 110) || !gpu_present(&gpu, target, 111)) return false;
+target = 1u - target;
+```
+
+Its signed area is positive, so the cull bit keeps it; reversing two vertices
+would cull it.
 
 For a keyed sprite, upload a 4×4 RGB565 bitmap once, then reuse its heap address:
 

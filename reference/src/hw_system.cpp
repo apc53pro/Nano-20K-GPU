@@ -47,6 +47,13 @@ struct Reader {
         decode_fields = decode; state = State::Request;
     }
     bool done() const { return state == State::Done; }
+    // Continue a completed decoded read to a longer length, keeping its fields.
+    void extend(unsigned count) {
+        if (!done() || !decode_fields || count <= length || count > fields.size() ||
+            static_cast<std::uint64_t>(address) + count > memory_bytes)
+            throw std::out_of_range("bounded system read extension outside SDRAM");
+        length = count; state = State::Request;
+    }
     void tick(SdramController& memory) {
         switch (state) {
         case State::Idle: case State::Done: ports(); break;
@@ -280,6 +287,15 @@ struct SystemModel::Impl {
     enum class Prefetch { Idle, Reference, Record, Ready } prefetch = Prefetch::Idle;
     std::uint32_t prefetch_record = 0;
     bool prefetch_invalid = false;
+    // Records are fetched as a 64-byte first block; kinds 0..3 then read all
+    // 320 bytes. The invalid range size is kept for the deferred fault.
+    std::size_t prefetch_invalid_bytes = vertex_triangle_record_bytes;
+    std::uint32_t current_record = 0;
+    bool record_extended = false;
+    bool range_ok(std::uint32_t address, std::size_t bytes) const {
+        return (address & 3u) == 0 && address >= heap_base &&
+               static_cast<std::uint64_t>(address) + bytes <= memory_bytes;
+    }
     Writer writer;
     HostPassCompiler compiler; // CPU driver storage, not FPGA resources.
     bool driver_program_pending = false; // CPU driver ownership, not a device bit.
@@ -405,7 +421,7 @@ struct SystemModel::Impl {
         put(bytes, 28, configuration.host.clock_divider); put(bytes, 32, configuration.scanout.pixel_divider);
         put(bytes, 36, configuration.host.rx_fifo_capacity); put(bytes, 40, configuration.host.command_fifo_capacity);
         put(bytes, 44, configuration.host.response_fifo_capacity); put(bytes, 48, configuration.scanout.fifo_pixels);
-        put(bytes, 52, screen_width); put(bytes, 56, screen_height); put(bytes, 60, 0xffu);
+        put(bytes, 52, screen_width); put(bytes, 56, screen_height); put(bytes, 60, 0x1ffu);
         return bytes;
     }
     void require_writable(int target) const {
@@ -606,15 +622,22 @@ struct SystemModel::Impl {
             totals.fetched_bin_bytes += 4;
             // Defer malformed-reference faults until the current draw drains,
             // without issuing an invalid speculative memory request.
-            prefetch_invalid = (prefetch_record & 3u) != 0 || prefetch_record < heap_base ||
-                static_cast<std::uint64_t>(prefetch_record) + primitive_record_bytes > memory_bytes;
+            prefetch_invalid = !range_ok(prefetch_record, vertex_triangle_record_bytes);
+            prefetch_invalid_bytes = vertex_triangle_record_bytes;
+            record_extended = false;
             if (prefetch_invalid) prefetch = Prefetch::Ready;
             else {
-                reader.start(prefetch_record, primitive_record_bytes, MemoryClient::Command);
+                reader.start(prefetch_record, vertex_triangle_record_bytes, MemoryClient::Command);
                 prefetch = Prefetch::Record;
             }
+        } else if (!record_extended && record_bytes_for_kind(read_u32(reader.view(), 0)) > vertex_triangle_record_bytes) {
+            record_extended = true;
+            if (!range_ok(prefetch_record, primitive_record_bytes)) {
+                prefetch_invalid = true; prefetch_invalid_bytes = primitive_record_bytes;
+                prefetch = Prefetch::Ready;
+            } else reader.extend(primitive_record_bytes);
         } else {
-            totals.fetched_record_bytes += primitive_record_bytes;
+            totals.fetched_record_bytes += record_extended ? primitive_record_bytes : vertex_triangle_record_bytes;
             ++totals.prefetched_records;
             prefetch = Prefetch::Ready;
         }
@@ -847,9 +870,10 @@ struct SystemModel::Impl {
             reader.tick(memory);
             if (completed) {
                 const auto record = read_u32(reader.view(), 0);
-                validate_heap_range(record, primitive_record_bytes);
+                validate_heap_range(record, vertex_triangle_record_bytes);
                 totals.fetched_bin_bytes += 4;
-                reader.start(record, primitive_record_bytes, MemoryClient::Command); state = State::Record;
+                current_record = record; record_extended = false;
+                reader.start(record, vertex_triangle_record_bytes, MemoryClient::Command); state = State::Record;
             }
             break;
         }
@@ -857,7 +881,13 @@ struct SystemModel::Impl {
             const bool completed = reader.done();
             reader.tick(memory);
             if (completed) {
-                totals.fetched_record_bytes += primitive_record_bytes;
+                if (!record_extended && record_bytes_for_kind(read_u32(reader.view(), 0)) > vertex_triangle_record_bytes) {
+                    record_extended = true;
+                    validate_heap_range(current_record, primitive_record_bytes);
+                    reader.extend(primitive_record_bytes);
+                    break;
+                }
+                totals.fetched_record_bytes += record_extended ? primitive_record_bytes : vertex_triangle_record_bytes;
                 begin_record_draw();
             }
             break;
@@ -865,7 +895,7 @@ struct SystemModel::Impl {
         case State::Prefetched:
             advance_prefetch();
             if (prefetch == Prefetch::Ready) {
-                if (prefetch_invalid) validate_heap_range(prefetch_record, primitive_record_bytes);
+                if (prefetch_invalid) validate_heap_range(prefetch_record, prefetch_invalid_bytes);
                 begin_record_draw();
             } else ++totals.record_prefetch_wait_cycles;
             break;

@@ -65,7 +65,7 @@ module nano_gpu_core #(
         S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72,
         S_UPLOAD_HEADER_REQ=73, S_UPLOAD_HEADER_WAIT=74,
         S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77,
-        S_COPY_INIT_PREP=78;
+        S_COPY_INIT_PREP=78, S_SETUP=79;
     reg [7:0] state /*verilator public_flat_rd*/;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     reg [1:0] color_valid;
@@ -144,6 +144,12 @@ module nano_gpu_core #(
     reg record_load_valid;
     reg [6:0] record_load_index;
     reg [31:0] record_load_data;
+    // Kind-4 vertex-triangle setup (nano_triangle_setup).
+    reg setup_started;
+    reg record_long_bad, last_reference;   // registered at S_REF_DATA
+    wire setup_vertex, setup_done, setup_draw, setup_bad, setup_word_we;
+    wire [6:0] setup_word_index;
+    wire [31:0] setup_word_data;
     wire tile_cmd_ready, tile_busy, tile_done, tile_fault, tile_pix_rvalid;
     reg [9:0] tile_pix_addr, tile_pix_raddr;
     reg [15:0] tile_pix_color;
@@ -421,6 +427,17 @@ module nano_gpu_core #(
             reply_index<=0; state<=S_REPLY;
         end
     endtask
+    // After a reference draws (or setup rejects it), fetch the next one or
+    // store the tile.
+    task automatic finish_reference;
+        begin
+            if(last_reference) begin
+                row<=0; beat<=0; store_kind<=0; store_constant<=0;
+                xfer_color<=1; xfer_depth<=!depth_discard; state<=S_STORE_CMD;
+            end
+            else begin reference_index<=reference_index+1; state<=S_REF_CMD; end
+        end
+    endtask
     // Advance to the next enabled burst of a tile attachment transfer.
     task automatic next_transfer;
         begin
@@ -476,7 +493,8 @@ module nano_gpu_core #(
         capabilities[288 +:32]=256; capabilities[320 +:32]=2;
         capabilities[352 +:32]=1024; capabilities[384 +:32]=2048;
         capabilities[416 +:32]=640; capabilities[448 +:32]=480;
-        capabilities[480 +:32]=32'hff;
+        // Feature bit 8: kind-4 vertex triangles (GPU triangle setup).
+        capabilities[480 +:32]=32'h1ff;
     end
 
     wire [22:0] current_row_pixel = global_pixel(tile_origin_x,tile_origin_y+{4'd0,row});
@@ -502,6 +520,11 @@ module nano_gpu_core #(
         tile_cmd_word_we=record_load_valid && (state==S_RECORD_DATA || state==S_RECORD_DONE) &&
             !abort_pending && !fault_pending && !foreground_quiet && !renderer_reset;
         tile_cmd_word_index=record_load_index; tile_cmd_word_data=record_load_data;
+        // Kind-4 setup writes the renderer's flat-triangle words itself.
+        if(setup_word_we) begin
+            tile_cmd_word_we=state==S_SETUP && !abort_pending && !fault_pending && !foreground_quiet && !renderer_reset;
+            tile_cmd_word_index=setup_word_index; tile_cmd_word_data=setup_word_data;
+        end
         tile_cmd_valid=0; tile_pix_we=0; tile_pix_addr=pixel_index[9:0];
         tile_pix_color=clear_color; tile_pix_depth=clear_depth;
         tile_pix_re=0; tile_pix_raddr=store_pixel_address;
@@ -685,7 +708,7 @@ module nano_gpu_core #(
             clear_color<=0; clear_depth<=24'hffffff;
             xfer_color<=0; xfer_depth<=0; store_constant<=0; load_half<=0;
             tile_ram_clear<=0; clear_back_valid<=0; clear_back_we<=0; clear_back_addr<=0;
-            descriptor_invalid<=0;
+            descriptor_invalid<=0; setup_started<=0; record_long_bad<=0; last_reference<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
             held_color<=0; packed_word<=0; packed_mask<=0; boot_address<=0;
@@ -1041,24 +1064,38 @@ module nano_gpu_core #(
                 S_REF_CMD: if(mem_cmd_ready[2]) state<=S_REF_DATA;
                 S_REF_DATA: if(mem_r_valid[2]) begin
                     record_address<=mem_r_data[64 +:23];
-                    if(!valid_heap(mem_r_data[64 +:32],33'd320,1)) raise_fault(3);
+                    // Every record has at least the 64-byte first burst; the
+                    // 320-byte kinds are range-checked once word 0 is known.
+                    if(!valid_heap(mem_r_data[64 +:32],33'd64,1)) raise_fault(3);
+                    // Registered for S_RECORD_DONE and finish_reference, so
+                    // neither range nor count comparison feeds those decisions.
+                    record_long_bad<=!valid_heap(mem_r_data[64 +:32],33'd320,1);
+                    last_reference<=reference_index+1==reference_count;
                     state<=S_REF_DONE;
                 end
                 S_REF_DONE: if(mem_done[2]) begin record_word<=0; state<=S_RECORD_CMD; end
                 S_RECORD_CMD: if(mem_cmd_ready[2]) begin beat<=0; state<=S_RECORD_DATA; end
                 S_RECORD_DATA: if(mem_r_valid[2]) begin beat<=beat+1; if(mem_r_last[2]) state<=S_RECORD_DONE; end
                 S_RECORD_DONE: if(mem_done[2]) begin
-                    if(record_word==64) state<=S_DRAW_START;
-                    else begin record_word<=record_word+16; state<=S_RECORD_CMD; end
+                    if(record_word==0 && setup_vertex) begin setup_started<=0; state<=S_SETUP; end
+                    else if(record_word==64) state<=S_DRAW_START;
+                    else begin
+                        if(record_word==0 && record_long_bad) raise_fault(3);
+                        record_word<=record_word+16; state<=S_RECORD_CMD;
+                    end
+                end
+                // The last first-burst word retires on the S_RECORD_DONE edge,
+                // so setup starts one clock later, from the complete record.
+                S_SETUP: begin
+                    setup_started<=1;
+                    if(setup_done) begin
+                        if(setup_bad) raise_fault(6);
+                        else if(setup_draw) state<=S_DRAW_START;
+                        else finish_reference();
+                    end
                 end
                 S_DRAW_START: if(tile_cmd_ready) state<=S_DRAW_WAIT;
-                S_DRAW_WAIT: if(tile_done || !tile_busy) begin
-                    if(reference_index+1==reference_count) begin
-                        row<=0; beat<=0; store_kind<=0; store_constant<=0;
-                        xfer_color<=1; xfer_depth<=!depth_discard; state<=S_STORE_CMD;
-                    end
-                    else begin reference_index<=reference_index+1; state<=S_REF_CMD; end
-                end
+                S_DRAW_WAIT: if(tile_done || !tile_busy) finish_reference();
                 S_STORE_CMD: if(mem_cmd_ready[3]) begin
                     beat<=0; state<=store_constant ? S_STORE_WORD : S_STORE_PREFETCH;
                 end
@@ -1277,6 +1314,14 @@ module nano_gpu_core #(
         .mem_cmd_valid(tex_cmd_valid),.mem_cmd_ready(mem_cmd_ready[4]),.mem_cmd_write(tex_cmd_write),.mem_cmd_addr(tex_cmd_addr),.mem_cmd_words(tex_cmd_words),
         .mem_w_valid(tex_w_valid),.mem_w_ready(mem_w_ready[4]),.mem_w_data(tex_w_data),.mem_w_strb(tex_w_strb),
         .mem_r_valid(mem_r_valid[4]),.mem_r_ready(tex_r_ready),.mem_r_data(mem_r_data[128 +:32]),.mem_r_last(mem_r_last[4]),.mem_done(mem_done[4]),.mem_error(mem_error[4]));
+    nano_triangle_setup triangle_setup (
+        .clk(clk),.reset(reset||renderer_reset),
+        .capture_we(record_load_valid && state==S_RECORD_DONE || record_load_valid && state==S_RECORD_DATA),
+        .capture_index(record_load_index),.capture_data(record_load_data),
+        .vertex_kind(setup_vertex),.start(state==S_SETUP && !setup_started),
+        .tile_x(tile_origin_x),.tile_y(tile_origin_y),
+        .word_we(setup_word_we),.word_index(setup_word_index),.word_data(setup_word_data),
+        .done(setup_done),.draw(setup_draw),.bad(setup_bad));
     nano_tile_renderer tile_renderer (
         .clk(clk),.reset(reset||renderer_reset),.cmd_word_we(tile_cmd_word_we),.cmd_word_index(tile_cmd_word_index),.cmd_word_data(tile_cmd_word_data),
         .cmd_valid(tile_cmd_valid),.cmd_ready(tile_cmd_ready),.cmd_tile_x(tile_origin_x),.cmd_tile_y(tile_origin_y),

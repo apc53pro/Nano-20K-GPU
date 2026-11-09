@@ -1,0 +1,25 @@
+{
+  "profile": "N20K-RTL-BENCH-1",
+  "clock_hz": 50400000,
+  "scanout_underflows": 0,
+  "cases": [
+    {"case": "warm-up: empty, clear color and depth", "core_cycles": 922292},
+    {"case": "empty pass, clear color and depth", "core_cycles": 1187586},
+    {"case": "empty pass, load color, clear depth", "core_cycles": 785762},
+    {"case": "empty pass, load color and depth", "core_cycles": 16862},
+    {"case": "full-screen front-to-back copy", "core_cycles": 748398},
+    {"case": "UI frame (148 rects), clear color and depth", "core_cycles": 2773610},
+    {"case": "pointer-sized update, load color and depth", "core_cycles": 22070},
+    {"case": "empty pass, clear color, discard depth", "core_cycles": 414848},
+    {"case": "UI frame (148 rects), clear color, discard depth", "core_cycles": 2015432},
+    {"case": "pointer-sized update, load color, discard depth", "core_cycles": 24406},
+    {"case": "empty pass, load color, discard depth", "core_cycles": 16072},
+    {"case": "showcase scene frame (t=1.2)", "core_cycles": 5021028},
+    {"case": "overdraw scene frame (t=1.2)", "core_cycles": 6433430},
+    {"case": "icosahedron frame, full clear (SDK flags 7)", "core_cycles": 640656},
+    {"case": "icosahedron next frame, SKIP + dirty tiles (flags 15)", "core_cycles": 344230},
+    {"case": "400 vertex triangles (GPU setup), 12950 refs, margin 0", "core_cycles": 8046898},
+    {"case": "400 vertex triangles (GPU setup), 17541 refs, margin 1", "core_cycles": 7688874},
+    {"case": "icosahedron, flat kind-4 records with GPU culling", "core_cycles": 596532}
+  ]
+}

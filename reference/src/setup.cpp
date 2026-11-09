@@ -272,7 +272,92 @@ ScreenVertex project(const ClipVertex& vertex) {
             vertex.r, vertex.g, vertex.b};
 }
 
+constexpr std::int64_t vertex_gradient_limit = (std::int64_t{1} << 42) - 1;
+
+// Floor division by a positive divisor.
+Wide floor_quotient(Wide numerator, Wide denominator) {
+    Wide quotient = numerator / denominator;
+    if (numerator % denominator != 0 && numerator < 0) --quotient;
+    return quotient;
+}
+
+// |N|*4096/area rounded half away from zero, saturated like the RTL divider.
+std::int64_t vertex_gradient(Wide numerator, Wide denominator) {
+    const Wide scaled = magnitude(numerator) * 4096;
+    Wide quotient = scaled / denominator;
+    if (2 * (scaled % denominator) >= denominator) ++quotient;
+    if (quotient > vertex_gradient_limit) quotient = vertex_gradient_limit;
+    return static_cast<std::int64_t>(numerator < 0 ? -quotient : quotient);
+}
+
+void validate_vertex_state(const RenderState& state) {
+    validate_state(state);
+    if (state.shade != ShadeMode::Flat || state.color_key || state.texture ||
+        state.address_u != AddressMode::Clamp || state.address_v != AddressMode::Clamp)
+        throw std::invalid_argument("vertex triangle requires flat, untextured state");
+}
+
+// The kind-4 field domain: 14-bit Q4 X, 13-bit Q4 Y, 11-bit bounds.
+bool vertex_point_valid(Point point) {
+    return point.x >= 0 && point.x <= 16383 && point.y >= 0 && point.y <= 8191;
+}
+bool vertex_bounds_valid(Bounds bounds) {
+    for (const int value : {bounds.x0, bounds.y0, bounds.x1, bounds.y1})
+        if (value < 0 || value > 2047) return false;
+    return true;
+}
+
+std::optional<Triangle> compute_vertex_triangle(const VertexSource& source, const RenderState& state) {
+    validate_vertex_state(state);
+    for (const auto point : source.points)
+        if (!vertex_point_valid(point)) throw std::invalid_argument("vertex triangle position outside 14/13-bit Q4");
+    if (!vertex_bounds_valid(source.bounds)) throw std::invalid_argument("vertex triangle bounds outside 0..2047");
+    Triangle triangle;
+    triangle.state = state;
+    triangle.state.scissor = intersect(source.bounds, Bounds{});
+    triangle.source = source;
+    triangle.snapped = source.points;
+    auto depth = source.depth;
+    const auto signed_area = area(triangle.snapped);
+    if (signed_area == 0 || (signed_area < 0 && source.cull_negative)) return std::nullopt;
+    if (signed_area < 0) {
+        std::swap(triangle.snapped[1], triangle.snapped[2]);
+        std::swap(depth[1], depth[2]);
+    }
+    for (std::size_t i = 0; i < triangle.edges.size(); ++i)
+        triangle.edges[i] = make_edge(triangle.snapped[i], triangle.snapped[(i + 1) % 3]);
+    triangle.bounds = triangle_bounds(triangle.snapped, triangle.state.scissor);
+    if (triangle.bounds.empty()) return std::nullopt;
+    if (state.depth_test || state.depth_write) {
+        const auto& p = triangle.snapped;
+        const Wide denominator = area(p);
+        const Wide d1 = static_cast<Wide>(depth[1]) - depth[0];
+        const Wide d2 = static_cast<Wide>(depth[2]) - depth[0];
+        const auto gx = vertex_gradient(d1 * (p[2].y - p[0].y) - d2 * (p[1].y - p[0].y), denominator);
+        const auto gy = vertex_gradient(d2 * (p[1].x - p[0].x) - d1 * (p[2].x - p[0].x), denominator);
+        const Wide sx = 16 * triangle.bounds.x0 + 8 - p[0].x;
+        const Wide sy = 16 * triangle.bounds.y0 + 8 - p[0].y;
+        const Wide seed = static_cast<Wide>(depth[0]) * 256 + floor_quotient(sx * gx + sy * gy + 8, 16);
+        triangle.z = {narrow(seed), gx, gy};
+    }
+    return triangle;
+}
+
 } // namespace
+
+Bounds vertex_bounds(const std::array<Point, 3>& points) {
+    const int min_x = std::min({points[0].x, points[1].x, points[2].x});
+    const int min_y = std::min({points[0].y, points[1].y, points[2].y});
+    const int max_x = std::max({points[0].x, points[1].x, points[2].x});
+    const int max_y = std::max({points[0].y, points[1].y, points[2].y});
+    return {(min_x + 7) >> 4, (min_y + 7) >> 4, (max_x + 8) >> 4, (max_y + 8) >> 4};
+}
+
+std::optional<Triangle> vertex_triangle_setup(const VertexSource& source, const RenderState& state) {
+    auto triangle = compute_vertex_triangle(source, state);
+    if (triangle) validate_triangle(*triangle);
+    return triangle;
+}
 
 Bounds intersect(Bounds a, Bounds b) {
     return {std::max(a.x0, b.x0), std::max(a.y0, b.y0),
@@ -453,8 +538,10 @@ std::vector<std::array<ScreenVertex, 3>> clip_project_triangle(
 void validate_triangle(const Triangle& triangle) {
     validate_state(triangle.state);
     for (const auto point : triangle.snapped) {
-        if (point.x < 0 || point.x > 16 * screen_width ||
-            point.y < 0 || point.y > 16 * screen_height) {
+        // A GPU-setup triangle may extend into its 14/13-bit guard band.
+        if (triangle.source ? !vertex_point_valid(point)
+                            : (point.x < 0 || point.x > 16 * screen_width ||
+                               point.y < 0 || point.y > 16 * screen_height)) {
             throw std::invalid_argument("snapped triangle vertex outside Q4 viewport");
         }
     }
@@ -484,6 +571,22 @@ void validate_triangle(const Triangle& triangle) {
         preflight(triangle.q, triangle.bounds);
         preflight(triangle.u, triangle.bounds);
         preflight(triangle.v, triangle.bounds);
+    }
+    if (triangle.source) {
+        // A GPU-setup triangle carries only its vertices to the GPU, so its
+        // derived fields must be exactly what the GPU will compute.
+        const auto expected = compute_vertex_triangle(*triangle.source, triangle.state);
+        const auto same_plane = [](const Plane& a, const Plane& b) {
+            return a.seed == b.seed && a.step_x == b.step_x && a.step_y == b.step_y;
+        };
+        if (!expected || expected->snapped[0] != triangle.snapped[0] ||
+            expected->snapped[1] != triangle.snapped[1] || expected->snapped[2] != triangle.snapped[2] ||
+            !same_bounds(expected->bounds, triangle.bounds) ||
+            !same_bounds(expected->state.scissor, triangle.state.scissor) || !same_plane(expected->z, triangle.z) ||
+            !same_plane(triangle.r, Plane{}) || !same_plane(triangle.g, Plane{}) ||
+            !same_plane(triangle.b, Plane{}) || !same_plane(triangle.q, Plane{}) ||
+            !same_plane(triangle.u, Plane{}) || !same_plane(triangle.v, Plane{}))
+            throw std::invalid_argument("vertex triangle differs from its GPU setup");
     }
 }
 

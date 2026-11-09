@@ -116,6 +116,19 @@
       ]
     },
     {
+      "id": "vertex_triangle_setup",
+      "description": "Kind-4 vertex-triangle setup per tile reference: tile window, orientation and culling, edges, coverage rejection, depth gradients and seed, written as the renderer's flat-triangle words.",
+      "status": "rtl_submodule",
+      "model_sources": [
+        "reference/src/setup.cpp",
+        "reference/src/hw_protocol.cpp"
+      ],
+      "rtl_sources": [
+        "rtl/gpu/nano_triangle_setup.sv",
+        "rtl/gpu/nano_gpu_core.sv"
+      ]
+    },
+    {
       "id": "sdram_controller_arbitration",
       "description": "SDRAM initialization, refresh, physical command/data timing, per-client native slots, arbitration and response ownership.",
       "status": "rtl_submodule",

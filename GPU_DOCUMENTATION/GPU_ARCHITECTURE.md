@@ -19,22 +19,24 @@ one PIO state machine and shares its GPU client between the terminal and the
 focused NARM application. Its rendering regression uses the software oracle.
 The board image runs a **50.4 MHz GPU core/SDRAM clock** with **25.2 MHz
 pixels** and 126 MHz DDR serialization. The GPU's rendered output drives HDMI;
-the user reported the terminal running on an earlier image. The current
-image adds the SKIP load flag to the pipelined SDRAM controller, word-wide
-display FIFO and tile clearing during stores; it was flashed and verified on
-2026-11-08, and the user reported `demo_3d_engine6` running on it with the
-RP2350 at a stable 60 fps. It is built with
+the user reported the terminal running on an earlier image. The previous
+image added the SKIP load flag to the pipelined SDRAM controller, word-wide
+display FIFO and tile clearing during stores; the user reported
+`demo_3d_engine6` running on it with the RP2350 at a stable 60 fps. The
+current image adds **GPU triangle setup** for kind-4 vertex triangles
+(section 6). It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
 source-matched build verifies every package pin and meets every required
-clock, with the core at 56.46 MHz Fmax. It uses **16,481/20,736 logic
-(Gowin count)**, **6,778 registers**, **46/46 BSRAM**, 53% DSP and one PLL.
+clock, with the core at 54.97 MHz Fmax. It uses **18,058/20,736 logic
+(Gowin count)**, **7,395 registers**, **46/46 BSRAM**, 63% DSP and one PLL.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
 SDRAM-write backend; its only additional decoder storage is an eight-bit group
 descriptor. All resource types use this engine, with literal words inside the
 same encoding. There is no legacy 0.1 packet path or uncompressed fallback.
-Decoded primitive records remain 320 bytes and rendering features are unchanged.
+Decoded primitive records are 320 bytes, except the 64-byte kind-4 vertex
+triangle, whose setup the GPU computes (capability feature bit 8).
 The [earlier standalone decoder experiment](../docs/hardware/upload-codec.md)
 was a different probe with additional measurement registers; its failed
 co-residency result is historical, not an integrated fit measurement. The
@@ -186,9 +188,13 @@ in A4; the `RP2350B` package name alone does not identify the stepping.
 | Serialize uploads and commands; handle replies/recovery | Load/clear, render and store tile attachments |
 | Choose the writable physical buffer and request presentation | Swap at vertical blank and continuously scan out the front buffer |
 
-Triangle setup and vertex lighting are **CPU work in this version**. For
-example, Gouraud mode interpolates RGB values supplied by the CPU; the FPGA
-does not transform normals or calculate a lighting model.
+Vertex transformation, clipping, projection and lighting are **CPU work in
+this version**. For example, Gouraud mode interpolates RGB values supplied by
+the CPU; the FPGA does not transform normals or calculate a lighting model.
+Triangle setup is CPU work for kinds 0..3. For a flat **kind-4 vertex
+triangle** the GPU computes it instead: winding, back-face culling, edges,
+bounds, depth plane and per-tile rejection (section 6). This record is 64 bytes
+instead of 320, and it needs no exact CPU tile test.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
@@ -455,7 +461,11 @@ For each tile the current executor fetches the tile entry, then:
      consecutive clocks while the read response is held. Cleared attachments
      are written with their clear values (1,024 clocks) only for the pass's
      first tile with draws; see step 4.
-  2. Fetches each reference and prepared primitive record in list order.
+  2. Fetches each reference, then the record's first 16-word burst. A kind-4
+     vertex triangle is set up for this tile from those words (section 6);
+     a tile it cannot cover is skipped without starting the renderer. Other
+     kinds fetch their remaining 64 words, so one prepared record costs five
+     bursts.
   3. Runs the primitive in the tile and drains its fragment work before
      changing draw state.
   4. Streams color, and depth unless discarded, back to SDRAM in 16-word
@@ -547,6 +557,62 @@ from each adder's retained path, without adding ordinary raster clocks.
 The current setup domain limits a triangle's W ratio to 64 and vertex UVs to
 `[-1024,1024]` texels. Out-of-domain geometry needs CPU refinement or rejection.
 Range checks precede narrowing; overflow is not permitted to wrap silently.
+
+### GPU triangle setup (kind 4)
+
+[`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) sets up flat
+vertex triangles. It captures the record's first 16 words as they stream from
+SDRAM: three Q4 vertices, three D24×256 depths, the drawing bounds, flags and
+color. For each tile reference it then writes the renderer's ordinary kind-0
+command words, so the tile renderer is unchanged:
+
+1. **Window.** The record's bounds are intersected with the tile. An empty
+   window ends the reference. The bounds act as a scissor; the CPU normally
+   supplies the pixel-center triangle bounds it already computed for binning,
+   so the GPU needs no min/max tree.
+2. **Orientation.** Four products evaluate edge 0 at vertex 2, which is the
+   signed area. Zero area, or a negative area with the record's cull bit, ends
+   the reference. Otherwise a negative area negates every edge. That is the
+   edge set of the triangle with vertices 1 and 2 exchanged, with inclusive
+   bits derived from the negated signs, so no vertex is moved.
+3. **Edges and tile test.** Per edge, two products give `C = -(A*Xe + B*Ye)`,
+   written straight to the renderer. Two more evaluate the edge at the window
+   corner where it is largest. If any is negative, no pixel center can be
+   covered and the reference ends. Six more products (`A*1`, `B*1`) write the
+   edges' A and B words.
+4. **Depth numerators.** Since `A0+A1+A2 = 0`, `Nx = Z0*A1 + Z1*A2 + Z2*A0` and
+   `Ny = Z0*B1 + Z1*B2 + Z2*B0` need only three products each and no depth
+   subtractors. The divider takes `|Nx|`; `|Ny|` waits in a register.
+5. **Gradients.** One restoring divider runs for each axis in turn: one check
+   clock plus 43 quotient bits, the last of which rounds. Each result is
+   `|N|*4096/|area|`, rounded half away from zero and saturated at `2^42-1`.
+   Its sign is that of `N*area`. Between the two divisions, the X gradient
+   words and the seed's X term are formed. Meanwhile the header, window,
+   scissor and inclusive words stream to the idle renderer. The bounds equal
+   the window, so the renderer's offset walk is zero.
+6. **Seed.** The Y term, rounding constant and `Z0*256` complete the depth at
+   the window corner, `Z0*256 + floor((SX*Gx + SY*Gy + 8)/16)`. The seed and
+   Y gradient then fill their words.
+
+One signed 44×16 multiplier (two-clock latency), one 64-bit accumulator and
+one divider compute every product, sum, magnitude, rounding and sign.
+Constants and stored values reach the accumulator as products (`q*1`,
+`G*±1`, `Z0*256`, `1*8`). The multiplier's first operand is therefore one of
+only four sources (coordinate, depth, quotient or 1), and its second operand
+is an edge coefficient, a sample offset or a constant. Each issued step
+carries its accumulator operation down the multiplier pipeline, and a
+follow-up action reads the settled result. A depth-free triangle skips steps
+4–6. A visible depth-tested reference costs about 130 setup clocks, plus the
+renderer's own edge setup. That replaces four of the five record bursts and
+the offset walk. Vertex positions use 14/13-bit fields, so X up to 16383 and
+Y up to 8191 form a right/bottom guard band; every edge and plane value stays
+in range. An earlier draft with two parallel dividers and a wide operand
+multiplexer needed 98% of the device's logic and could not be routed; the
+board build is the authority for this one's fit. [`vertex_triangle_setup()`](../reference/src/setup.cpp)
+is the arithmetic contract. A pixel's depth is the same whichever tile
+computes it, because neighboring seeds differ by whole-pixel steps. The C++
+decoder expands a kind-4 record into the ordinary triangle the oracle renders.
+Malformed fields fault the pass with code 6.
 
 For textured triangles the FPGA reconstructs `u=U/q` and `v=V/q`. Depth stays
 screen-affine and is not divided by q. The selected shared-reciprocal pipeline
@@ -994,33 +1060,39 @@ a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 
 The [current complete-board report](../docs/hardware/tang20k-board.json) is
 source-matched to the 50.4 MHz GPU-video profile described above. It is built
-by `make tang20k` with Gowin EDA V1.9.8.11 Education, using placement option 2
-and routing option 1. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
+by `make tang20k` with Gowin EDA V1.9.8.11 Education, using placement option 0
+and routing option 2 (Makefile `TANG20K_PLACE`/`TANG20K_ROUTE`). With the
+earlier options 2/1 this design routed but the core reached only 40.5 MHz;
+these are build choices, not hardware modes. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
 resets, the physical host wrapper, registered SDRAM boundary pads, the
 pixel-event handoff, and the TMDS serializers and pads. All 26 package pins,
 including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **16,481 (80%)** | 20,736 |
-| Registers | 6,778 (43%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **18,058 (87%)** | 20,736 |
+| Registers | 7,395 (47%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
-| DSP | 53% | |
+| DSP | 63% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
 
 Gowin's logic count is not directly comparable with the nextpnr LUT-site
-counts of earlier reports. No BSRAM bank is spare.
+counts of earlier reports. No BSRAM bank is spare. The image before the
+kind-4 setup unit used 16,481, so the unit and its core integration cost
+about 1,600.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **56.46 MHz** |
-| Host | 25.2 MHz | 80.01 MHz |
-| Physical pixel | 25.2 MHz | 174.90 MHz |
-| Reference | 27 MHz | 435.14 MHz |
+| Core/SDRAM | 50.4 MHz | **54.97 MHz** |
+| Host | 25.2 MHz | 68.18 MHz |
+| Physical pixel | 25.2 MHz | 178.04 MHz |
+| Reference | 27 MHz | 376.36 MHz |
 
-The core closes with about 12% margin in this placement (2.13 ns slack); its
-closest path runs from the SDRAM controller's issued-word counter to the
-registered SDRAM DQM pad. CLS use is 88%. The previous image (pipelined SDRAM
+The core closes with about 9% margin in this placement. Two core decisions
+read registered flags computed when a reference is fetched (the 320-byte
+record range and the last-reference test), so neither comparison feeds the
+executor's next-state logic. The image before the setup unit closed at
+56.46 MHz with options 2/1. The image before that (pipelined SDRAM
 without SKIP) closed at 51.67 MHz with a Gowin count of 18,185 logic, although
 a Yosys `synth_gowin` of its sources mapped slightly fewer LUTs than before;
 Gowin's count varies with its mapping of each netlist. Earlier placements
@@ -1030,11 +1102,11 @@ ranged from 51.13 to 62.8 MHz. Two RTL timing fixes took the core from
 - registering the copy direction and starting row before the address
   arithmetic (section 9).
 
-Four reset-release paths have negative slack, and the report lists each one:
-power-on into the core and pixel reset synchronizers, −2.63 ns and −1.30 ns.
-This is an asynchronous preset into two-flop synchronizers that release
-synchronously. (The synchronized pixel reset into the OSER10 serializer
-resets, listed for earlier images, meets timing in this placement.)
+Eight reset-release paths have negative slack, and the report lists each one:
+power-on into the core and pixel reset synchronizers, −2.63 ns and −2.12 ns,
+which is an asynchronous preset into two-flop synchronizers that release
+synchronously; and the synchronized pixel reset into the four OSER10
+serializer resets, −0.40 ns, as listed for earlier images.
 
 The build fails on any other negative-slack path.
 
@@ -1043,7 +1115,8 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`. The
+`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It has
+not yet been programmed or tested on the board. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
@@ -1053,7 +1126,8 @@ covers two layers:
 - five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD/SKIP self-test
   with 44 copy oracle cases, plus four rendering scenes.
 
-On 2026-11-08 this image was written to the Tang's SPI flash with
+On 2026-11-08 the previous image (`5b6f75aa…08e6`, SKIP without the setup
+unit) was written to the Tang's SPI flash with
 `make tang20k-flash` (program and verify succeeded; the FPGA reloaded it with
 status `0x6020`, user code `0x72CD`). With the RP2350, the user measured
 `demo_3d_engine6` (draw SDK with SKIP, blocking present, no frame sleep) at a
@@ -1199,6 +1273,30 @@ earlier frame (an empty-scissor marker for the latter), takes **6.83 ms** and
 matches the full-clear SRR image exactly. Results are in
 [the SKIP regression](../docs/benchmarks/rtl-skip-tiles.json).
 
+**Kind-4 vertex triangles.** The benchmark also submits kind-4 records
+directly. Each of two runs has 400 random triangles: large, small, sliver
+and zero-area shapes in both windings, a third with the cull bit, a quarter
+with a scissor rectangle, and positions in the guard band. The first run
+lists each triangle in its bounds tiles; the second widens every list by one
+tile, so the setup unit must reject windows and uncovered tiles itself. A
+flat icosahedron also submits every face twice, the second copy reversed and
+culled. Every color buffer and D24 word matches the SRR's decode of the same
+records. The icosahedron takes **11.84 ms**, against 12.71 ms for the
+CPU-prepared Gouraud frame. Results are in
+[the vertex-triangle regression](../docs/benchmarks/rtl-vertex-triangles.json).
+
+A board-clock replay of `demo_3d_engine9`'s town view reproduces the same
+640×480 image (scanout hash `a15aa053fd7b1558`) as with CPU-prepared records.
+The trace was recorded from the NARM program running under an emulator.
+Encoded uploads drop from 37.3 KB to 28.4 KB per frame, and host delivery
+from 449k to 182k core clocks. The GPU pass stays at 1.42 M clocks (28.2 ms,
+against 1.43 M): the setup unit's 9% replaces the four extra record bursts and
+the offset walk. Tile stores (about 32%), covered pixels (23%) and uncovered
+bounding-box samples (12%) dominate the pass. In the same emulator, the
+program's per-frame triangle building falls from about 3.7 M to 2.4 M
+instructions, and its binning from 1.9 M to 0.6 M. These are simulation and
+emulation figures, not board measurements.
+
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests
 and two frames of all four scenes pass; every checked display frame and
@@ -1311,6 +1409,7 @@ a measured silicon frequency limit or 30 FPS scenes.
 | [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and expected fixed embedded SDRAM terminals |
 | [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, copies, presentation/recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
+| [`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) | Kind-4 vertex-triangle setup per tile: orientation/culling, edges, window and tile rejection, depth gradients and seed |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |
 | [`nano_fragment_pipeline.sv`](../rtl/gpu/nano_fragment_pipeline.sv) | Textured contexts, ordered depth/key/shading commits |
 | [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Selected exact integer-texel path, separate generic Q16 path, native delay RAMs and multipliers |
@@ -1323,7 +1422,7 @@ a measured silicon frequency limit or 30 FPS scenes.
 | [`nano_tmds.sv`](../rtl/gpu/nano_tmds.sv) | Standard TMDS encoding/serialization building block |
 | [`reference/rtl/main.cpp`](../reference/rtl/main.cpp) | CPU-side demo driver, oracle comparison and actual scanout capture |
 | [`reference/rtl/sdram_model.cpp`](../reference/rtl/sdram_model.cpp) | External SDRAM chip model |
-| [`reference/src/setup.cpp`](../reference/src/setup.cpp) | Canonical CPU geometry/plane preparation |
+| [`reference/src/setup.cpp`](../reference/src/setup.cpp) | Canonical CPU geometry/plane preparation and the kind-4 GPU setup contract |
 | [`reference/src/hw_protocol.cpp`](../reference/src/hw_protocol.cpp) | CPU packet/record encoding and heap-building helpers |
 
 For exact CPU control, start with [GPU_CONTROL.md](GPU_CONTROL.md). Supporting

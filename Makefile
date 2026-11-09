@@ -48,8 +48,13 @@ tang20k-test:
 
 # Board image: Gowin EDA (see AGENTS.md). GOWIN_SH overrides the gw_sh path.
 GOWIN_SH ?= C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe
+# Placement/routing options of the published image (a build choice, not a
+# hardware mode). Option 2/1 left the current design over its timing budget.
+TANG20K_PLACE ?= 0
+TANG20K_ROUTE ?= 2
 tang20k: tang20k-test
-	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --gowin "$(GOWIN_SH)"
+	$(PYTHON) scripts/build-tang20k.py --build-dir "$(BUILD_DIR)/tang20k" --gowin "$(GOWIN_SH)" \
+		--place-option $(TANG20K_PLACE) --route-option $(TANG20K_ROUTE)
 
 # Programming: only the signed standalone Gowin Programmer V1.9.12.04 writes
 # this board's SPI flash. The Education IDE's own programmer_cli cannot; see

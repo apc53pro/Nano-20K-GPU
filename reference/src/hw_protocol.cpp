@@ -270,9 +270,44 @@ HeapUpload decode_heap_upload(const std::vector<std::uint8_t>& payload) {
     return result;
 }
 
+std::size_t record_bytes(const Primitive& primitive) {
+    const auto* triangle = std::get_if<Triangle>(&primitive);
+    return triangle && triangle->source ? vertex_triangle_record_bytes : primitive_record_bytes;
+}
+
+std::size_t record_bytes_for_kind(std::uint32_t first_word) {
+    return (first_word & 0xffu) == 4 ? vertex_triangle_record_bytes : primitive_record_bytes;
+}
+
+std::vector<std::uint8_t> encode_vertex_triangle(const VertexSource& source, const RenderState& state) {
+    validate_state_fields(state);
+    (void)vertex_triangle_setup(source, state); // Validates fields and the resulting setup.
+    std::vector<std::uint8_t> result(vertex_triangle_record_bytes, 0);
+    const auto flags = (state.color_write ? 1u : 0u) | (state.depth_test ? 2u : 0u) |
+                       (state.depth_write ? 4u : 0u);
+    write_u32(result, 0, 4u | 0x100u | (flags << 16) | (source.cull_negative ? 1u << 20 : 0u));
+    write_u32(result, 4, static_cast<std::uint32_t>(state.depth_func) << 8);
+    write_u32(result, 8, state.color.r | (static_cast<std::uint32_t>(state.color.g) << 8) |
+                           (static_cast<std::uint32_t>(state.color.b) << 16));
+    for (unsigned i = 0; i < 3; ++i) {
+        write_u32(result, 12 + 4 * i, static_cast<std::uint32_t>(source.points[i].x) |
+                                      (static_cast<std::uint32_t>(source.points[i].y) << 16));
+        write_u32(result, 24 + 4 * i, source.depth[i]);
+    }
+    write_u32(result, 36, static_cast<std::uint32_t>(source.bounds.x0) |
+                          (static_cast<std::uint32_t>(source.bounds.x1) << 16));
+    write_u32(result, 40, static_cast<std::uint32_t>(source.bounds.y0) |
+                          (static_cast<std::uint32_t>(source.bounds.y1) << 16));
+    return result;
+}
+
 std::vector<std::uint8_t> encode_primitive(const Primitive& primitive,
                                          std::optional<TextureDescriptor> texture) {
     validate_primitive(primitive);
+    if (const auto* triangle = std::get_if<Triangle>(&primitive); triangle && triangle->source) {
+        if (texture) throw std::invalid_argument("vertex triangle cannot carry a texture");
+        return encode_vertex_triangle(*triangle->source, triangle->state);
+    }
     if (needs_texture(primitive) && !texture)
         throw std::invalid_argument("packed textured primitive needs a GPU texture descriptor");
     if (texture) require_texture(*texture);
@@ -331,7 +366,47 @@ std::vector<std::uint8_t> encode_primitive(const Primitive& primitive,
     return result;
 }
 
+namespace {
+DecodedPrimitive decode_vertex_triangle(const std::vector<std::uint8_t>& bytes) {
+    require_size(bytes, vertex_triangle_record_bytes);
+    const auto kind_flags = read_u32(bytes, 0);
+    const auto modes = read_u32(bytes, 4);
+    if (((kind_flags >> 8) & 0xffu) != 1 || (kind_flags & 0xffe80000u) != 0 ||
+        (modes & ~0x300u) != 0 || ((modes >> 8) & 3u) == 3 || (read_u32(bytes, 8) & 0xff000000u) != 0)
+        throw std::invalid_argument("invalid vertex triangle fields");
+    for (unsigned i = 0; i < 3; ++i)
+        if ((read_u32(bytes, 12 + 4 * i) & 0xe000c000u) != 0)
+            throw std::invalid_argument("vertex triangle position outside 14/13-bit Q4");
+    for (unsigned offset = 36; offset <= 40; offset += 4)
+        if ((read_u32(bytes, offset) & 0xf800f800u) != 0)
+            throw std::invalid_argument("vertex triangle bounds outside 11 bits");
+    require_zero(bytes, 44, vertex_triangle_record_bytes);
+    RenderState state;
+    state.color_write = (kind_flags & (1u << 16)) != 0;
+    state.depth_test = (kind_flags & (1u << 17)) != 0;
+    state.depth_write = (kind_flags & (1u << 18)) != 0;
+    state.depth_func = static_cast<DepthFunc>((modes >> 8) & 3u);
+    const auto rgb = read_u32(bytes, 8);
+    state.color = {static_cast<std::uint8_t>(rgb), static_cast<std::uint8_t>(rgb >> 8),
+                   static_cast<std::uint8_t>(rgb >> 16)};
+    VertexSource source;
+    source.cull_negative = (kind_flags & (1u << 20)) != 0;
+    for (unsigned i = 0; i < 3; ++i) {
+        const auto position = read_u32(bytes, 12 + 4 * i);
+        source.points[i] = {static_cast<int>(position & 0xffffu), static_cast<int>(position >> 16)};
+        source.depth[i] = read_u32(bytes, 24 + 4 * i);
+    }
+    source.bounds = {static_cast<int>(read_u32(bytes, 36) & 0xffffu), static_cast<int>(read_u32(bytes, 40) & 0xffffu),
+                     static_cast<int>(read_u32(bytes, 36) >> 16), static_cast<int>(read_u32(bytes, 40) >> 16)};
+    DecodedPrimitive result;
+    if (auto triangle = vertex_triangle_setup(source, state)) result.primitive = *triangle;
+    else { result.primitive = Rect{{0, 0, 0, 0}, overlay_state(), 0}; result.draws = false; }
+    return result;
+}
+} // namespace
+
 DecodedPrimitive decode_primitive(const std::vector<std::uint8_t>& bytes) {
+    if (bytes.size() >= 4 && (read_u32(bytes, 0) & 0xffu) == 4) return decode_vertex_triangle(bytes);
     require_size(bytes, primitive_record_bytes);
     const auto kind_flags = read_u32(bytes, 0);
     const unsigned kind = kind_flags & 0xffu;
@@ -499,7 +574,7 @@ HostProgram build_pass_heap(const Pass& pass, const TileBins& bins,
     std::vector<std::uint32_t> records;
     records.reserve(pass.primitives.size());
     for (std::size_t index = 0; index < pass.primitives.size(); ++index) {
-        const auto address = heap.allocate(primitive_record_bytes);
+        const auto address = heap.allocate(record_bytes(pass.primitives[index]));
         heap.put(address, encode_primitive(pass.primitives[index], bindings[index]));
         records.push_back(address);
     }
@@ -614,8 +689,8 @@ HostProgram HostPassCompiler::compile(const Pass& pass, std::uint32_t first_sequ
     if (state.pending) throw std::logic_error("complete or reset the outstanding host pass before compiling another");
     require_program(pass, first_sequence);
     const auto bins = bin_primitives(pass.primitives);
-    std::uint64_t transient_bytes = pass_descriptor_bytes + tile_count * tile_entry_bytes +
-                                    primitive_record_bytes * pass.primitives.size();
+    std::uint64_t transient_bytes = pass_descriptor_bytes + tile_count * tile_entry_bytes;
+    for (const auto& primitive : pass.primitives) transient_bytes += record_bytes(primitive);
     std::uint64_t references = 0;
     for (const auto& bin : bins) references += bin.size();
     if (references > maximum_pass_references)

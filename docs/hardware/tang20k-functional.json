@@ -4,7 +4,7 @@
   "source_sha256": {
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "848801d0d840a0897f09dc7335b9bb987586d31e72cd0a1a0c489a05da5afa30",
+    "rtl/gpu/nano_gpu_core.sv": "7d2f7d6a4cf970be73482e629ed199fe9e254d6cb573bec5381348ee15907f2a",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
     "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
@@ -15,6 +15,7 @@
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
     "rtl/gpu/nano_tile_renderer.sv": "5bd0b2ba557451862365c85a1946347c389795cf86666f6a6dd450621333e86b",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "rtl/gpu/nano_triangle_setup.sv": "2cfe003300ce39cc4302acfc54e1537a6c4f455144289881bfea21b45f5601c6",
     "rtl/gpu_probe.sv": "e6fd7872f631da49cccdf37689176a6195cf839beac955e1ef5527e103187f71",
     "rtl/tests/core_recovery_quiesce_tb.sv": "971f8da449046a672b31ff30b101897c6024e4c7626c18bba5355805416c1203",
     "rtl/tests/fragment_conservative_ready_tb.sv": "276f2a945ec24b68f0c78ffb98464fd1ad88607bdeb1f1b65a17d61a1db5917f",
@@ -52,7 +53,7 @@
     "reference/include/nano_gpu/hw/host_link.hpp": "d9f7f0529098dfeea758380dd27ef4b8b97d18ba6c2749d5798874c36a605350",
     "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
     "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
-    "reference/include/nano_gpu/hw/protocol.hpp": "6e4cf7bad61f8601d5d7cf92e1e21da73905c64586379875bbf171ec780d2bcf",
+    "reference/include/nano_gpu/hw/protocol.hpp": "38fe66050c58e06a12550d3143e570044cc8050d41392c6502b2037c15e93463",
     "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
     "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
     "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
@@ -65,12 +66,12 @@
     "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
     "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
     "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
-    "reference/include/nano_gpu/reference.hpp": "b39c451d1583a587b4c0c6740f1b2b4b9f28513dd1cd10b0e6c3565656c8057e",
-    "reference/src/setup.cpp": "7994c74412e6496dcb10205f1ede388a6d059d330e8ca19c71049d2f0a9da733",
+    "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+    "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
     "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
     "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
-    "reference/src/hw_protocol.cpp": "b0980fbfd122887bd37801fb6b1fad2b157f88db22a017ebfbb610261b752b69",
-    "reference/rtl/main.cpp": "bda8199314dd5fd848831911479ea3af5015c293269546f496b39c61931cc693",
+    "reference/src/hw_protocol.cpp": "273afd232a3be49376ce23dcd06bcd42a80fce61c446d279f93fbba6ca775001",
+    "reference/rtl/main.cpp": "dc6c06b279ae57bf4d8f0aa6a8e18e25c5b576ec6e6bcc18e5eea8852aaa69f2",
     "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
     "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
     "scripts/check-tang20k.py": "709e2d9decaf9adc73c0cba4c9cb22cb4eaad885b7cef068ebb74be5facda44a",
@@ -78,26 +79,26 @@
     "scripts/rtl-gpu-check.py": "f47a285d92adf60c9082b0b8372b81503dca1871c7b6c1f6eea7e211988611b3",
     "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
   },
-  "board_glue_log_sha256": "67f6a5f150640ea3027ddaad100ecf9c8559f1d5b0f52a9a8b8bb06e32e0babf",
+  "board_glue_log_sha256": "69c000dc08e7a171b413de99063b97812191d6387f81e2013737eb70a85657de",
   "board_glue_scope": "Clock/pad wrapper with isolated core test model",
-  "core_build_report_sha256": "6d500b4ee4f724cd834aa47e183dc3e4fb1debaa2d59a80445a7e4d9a47d7f9a",
+  "core_build_report_sha256": "2aa31491fb355cbad2914bd6e3cbab8d1ed6ac62726f8cce9d1574d85a4dfa43",
   "core_scope": "Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends; physical host limited separately to 10kHz",
   "gpu_regression": {
     "schema": "N20K-RTL-GPU-TEST-1",
     "scope": "Functional logical GPU; host bus, physical SDRAM commands and logical scanout",
     "whole_gpu_fit_qualified": false,
     "simulation_passed": true,
-    "executable_sha256": "cd6b517bada7174ce9fba2eb9b3adffba6bf5e6642c3e011b2edb7477238c129",
+    "executable_sha256": "aafb226c04ce11e424dd7016809a786e846002879c9cc17520f696dabae73876",
     "cases": [
       {
         "name": "commands",
         "passed": true,
-        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/commands.log"
+        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\commands.log"
       },
       {
         "name": "showcase",
         "passed": true,
-        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/showcase.log",
+        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\showcase.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -112,7 +113,7 @@
           "checked_scanout_frames": 7,
           "black_scanout_frames_including_startup": 8,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 18.18953,
+          "wall_seconds_excluding_boot": 19.198506,
           "color_fnv1a64": "d9644de9ed405e88",
           "sdram_refreshes": 18914
         }
@@ -120,7 +121,7 @@
       {
         "name": "perspective",
         "passed": true,
-        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/perspective.log",
+        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\perspective.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -135,7 +136,7 @@
           "checked_scanout_frames": 7,
           "black_scanout_frames_including_startup": 7,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 16.911751,
+          "wall_seconds_excluding_boot": 16.559646,
           "color_fnv1a64": "9df8090c6f9d95e7",
           "sdram_refreshes": 17648
         }
@@ -143,7 +144,7 @@
       {
         "name": "overdraw",
         "passed": true,
-        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/overdraw.log",
+        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\overdraw.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -158,7 +159,7 @@
           "checked_scanout_frames": 9,
           "black_scanout_frames_including_startup": 10,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 23.92905,
+          "wall_seconds_excluding_boot": 31.071164,
           "color_fnv1a64": "4ab23a6c05d8e2b8",
           "sdram_refreshes": 24006
         }
@@ -166,7 +167,7 @@
       {
         "name": "opaque",
         "passed": true,
-        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/opaque.log",
+        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\opaque.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -181,7 +182,7 @@
           "checked_scanout_frames": 10,
           "black_scanout_frames_including_startup": 9,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 23.641568,
+          "wall_seconds_excluding_boot": 30.414284,
           "color_fnv1a64": "c847f4fde6907f38",
           "sdram_refreshes": 24007
         }

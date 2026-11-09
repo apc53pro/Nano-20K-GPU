@@ -857,6 +857,121 @@ Pass icosahedron_pass(float ax, float ay, float az, Bounds& box) {
     return pass;
 }
 
+// Kind-4 (GPU setup) records submitted directly, so the pass can contain
+// records the GPU itself must drop: culled or zero-area triangles. Each record
+// is listed in its pixel-center bounds tiles widened by `margin` tiles, which
+// exercises the setup's window and coverage rejection. The oracle pass holds
+// the decoded triangles that draw.
+struct VertexPass {
+    hw::HostProgram program;
+    Pass oracle;
+    std::size_t records = 0, references = 0;
+};
+VertexPass vertex_pass(const std::vector<std::pair<VertexSource, RenderState>>& triangles,
+                       Pass descriptor, int margin, std::uint32_t& sequence) {
+    VertexPass result;
+    result.oracle = descriptor; result.oracle.primitives.clear();
+    std::vector<std::uint8_t> heap;
+    std::array<std::vector<std::uint32_t>, tile_count> bins;
+    for (const auto& [source, state] : triangles) {
+        const auto address = hw::heap_base + static_cast<std::uint32_t>(heap.size());
+        const auto bytes = hw::encode_vertex_triangle(source, state);
+        heap.insert(heap.end(), bytes.begin(), bytes.end());
+        const auto decoded = hw::decode_primitive(bytes);
+        if (decoded.draws) result.oracle.primitives.push_back(decoded.primitive);
+        const auto box = intersect(intersect(vertex_bounds(source.points), source.bounds), Bounds{});
+        const int left = box.x0, top = box.y0, right = box.x1, bottom = box.y1;
+        if (left >= right || top >= bottom) continue;
+        for (int ty = std::max(0, top / 32 - margin); ty <= std::min(tile_rows - 1, (bottom - 1) / 32 + margin); ++ty)
+            for (int tx = std::max(0, left / 32 - margin); tx <= std::min(tile_columns - 1, (right - 1) / 32 + margin); ++tx) {
+                bins[ty * tile_columns + tx].push_back(address);
+                ++result.references;
+            }
+        ++result.records;
+    }
+    std::vector<std::uint32_t> lists(tile_count, 0);
+    for (int tile = 0; tile < tile_count; ++tile) {
+        if (bins[tile].empty()) continue;
+        lists[tile] = hw::heap_base + static_cast<std::uint32_t>(heap.size());
+        for (const auto address : bins[tile]) {
+            heap.resize(heap.size() + 4); hw::write_u32(heap, heap.size() - 4, address);
+        }
+    }
+    const auto table = hw::heap_base + static_cast<std::uint32_t>(heap.size());
+    heap.resize(heap.size() + tile_count * hw::tile_entry_bytes);
+    for (int tile = 0; tile < tile_count; ++tile) {
+        hw::write_u32(heap, table - hw::heap_base + tile * 8, lists[tile]);
+        hw::write_u32(heap, table - hw::heap_base + tile * 8 + 4, static_cast<std::uint32_t>(bins[tile].size()));
+    }
+    const auto descriptor_address = hw::heap_base + static_cast<std::uint32_t>(heap.size());
+    const auto encoded = hw::encode_pass_descriptor({descriptor.target, descriptor.color_load, descriptor.depth_load,
+        descriptor.clear_color, descriptor.clear_depth, table, descriptor.depth_store, descriptor.skip_empty_tiles});
+    heap.insert(heap.end(), encoded.begin(), encoded.end());
+    auto& program = result.program;
+    const auto append = [&](hw::Opcode opcode, const std::vector<std::uint8_t>& payload) {
+        const auto packet = hw::encode_packet(opcode, sequence++, payload);
+        program.bytes.insert(program.bytes.end(), packet.begin(), packet.end());
+    };
+    for (std::size_t offset = 0; offset < heap.size(); offset += hw::maximum_upload_decoded_bytes) {
+        const auto length = std::min(hw::maximum_upload_decoded_bytes, heap.size() - offset);
+        append(hw::Opcode::WriteHeap, hw::encode_heap_upload(hw::heap_base + static_cast<std::uint32_t>(offset),
+            std::vector<std::uint8_t>(heap.begin() + offset, heap.begin() + offset + length)));
+    }
+    std::vector<std::uint8_t> payload(4);
+    hw::write_u32(payload, 0, descriptor_address); append(hw::Opcode::SubmitPass, payload);
+    program.fence_sequence = program.fence_token = sequence;
+    hw::write_u32(payload, 0, program.fence_token); append(hw::Opcode::Fence, payload);
+    program.next_sequence = sequence;
+    return result;
+}
+
+// Random kind-4 triangles: large, small and sliver shapes, both windings,
+// some culled, zero-area and screen-edge cases, depth-tested with mixed
+// flags and functions. Depths span the full u32 input range.
+std::vector<std::pair<VertexSource, RenderState>> vertex_triangles(unsigned seed, unsigned count) {
+    std::uint64_t state = seed * 0x9e3779b97f4a7c15ull + 1;
+    const auto next = [&state](std::uint32_t bound) {
+        state = state * 6364136223846793005ull + 1442695040888963407ull;
+        return static_cast<std::uint32_t>((state >> 33) % bound);
+    };
+    std::vector<std::pair<VertexSource, RenderState>> result;
+    for (unsigned i = 0; i < count; ++i) {
+        VertexSource source;
+        const int shape = static_cast<int>(next(6));
+        const int cx = static_cast<int>(next(10241)), cy = static_cast<int>(next(7681));
+        const int reach = shape == 0 ? 10240 : (shape == 1 ? 2000 : (shape == 2 ? 300 : 40));
+        // Positions use the whole 14/13-bit field, including the guard band
+        // beyond the right and bottom viewport edges.
+        for (auto& p : source.points) {
+            p.x = std::clamp(cx + static_cast<int>(next(2 * reach + 1)) - reach, 0, 16383);
+            p.y = std::clamp(cy + static_cast<int>(next(2 * reach + 1)) - reach, 0, 8191);
+        }
+        if (shape == 4) { // Long sliver.
+            source.points[1] = {static_cast<int>(next(10241)), static_cast<int>(next(7681))};
+            source.points[2] = {std::min(16383, source.points[1].x + 3), std::min(8191, source.points[1].y + 1)};
+        }
+        if (shape == 5) source.points[2] = source.points[1]; // Zero area.
+        source.bounds = vertex_bounds(source.points);
+        if (next(4) == 0) { // A scissor rectangle inside or across the triangle.
+            const int x = static_cast<int>(next(640)), y = static_cast<int>(next(480));
+            source.bounds = {x, y, x + static_cast<int>(next(1408)), y + static_cast<int>(next(1568))};
+        }
+        for (auto& z : source.depth) z = (next(65536) << 16) | next(65536);
+        if (i % 3 == 0) { // Nearly flat depth, the common case.
+            const std::uint32_t base = next(0xff000000u);
+            for (auto& z : source.depth) z = base + next(1u << 20);
+        }
+        source.cull_negative = next(3) == 0;
+        RenderState render;
+        render.color = {static_cast<std::uint8_t>(next(256)), static_cast<std::uint8_t>(next(256)),
+                        static_cast<std::uint8_t>(next(256))};
+        render.depth_func = static_cast<DepthFunc>(next(3));
+        render.color_write = next(8) != 0; render.depth_test = next(6) != 0; render.depth_write = next(6) != 0;
+        result.push_back({source, render});
+    }
+    return result;
+}
+
 void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
     Renderer oracle;
     std::uint32_t sequence = 1;
@@ -973,6 +1088,47 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
         marker.scissor = {0, 0, 0, 0}; marker.depth_test = false; marker.depth_write = false;
         pass_b.primitives.push_back(Rect{frame_a_box, marker, 0});
         run_pass("icosahedron next frame, SKIP + dirty tiles (flags 15)", pass_b);
+    }
+    // Kind-4 GPU-setup triangles, checked against the oracle's decode of the
+    // same records: first exactly binned, then listed one tile beyond their
+    // bounds so the setup must reject windows and uncovered tiles itself.
+    for (const int margin : {0, 1}) {
+        Pass descriptor; descriptor.target = 1; descriptor.clear_color = 0x18e3;
+        auto vertex = vertex_pass(vertex_triangles(margin + 11, 400), descriptor, margin, sequence);
+        simulation.render(vertex.program);
+        oracle.render(vertex.oracle, RenderMode::Monolithic); simulation.compare(oracle);
+        const std::string name = "400 vertex triangles (GPU setup), " + std::to_string(vertex.references) +
+            " refs, margin " + std::to_string(margin);
+        record(name.c_str(), simulation.last_submission_cycles);
+    }
+    {
+        // A flat icosahedron as kind-4 records: the setup's own orientation
+        // and back-face culling replace the CPU's.
+        Bounds box{};
+        const auto gouraud = icosahedron_pass(0.42f, 0.75f, 0.18f, box);
+        std::vector<std::pair<VertexSource, RenderState>> faces;
+        for (const auto& primitive : gouraud.primitives) {
+            const auto& t = std::get<Triangle>(primitive);
+            VertexSource source; source.cull_negative = true;
+            source.bounds = vertex_bounds(t.snapped);
+            for (unsigned k = 0; k < 3; ++k) {
+                source.points[k] = t.snapped[k];
+                // The Gouraud plane's depth near each vertex, as D24*256.
+                const int px = std::clamp(t.snapped[k].x / 16, t.bounds.x0, t.bounds.x1 - 1);
+                const int py = std::clamp(t.snapped[k].y / 16, t.bounds.y0, t.bounds.y1 - 1);
+                source.depth[k] = depth_code(t.z.at(px - t.bounds.x0, py - t.bounds.y0)) << 8;
+            }
+            // Submit every other face reversed: culling must drop exactly those.
+            faces.push_back({source, overlay_state({200, 120, 40})});
+            faces.back().second.depth_test = faces.back().second.depth_write = true;
+            std::swap(source.points[1], source.points[2]); std::swap(source.depth[1], source.depth[2]);
+            faces.push_back({source, faces.back().second});
+        }
+        Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;
+        auto vertex = vertex_pass(faces, descriptor, 0, sequence);
+        simulation.render(vertex.program);
+        oracle.render(vertex.oracle, RenderMode::Monolithic); simulation.compare(oracle);
+        record("icosahedron, flat kind-4 records with GPU culling", simulation.last_submission_cycles);
     }
     const std::string report = "{\n  \"profile\": \"N20K-RTL-BENCH-1\",\n  \"clock_hz\": 50400000,\n"
         "  \"scanout_underflows\": " + std::to_string(simulation.scanout_underflows()) +

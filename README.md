@@ -53,23 +53,28 @@ The hardware-3921 target is `rtl/board/tang20k_top.sv`, with exact QN88
 constraints, SDRAM pads and the physical host bus. It runs a **50.4 MHz GPU
 core/SDRAM clock**, with **25.2 MHz HDMI pixels and 126 MHz DDR serialization**;
 the GPU's rendered output drives HDMI. The MPC-2350 firmware's terminal ran on
-an earlier image (user-reported, 2026-11-07). The current image adds burst
-tile LOAD/STORE, empty-tile skipping, depth DISCARD, a pipelined SDRAM
-controller, a word-wide display FIFO and the SKIP pass flag; it was flashed
-and verified on 2026-11-08; the user measured `demo_3d_engine6` on it with
-the RP2350 at a stable 60 fps (blocking presentation).
+an earlier image (user-reported, 2026-11-07). Burst tile LOAD/STORE,
+empty-tile skipping, depth DISCARD, a pipelined SDRAM controller, a word-wide
+display FIFO and the SKIP pass flag came first; the user measured
+`demo_3d_engine6` on that image with the RP2350 at a stable 60 fps (blocking
+presentation). The current image adds **GPU triangle setup** for 64-byte
+kind-4 vertex triangles (feature bit 8): the GPU orients, culls, computes the
+edges and depth plane, and rejects uncovered tiles, so the CPU sends only
+projected vertices.
 
 The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
 image failed the host address latch on the board, and `AGENTS.md` records this
 exception and the gate it cannot meet. The
 [source-matched board report](docs/hardware/tang20k-board.json) verifies every
-package pin and meets every required clock: the core reaches 56.46 MHz Fmax
-against 50.4 MHz. The only negative-slack paths are listed reset-release paths.
-It uses **16,481/20,736 logic (Gowin count)**, **6,778 registers**,
-**46/46 BSRAM** and 53% DSP.
+package pin and meets every required clock: the core reaches 54.97 MHz Fmax
+against 50.4 MHz (placement option 0, routing option 2). The only
+negative-slack paths are listed reset-release paths.
+It uses **18,058/20,736 logic (Gowin count)**, **7,395 registers**,
+**46/46 BSRAM** and 63% DSP.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`5b6f75aa2d988df4a897f57cd38a4f3768c1cf78ab1848b06787eeabded908e6`.
+`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It has not
+yet been programmed or tested on the board.
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.
