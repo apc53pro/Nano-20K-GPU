@@ -74,7 +74,12 @@ configuration, with no runtime clock command or hardware compatibility mode.
 
 The PIO firmware defaults to **250 kHz HCLK during active bursts**. It idles
 the clock between byte operations, so the sustained transfer rate depends on
-handshakes and FIFO service. The user reported a link failure at 25 MHz on
+handshakes and FIFO service. A local MPC-2350 firmware change (2026-11-09,
+not yet run on the board) pipelines packet bytes, headers and payloads alike:
+`write_block` keeps up to eight data-register writes in the PIO FIFOs. PIO
+still samples WREADY before every write edge, and the 250 ms deadline runs
+from the last completed byte. Address-select writes and all reads stay one
+transaction per CPU round trip. The user reported a link failure at 25 MHz on
 their wired setup, and later a working 21 MHz HCLK (local firmware setting,
 2026-11-07). External bus/SDRAM margins remain unqualified.
 The image is built with Gowin EDA. The reasons and
@@ -1382,6 +1387,19 @@ reference, not a ready-to-flash RP2350 driver: it uses host facilities including
 port needs suitable bounded/wide arithmetic or a validated equivalent setup.
 The fixed prepared triangle in section 9 avoids that portability requirement
 for an initial interface test.
+
+The MC10 Minecraft port (MPC-2350 `programs/mc10_narm`, Build 44) instead uses
+an approximate binary32 setup for its textured world triangles. This is a
+deliberate application choice, and its frames are not bit-identical to the
+reference oracle. Each clipped face is rotated to a canonical first vertex.
+Its gradients come once from its largest fan triangle, with depth cross
+products formed exactly in 64-bit integers. Depth seeds are extrapolated to
+`(x0,y0)` with the stored integer steps, so the plane reproduces the vertex
+value. q/U/V seeds use binary32. Against the exact plane through the same
+snapped vertices, its test measures at most 5.2 D24 codes and 0.0013 texel
+over random triangles, slivers included. The covered-q range and plane
+overflow bounds above still apply. MC10 also selects LEQUAL depth, which
+coplanar overlay faces need.
 
 ## 7. Frame sequence
 

@@ -112,7 +112,11 @@ RVALID. The CPU owns packet construction, FIFO deadlines and GPU reset.
 Each retry takes **12 PIO cycles per HCLK period**. The firmware derives
 the PIO divider from the system clock and one requested HCLK burst rate,
 `kHostClockHz`, which defaults to **250 kHz**. HCLK pauses between byte
-transactions. The earlier GPIO driver first ran on the board at 50 µs
+transactions. A local MPC-2350 firmware change (2026-11-09, not yet run on
+the board) pipelines packet bytes: up to eight data-register writes are in
+flight, instead of one CPU round trip per byte. PIO still samples WREADY
+before every write edge. Address-select writes and reads remain one
+transaction at a time. The earlier GPIO driver first ran on the board at 50 µs
 phases. The user reported that 25 MHz failed on their wired setup, and later
 that a 21 MHz HCLK works (local firmware setting, 2026-11-07).
 
@@ -195,6 +199,11 @@ Triangle setup is CPU work for kinds 0..3. For a flat **kind-4 vertex
 triangle** the GPU computes it instead: winding, back-face culling, edges,
 bounds, depth plane and per-tile rejection (section 6). This record is 64 bytes
 instead of 320, and it needs no exact CPU tile test.
+The MC10 Minecraft port's textured world triangles deliberately use a binary32
+setup instead of the exact rational equations. Its frames are therefore not
+bit-identical to the reference oracle. The
+[control guide](GPU_CONTROL.md#preparing-triangle-records) states its
+measured error bounds.
 
 The C++ host/setup implementation is a reference implementation for preparing
 valid commands. The RP2350 PIO driver and **40×30 monochrome terminal** are
