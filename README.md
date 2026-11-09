@@ -73,8 +73,9 @@ It uses **18,058/20,736 logic (Gowin count)**, **7,395 registers**,
 **46/46 BSRAM** and 63% DSP.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It has not
-yet been programmed or tested on the board.
+`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It was
+flashed and verified on 2026-11-09 (user code `0xB6B9`) and has not yet been
+tested with the RP2350.
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.

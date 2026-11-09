@@ -800,8 +800,10 @@ SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
 `93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It adds
-kind-4 vertex triangles (capability feature bit 8) and has not yet been
-programmed or tested on the board. The previous image (`5b6f75aa…08e6`)
+kind-4 vertex triangles (capability feature bit 8). On 2026-11-09 it was
+written to the board's SPI flash and verified, and the FPGA reloaded it
+(status `0x6020`, user code `0xB6B9`); it has not yet been tested with the
+RP2350. The previous image (`5b6f75aa…08e6`)
 accepts load-flag bit 3 (SKIP) but faults on kind 4. On 2026-11-08 that image
 was written to the board's SPI flash and verified, and the FPGA reloaded it
 (status `0x6020`, user code `0x72CD`). The user measured `demo_3d_engine6` on

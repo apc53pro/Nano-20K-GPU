@@ -1115,8 +1115,10 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It has
-not yet been programmed or tested on the board. The
+`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. On
+2026-11-09 it was written to the Tang's SPI flash with `make tang20k-flash`
+(program and verify succeeded; the FPGA reloaded it with status `0x6020`,
+user code `0xB6B9`). It has not yet been tested with the RP2350. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
