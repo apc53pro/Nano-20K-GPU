@@ -214,14 +214,15 @@ passes, copy rectangles, fence, present and read back memory through the
 native GPU interface. NARMCC exposes named built-ins for these operations,
 record encoding, and link recovery. The firmware serializes records and the
 application prepares geometry and bins, manages resource lifetimes, and
-draws its pointer. In a realtime loop, NARM programs should keep running
-while the GPU works and submit a new present only when it is ready. The
-firmware tracks one asynchronous present and updates front/back ownership
-when it drains that command's matching completion. MMBasic can stage the next
-frame's draw records in CPU memory during that time. Its host draw SDK
-tracks tiles that may differ between the two color buffers and synchronizes
-only those tiles for incremental updates.
-[MMBasic and its draw SDK](https://github.com/apc53pro/MPC-2350/commit/b5af504eb1378e80bed713ddbbc6451ecc610eb6)
+draws its pointer. MMBasic stages the next frame's draw records in CPU memory
+while the current pass renders. It uses blocking PRESENT for the swap, which
+waits for vertical blank. Its host draw SDK tracks tiles that may differ
+between the two color buffers and synchronizes only those tiles for
+incremental updates. The editor paints each background once, then uses
+`COPY_RECT` to place RGB565 source strips from a VRAM cache. The strips are
+keyed by the visible glyph bits, colors and scale and can be copied to a
+different row without uploading them again.
+[MMBasic presentation and editor implementation](https://github.com/apc53pro/MPC-2350/commit/92b9dc7f904df436c18d5b2f3f4bcb3ccccef985)
 
 On return to terminal
 focus the terminal drains any pending presentation and rebuilds its cached
@@ -1060,10 +1061,17 @@ stable 60 fps without faults. With the earlier MPC-2350 firmware's asynchronous
 presentation (`try_present` and `frame_ready` polling), the same demo lost one
 byte at the start of a PRESENT reply. The firmware rejected the header and
 took the link offline until the RP2350 was reset. The software model passed
-with the earlier read order. The updated host reads asynchronous PRESENT
-replies in the same register order as blocking PRESENT. The cause of the
-missing byte remains open, and board validation of the updated host path is
-pending.
+with the earlier read order. On 2026-11-09 the user reported intermittent
+crashes even after the host read-order change, and up to 10 fps in the
+MMBasic interface. The cause of the asynchronous reply fault remains open.
+MMBasic now uses blocking PRESENT.
+
+In a board-clock RTL replay of four MODE 5 editor frames without the mouse
+cursor, all corresponding 640×480 RGB565 buffers had matching checksums.
+A redraw of 24 distinct source lines took 100 ms before the change, 33.3 ms
+with the new path when the strips first uploaded, and 16.7 ms when the
+strips were resident. These times include virtual host packets and vertical
+blank, and exclude RP2350 execution time and physical bus timing.
 
 Earlier that day the previous image (`3fc16700…06ef`, pipelined SDRAM without SKIP) was written
 to the Tang's SPI flash with the signed Gowin Programmer V1.9.12.04

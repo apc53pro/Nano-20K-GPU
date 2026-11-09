@@ -718,21 +718,23 @@ Retain their addresses across frames and passes. Upload new or changed data
 and restore allocations whose residency was lost after a focus handoff,
 recovery or eviction. A redraw alone never requires another asset upload.
 
-**Strong recommendation for realtime NARM programs. Keep processing input
-and updating simulation while the GPU is busy. Check `narm_gpu_frame_ready()`
-once per iteration and use `narm_gpu_try_present()` when the completed frame
-is ready.** With no swap pending, the readiness check compares the completed
-sequence with the last submitted sequence. With a swap pending, it polls
-register 1 and reads the matching PRESENT reply directly from register 0,
-using the same register order as blocking presentation.
-It does not wait for GPU rendering or vertical blank. Query the back target
-again after a completed swap. Avoid spin loops, synchronous PRESENT and
-blocking fences in the realtime frame path. The PIO transport still performs
-bounded bus transfers. An upload of at most 216 decoded bytes after a
-successful readiness check fits the empty RX FIFO even with worst-case
-encoding. After recovery, follow the resource and attachment rules in
-[section 5](#fault-codes-and-recovery).
-[MPC-2350 host implementation](https://github.com/apc53pro/MPC-2350/commit/b5af504eb1378e80bed713ddbbc6451ecc610eb6)
+**Keep processing input and preparing the next frame while the GPU renders.**
+`narm_gpu_frame_ready()` checks the completed sequence against the last
+submitted sequence while no asynchronous swap is pending. On the Tang Nano
+20K board, use blocking PRESENT to finish the swap. MMBasic submits its pass
+first and performs blocking PRESENT at a later service point once the pass
+retires, or when the next batch needs the back buffer. Query the back target
+again after each completed swap.
+[MMBasic presentation code](https://github.com/apc53pro/MPC-2350/commit/92b9dc7f904df436c18d5b2f3f4bcb3ccccef985)
+
+`narm_gpu_try_present()` is exercised in the software model. The board still
+has intermittent failures with that path. While such a swap is pending,
+`narm_gpu_frame_ready()` polls register 1 and reads the matching reply from
+register 0. The PIO transport performs bounded bus transfers. An upload of
+at most 216 decoded bytes after a successful readiness check fits the empty
+RX FIFO even with worst-case encoding. After recovery, follow the resource
+and attachment rules in [section 5](#fault-codes-and-recovery).
+[MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/commit/b5af504eb1378e80bed713ddbbc6451ecc610eb6)
 
 ### Write and read timing
 
@@ -805,8 +807,9 @@ user measured `demo_3d_engine6` on it, with blocking presentation, at a stable
 (`try_present` and `frame_ready` polling), the same demo lost one byte at the
 start of a PRESENT reply. The firmware rejected the header and took the link
 offline until the RP2350 was reset. The software model passed with the earlier
-read order. The cause of the missing byte remains open, and board validation
-of the revised asynchronous reply polling order is pending.
+read order. On 2026-11-09 the user reported intermittent crashes with the
+revised asynchronous polling order. The cause remains open. The current
+MMBasic build uses blocking PRESENT with this FPGA image.
 
 The previous image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
 2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
