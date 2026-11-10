@@ -112,13 +112,13 @@ RVALID. The CPU owns packet construction, FIFO deadlines and GPU reset.
 Each retry takes **12 PIO cycles per HCLK period**. The firmware derives
 the PIO divider from the system clock and one requested HCLK burst rate,
 `kHostClockHz`, which defaults to **250 kHz** in the published firmware; the
-user's local build uses 18.75 MHz (2026-11-10). HCLK pauses between byte
-transactions, so a data write takes about 27 PIO cycles, about 8 MB/s at
-18.75 MHz. A local MPC-2350 firmware change (2026-11-10, run on the board)
-feeds packet bytes to the unchanged PIO program by DMA: two channels stream
-write commands from SRAM and drain the per-byte completions while the CPU
-prepares the next packet. PIO still samples WREADY before every write edge.
-Address-select writes and reads remain one transaction at a time. The earlier
+user's local build uses 18.75 MHz (2026-11-10). Local MPC-2350 firmware
+changes (2026-11-10, run on the board) send writes as bursts. WR_N stays LOW,
+and the FPGA takes one byte per HCLK rising edge (12 PIO cycles, previously
+about 27). PIO samples WREADY before every edge. A byte-wide DMA channel feeds
+each burst from an SRAM copy of the packet while the CPU prepares the next
+one. Address selects are one-byte bursts; reads remain one transaction at a
+time. The earlier
 GPIO driver first ran on the board at 50 µs phases. The user reported that
 25 MHz failed on their wired setup, and that 21 MHz and 18.75 MHz HCLK work.
 
@@ -1326,8 +1326,8 @@ steps, each measured: 9 FPS for the original NARM program, then 15, then 20.
   one 8-bit colour step and 0.018 texel.
 - Frames were pipelined: the CPU builds and bins frame N+1 while the GPU
   renders frame N, using the blocking PRESENT.
-- Uploads were moved to DMA (control guide).
-The 20 FPS frame is now about 5.4 ms of uploads, 30.2 ms of rendering and the
+- Uploads were moved to DMA, then to write bursts (control guide).
+The 20 FPS frame is now about 4.6 ms of uploads, 30.2 ms of rendering and the
 wait for the third vertical blank. Uploads cannot overlap rendering because
 the command queue executes in order. 30 FPS needs uploads plus rendering
 below 33.3 ms. These are user-reported on-screen timings, not a qualified

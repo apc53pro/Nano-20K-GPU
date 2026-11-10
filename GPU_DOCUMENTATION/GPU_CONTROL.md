@@ -73,27 +73,37 @@ rather than assuming one profile. The image contains one fixed compile-time
 configuration, with no runtime clock command or hardware compatibility mode.
 
 The published PIO firmware defaults to **250 kHz HCLK during active bursts**;
-the user's current local build sets 18.75 MHz (2026-11-10). The PIO program
-idles the clock between byte operations: one data-register write takes about
-27 state-machine cycles (12 per HCLK period), about 8 MB/s at 18.75 MHz, so
-the sustained rate is below one byte per HCLK. The FPGA wrapper itself accepts
-a byte on every HCLK rising edge with WR_N LOW and WREADY HIGH.
+the user's current local build sets 18.75 MHz (2026-11-10). The FPGA wrapper
+accepts a data byte on every HCLK rising edge with WR_N LOW, ALE_N HIGH and
+WREADY HIGH.
 
-A local MPC-2350 firmware change (2026-11-10, run on the board) feeds packet
-bytes, headers and payloads alike, to the unchanged PIO program by DMA. The
-CPU converts a block into PIO write commands in one of two SRAM buffers. One
-DMA channel feeds the TX FIFO and a second drains the per-byte completions.
-`write_block` returns as soon as the transfer starts, so the CPU prepares the
-next packet meanwhile. PIO still samples WREADY before every write edge.
-Every other bus operation first waits for the block in flight, and a transfer
-that makes no progress for 250 ms releases the bus and fails that operation.
-Address-select writes and all reads stay one transaction per CPU round trip.
+Local MPC-2350 firmware changes (2026-11-10, run on the board) use that.
+- **Write bursts (`gpu_bus.pio`).** Every write is a counted burst: a header
+  word gives the entry point and byte count, and WR_N stays LOW for the whole
+  burst. Each byte goes out as HCLK falls, PIO samples WREADY before every
+  rising edge, and the FPGA takes the byte on that edge. That is one byte per
+  HCLK period (12 PIO cycles, six low and six high), with data stable six
+  cycles before and after its edge. When WREADY is LOW the edge still occurs,
+  the FPGA ignores it, and the byte is offered again. Address selects and
+  single bytes are one-byte bursts; reads are unchanged. The previous program
+  released the bus after each byte, about 27 PIO cycles per byte.
+- **DMA feed.** `write_block` copies a packet block (header or payload) into
+  one of two SRAM buffers, queues the burst header and starts a byte-wide DMA
+  transfer into the TX FIFO. It returns at once, so the CPU prepares the next
+  packet meanwhile; each burst returns one completion word. Every other bus
+  operation first waits for the block in flight. A transfer that makes no
+  progress for 250 ms releases the bus and fails that operation.
+- Without DMA (`GPU_BUS_DMA 0`, and the host tests) the CPU feeds the same
+  bursts.
+
 In `demo_3d_engine9` the upload phase of a frame (about 28 KB of encoded
-packets and the pass submit) fell from 8.9 to 5.4 ms on the board. The
-earlier CPU-fed path (up to eight writes in the PIO FIFOs) remains selectable
-with `GPU_BUS_DMA 0`. The user reported a link failure at 25 MHz on their
-wired setup, and working 21 MHz and 18.75 MHz HCLK settings since. External
-bus/SDRAM margins remain unqualified.
+packets and the pass submit) measured 8.9 ms CPU-fed, 5.4 ms with DMA on
+the old program, and 4.6 ms with bursts. The last step gained less than the
+wire time alone suggests. The GPU's two packet leases and upload decoding,
+which hold WREADY LOW, are the likely limit; that is an inference, not yet
+measured. The user reported a link failure at 25 MHz on their wired setup,
+and working 21 MHz and 18.75 MHz HCLK settings since, the latter with bursts.
+External bus/SDRAM margins remain unqualified.
 The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
