@@ -111,14 +111,16 @@ HCLK, write/address/read strobes and data direction, and samples WREADY and
 RVALID. The CPU owns packet construction, FIFO deadlines and GPU reset.
 Each retry takes **12 PIO cycles per HCLK period**. The firmware derives
 the PIO divider from the system clock and one requested HCLK burst rate,
-`kHostClockHz`, which defaults to **250 kHz**. HCLK pauses between byte
-transactions. A local MPC-2350 firmware change (2026-11-09, not yet run on
-the board) pipelines packet bytes: up to eight data-register writes are in
-flight, instead of one CPU round trip per byte. PIO still samples WREADY
-before every write edge. Address-select writes and reads remain one
-transaction at a time. The earlier GPIO driver first ran on the board at 50 µs
-phases. The user reported that 25 MHz failed on their wired setup, and later
-that a 21 MHz HCLK works (local firmware setting, 2026-11-07).
+`kHostClockHz`, which defaults to **250 kHz** in the published firmware; the
+user's local build uses 18.75 MHz (2026-11-10). HCLK pauses between byte
+transactions, so a data write takes about 27 PIO cycles, about 8 MB/s at
+18.75 MHz. A local MPC-2350 firmware change (2026-11-10, run on the board)
+feeds packet bytes to the unchanged PIO program by DMA: two channels stream
+write commands from SRAM and drain the per-byte completions while the CPU
+prepares the next packet. PIO still samples WREADY before every write edge.
+Address-select writes and reads remain one transaction at a time. The earlier
+GPIO driver first ran on the board at 50 µs phases. The user reported that
+25 MHz failed on their wired setup, and that 21 MHz and 18.75 MHz HCLK work.
 
 The board image uses a **50.4 MHz core/SDRAM clock**, **25.2 MHz pixel clock**
 and **126 MHz DDR serializer clock**. One rPLL derives 252 MHz from 27 MHz
@@ -1307,6 +1309,29 @@ bounding-box samples (12%) dominate the pass. In the same emulator, the
 program's per-frame triangle building falls from about 3.7 M to 2.4 M
 instructions, and its binning from 1.9 M to 0.6 M. These are simulation and
 emulation figures, not board measurements.
+
+**Board measurement, 2026-11-10.** The user ran `demo_3d_engine9`'s timing
+build on the board, at its starting view (about 445 records, 1,660 tile
+references, one pass), with this image and an RP2350 at 375 MHz. The measured
+GPU render time is **30.2 ms**, consistent with the 28.2 ms replay above. It
+stays about 24–31.5 ms in other views: a sphere at 20 or 1,280 Gouraud faces
+measured 24.0 or 31.5 ms, so the pass is dominated by its fixed per-frame
+tile work, about 6 µs per added triangle. The host side was reduced in
+steps, each measured: 9 FPS for the original NARM program, then 15, then 20.
+- MPC-2350 firmware services and the program's per-frame code were placed in
+  on-chip SRAM.
+- The program's Gouraud and texture plane setup changed to binary32, with
+  exact 64-bit cross products and an exact fallback for ill-conditioned
+  slivers. Measured against the exact setup on the PC: at most 9 D24 codes,
+  one 8-bit colour step and 0.018 texel.
+- Frames were pipelined: the CPU builds and bins frame N+1 while the GPU
+  renders frame N, using the blocking PRESENT.
+- Uploads were moved to DMA (control guide).
+The 20 FPS frame is now about 5.4 ms of uploads, 30.2 ms of rendering and the
+wait for the third vertical blank. Uploads cannot overlap rendering because
+the command queue executes in order. 30 FPS needs uploads plus rendering
+below 33.3 ms. These are user-reported on-screen timings, not a qualified
+benchmark. Like MC10's, the binary32 setup is not bit-identical to the oracle.
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests

@@ -72,16 +72,28 @@ logical-core simulation retains 100,800,000 / 4 / 4. Drivers read capabilities
 rather than assuming one profile. The image contains one fixed compile-time
 configuration, with no runtime clock command or hardware compatibility mode.
 
-The PIO firmware defaults to **250 kHz HCLK during active bursts**. It idles
-the clock between byte operations, so the sustained transfer rate depends on
-handshakes and FIFO service. A local MPC-2350 firmware change (2026-11-09,
-not yet run on the board) pipelines packet bytes, headers and payloads alike:
-`write_block` keeps up to eight data-register writes in the PIO FIFOs. PIO
-still samples WREADY before every write edge, and the 250 ms deadline runs
-from the last completed byte. Address-select writes and all reads stay one
-transaction per CPU round trip. The user reported a link failure at 25 MHz on
-their wired setup, and later a working 21 MHz HCLK (local firmware setting,
-2026-11-07). External bus/SDRAM margins remain unqualified.
+The published PIO firmware defaults to **250 kHz HCLK during active bursts**;
+the user's current local build sets 18.75 MHz (2026-11-10). The PIO program
+idles the clock between byte operations: one data-register write takes about
+27 state-machine cycles (12 per HCLK period), about 8 MB/s at 18.75 MHz, so
+the sustained rate is below one byte per HCLK. The FPGA wrapper itself accepts
+a byte on every HCLK rising edge with WR_N LOW and WREADY HIGH.
+
+A local MPC-2350 firmware change (2026-11-10, run on the board) feeds packet
+bytes, headers and payloads alike, to the unchanged PIO program by DMA. The
+CPU converts a block into PIO write commands in one of two SRAM buffers. One
+DMA channel feeds the TX FIFO and a second drains the per-byte completions.
+`write_block` returns as soon as the transfer starts, so the CPU prepares the
+next packet meanwhile. PIO still samples WREADY before every write edge.
+Every other bus operation first waits for the block in flight, and a transfer
+that makes no progress for 250 ms releases the bus and fails that operation.
+Address-select writes and all reads stay one transaction per CPU round trip.
+In `demo_3d_engine9` the upload phase of a frame (about 28 KB of encoded
+packets and the pass submit) fell from 8.9 to 5.4 ms on the board. The
+earlier CPU-fed path (up to eight writes in the PIO FIFOs) remains selectable
+with `GPU_BUS_DMA 0`. The user reported a link failure at 25 MHz on their
+wired setup, and working 21 MHz and 18.75 MHz HCLK settings since. External
+bus/SDRAM margins remain unqualified.
 The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
@@ -1424,6 +1436,28 @@ report the total texture bytes uploaded and the number of frames with
 texture uploads. For the two-frame showcase, `texture_upload_frames` is 1.
 Drivers that queue work must preserve sequence/epoch
 identity and physical buffer ownership.
+
+The fence is not required for ordering: commands execute in order, so later
+uploads cannot overwrite a pass's records before that pass finishes. A host
+can therefore build frame N+1 on the CPU while frame N renders, and present N
+only afterwards. The MPC-2350 NARM SDK does this with blocking PRESENT
+(`gpu_draw_prepare_frame`, `gpu_draw_present_submitted`,
+`gpu_draw_submit_frame`; board-measured in `demo_3d_engine9`):
+
+```text
+(CPU) build and bin frame N+1 in host memory   -- overlaps frame N rendering
+PRESENT(frame N's buffer, token) -> wait for matching reply
+WRITE_HEAP(frame N+1 records, lists, table, descriptor)
+SUBMIT_PASS(descriptor address)                -- frame N+1 renders
+```
+
+Frame N+1's pass must target the buffer that frame N's swap releases (the
+buffer displayed before it), and no command may write that buffer, not even a
+COPY_RECT, before the PRESENT reply. The pending present therefore comes
+before any such command. Uploads to the heap may be sent earlier, while frame
+N renders. The queue holds only about two packet leases, so the host then
+stalls on WREADY, and the uploads execute when frame N's pass ends. The GPU
+does not process uploads concurrently with a pass.
 
 ## 8. COPY_RECT payload: 56 bytes
 
