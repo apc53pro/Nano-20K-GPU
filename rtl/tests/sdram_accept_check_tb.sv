@@ -134,17 +134,30 @@ module nano_sdram_accept_check_tb;
             while(!initialized||dut.state!=9)begin tick();no_write();require(done==0&&error==0&&w_ready==0,"reset request reappeared");guard=guard+1;require(guard<80,"reset reinitialization timeout");end
             cases=cases+1;
         end
-        // A stalled old read response owns its metadata until the final handshake retires it.
-        fresh();dut.state=10;dut.txn=1;dut.issued=1;dut.fill_index=1;dut.owner=3;
-        dut.request_address=23'h30000;dut.request_words=1;
-        dut.request_write=0;dut.read_stream_active=1;dut.read_output_valid=1;dut.read_index=0;
+        // Early release: a read whose READ commands have all issued gives up
+        // the command slot while its response is stalled. The stream keeps its
+        // own owner, slot and data; the next request may be granted, but must
+        // not issue a physical WRITE until that stream retires, and completion
+        // goes to the read's owner.
+        fresh();dut.state=10;dut.txn=1;dut.issued=1;dut.fill_index=0;dut.owner=3;
+        dut.request_address=23'h30000;dut.request_words=1;dut.request_write=0;
+        dut.front_slot=0;dut.alloc_slot=1;dut.slot_busy=2'b01;
+        dut.read_stream_active=1;dut.read_output_valid=1;dut.read_index=0;dut.read_fill=1;
+        dut.stream_front=1;dut.stream_owner=3;dut.stream_slot=0;dut.stream_words=1;
         cmd_valid=4;cmd_write=4;cmd_addr=0;cmd_words=0;cmd_addr[2*23+:23]=23'h456700;cmd_words[2*5+:5]=4;
         r_ready=0;#1;
-        repeat(4)begin require(cmd_ready==0&&dut.owner==3,"new request overwrote stalled old read");tick();end
-        r_ready=8;tick();require(done==0&&dut.owner==3&&dut.state==10&&!dut.read_stream_active,"old read did not finish before handoff");
-        r_ready=0;tick();require(dut.state==9&&done==8&&dut.owner==3,"read did not retain its owner through completion");
-        tick();require(dut.state==22&&dut.owner==2,"next request did not enter CHECK after old read drained");
-        tuple(2,1,23'h456700,4);cases=cases+1;
+        require(r_valid==8&&r_last==8,"stalled read lost its response");
+        tick();require(dut.state==9&&dut.read_stream_active&&dut.stream_owner==3,"read did not release the command slot");
+        repeat(12)begin
+            no_write();
+            require(done==0&&r_valid==8&&dut.read_stream_active&&dut.stream_owner==3&&dut.stream_slot==0,
+                "new request disturbed the stalled read");
+            tick();
+        end
+        require(dut.owner==2&&dut.front_slot==1&&dut.txn,"next request was not granted into the free slot");
+        r_ready=8;tick();require(done==8&&!dut.read_stream_active&&dut.slot_busy==2'b10,
+            "stalled read did not retire to its own owner and slot");
+        r_ready=0;cmd_valid=0;cases=cases+1;
         $display("PASS %0d targeted CHECK request cases, %0d assertions, %0d edges",cases,checks,edges);
         $finish;
     end

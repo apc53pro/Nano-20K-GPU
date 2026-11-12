@@ -4,14 +4,14 @@
   "source_sha256": {
     "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "7d2f7d6a4cf970be73482e629ed199fe9e254d6cb573bec5381348ee15907f2a",
+    "rtl/gpu/nano_gpu_core.sv": "9f0cb23147645f4a46b16264eea0ead95c057b93a25422dae5362024fd602e0c",
     "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
-    "rtl/gpu/nano_scanout.sv": "fb29fa21bdde3dd803fb81da4c246a76bac8e8772e22a33d39c1474e22180049",
+    "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
     "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
     "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
-    "rtl/gpu/nano_sdram_service.sv": "8b5f46ea5142050f296cea884548c5c1d741b28a33de96e167b95625ef9307bd",
+    "rtl/gpu/nano_sdram_service.sv": "48a51cb4e07cd2996053708f9f47a6c9a56ba2487496f1c9082ec7d2f56bf7cb",
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
     "rtl/gpu/nano_tile_renderer.sv": "5bd0b2ba557451862365c85a1946347c389795cf86666f6a6dd450621333e86b",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
@@ -25,8 +25,8 @@
     "rtl/tests/native_mult_modes_tb.sv": "699762ab727555ea95c3577c5626451508ef262dea2a6f8e97edd80685610e33",
     "rtl/tests/native_video_tb.sv": "1ad15db49581fb7f20097e41d743e829610daa834c0587d2ad5a02d38943a056",
     "rtl/tests/sdp32_tb.sv": "38b03d9b1f37c1d12a85ba74fda01feecad4f40b0e28a8163bdf667ad44a6a07",
-    "rtl/tests/sdram_accept_check_tb.sv": "88c406ca904bd610419ba601256304498d52ff6a3a17148581c4a15b83606163",
-    "rtl/tests/sdram_arbiter_tb.sv": "f98a212f25c570b96e716e9a871a8d205c3cea7e48e68bbf9c07475022be8064",
+    "rtl/tests/sdram_accept_check_tb.sv": "609584675f3b1b35db6e1e65e9b5d39da8b1e29d103a16acb8b0756a02105cd2",
+    "rtl/tests/sdram_arbiter_tb.sv": "c734d67182a29780ac8de1c47cbe565f8eea1a1f95f1026b51e3335f3dd1fc74",
     "rtl/tests/tang20k_board_tb.sv": "6500e5f292a3ff27ef397ee37e89aa23e9d56dadc1ee2fa2e44df639f7bca73a",
     "rtl/tests/tang20k_core_stub.sv": "c9548cdf71c0da86037222f7d11d9b9f5eec3aaeb94f1806382a7148569e37d5",
     "rtl/tests/texture_cache_tb.sv": "8889547fac10f41c355ba424c79948ba1a6763557337190205a6784c3beb5134",
@@ -79,26 +79,26 @@
     "scripts/rtl-gpu-check.py": "f47a285d92adf60c9082b0b8372b81503dca1871c7b6c1f6eea7e211988611b3",
     "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
   },
-  "board_glue_log_sha256": "69c000dc08e7a171b413de99063b97812191d6387f81e2013737eb70a85657de",
+  "board_glue_log_sha256": "67f6a5f150640ea3027ddaad100ecf9c8559f1d5b0f52a9a8b8bb06e32e0babf",
   "board_glue_scope": "Clock/pad wrapper with isolated core test model",
-  "core_build_report_sha256": "2aa31491fb355cbad2914bd6e3cbab8d1ed6ac62726f8cce9d1574d85a4dfa43",
+  "core_build_report_sha256": "94166ef0628589fb4c533e7d0eb614f4786f04fb313d50bbabc0921cb4cee8ce",
   "core_scope": "Real GPU at 50.4MHz core, 25.2MHz host/pixel ratios, no C++ device backends; physical host limited separately to 10kHz",
   "gpu_regression": {
     "schema": "N20K-RTL-GPU-TEST-1",
     "scope": "Functional logical GPU; host bus, physical SDRAM commands and logical scanout",
     "whole_gpu_fit_qualified": false,
     "simulation_passed": true,
-    "executable_sha256": "aafb226c04ce11e424dd7016809a786e846002879c9cc17520f696dabae73876",
+    "executable_sha256": "332c078923d88da19f00a72917d2d4c1fe637ce7fac889a9f4d6b3d1ebb88653",
     "cases": [
       {
         "name": "commands",
         "passed": true,
-        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\commands.log"
+        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/commands.log"
       },
       {
         "name": "showcase",
         "passed": true,
-        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\showcase.log",
+        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/showcase.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -108,20 +108,20 @@
           "verified": true,
           "texture_upload_bytes": 155648,
           "texture_upload_frames": 1,
-          "core_cycles": 12527715,
-          "last_submission_cycles": 4159274,
+          "core_cycles": 11687715,
+          "last_submission_cycles": 3639638,
           "checked_scanout_frames": 7,
-          "black_scanout_frames_including_startup": 8,
+          "black_scanout_frames_including_startup": 7,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 19.198506,
+          "wall_seconds_excluding_boot": 17.805743,
           "color_fnv1a64": "d9644de9ed405e88",
-          "sdram_refreshes": 18914
+          "sdram_refreshes": 17640
         }
       },
       {
         "name": "perspective",
         "passed": true,
-        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\perspective.log",
+        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/perspective.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -131,20 +131,20 @@
           "verified": true,
           "texture_upload_bytes": 147456,
           "texture_upload_frames": 1,
-          "core_cycles": 11687715,
-          "last_submission_cycles": 3453722,
-          "checked_scanout_frames": 7,
-          "black_scanout_frames_including_startup": 7,
+          "core_cycles": 10007715,
+          "last_submission_cycles": 3043640,
+          "checked_scanout_frames": 6,
+          "black_scanout_frames_including_startup": 6,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 16.559646,
+          "wall_seconds_excluding_boot": 13.83514,
           "color_fnv1a64": "9df8090c6f9d95e7",
-          "sdram_refreshes": 17648
+          "sdram_refreshes": 15101
         }
       },
       {
         "name": "overdraw",
         "passed": true,
-        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\overdraw.log",
+        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/overdraw.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -154,20 +154,20 @@
           "verified": true,
           "texture_upload_bytes": 139264,
           "texture_upload_frames": 1,
-          "core_cycles": 15887715,
-          "last_submission_cycles": 5662958,
+          "core_cycles": 15047715,
+          "last_submission_cycles": 5221844,
           "checked_scanout_frames": 9,
-          "black_scanout_frames_including_startup": 10,
+          "black_scanout_frames_including_startup": 9,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 31.071164,
+          "wall_seconds_excluding_boot": 23.233299,
           "color_fnv1a64": "4ab23a6c05d8e2b8",
-          "sdram_refreshes": 24006
+          "sdram_refreshes": 22728
         }
       },
       {
         "name": "opaque",
         "passed": true,
-        "log": "C:\\Users\\enzob\\OneDrive\\Documentos\\Tang_Nano_20K_GPU\\Nano-20K-GPU\\build\\tang20k-core-tests\\opaque.log",
+        "log": "C:/Users/enzob/OneDrive/Documentos/Tang_Nano_20K_GPU/Nano-20K-GPU/build/tang20k-core-tests/opaque.log",
         "statistics": {
           "profile": "N20K-RTL-SIM-0.1",
           "backend": "verilator",
@@ -177,14 +177,14 @@
           "verified": true,
           "texture_upload_bytes": 0,
           "texture_upload_frames": 0,
-          "core_cycles": 15887715,
-          "last_submission_cycles": 6239922,
-          "checked_scanout_frames": 10,
+          "core_cycles": 15047715,
+          "last_submission_cycles": 5860870,
+          "checked_scanout_frames": 9,
           "black_scanout_frames_including_startup": 9,
           "scanout_underflows": 0,
-          "wall_seconds_excluding_boot": 30.414284,
+          "wall_seconds_excluding_boot": 23.956842,
           "color_fnv1a64": "c847f4fde6907f38",
-          "sdram_refreshes": 24007
+          "sdram_refreshes": 22730
         }
       }
     ]

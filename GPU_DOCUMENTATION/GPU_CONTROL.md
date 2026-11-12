@@ -42,6 +42,13 @@ before transfer scheduling. This also delays an invalid transaction's internal
 error indication by one edge. CPU packet acceptance and fence/reply ordering
 are unchanged; drivers do not insert a matching delay between commands.
 
+Since 2026-11-10 the SDRAM service also releases its command slot once a
+transaction's last column command has issued, and a pass issues its tile
+stores without waiting for each one. This is internal: a pass still
+completes only after every store has reached SDRAM, so a FENCE or PRESENT
+that follows it observes the finished buffers exactly as before. No packet,
+reply or driver sequence changes, and no host software needs rebuilding.
+
 ## 1. What the CPU sends
 
 The CPU sends an ordered stream of packets. It uploads textures and prepared
@@ -108,8 +115,12 @@ The image is built with Gowin EDA. The reasons and
 the gates that could not be applied are recorded in `AGENTS.md`. Its
 [complete-board report](../docs/hardware/tang20k-board.json) verifies every
 package pin and meets the core/pixel/host clocks, with Gowin Fmax estimates of
-54.97 / 178.04 / 68.18 MHz against 50.4 / 25.2 / 25.2 MHz. The only
-negative-slack paths are reset-release paths, listed in the report. From
+59.29 / 181.64 / 31.32 MHz against 50.4 / 25.2 / 25.2 MHz. The host figure
+now covers the bus pads: this build used uncommitted constraints that budget
+4 ns of board and PIO delay on each half-cycle pad path, as the report
+records. It is a tool estimate under that assumed delay, not a measured bus
+margin. The only negative-slack paths are reset-release paths, listed in the
+report. From
 2026-11-06 to 2026-11-07, a 6.3 MHz bus-test image with a constant-black
 raster replaced this profile during bus diagnosis; it is historical.
 
@@ -826,11 +837,14 @@ fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 
 The current image is **7,264,137 bytes**, SHA-256
-`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It adds
-kind-4 vertex triangles (capability feature bit 8). On 2026-11-09 it was
-written to the board's SPI flash and verified, and the FPGA reloaded it
-(status `0x6020`, user code `0xB6B9`); it has not yet been tested with the
-RP2350. The previous image (`5b6f75aa…08e6`)
+`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It adds
+early SDRAM command release and overlapped tile stores, with no packet or
+capability change; it has not yet been programmed or tested on the board.
+The previous image (`93739598…f886`) added kind-4 vertex triangles
+(capability feature bit 8). On 2026-11-09 it was written to the board's SPI
+flash and verified, and the FPGA reloaded it (status `0x6020`, user code
+`0xB6B9`); the 2026-11-10 `demo_3d_engine9` measurements above used it. The
+image before it (`5b6f75aa…08e6`)
 accepts load-flag bit 3 (SKIP) but faults on kind 4. On 2026-11-08 that image
 was written to the board's SPI flash and verified, and the FPGA reloaded it
 (status `0x6020`, user code `0x72CD`). The user measured `demo_3d_engine6` on
@@ -843,7 +857,7 @@ read order. On 2026-11-09 the user reported intermittent crashes with the
 revised asynchronous polling order. The cause remains open. The current
 MMBasic build uses blocking PRESENT with this FPGA image.
 
-The previous image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
+An older image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
 2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
 reject SKIP with fault 6 but accept the depth-DISCARD flag (bit 2); the image
 before those (`55ebdfbd…d170`, user code `0x33E2`) rejects DISCARD too.

@@ -47,6 +47,7 @@ module nano_gpu_core #(
         S_DESC_CMD=14, S_DESC_DATA=15, S_DESC_DONE=16,
         S_ENTRY_CMD=17, S_ENTRY_DATA=18, S_ENTRY_DONE=19,
         S_TILE_INIT=20, S_LOAD_CMD=21, S_LOAD_DATA=22, S_LOAD_DONE=23,
+        S_PASS_DRAIN=24,
         S_REF_CMD=28, S_REF_DATA=29, S_REF_DONE=30,
         S_RECORD_CMD=31, S_RECORD_DATA=32, S_RECORD_DONE=33,
         S_DRAW_START=34, S_DRAW_WAIT=35,
@@ -83,6 +84,15 @@ module nano_gpu_core #(
     wire [5:0] mem_cmd_ready, mem_w_ready, mem_r_valid, mem_r_last, mem_done, mem_error;
     wire [191:0] mem_r_data;
     reg [5:0] mem_cmd_valid, mem_cmd_write, mem_w_valid, mem_r_ready;
+    // Tile stores (client 3) do not wait for each burst: the SDRAM service
+    // releases its command slot early, so the next row's burst is requested
+    // while the previous one finishes. At most two client-3 transactions are
+    // in flight; this count replaces its single pending_memory bit. A tile
+    // LOAD waits for it to reach zero, so mem_done[3] in S_LOAD_DONE is the
+    // load's own, and a pass completes only after its stores (S_PASS_DRAIN).
+    reg [1:0] mem3_outstanding;
+    wire [1:0] mem3_next = mem3_outstanding + {1'b0, mem_cmd_valid[3] && mem_cmd_ready[3]} -
+        {1'b0, mem_done[3]};
     reg [137:0] mem_cmd_addr;
     reg [29:0] mem_cmd_words;
     reg [191:0] mem_w_data;
@@ -448,10 +458,9 @@ module nano_gpu_core #(
     endtask
     task automatic next_tile;
         begin
-            if(tile_index==299) begin
-                color_valid[target_id]<=1; depth_valid<=!depth_discard && (!skip_empty || depth_keep); pass_active<=0;
-                complete_command();
-            end else begin
+            // The pass completes once its last tile stores have reached SDRAM.
+            if(tile_index==299) state<=S_PASS_DRAIN;
+            else begin
                 tile_index<=tile_index+1;
                 if(tile_x_index==19) begin tile_x_index<=0; tile_y_index<=tile_y_index+1; end
                 else tile_x_index<=tile_x_index+1;
@@ -595,7 +604,9 @@ module nano_gpu_core #(
         S_RECORD_DATA: mem_r_ready[2]=1;
         S_TILE_INIT: tile_pix_we={clear_depth_enable,clear_color_enable};
         S_LOAD_CMD: begin
-            mem_cmd_valid[3]=1; mem_cmd_addr[69 +:23]=store_address;
+            // Only after earlier tile stores complete: S_LOAD_DONE then
+            // waits for this load's own completion.
+            mem_cmd_valid[3]=mem3_outstanding==0; mem_cmd_addr[69 +:23]=store_address;
             mem_cmd_words[15 +:5]=16;
         end
         S_LOAD_DATA: begin
@@ -701,6 +712,7 @@ module nano_gpu_core #(
             abort_sync1<=0; abort_sync2<=0; abort_previous<=0; abort_pending<=0; fault_pending<=0; fault_code<=0;
             foreground_quiet<=0;
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0; pending_memory<=0;
+            mem3_outstanding<=0;
             capture_index<=0; capture_length<=0;
             packet_word<=0; capture_invalid<=0; copy_command_invalid<=0;
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; depth_discard<=0;
@@ -747,6 +759,8 @@ module nano_gpu_core #(
                 if(mem_done[i]) pending_memory[i]<=0;
                 if(mem_cmd_valid[i] && mem_cmd_ready[i]) pending_memory[i]<=1;
             end
+            mem3_outstanding<=mem3_next;
+            pending_memory[3]<=mem3_next!=0;
             if(mem_done[2]) read_done_hold<=1;
             // Abort lets the active primitive finish before stopping texture
             // fetches. A fault may cancel that work once accepted memory has
@@ -1102,20 +1116,27 @@ module nano_gpu_core #(
                 S_STORE_PREFETCH: state<=store_kind==0 ? S_STORE_HIGH : S_STORE_WORD;
                 S_STORE_HIGH: begin held_color<=tile_pix_rcolor; state<=S_STORE_WORD; end
                 // Depth and constant words stream once per edge; RGB565 words
-                // alternate with S_STORE_HIGH to read their second pixel.
+                // alternate with S_STORE_HIGH to read their second pixel. The
+                // next burst is requested as soon as this one is staged: its
+                // completion arrives later (mem3_outstanding).
                 S_STORE_WORD: if(mem_w_ready[3]) begin
-                    if(beat==15) state<=S_STORE_DONE;
-                    else begin
+                    if(beat==15) begin
+                        if(xfer_last) state<=S_STORE_DONE;
+                        else begin next_transfer(); state<=S_STORE_CMD; end
+                    end else begin
                         beat<=beat+1;
                         if(!store_constant && store_kind==0) state<=S_STORE_HIGH;
                     end
                 end
-                S_STORE_DONE: if(mem_done[3]) begin
-                    if(xfer_last) begin
-                        if(!store_constant) tile_ram_clear<=1;
-                        next_tile();
-                    end
-                    else begin next_transfer(); state<=S_STORE_CMD; end
+                // Every burst of this tile is staged, so its tile RAM may be
+                // reused; the stores themselves may still be finishing.
+                S_STORE_DONE: begin
+                    if(!store_constant) tile_ram_clear<=1;
+                    next_tile();
+                end
+                S_PASS_DRAIN: if(mem3_outstanding==0) begin
+                    color_valid[target_id]<=1; depth_valid<=!depth_discard && (!skip_empty || depth_keep); pass_active<=0;
+                    complete_command();
                 end
                 S_PRESENT: if(vblank_pulse) begin front_id<=target_id; present_token<=packet_word; sealed<=0; start_reply(packet_word,0,0); end
                 S_REPLY: if(response_ready) begin

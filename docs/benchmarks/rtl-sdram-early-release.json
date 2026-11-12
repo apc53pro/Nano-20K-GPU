@@ -1,0 +1,140 @@
+{
+  "schema": "N20K-RTL-SDRAM-EARLY-RELEASE-1",
+  "profile": "Verilator board-core profile: 50.4 MHz core/SDRAM, external 25.2 MHz pixel ticks, 25.2 MHz virtual host, refresh interval 787",
+  "stages": {
+    "before": "e5ec2ed: one SDRAM transaction at a time, retired after its response and burst tail; each tile store waited for completion",
+    "now": "this commit: early command release with two payload slots, two scanout refills in flight, back-to-back tile stores drained once per pass"
+  },
+  "timing_scope": "First host byte through fence reply; includes descriptor, table, list and record delivery. Simulation only, not an observed FPGA frame time.",
+  "oracle_checked": "Every benchmark case compares both color buffers and every D24 word with the SRR.",
+  "before_benchmark_scanout_underflows": 0,
+  "now_benchmark_scanout_underflows": 0,
+  "cases": [
+    {
+      "case": "warm-up: empty, clear color and depth",
+      "before_core_cycles": 922292,
+      "before_ms": 18.3,
+      "now_core_cycles": 641290,
+      "now_ms": 12.72
+    },
+    {
+      "case": "empty pass, clear color and depth",
+      "before_core_cycles": 1187586,
+      "before_ms": 23.56,
+      "now_core_cycles": 905812,
+      "now_ms": 17.97
+    },
+    {
+      "case": "empty pass, load color, clear depth",
+      "before_core_cycles": 785762,
+      "before_ms": 15.59,
+      "now_core_cycles": 621056,
+      "now_ms": 12.32
+    },
+    {
+      "case": "empty pass, load color and depth",
+      "before_core_cycles": 16862,
+      "before_ms": 0.33,
+      "now_core_cycles": 14450,
+      "now_ms": 0.29
+    },
+    {
+      "case": "full-screen front-to-back copy",
+      "before_core_cycles": 748398,
+      "before_ms": 14.85,
+      "now_core_cycles": 694276,
+      "now_ms": 13.78
+    },
+    {
+      "case": "UI frame (148 rects), clear color and depth",
+      "before_core_cycles": 2773610,
+      "before_ms": 55.03,
+      "now_core_cycles": 2435704,
+      "now_ms": 48.33
+    },
+    {
+      "case": "pointer-sized update, load color and depth",
+      "before_core_cycles": 22070,
+      "before_ms": 0.44,
+      "now_core_cycles": 24382,
+      "now_ms": 0.48
+    },
+    {
+      "case": "empty pass, clear color, discard depth",
+      "before_core_cycles": 414848,
+      "before_ms": 8.23,
+      "now_core_cycles": 289646,
+      "now_ms": 5.75
+    },
+    {
+      "case": "UI frame (148 rects), clear color, discard depth",
+      "before_core_cycles": 2015432,
+      "before_ms": 39.99,
+      "now_core_cycles": 1843356,
+      "now_ms": 36.57
+    },
+    {
+      "case": "pointer-sized update, load color, discard depth",
+      "before_core_cycles": 24406,
+      "before_ms": 0.48,
+      "now_core_cycles": 21504,
+      "now_ms": 0.43
+    },
+    {
+      "case": "empty pass, load color, discard depth",
+      "before_core_cycles": 16072,
+      "before_ms": 0.32,
+      "now_core_cycles": 14896,
+      "now_ms": 0.3
+    },
+    {
+      "case": "showcase scene frame (t=1.2)",
+      "before_core_cycles": 5021028,
+      "before_ms": 99.62,
+      "now_core_cycles": 4498782,
+      "now_ms": 89.26
+    },
+    {
+      "case": "overdraw scene frame (t=1.2)",
+      "before_core_cycles": 6433430,
+      "before_ms": 127.65,
+      "now_core_cycles": 5985024,
+      "now_ms": 118.75
+    },
+    {
+      "case": "icosahedron frame, full clear (SDK flags 7)",
+      "before_core_cycles": 640656,
+      "before_ms": 12.71,
+      "now_core_cycles": 530868,
+      "now_ms": 10.53
+    },
+    {
+      "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+      "before_core_cycles": 344230,
+      "before_ms": 6.83,
+      "now_core_cycles": 313534,
+      "now_ms": 6.22
+    },
+    {
+      "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+      "before_core_cycles": 8046898,
+      "before_ms": 159.66,
+      "now_core_cycles": 7501304,
+      "now_ms": 148.84
+    },
+    {
+      "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+      "before_core_cycles": 7688874,
+      "before_ms": 152.56,
+      "now_core_cycles": 7108276,
+      "now_ms": 141.04
+    },
+    {
+      "case": "icosahedron, flat kind-4 records with GPU culling",
+      "before_core_cycles": 596532,
+      "before_ms": 11.84,
+      "now_core_cycles": 508740,
+      "now_ms": 10.09
+    }
+  ]
+}

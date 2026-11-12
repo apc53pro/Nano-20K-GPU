@@ -23,12 +23,14 @@ the user reported the terminal running on an earlier image. The previous
 image added the SKIP load flag to the pipelined SDRAM controller, word-wide
 display FIFO and tile clearing during stores; the user reported
 `demo_3d_engine6` running on it with the RP2350 at a stable 60 fps. The
-current image adds **GPU triangle setup** for kind-4 vertex triangles
-(section 6). It is built with
+image after it added **GPU triangle setup** for kind-4 vertex triangles
+(section 6). The current image adds **early SDRAM command release** and
+overlapped tile stores (section 9). It is built with
 Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
-source-matched build verifies every package pin and meets every required
-clock, with the core at 54.97 MHz Fmax. It uses **18,058/20,736 logic
-(Gowin count)**, **7,395 registers**, **46/46 BSRAM**, 63% DSP and one PLL.
+build verifies every package pin and meets every required clock, with the
+core at 59.29 MHz Fmax. It uses **18,169/20,736 logic (Gowin count)**,
+**7,426 registers**, **46/46 BSRAM**, 63% DSP and one PLL. Section 12 notes
+one uncommitted build-script input.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -779,9 +781,10 @@ All accesses share one service with six logical clients:
 | 5 | Color copies |
 
 The service accepts bounded 1–16-word transactions and maps them onto physical
-sequential BL8 SDRAM commands. Two native RAM banks stage its 32-bit payload
-slot; a third stores the four byte-write masks with the same synchronous read
-schedule. Masked padding preserves bytes outside a short write. The controller
+sequential BL8 SDRAM commands. Two native RAM banks hold its 32-bit payload
+in **two 16-word slots**; a third stores the four byte-write masks with the
+same synchronous read schedule and slot addressing. The second slot uses
+words of those banks that were previously unused, so it adds no BSRAM. Masked padding preserves bytes outside a short write. The controller
 implements initialization, bank/row timing, read/write turnaround, refresh and
 response backpressure. Its selected physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
@@ -803,9 +806,33 @@ Read responses stream from the native RAM as soon as captured words are
 available, including while the physical BL8 tail or another burst is in flight.
 The existing fill counter tracks captured words; a read never consumes an
 uncaptured word or reads the location being written on the same edge. Native
-RAM output holds its valid word under backpressure. Transaction completion
-still waits for both client response consumption and the physical burst tail.
-This reduces scanout refill latency without another RAM bank or response FIFO.
+RAM output holds its valid word under backpressure. A transaction's
+completion (`done`) still waits for client response consumption or, for a
+write, its last physical data beat. This reduces scanout refill latency
+without another RAM bank or response FIFO.
+
+**Early command release (2026-11-10).** A transaction gives up the command
+slot as soon as its **last column command has issued**. Its remaining write
+beats, or its read captures and response stream, finish in the background
+while the next request is granted, checked, opens its row and stages its
+data in the other payload slot. Each slot stays busy until its own
+transaction's completion event, and a grant waits for a free slot, so at most
+two transactions are in progress. Completion events (`done`, and freeing the
+slot) are the final beat of a write's last segment or the final response
+handshake of a read; the beat run and the response stream each retain their
+own owner and slot. Responses are returned in acceptance order. Direction
+interlocks keep the data bus and the payload RAM read port safe:
+- a WRITE column command waits until every released read's captures and
+  response stream are finished;
+- a READ waits for released write beats and for an older read's stream, but
+  not for an earlier segment of its own transaction;
+- a read capture has priority over write staging on the shared payload RAM
+  write port for that edge.
+
+Before this change every transaction retired before the next was granted, so
+each one paid its arbitration, check, row activation and staging serially;
+early release hides most of that behind the previous burst. It costs about
+56 LUT/ALU cells and 26 flip-flops in a Yosys comparison of the service alone.
 
 The arbiter computes foreground eligibility from the round-robin cursor in
 parallel, choosing the first request at or after the cursor or wrapping to the
@@ -845,9 +872,17 @@ are checked before the final chunk is submitted. Earlier chunks may already
 have reached SDRAM when malformed input faults; recovery requires reuploading
 the affected resource. No second upload engine or additional BSRAM is present.
 
-The present RTL serializes foreground upload, fetch, tile transfers and copies;
-it does not implement the C++ system model's overlapping tile writeback or
-primitive prefetch schedule. Color copies work one row at a time:
+The present RTL serializes foreground upload, fetch, tile transfers and copies
+at the command level, with one exception: **tile stores are overlapped**.
+A tile's store transfers are offered back to back without waiting for each
+completion, and the executor moves on to the next tile once the last one has
+been accepted. A tile's LOAD waits until no store is outstanding. At the end
+of a pass, a drain state waits for every store to complete before the
+attachments are marked valid and the command completes, so FENCE and PRESENT
+semantics are unchanged. An outstanding-store counter supplies the
+`pending_memory` term used by recovery. The RTL does not implement the C++
+system model's primitive prefetch schedule. Color copies work one row at a
+time:
 1. **Read.** The row's 32-bit source words arrive in SDRAM bursts of up to 16
    words. Each word is realigned on arrival into destination-aligned words in
    one 512×32 native row RAM. With a one-pixel source/destination phase
@@ -907,8 +942,11 @@ words: one bank holds each word's even pixel and the other its odd pixel. A
 SDRAM service while pixels drain; each FIFO word read supplies two pixels.
 (The previous FIFO accepted one pixel per edge, keeping the service owned for
 about 32 edges per refill: roughly 40% of SDRAM time in a clear pass.) Scanout queues its
-next refill before the current transaction retires, reserves room for pending
-responses, and discards obsolete responses across front swaps. This keeps it
+next refill before the current transaction retires. With early command
+release, **up to two refills are in flight**: the scanout counts accepted
+refills whose last word has not arrived, reserves 16 FIFO words for each of
+them and for the queued request, and keeps one discard flag per in-flight
+refill. Obsolete responses are discarded across front swaps. This keeps it
 eligible for memory arbitration during foreground traffic. Underflow produces
 black for the rest of that affected frame and increments a diagnostic counter;
 it is an error condition, not normal presentation behavior.
@@ -1070,7 +1108,13 @@ a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 ### Current board implementation (Gowin EDA)
 
 The [current complete-board report](../docs/hardware/tang20k-board.json) is
-source-matched to the 50.4 MHz GPU-video profile described above. It is built
+matched to the 50.4 MHz GPU-video profile described above, with one
+exception: it was built with a working-tree `scripts/build-tang20k.py` that
+adds host-pad timing constraints from separate, uncommitted work. The report
+records both script hashes and the difference
+(`uncommitted_build_inputs`). Those constraints add `set_input_delay` and
+`set_output_delay` of 4 ns on the falling host-clock edge for the bus pads.
+The RTL and every other input match the committed sources. It is built
 by `make tang20k` with Gowin EDA V1.9.8.11 Education, using placement option 0
 and routing option 2 (Makefile `TANG20K_PLACE`/`TANG20K_ROUTE`). With the
 earlier options 2/1 this design routed but the core reached only 40.5 MHz;
@@ -1081,25 +1125,29 @@ including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **18,058 (87%)** | 20,736 |
-| Registers | 7,395 (47%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **18,169 (88%)** | 20,736 |
+| Registers | 7,426 (47%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
 | DSP | 63% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
 
 Gowin's logic count is not directly comparable with the nextpnr LUT-site
-counts of earlier reports. No BSRAM bank is spare. The image before the
-kind-4 setup unit used 16,481, so the unit and its core integration cost
-about 1,600.
+counts of earlier reports. No BSRAM bank is spare. The previous image
+(triangle setup, without early release) used 18,058, so early release and
+overlapped stores cost about 111. The image before the kind-4 setup unit used
+16,481, so the unit and its core integration cost about 1,600.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **54.97 MHz** |
-| Host | 25.2 MHz | 68.18 MHz |
-| Physical pixel | 25.2 MHz | 178.04 MHz |
-| Reference | 27 MHz | 376.36 MHz |
+| Core/SDRAM | 50.4 MHz | **59.29 MHz** |
+| Host | 25.2 MHz | 31.32 MHz |
+| Physical pixel | 25.2 MHz | 181.64 MHz |
+| Reference | 27 MHz | 404.96 MHz |
 
-The core closes with about 9% margin in this placement. Two core decisions
+The core closes with about 18% margin in this placement; the previous image
+reached 54.97 MHz. The host figure now includes the constrained half-cycle
+pad paths described above; the previous image, without those constraints,
+reported 68.18 MHz for internal host paths only. Two core decisions
 read registered flags computed when a reference is fetched (the 320-byte
 record range and the last-reference test), so neither comparison feeds the
 executor's next-state logic. The image before the setup unit closed at
@@ -1114,10 +1162,10 @@ ranged from 51.13 to 62.8 MHz. Two RTL timing fixes took the core from
   arithmetic (section 9).
 
 Eight reset-release paths have negative slack, and the report lists each one:
-power-on into the core and pixel reset synchronizers, −2.63 ns and −2.12 ns,
+power-on into the core and pixel reset synchronizers, −2.66 ns and −1.74 ns,
 which is an asynchronous preset into two-flop synchronizers that release
 synchronously; and the synchronized pixel reset into the four OSER10
-serializer resets, −0.40 ns, as listed for earlier images.
+serializer resets, −0.41 ns, as listed for earlier images.
 
 The build fails on any other negative-slack path.
 
@@ -1126,10 +1174,14 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. On
-2026-11-09 it was written to the Tang's SPI flash with `make tang20k-flash`
+`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It has
+not yet been programmed or tested on the board.
+
+The previous image (`93739598…f886`, triangle setup without early release)
+was written to the Tang's SPI flash on 2026-11-09 with `make tang20k-flash`
 (program and verify succeeded; the FPGA reloaded it with status `0x6020`,
-user code `0xB6B9`). It has not yet been tested with the RP2350. The
+user code `0xB6B9`). The 2026-11-10 `demo_3d_engine9` board measurement in
+section 13 used it. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
@@ -1312,7 +1364,8 @@ emulation figures, not board measurements.
 
 **Board measurement, 2026-11-10.** The user ran `demo_3d_engine9`'s timing
 build on the board, at its starting view (about 445 records, 1,660 tile
-references, one pass), with this image and an RP2350 at 375 MHz. The measured
+references, one pass), with the previous image (`93739598…f886`, before
+early SDRAM release) and an RP2350 at 375 MHz. The measured
 GPU render time is **30.2 ms**, consistent with the 28.2 ms replay above. It
 stays about 24–31.5 ms in other views: a sphere at 20 or 1,280 Gouraud faces
 measured 24.0 or 31.5 ms, so the pass is dominated by its fixed per-frame
@@ -1332,6 +1385,44 @@ wait for the third vertical blank. Uploads cannot overlap rendering because
 the command queue executes in order. 30 FPS needs uploads plus rendering
 below 33.3 ms. These are user-reported on-screen timings, not a qualified
 benchmark. Like MC10's, the binary32 setup is not bit-identical to the oracle.
+
+### Early SDRAM release and overlapped tile stores (current image)
+
+A `--profile` run of the previous RTL showed tile stores dominated by
+per-transaction overhead rather than data beats: each 16-word transfer waited
+for the previous transaction's completion before its grant, check and row
+activation. Scanout refills took about 40% of SDRAM time during stores. The
+current RTL releases the command slot at the last column command, keeps two
+transactions and two scanout refills in flight, and issues tile stores back
+to back (section 9). The same oracle-checked benchmark, before and after:
+
+| Case | Before (ms) | Now (ms) |
+| --- | ---: | ---: |
+| Empty pass, clear color and depth (first after boot) | 18.30 | 12.72 |
+| Empty pass, clear color and depth | 23.56 | 17.97 |
+| Empty pass, load color, clear depth | 15.59 | 12.32 |
+| Empty pass, clear color, discard depth | 8.23 | 5.75 |
+| Full-screen front-to-back copy | 14.85 | 13.78 |
+| 148-rectangle UI frame, clear color and depth | 55.03 | 48.33 |
+| 148-rectangle UI frame, clear color, discard depth | 39.99 | 36.57 |
+| Pointer-sized update, load color and depth | 0.44 | 0.48 |
+| Showcase scene frame | 99.62 | 89.26 |
+| Overdraw scene frame | 127.65 | 118.75 |
+| Icosahedron, full clear | 12.71 | 10.53 |
+| Icosahedron, SKIP with dirty tiles | 6.83 | 6.22 |
+| Icosahedron, flat kind-4 with GPU culling | 11.84 | 10.09 |
+| 400 kind-4 triangles, 12,950 references | 159.66 | 148.84 |
+| 400 kind-4 triangles, 17,541 references | 152.56 | 141.04 |
+
+Every case matches the SRR's color and D24 words, with zero scanout
+underflows. The small pointer update is 0.04 ms slower: its single tile now
+pays the end-of-pass drain separately. Full results are in
+[the early-release regression](../docs/benchmarks/rtl-sdram-early-release.json).
+Scenes gain 7–17% and clear-dominated passes up to 30%. The replay harness
+for `demo_3d_engine9`'s town view was not kept, so its new pass time is not
+measured. From the store share of its pass (about 32%), a gain similar to the
+scenes, roughly 2–3 ms of the 30.2 ms measured on the board, is an estimate
+only. These are simulation figures, not board measurements.
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests
@@ -1443,15 +1534,15 @@ a measured silicon frequency limit or 30 FPS scenes.
 | --- | --- |
 | [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Board clocks/reset, synchronized pixel-event handoff, shared host pads, SDRAM boundary and TMDS integration |
 | [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and expected fixed embedded SDRAM terminals |
-| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, copies, presentation/recovery |
+| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule and overlapped stores, copies, presentation/recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) | Kind-4 vertex-triangle setup per tile: orientation/culling, edges, window and tile rejection, depth gradients and seed |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |
 | [`nano_fragment_pipeline.sv`](../rtl/gpu/nano_fragment_pipeline.sv) | Textured contexts, ordered depth/key/shading commits |
 | [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Selected exact integer-texel path, separate generic Q16 path, native delay RAMs and multipliers |
 | [`nano_texture_cache.sv`](../rtl/gpu/nano_texture_cache.sv) | Pitched texture addressing, cache hits and refills |
-| [`nano_sdram_service.sv`](../rtl/gpu/nano_sdram_service.sv) | Physical SDRAM transactions, timing, refresh and arbitration |
-| [`nano_scanout.sv`](../rtl/gpu/nano_scanout.sv) | Independent timing, queued refills and display FIFO consumption |
+| [`nano_sdram_service.sv`](../rtl/gpu/nano_sdram_service.sv) | Physical SDRAM transactions, early command release with two payload slots, timing, refresh and arbitration |
+| [`nano_scanout.sv`](../rtl/gpu/nano_scanout.sv) | Independent timing, up to two in-flight refills and display FIFO consumption |
 | [`nano_sdp16.sv`](../rtl/gpu/nano_sdp16.sv) | Native RAM binding and simulation port contract |
 | [`nano_sdp32.sv`](../rtl/gpu/nano_sdp32.sv) | Native 512×32 coefficient banks and synchronous-port contract |
 | [`nano_sdp36.sv`](../rtl/gpu/nano_sdp36.sv), [`nano_sdp8.sv`](../rtl/gpu/nano_sdp8.sv) | Native 512×36 context/delay and 2048×8 packet banks |

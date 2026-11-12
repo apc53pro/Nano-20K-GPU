@@ -26,7 +26,14 @@ module nano_scanout (
     reg [18:0] next_fetch;
     reg request_valid, request_discard;
     reg [22:0] request_address;
-    reg outstanding, discard_response;
+    // The SDRAM service releases its command slot once a transaction's last
+    // READ has issued, so the queued refill can be accepted while the previous
+    // one's response is still arriving: up to two refills are in flight.
+    // Responses arrive in order. in_flight counts accepted refills whose final
+    // word has not arrived; discard_response belongs to the oldest of them and
+    // discard_queued to the next. received_words counts the oldest's words.
+    reg [1:0] in_flight;
+    reg discard_response, discard_queued;
     reg [4:0] received_words;
     reg [9:0] read_pointer, write_pointer;
     reg [10:0] stored; // words, 0..1024
@@ -77,7 +84,10 @@ module nano_scanout (
     assign mem_w_valid = 1'b0;
     assign mem_w_data = 32'b0;
     assign mem_w_strb = 4'b0;
-    assign mem_r_ready = outstanding && (discard_response || !streaming || base_flush || fifo_room);
+    assign mem_r_ready = in_flight != 0 && (discard_response || !streaming || base_flush || fifo_room);
+    wire refill_accepted = mem_cmd_valid && mem_cmd_ready;
+    wire refill_discard = request_discard || flush_stream || !streaming;
+    wire refill_finished = mem_r_valid && mem_r_ready && mem_r_last;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -85,7 +95,7 @@ module nano_scanout (
             horizontal <= 0; vertical <= 0; vblank_pulse <= 0; underflows <= 0;
             seen_front <= 0; previous_memory_ready <= 0;
             streaming <= 0; frame_ready <= 0; frame_black <= 0;
-            next_fetch <= 0; outstanding <= 0; discard_response <= 0; received_words <= 0;
+            next_fetch <= 0; in_flight <= 0; discard_response <= 0; discard_queued <= 0; received_words <= 0;
             request_valid <= 0; request_discard <= 0; request_address <= 0;
             read_pointer <= 0; write_pointer <= 0; stored <= 0;
             read_pending <= 0; output_valid <= 0; output_word <= 0;
@@ -99,30 +109,34 @@ module nano_scanout (
             // for mem_done to clear outstanding leaves a request bubble in
             // which a slow foreground WRITE can win every arbitration turn,
             // defeating the service's bounded scanout priority.
-            // Reserve 16 words for the active transaction and 16 for this
+            // Reserve 16 words for each refill in flight and 16 for this
             // queued one. The command remains stable until accepted; no extra
             // memory port is added.
-            if (!request_valid && streaming && memory_ready &&
-                    next_fetch < FRAME_PIXELS && stored <= 11'd992 && !flush_stream) begin
+            if (!request_valid && streaming && memory_ready && next_fetch < FRAME_PIXELS &&
+                    stored + {5'd0, in_flight, 4'd0} <= 11'd1008 && !flush_stream) begin
                 request_valid <= 1;
                 request_discard <= 0;
                 request_address <= (front_id ? 23'h096000 : 23'b0) + {3'b0,next_fetch,1'b0};
             end
-            // Completion can coincide with acceptance of the queued refill.
-            // The newly accepted owner must remain outstanding in that case.
-            if (mem_done || mem_error) begin
-                outstanding <= 0;
-                discard_response <= 0;
-            end
-            if (mem_cmd_valid && mem_cmd_ready) begin
+            // An accepted refill joins the in-flight queue; a final word (or a
+            // rejected request, which returns no words) leaves it. At most two
+            // are in flight: a third is accepted only after the oldest's
+            // completion frees its service slot.
+            in_flight <= in_flight + {1'b0, refill_accepted} - {1'b0, refill_finished || mem_error};
+            if (refill_accepted) begin
                 request_valid <= 0;
-                outstanding <= 1;
-                discard_response <= request_discard || flush_stream || !streaming;
-                received_words <= 0;
+                if (in_flight == 0 || (in_flight == 1 && refill_finished)) discard_response <= refill_discard;
+                else discard_queued <= refill_discard;
                 if (!request_discard && !flush_stream) next_fetch <= next_fetch + 19'd32;
             end
+            if (refill_finished && !(refill_accepted && in_flight == 1)) discard_response <= discard_queued;
+`ifndef SYNTHESIS
+            if ((refill_accepted && in_flight == 2 && !refill_finished) ||
+                ((refill_finished || mem_error) && in_flight == 0))
+                $fatal(1, "scanout refill queue exceeded two in flight or underflowed");
+`endif
             if (fifo_push) write_pointer <= write_pointer + 10'd1;
-            if (mem_r_valid && mem_r_ready) received_words <= received_words + 5'd1;
+            if (mem_r_valid && mem_r_ready) received_words <= refill_finished ? 5'd0 : received_words + 5'd1;
             if (consume_pixel && output_valid) begin
                 if (spare_valid) begin output_word <= spare_word; spare_valid <= 0; end
                 else output_valid <= 0;
@@ -165,8 +179,9 @@ module nano_scanout (
                 read_pending <= 0; output_valid <= 0; spare_valid <= 0;
                 next_fetch <= 0;
                 if (request_valid && !mem_cmd_ready) request_discard <= 1;
-                discard_response <= (request_valid && mem_cmd_ready) ||
-                    (outstanding && !mem_done && !mem_error);
+                // Every refill accepted now or still in flight is discarded.
+                // A flag with no refill behind it is overwritten on acceptance.
+                discard_response <= 1; discard_queued <= 1;
             end
             if (enter_blank) begin
                 vblank_pulse <= 1;

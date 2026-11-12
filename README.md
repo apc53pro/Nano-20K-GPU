@@ -57,25 +57,30 @@ an earlier image (user-reported, 2026-11-07). Burst tile LOAD/STORE,
 empty-tile skipping, depth DISCARD, a pipelined SDRAM controller, a word-wide
 display FIFO and the SKIP pass flag came first; the user measured
 `demo_3d_engine6` on that image with the RP2350 at a stable 60 fps (blocking
-presentation). The current image adds **GPU triangle setup** for 64-byte
+presentation). The next image added **GPU triangle setup** for 64-byte
 kind-4 vertex triangles (feature bit 8): the GPU orients, culls, computes the
 edges and depth plane, and rejects uncovered tiles, so the CPU sends only
-projected vertices.
+projected vertices. The current image adds **early SDRAM command release**
+and overlapped tile stores, which make simulated 3D passes 7–17% faster and
+clear-dominated passes up to 30% faster, with no packet change.
 
 The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
 image failed the host address latch on the board, and `AGENTS.md` records this
 exception and the gate it cannot meet. The
-[source-matched board report](docs/hardware/tang20k-board.json) verifies every
-package pin and meets every required clock: the core reaches 54.97 MHz Fmax
+[board report](docs/hardware/tang20k-board.json) verifies every
+package pin and meets every required clock: the core reaches 59.29 MHz Fmax
 against 50.4 MHz (placement option 0, routing option 2). The only
-negative-slack paths are listed reset-release paths.
-It uses **18,058/20,736 logic (Gowin count)**, **7,395 registers**,
+negative-slack paths are listed reset-release paths. The build used
+uncommitted host-pad timing constraints in `scripts/build-tang20k.py`; the
+report records both script hashes.
+It uses **18,169/20,736 logic (Gowin count)**, **7,426 registers**,
 **46/46 BSRAM** and 63% DSP.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`93739598f18d052a73cdff1ee6cd33051945447af343452b6a456401c0c7f886`. It was
-flashed and verified on 2026-11-09 (user code `0xB6B9`) and has not yet been
-tested with the RP2350.
+`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It has
+not yet been programmed or tested on the board. The previous image
+(`93739598…f886`, user code `0xB6B9`) ran `demo_3d_engine9` at 20 fps with
+the RP2350 (user-reported, 2026-11-10).
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.

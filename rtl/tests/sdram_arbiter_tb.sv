@@ -43,6 +43,9 @@ module sdram_arbiter_tb;
     initial begin
         dut.read_stream_active = 0;
         dut.read_output_valid = 0;
+        // Both payload slots free: a grant needs the next slot (early release).
+        dut.slot_busy = 0;
+        dut.alloc_slot = 0;
         dut.owner = 0;
         for (cursor = 1; cursor <= 5; cursor = cursor + 1)
             for (streak = 0; streak < 8; streak = streak + 1)

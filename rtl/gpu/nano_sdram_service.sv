@@ -103,6 +103,21 @@ module nano_sdram_service #(
     // seg_* registers describe the next segment so no address adder sits on
     // the command path.
     reg txn;
+    // Early release. A transaction gives up the command slot once its last
+    // column command has issued; its remaining write beats or read response
+    // finish in the background (w_* and stream_* below) while the next request
+    // is granted, checked, activates its row and stages its data. The payload
+    // RAM holds two 16-word slots, one per transaction; a slot stays busy until
+    // its transaction's completion event, and a grant waits for a free slot.
+    reg front_slot, alloc_slot;
+    reg [1:0] slot_busy;
+    // The read response stream belongs to one read transaction at a time,
+    // from its first READ command to its final handshake; the front may still
+    // be that transaction (stream_front) or a later one may already be granted.
+    reg read_stream_active, read_output_valid, stream_front;
+    reg [OWNER_BITS-1:0] stream_owner;
+    reg stream_slot;
+    reg [4:0] stream_words, read_index, read_fill;
     reg [4:0] issued;
     reg [22:0] seg_base;
     reg [2:0] seg_prefix;
@@ -133,6 +148,7 @@ module nano_sdram_service #(
     reg [2:0] pend_prefix, cap_prefix, cap_beat;
     reg [3:0] pend_useful, cap_useful;
     reg [4:0] pend_index, cap_index;
+    reg pend_slot, cap_slot;
     reg cap_active;
     wire cap_start = read_pipe[CAS_LATENCY];
     wire read_capture = cap_start || cap_active;
@@ -144,6 +160,7 @@ module nano_sdram_service #(
     wire useful_read = read_capture && capture_beat >= capture_prefix &&
         {1'b0, capture_beat} < {1'b0, capture_prefix} + capture_useful;
     wire [4:0] read_buffer_index = capture_index + {2'b0, capture_beat} - {2'b0, capture_prefix};
+    wire capture_slot = cap_start ? pend_slot : cap_slot;
 
     wire [1:0] burst_bank = seg_base[11:10];
     wire [10:0] burst_row = seg_base[22:12];
@@ -151,18 +168,28 @@ module nano_sdram_service #(
     // A PRECHARGE never truncates an in-flight read burst.
     wire may_precharge = ras_wait[burst_bank] == 0 && wr_wait[burst_bank] == 0 && !read_in_flight;
     wire may_activate = !bank_open[burst_bank] && rp_wait[burst_bank] == 0 && rc_wait[burst_bank] == 0;
-    wire turn_ok = turnaround == 0 || last_write_dir == request_write;
-    wire may_column = row_matches && rcd_wait[burst_bank] == 0 && turn_ok && column_gap == 0;
 
     // Write beats. The RAM output register holds the segment's first word
     // (head_loaded) before its WRITE; each useful beat prefetches the next.
-    // Configuration-initialized like write_tail, which depends on it.
+    // Configuration-initialized like write_tail, which depends on it. A beat
+    // run keeps its own owner and slot, and w_last marks the transaction's
+    // final segment, whose last beat is that transaction's completion.
     reg wbeat_active = 1'b0;
     reg head_loaded;
     reg [2:0] wbeat, w_prefix;
     reg [3:0] w_useful;
     reg [4:0] w_index;
     reg [1:0] w_bank;
+    reg [OWNER_BITS-1:0] w_owner;
+    reg w_slot, w_last;
+    wire turn_ok = turnaround == 0 || last_write_dir == request_write;
+    // A released transaction may still own the data bus or the payload RAM
+    // read port. A WRITE waits for every released read (captures and response
+    // stream); a READ waits for released write beats and for an older read's
+    // stream, but not for its own transaction's earlier segment.
+    wire direction_ok = request_write ? !read_stream_active :
+        (!wbeat_active && (!read_stream_active || stream_front));
+    wire may_column = row_matches && rcd_wait[burst_bank] == 0 && turn_ok && column_gap == 0 && direction_ok;
     wire seg_filled = {1'b0, fill_index} >= {1'b0, issued} + {2'b0, seg_useful};
 
     wire command_slot = state == ACTIVE && seg_pending && !refresh_due;
@@ -179,15 +206,22 @@ module nano_sdram_service #(
     wire [2:0] beat_prefix = write_command ? seg_prefix : w_prefix;
     wire [3:0] beat_useful = write_command ? seg_useful : w_useful;
     wire [4:0] beat_index = write_command ? issued : w_index;
+    wire beat_slot = write_command ? front_slot : w_slot;
+    wire beat_last = write_command ? issued + {1'b0, seg_useful} == request_words : w_last;
     wire useful_write = write_beat_active && physical_beat >= beat_prefix &&
         {1'b0, physical_beat} < {1'b0, beat_prefix} + beat_useful;
     wire last_useful_write = useful_write &&
         {1'b0, physical_beat} + 4'd1 == {1'b0, beat_prefix} + beat_useful;
     wire [4:0] write_buffer_index = beat_index + {2'b0, physical_beat} - {2'b0, beat_prefix};
     wire [4:0] next_head = beat_index + {1'b0, beat_useful};
-    wire next_head_ready = next_head != request_words && fill_index > next_head;
-    wire head_prefetch = txn && request_write && !head_loaded && !write_beat_active &&
+    // A segment's last useful beat prefetches the same transaction's next head.
+    // After a transaction's final segment the beat run may belong to a released
+    // transaction: its last useful beat may prefetch the front's first head.
+    wire next_head_ready = !beat_last && next_head != request_words && fill_index > next_head;
+    wire head_prefetch = txn && request_write && !head_loaded && !read_stream_active &&
+        (!write_beat_active || (last_useful_write && beat_last)) &&
         issued != request_words && fill_index > issued;
+    wire write_done_event = wbeat_active && wbeat == 7 && w_last;
     // This small physically initialized tracker deliberately survives runtime
     // logic reset until a physical WRITE finishes. FPGA configuration sets it
     // to zero; runtime reset must not erase the remaining-beat obligation.
@@ -198,11 +232,12 @@ module nano_sdram_service #(
     // Holding its read enable low holds valid/data under response backpressure.
     // The stream can continue during periodic refresh, avoiding retention
     // dependence on the consumer's readiness.
-    reg read_stream_active, read_output_valid;
-    reg [4:0] read_index;
-    wire read_handshake = read_stream_active && read_output_valid && r_ready[owner];
+    wire read_handshake = read_stream_active && read_output_valid && r_ready[stream_owner];
     wire [4:0] next_read_index = read_index + {4'b0,read_handshake};
-    wire fill_accept = txn && request_write && fill_index != request_words && w_valid[owner];
+    wire read_stream_done = read_handshake && read_index + 1 == stream_words;
+    // Read captures and write staging share the payload RAM write port; a
+    // capture of a released read holds the front's staging for that edge.
+    wire fill_accept = txn && request_write && fill_index != request_words && w_valid[owner] && !useful_read;
     reg ram_we, ram_re;
     reg [9:0] ram_waddr, ram_raddr;
     reg [31:0] ram_wdata;
@@ -220,8 +255,9 @@ module nano_sdram_service #(
     nano_sdp16 buffer_masks (
         .wclk(clk), .wce(1'b1),
         .we(fill_accept && !reset && !draining_reset_tail),
-        .waddr({5'b0,fill_index}), .wdata({12'b0,w_strb[owner*4 +: 4]}),
-        .rclk(clk), .rce(1'b1), .re(ram_re && request_write),
+        .waddr({4'b0,front_slot,fill_index}), .wdata({12'b0,w_strb[owner*4 +: 4]}),
+        // A released write's beats may run while the front is a read.
+        .rclk(clk), .rce(1'b1), .re(ram_re),
         .raddr(ram_raddr), .reset_output(reset), .rdata(mask_rdata));
 
     // The round-robin cursor is initialized to one and advances only after a
@@ -290,32 +326,32 @@ module nano_sdram_service #(
     assign sd_clk = clk;
     always @* begin
         cmd_ready = 0; w_ready = 0; r_valid = 0; r_data = 0; r_last = 0;
-        if (state == IDLE && initialized && !refresh_due) cmd_ready = arbitration_grant;
-        if (txn && request_write && fill_index != request_words) w_ready[owner] = 1;
+        if (state == IDLE && initialized && !refresh_due && !slot_busy[alloc_slot]) cmd_ready = arbitration_grant;
+        if (txn && request_write && fill_index != request_words && !useful_read) w_ready[owner] = 1;
         if (read_stream_active && read_output_valid) begin
-            r_valid[owner] = 1;
-            r_data[owner*32 +: 32] = ram_rdata;
-            r_last[owner] = read_index + 1 == request_words;
+            r_valid[stream_owner] = 1;
+            r_data[stream_owner*32 +: 32] = ram_rdata;
+            r_last[stream_owner] = read_index + 1 == stream_words;
         end
         ram_we = 0; ram_re = 0; ram_waddr = 0; ram_raddr = 0; ram_wdata = 0;
         if (fill_accept) begin
-            ram_we = 1; ram_waddr = {5'b0, fill_index}; ram_wdata = w_data[owner*32 +: 32];
+            ram_we = 1; ram_waddr = {4'b0, front_slot, fill_index}; ram_wdata = w_data[owner*32 +: 32];
         end
         if (useful_read) begin
-            ram_we = 1; ram_waddr = {5'b0, read_buffer_index}; ram_wdata = sd_dq_in;
+            ram_we = 1; ram_waddr = {4'b0, capture_slot, read_buffer_index}; ram_wdata = sd_dq_in;
         end
         if (useful_write && !last_useful_write) begin
-            ram_re = 1; ram_raddr = {5'b0, write_buffer_index + 5'd1};
+            ram_re = 1; ram_raddr = {4'b0, beat_slot, write_buffer_index + 5'd1};
         end else if (last_useful_write && next_head_ready) begin
-            ram_re = 1; ram_raddr = {5'b0, next_head};
+            ram_re = 1; ram_raddr = {4'b0, beat_slot, next_head};
         end else if (head_prefetch) begin
-            ram_re = 1; ram_raddr = {5'b0, issued};
+            ram_re = 1; ram_raddr = {4'b0, front_slot, issued};
         end
-        // fill_index counts captured read words as well as accepted write
-        // words. Never read the address currently being written by SDRAM.
-        if (read_stream_active && (!read_output_valid || r_ready[owner]) &&
-                next_read_index < fill_index) begin
-            ram_re = 1; ram_raddr = {5'b0,next_read_index};
+        // read_fill counts the stream's captured words. Never read the address
+        // currently being written by SDRAM.
+        if (read_stream_active && (!read_output_valid || r_ready[stream_owner]) &&
+                next_read_index < read_fill) begin
+            ram_re = 1; ram_raddr = {4'b0, stream_slot, next_read_index};
         end
 
         sd_cke = 1; sd_cs_n = 0; sd_ras_n = 1; sd_cas_n = 1; sd_we_n = 1;
@@ -367,8 +403,11 @@ module nano_sdram_service #(
             read_pipe <= 0; cap_active <= 0; cap_beat <= 0; cap_prefix <= 0; cap_useful <= 0; cap_index <= 0;
             pend_prefix <= 0; pend_useful <= 0; pend_index <= 0;
             wbeat_active <= 0; wbeat <= 0; w_prefix <= 0; w_useful <= 0; w_index <= 0; w_bank <= 0;
+            w_owner <= 0; w_slot <= 0; w_last <= 0; pend_slot <= 0; cap_slot <= 0;
             head_loaded <= 0;
-            read_stream_active <= 0; read_output_valid <= 0; read_index <= 0;
+            front_slot <= 0; alloc_slot <= 0; slot_busy <= 0;
+            read_stream_active <= 0; read_output_valid <= 0; read_index <= 0; read_fill <= 0;
+            stream_front <= 0; stream_owner <= 0; stream_slot <= 0; stream_words <= 0;
             for (bank = 0; bank < 4; bank = bank + 1) begin
                 bank_row[bank] <= 0; rp_wait[bank] <= 0; rcd_wait[bank] <= 0;
                 ras_wait[bank] <= 0; rc_wait[bank] <= 0; wr_wait[bank] <= 0;
@@ -386,7 +425,7 @@ module nano_sdram_service #(
             end
             read_pipe <= {read_pipe[CAS_LATENCY-1:0], read_command};
             if (cap_start) begin
-                cap_active <= 1; cap_beat <= 1;
+                cap_active <= 1; cap_beat <= 1; cap_slot <= pend_slot;
                 cap_prefix <= pend_prefix; cap_useful <= pend_useful; cap_index <= pend_index;
             end else if (cap_active) begin
                 if (cap_beat == 7) begin
@@ -399,17 +438,27 @@ module nano_sdram_service #(
                     wbeat_active <= 0; turnaround <= TURN_BITS'(WRITE_TO_READ - 1);
                 end else wbeat <= wbeat + 1'b1;
             end
-            if (useful_read || fill_accept) fill_index <= fill_index + 1'b1;
-            if (last_useful_write) head_loaded <= next_head_ready;
+            if (fill_accept) fill_index <= fill_index + 1'b1;
+            if (useful_read) read_fill <= read_fill + 1'b1;
+            if (last_useful_write && !beat_last) head_loaded <= next_head_ready;
             else if (write_command) head_loaded <= 0;
             else if (head_prefetch) head_loaded <= 1;
+            // Completion events: the final beat of a write transaction's last
+            // segment, or the final response handshake of a read stream. Each
+            // frees that transaction's payload slot.
+            if (write_done_event) begin
+                done[w_owner] <= 1; slot_busy[w_slot] <= 0;
+            end
             if (read_stream_active) begin
+                // While a stream is active only it reads the payload RAM: write
+                // beats and head prefetches wait for it (direction_ok).
                 if (ram_re) read_output_valid <= 1;
                 else if (read_handshake) read_output_valid <= 0;
                 if (read_handshake) begin
                     read_index <= read_index + 1'b1;
-                    if (read_index + 1 == request_words) begin
-                        read_stream_active <= 0; read_output_valid <= 0;
+                    if (read_stream_done) begin
+                        read_stream_active <= 0; read_output_valid <= 0; stream_front <= 0;
+                        done[stream_owner] <= 1; slot_busy[stream_slot] <= 0;
                     end
                 end
             end
@@ -441,7 +490,7 @@ module nano_sdram_service #(
                         owner <= winner; request_address <= winner_address;
                         request_words <= winner_words; request_write <= cmd_write[winner];
                         fill_index <= 0;
-                        read_stream_active <= 0; read_output_valid <= 0;
+                        // An earlier transaction's response stream continues.
                         state <= CHECK_REQUEST;
                     end
                 end
@@ -450,12 +499,12 @@ module nano_sdram_service #(
                     else if (request_invalid) begin done[owner] <= 1; error[owner] <= 1; state <= IDLE; end
                     else begin
                         txn <= 1; issued <= 0; head_loaded <= 0;
+                        front_slot <= alloc_slot; alloc_slot <= !alloc_slot;
+                        slot_busy[alloc_slot] <= 1;
                         seg_base <= {request_address[22:5], 5'b0};
                         seg_prefix <= request_address[4:2];
                         seg_useful <= request_words < {1'b0, first_room} ? request_words[3:0] : first_room;
-                        if (!request_write) begin
-                            read_stream_active <= 1; read_output_valid <= 0; read_index <= 0;
-                        end
+                        // A read's response stream starts with its first READ.
                         state <= ACTIVE;
                     end
                 end
@@ -480,17 +529,25 @@ module nano_sdram_service #(
                             if (request_write) begin
                                 wbeat_active <= 1; wbeat <= 1; w_bank <= burst_bank;
                                 w_prefix <= seg_prefix; w_useful <= seg_useful; w_index <= issued;
+                                w_owner <= owner; w_slot <= front_slot; w_last <= beat_last;
                                 wr_wait[burst_bank] <= WR_BITS'(T_WR - 1);
                             end else begin
                                 pend_prefix <= seg_prefix; pend_useful <= seg_useful; pend_index <= issued;
+                                pend_slot <= front_slot;
+                                if (!read_stream_active) begin
+                                    read_stream_active <= 1; read_output_valid <= 0; read_index <= 0;
+                                    read_fill <= 0; stream_front <= 1; stream_owner <= owner;
+                                    stream_slot <= front_slot; stream_words <= request_words;
+                                end
                             end
                         end
-                        // A write retires with its last physical beat (tWR
-                        // is enforced per bank before any PRECHARGE). A read
-                        // retires after its final capture and handshake.
-                        if (request_write ? (issued == request_words && wbeat_active && wbeat == 7)
-                                          : (issued == request_words && !read_stream_active && !read_in_flight)) begin
-                            done[owner] <= 1; txn <= 0; state <= IDLE;
+                        // Release the command slot once every column command
+                        // has issued. The write still retires with its last
+                        // physical beat (tWR is enforced per bank before any
+                        // PRECHARGE), a read after its final capture and
+                        // handshake: see the completion events above.
+                        if (txn && issued == request_words) begin
+                            txn <= 0; stream_front <= 0; state <= IDLE;
                         end
                     end
                 end
