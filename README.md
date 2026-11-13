@@ -77,8 +77,7 @@ It uses **18,169/20,736 logic (Gowin count)**, **7,426 registers**,
 **46/46 BSRAM** and 63% DSP.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It has
-not yet been programmed or tested on the board. The previous image
+`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. On 2026-11-12 it was written to the Tang's SPI flash with `make tang20k-flash` and the signed standalone Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded it with status `0x6020`, user code `0x16D1`). It has not yet been tested with the RP2350. The previous image
 (`93739598…f886`, user code `0xB6B9`) ran `demo_3d_engine9` at 20 fps with
 the RP2350 (user-reported, 2026-11-10).
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and

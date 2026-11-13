@@ -1174,8 +1174,8 @@ cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
 copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It has
-not yet been programmed or tested on the board.
+`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. On 2026-11-12 it was written to the Tang's SPI flash with `make tang20k-flash` and the signed standalone Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded it with status `0x6020`, user code `0x16D1`). It has not yet been tested with the RP2350.
+Gowin EDA V1.9.11.03 Education is now installed on the build PC, and its `gw_sh.exe` and programmer carry a valid Authenticode signature from Guangdong Gowin Semiconductor (checked 2026-11-12); the 1.9.8.11 copy is unsigned. Under `AGENTS.md`, that ends the exception: this image, built with 1.9.8.11, must be rebuilt with the signed tool and fully re-qualified.
 
 The previous image (`93739598…f886`, triangle setup without early release)
 was written to the Tang's SPI flash on 2026-11-09 with `make tang20k-flash`

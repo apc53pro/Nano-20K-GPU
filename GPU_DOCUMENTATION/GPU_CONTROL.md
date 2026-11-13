@@ -835,11 +835,12 @@ The temporary exception in `AGENTS.md` records the unverified Gowin EDA
 installer and the encrypted synthesis netlist, which prevents checking the
 fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
+Gowin EDA V1.9.11.03 Education is now installed on the build PC, and its `gw_sh.exe` and programmer carry a valid Authenticode signature from Guangdong Gowin Semiconductor (checked 2026-11-12); the 1.9.8.11 copy is unsigned. Under `AGENTS.md`, that ends the exception: this image, built with 1.9.8.11, must be rebuilt with the signed tool and fully re-qualified.
 
 The current image is **7,264,137 bytes**, SHA-256
 `ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It adds
 early SDRAM command release and overlapped tile stores, with no packet or
-capability change; it has not yet been programmed or tested on the board.
+capability change; it was written to the board's SPI flash and verified on 2026-11-12, and the FPGA reloaded it (status `0x6020`, user code `0x16D1`); it has not yet been tested with the RP2350.
 The previous image (`93739598…f886`) added kind-4 vertex triangles
 (capability feature bit 8). On 2026-11-09 it was written to the board's SPI
 flash and verified, and the FPGA reloaded it (status `0x6020`, user code
