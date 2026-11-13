@@ -874,8 +874,10 @@ The current image is **7,264,137 bytes**, SHA-256
 `39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
 row exit and overlapped PRESENT, with no packet or capability change.
 Firmware that sends `PRESENT` and then uploads before reading the reply now
-overlaps them with the wait for vertical blank. It has not yet been written
-to the board.
+overlaps them with the wait for vertical blank. On 2026-11-13 it was written
+to the board's SPI flash with `make tang20k-flash`, and the FPGA reloaded it
+(status `0x6020`, user code `0x04A2`); it has not yet been tested with the
+RP2350.
 The previous image (`ecc7030b…608c`) added early SDRAM command release and
 overlapped tile stores. On 2026-11-12 it was written to the board's SPI flash
 and verified, and the FPGA reloaded it (status `0x6020`, user code

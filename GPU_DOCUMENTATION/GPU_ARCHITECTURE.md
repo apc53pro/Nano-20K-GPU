@@ -34,8 +34,9 @@ choice and the gate this flow cannot meet. Its build verifies every package
 pin and meets every required clock, with the core at 60.36 MHz Fmax. It uses
 **19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**, **46/46
 BSRAM**, 63% DSP and one PLL. Little logic is left for new features.
-Section 12 notes one uncommitted build-script input. The current image has
-not yet been written to the board.
+Section 12 notes one uncommitted build-script input. The current image was
+written to the board on 2026-11-13; it has not yet been tested with the
+RP2350.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -1288,8 +1289,11 @@ of earlier images show the SDRAM working. The V1.9.8.11 copy is unsigned and
 its provenance unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It has not
-yet been written to the board. The
+`39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. On
+2026-11-13 it was written to the Tang's SPI flash with `make tang20k-flash`
+and the signed standalone Gowin Programmer V1.9.12.04; the FPGA reloaded it
+from flash with status `0x6020` and user code `0x04A2`. It has not yet been
+tested with the RP2350. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
