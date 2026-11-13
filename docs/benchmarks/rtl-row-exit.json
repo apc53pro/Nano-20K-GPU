@@ -1,0 +1,204 @@
+{
+  "schema": "N20K-RTL-ROW-EXIT-1",
+  "profile": "Verilator board-core profile: 50.4 MHz core/SDRAM, external 25.2 MHz pixel ticks, 25.2 MHz virtual host, refresh interval 787",
+  "stages": {
+    "before": "f3eade1 RTL: early SDRAM release, every sample of a record's window walked",
+    "now": "this commit: triangle rows end at the first sample failing an edge whose x step is <= 0 (one ROW_SKIP clock); overlapped PRESENT (no effect on these cases, which do not present)"
+  },
+  "timing_scope": "First host byte through fence reply; includes descriptor, table, list and record delivery. Simulation only, not an observed FPGA frame time.",
+  "oracle_checked": "Every benchmark case compares both color buffers and every D24 word with the SRR.",
+  "empty_samples": "--profile counts of RASTER clocks on samples outside the primitive (empty) and inside it (covered).",
+  "now_benchmark_scanout_underflows": 0,
+  "cases": [
+    {
+      "case": "warm-up: empty, clear color and depth",
+      "before_core_cycles": 641290,
+      "before_ms": 12.72,
+      "now_core_cycles": 641290,
+      "now_ms": 12.72,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "empty pass, clear color and depth",
+      "before_core_cycles": 905812,
+      "before_ms": 17.97,
+      "now_core_cycles": 905812,
+      "now_ms": 17.97,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "empty pass, load color, clear depth",
+      "before_core_cycles": 621056,
+      "before_ms": 12.32,
+      "now_core_cycles": 621056,
+      "now_ms": 12.32,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "empty pass, load color and depth",
+      "before_core_cycles": 14450,
+      "before_ms": 0.29,
+      "now_core_cycles": 14450,
+      "now_ms": 0.29,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "full-screen front-to-back copy",
+      "before_core_cycles": 694276,
+      "before_ms": 13.78,
+      "now_core_cycles": 694276,
+      "now_ms": 13.78,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "UI frame (148 rects), clear color and depth",
+      "before_core_cycles": 2435704,
+      "before_ms": 48.33,
+      "now_core_cycles": 2435704,
+      "now_ms": 48.33,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 797440
+    },
+    {
+      "case": "pointer-sized update, load color and depth",
+      "before_core_cycles": 24382,
+      "before_ms": 0.48,
+      "now_core_cycles": 24382,
+      "now_ms": 0.48,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 54
+    },
+    {
+      "case": "empty pass, clear color, discard depth",
+      "before_core_cycles": 289646,
+      "before_ms": 5.75,
+      "now_core_cycles": 289646,
+      "now_ms": 5.75,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "UI frame (148 rects), clear color, discard depth",
+      "before_core_cycles": 1843356,
+      "before_ms": 36.57,
+      "now_core_cycles": 1843356,
+      "now_ms": 36.57,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 797440
+    },
+    {
+      "case": "pointer-sized update, load color, discard depth",
+      "before_core_cycles": 21504,
+      "before_ms": 0.43,
+      "now_core_cycles": 21504,
+      "now_ms": 0.43,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 54
+    },
+    {
+      "case": "empty pass, load color, discard depth",
+      "before_core_cycles": 14896,
+      "before_ms": 0.3,
+      "now_core_cycles": 14896,
+      "now_ms": 0.3,
+      "before_empty_samples": 0,
+      "now_empty_samples": 0,
+      "covered_samples": 0
+    },
+    {
+      "case": "showcase scene frame (t=1.2)",
+      "before_core_cycles": 4498782,
+      "before_ms": 89.26,
+      "now_core_cycles": 4350510,
+      "now_ms": 86.32,
+      "before_empty_samples": 307452,
+      "now_empty_samples": 143780,
+      "covered_samples": 430913
+    },
+    {
+      "case": "overdraw scene frame (t=1.2)",
+      "before_core_cycles": 5985024,
+      "before_ms": 118.75,
+      "now_core_cycles": 5838958,
+      "now_ms": 115.85,
+      "before_empty_samples": 1004673,
+      "now_empty_samples": 844876,
+      "covered_samples": 1266357
+    },
+    {
+      "case": "icosahedron frame, full clear (SDK flags 7)",
+      "before_core_cycles": 530868,
+      "before_ms": 10.53,
+      "now_core_cycles": 503830,
+      "now_ms": 10.0,
+      "before_empty_samples": 63965,
+      "now_empty_samples": 32451,
+      "covered_samples": 41107
+    },
+    {
+      "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+      "before_core_cycles": 313534,
+      "before_ms": 6.22,
+      "now_core_cycles": 279038,
+      "now_ms": 5.54,
+      "before_empty_samples": 68022,
+      "now_empty_samples": 36218,
+      "covered_samples": 40834
+    },
+    {
+      "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+      "before_core_cycles": 7501304,
+      "before_ms": 148.84,
+      "now_core_cycles": 6780700,
+      "now_ms": 134.54,
+      "before_empty_samples": 1655694,
+      "now_empty_samples": 902470,
+      "covered_samples": 2656092
+    },
+    {
+      "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+      "before_core_cycles": 7108276,
+      "before_ms": 141.04,
+      "now_core_cycles": 6477502,
+      "now_ms": 128.52,
+      "before_empty_samples": 1458196,
+      "now_empty_samples": 805595,
+      "covered_samples": 2201124
+    },
+    {
+      "case": "icosahedron, flat kind-4 records with GPU culling",
+      "before_core_cycles": 508740,
+      "before_ms": 10.09,
+      "now_core_cycles": 492166,
+      "now_ms": 9.77,
+      "before_empty_samples": 39065,
+      "now_empty_samples": 21907,
+      "covered_samples": 41107
+    },
+    {
+      "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+      "before_core_cycles": 1207110,
+      "before_ms": 23.95,
+      "now_core_cycles": 1110726,
+      "now_ms": 22.04,
+      "before_empty_samples": 222166,
+      "now_empty_samples": 120563,
+      "covered_samples": 231968
+    }
+  ]
+}

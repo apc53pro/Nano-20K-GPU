@@ -31,7 +31,7 @@ module nano_tile_renderer (
     localparam [4:0] IDLE=0, START=1, CONFIG=2, EDGE_LAUNCH=3,
         EDGE_WAIT=4, EDGE_CAPTURE=5, OFFSET_Y=6, OFFSET_X=7, RASTER=8,
         SEED_CAPTURE=9, CLIP_SCISSOR=10, CLIP_TILE=11, PREPARE=12,
-        DRAIN=17, FAILED=18;
+        ROW_SKIP=13, DRAIN=17, FAILED=18;
     reg [4:0] state /*verilator public_flat_rd*/;
     reg sticky_fault;
     // Individual sticky arithmetic flags terminate the wide-adder paths.
@@ -290,6 +290,19 @@ module nano_tile_renderer (
         (edge_current[1]>0||(edge_current[1]==0&&words[33][0]))&&
         (edge_current[2]>0||(edge_current[2]==0&&words[37][0]));
     wire inside_sample /*verilator public_flat_rd*/=(kind==0)?triangle_inside:grid_inside;
+    // Row exit. An edge whose x step A is <= 0 never improves to the right,
+    // so once a sample fails it, every later sample of the row fails too.
+    // Such a row ends now: ROW_SKIP takes the ordinary row step one clock
+    // later, after the dy coefficient read. Only when at least two samples
+    // remain, so the extra clock never costs time.
+    wire [2:0] edge_fails={
+        !(edge_current[2]>0||(edge_current[2]==0&&words[37][0])),
+        !(edge_current[1]>0||(edge_current[1]==0&&words[33][0])),
+        !(edge_current[0]>0||(edge_current[0]==0&&words[29][0]))};
+    wire [2:0] edge_never_rises={words[34][31]||words[34]==0,words[30][31]||words[30]==0,
+        words[26][31]||words[26]==0};
+    wire row_exit /*verilator public_flat_rd*/=(state==RASTER)&&(kind==0)&&(|remaining_x[4:1])&&
+        (|(edge_fails&edge_never_rises));
     wire [9:0] sample_addr={y[4:0],x[4:0]};
     wire [23:0] sample_depth=(kind==0)?quantize_depth(plane_current[0]):constant_depth;
     wire use_rgb_planes=(kind==0)&&color_write&&(shade==1||shade==4);
@@ -456,7 +469,7 @@ module nano_tile_renderer (
     wire raster_step_x=|remaining_x;
     wire raster_step_y=|remaining_y;
     wire step_from_row=(state!=RASTER)||!raster_step_x;
-    wire step_in_y=(state==OFFSET_Y)||((state==RASTER)&&!raster_step_x);
+    wire step_in_y=(state==OFFSET_Y)||(state==ROW_SKIP)||((state==RASTER)&&!raster_step_x);
     wire signed [63:0] plane_next [0:6];
     wire [6:0] plane_overflow;
     wire signed [31:0] edge_next [0:2];
@@ -491,8 +504,10 @@ module nano_tile_renderer (
         OFFSET_Y: if(offset_y==1)
             coefficient_read_address=(offset_x!=0)?1:(first_step_y?2:1);
         OFFSET_X: if(offset_x==1) coefficient_read_address=first_step_y?2:1;
-        RASTER: if(advance_raster)
+        RASTER: if(row_exit) coefficient_read_address=2;
+            else if(advance_raster)
             coefficient_read_address=(raster_step_x?(remaining_x==1):first_step_y)?2:1;
+        ROW_SKIP: coefficient_read_address=first_step_y?2:1;
         default: begin end
         endcase
     end
@@ -520,7 +535,8 @@ module nano_tile_renderer (
     // Once any flag sets, fault blocks capture and all attachment writes until
     // reset; no carry chain continues through the collective OR/state mux.
     wire offset_step=(state==OFFSET_X)||(state==OFFSET_Y);
-    wire grid_step=advance_raster&&(kind!=2)&&(raster_step_x||raster_step_y);
+    wire grid_step=(advance_raster&&!row_exit&&(kind!=2)&&(raster_step_x||raster_step_y))||
+        (state==ROW_SKIP);
     always @(posedge clk) begin
         if(reset) begin plane_fault<=0;edge_fault<=0;end
         else if(!fault) begin
@@ -744,7 +760,25 @@ module nano_tile_renderer (
                     pending<=1;pending_addr<=sample_addr;pending_depth<=sample_depth;
                     pending_color<=pack_color(sample_color);advance_candidate();
                 end
+            end else if(row_exit) begin
+                // The rest of this row is outside; the last row has none after it.
+                if(raster_step_y) state<=ROW_SKIP;
+                else state<=DRAIN;
             end else advance_candidate();
+            ROW_SKIP: begin
+                // The row step of advance_candidate, from the saved row start.
+                x<=x0; y<=y+10'sd1; source_x<=source_start_x; source_y<=source_y+12'sd1;
+                remaining_x<=row_remaining_x;remaining_y<=remaining_y-5'd1;
+                for(i=0;i<3;i=i+1) begin
+                    edge_row[i]<=edge_next[i];
+                    edge_current[i]<=edge_next[i];
+                end
+                for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
+                    plane_row[i]<=plane_next[i];
+                    plane_current[i]<=plane_next[i];
+                end
+                state<=RASTER;
+            end
             DRAIN: if(!fragment_busy&&!pending)begin state<=IDLE;done<=1;end
             FAILED: begin end
             default: begin state<=FAILED;sticky_fault<=1;end

@@ -60,7 +60,9 @@ display FIFO and the SKIP pass flag came first; the user measured
 presentation). The next image added **GPU triangle setup** for 64-byte
 kind-4 vertex triangles (feature bit 8): the GPU orients, culls, computes the
 edges and depth plane, and rejects uncovered tiles, so the CPU sends only
-projected vertices. The current image adds **early SDRAM command release**
+projected vertices. The RTL has since added row exit and overlapped PRESENT,
+which are not yet in a qualified image (see the architecture guide, section
+12). The current image adds **early SDRAM command release**
 and overlapped tile stores, which make simulated 3D passes 7–17% faster and
 clear-dominated passes up to 30% faster, with no packet change.
 

@@ -3,13 +3,15 @@
 
 The open-source flow produced an image whose host address latch failed on the
 board, so board images use the vendor flow. See AGENTS.md: the fixed SiP
-connection check cannot be made from Gowin's encrypted netlist, and the
-available Gowin EDA copy is unverified. Every other gate below still applies.
+connection check cannot be made from an encrypted Gowin netlist. The report
+records the Gowin version used, its Authenticode signature and whether the
+netlist is encrypted. Every other gate below still applies.
 """
 import argparse
 import hashlib
 import html
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -19,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
 DEVICE = "GW2AR-LV18QN88C8/I7"
 FAMILY = "GW2AR-18C"
-DEFAULT_GOWIN = r"C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe"
+DEFAULT_GOWIN = r"C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe"
 # Required clocks (Gowin-derived names) and their targets in MHz.
 REQUIRED = {"clk27": 27.0, "gpu_hclk": 25.2, "core_div/CLKOUT.default_gen_clk": 50.4,
             "pixel_div/CLKOUT.default_gen_clk": 25.2}
@@ -39,6 +41,28 @@ REWRITES = {"nano_fragment_pipeline.sv": [(
 
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def toolchain(path):
+    # The version is part of Gowin's install folder name, e.g. Gowin_V1.9.11.03_Education_x64.
+    m = re.search(r"Gowin_(V[\d.]+)_([A-Za-z]+)", str(path))
+    return f"Gowin EDA (gw_sh) {m.group(1)} {m.group(2)}" if m else "Gowin EDA (gw_sh), unknown version"
+
+
+def signature(path):
+    # Windows Authenticode status and signer of gw_sh; None elsewhere.
+    if os.name != "nt": return None
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+                              "$s = Get-AuthenticodeSignature -LiteralPath $env:N20K_GW_SH; "
+                              "$s.Status.ToString() + '|' + $s.SignerCertificate.Subject"],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+                             env=dict(os.environ, N20K_GW_SH=str(path))).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    status, _, signer = out.partition("|")
+    return {"status": status, "signer": signer} if status else None
 
 
 def write(path, value):
@@ -72,13 +96,14 @@ def main():
              sorted((ROOT / "rtl/generated").glob("*.hex"))
     hashes = {p.relative_to(ROOT).as_posix(): digest(p) for p in inputs}
     report = {"schema": "N20K-TANG20K-BOARD-2", "device": DEVICE, "top": "tang20k_top",
-              "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education", "gowin_shell": args.gowin,
+              "toolchain": toolchain(args.gowin), "gowin_shell": args.gowin,
+              "toolchain_signature": signature(args.gowin),
               "source_sha256": hashes, "place_option": args.place_option, "route_option": args.route_option,
               "profile": "gpu-video-50mhz", "core_mhz": 50.4, "pixel_mhz": 25.2, "serial_mhz": 126.0,
               "host_max_mhz": 25.2, "command_player": False, "hardware_tested": False,
               "external_io_timing_measured": False, "upload_ready": False,
-              "agents_exception": ("AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the "
-                                   "encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer)."),
+              "agents_exception": ("AGENTS.md addendum 2026-11-07: the SiP SDRAM connection cannot be checked "
+                                   "from an encrypted Gowin netlist (see netlist_encrypted)."),
               "sip_pins_verified": False,
               "timing_scope": ("Gowin static timing on its own placement; external SDRAM/parallel-bus margins "
                                "require hardware measurement")}
@@ -140,6 +165,9 @@ def main():
         if result.returncode or not built.exists():
             save(); sys.exit("build-tang20k: Gowin build failed; see " + str(log))
     report.update(synthesized=True, placed=True, routed=True)
+    netlist = project / "impl/gwsynthesis/nano-gpu.vg"
+    report["netlist_encrypted"] = netlist.exists() and \
+        "pragma protect begin_protected" in netlist.read_text(errors="replace")
     # Pins: every constrained port, and each HDMI N pin derived from its pair.
     # Pin report rows are <tr><td>port</td><td>pair</td><td>pin(s)/bank</td>...
     pin_report = (pnr / "nano-gpu.pin.html").read_text(errors="replace")

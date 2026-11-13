@@ -53,7 +53,7 @@ module nano_gpu_core #(
         S_DRAW_START=34, S_DRAW_WAIT=35,
         S_STORE_CMD=36, S_STORE_PREFETCH=37, S_STORE_HIGH=38,
         S_STORE_WORD=41, S_STORE_DONE=42,
-        S_PRESENT=43, S_REPLY=44, S_REPLY_RAM_REQ=45, S_REPLY_RAM_WAIT=46,
+        S_REPLY=44, S_REPLY_RAM_REQ=45, S_REPLY_RAM_WAIT=46,
         S_READ_CMD=47, S_READ_DATA=48, S_READ_BYTES=49, S_READ_DONE=50,
         S_COPY_VALIDATE=51, S_COPY_INIT_ADDR=52,
         S_COPY_READ_CMD=53, S_COPY_READ_DATA=54, S_COPY_READ_DONE=55,
@@ -69,6 +69,14 @@ module nano_gpu_core #(
         S_COPY_INIT_PREP=78, S_SETUP=79;
     reg [7:0] state /*verilator public_flat_rd*/;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
+    // Overlapped PRESENT. The command is accepted at once and its target
+    // sealed; the swap still happens at vertical blank. Meanwhile only
+    // WRITE_HEAP commands execute; every other command waits for the swap
+    // and for the PRESENT reply, which is sent when the executor is next idle
+    // so replies stay in command order. reply_token holds the PRESENT token
+    // until then (no reply is started while the swap is pending).
+    reg present_wait, present_reply_due, present_reply;
+    reg [31:0] present_sequence;
     reg [1:0] color_valid;
     reg [31:0] epoch, completed_sequence, fence_token, present_token;
     // 48 physical bits span >64 days at the board clock; the wire slot is u64.
@@ -110,7 +118,8 @@ module nano_gpu_core #(
     wire [7:0] payload_data, host_fault;
     assign ready = initialized && !host_recovering;
     assign fault = fault_pending || state == S_FAULT;
-    assign busy = !ready || state != S_IDLE || host_cmd_valid;
+    // A PRESENT waiting for its swap or reply keeps the core busy, as before.
+    assign busy = !ready || state != S_IDLE || host_cmd_valid || present_wait || present_reply_due;
     reg host_cmd_pop, payload_req, response_valid;
     reg [9:0] payload_offset;
     reg [7:0] response_data;
@@ -401,9 +410,9 @@ module nano_gpu_core #(
         begin
             word_value=0;
             if (index<4) word_value=32'h5550474e;
-            else if(index<8) word_value={opcode|16'h8000,8'd2,8'd0};
+            else if(index<8) word_value={(present_reply ? 16'd7 : opcode)|16'h8000,8'd2,8'd0};
             else if(index<12) word_value={21'd0,reply_payload_bytes};
-            else if(index<16) word_value=command_sequence;
+            else if(index<16) word_value=present_reply ? present_sequence : command_sequence;
             else if(index<20) word_value=epoch;
             else if(index<24) word_value=0;
             else if(index<28) word_value=reply_token;
@@ -427,7 +436,7 @@ module nano_gpu_core #(
             fault_pending<=1;
             if(pass_active) begin color_valid[target_id]<=0; depth_valid<=0; end
             if(copy_active) color_valid[copy_target_id]<=0;
-            sealed<=0;
+            sealed<=0; present_wait<=0; present_reply_due<=0;
         end
     endtask
     task automatic start_reply(input [31:0] token, input snapshot, input readback);
@@ -729,6 +738,7 @@ module nano_gpu_core #(
             read_address<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
             read_words_remaining<=0; read_burst_words<=0; read_word_hold<=0; read_lane<=0; read_first<=0; read_done_hold<=0;
             reply_index<=0; reply_length<=0; reply_token<=0; reply_caps<=0;
+            present_wait<=0; present_reply_due<=0; present_reply<=0; present_sequence<=0;
             reply_cycle_snapshot<=0; reply_underflow_snapshot<=0;
             reply_flags_snapshot<=0; reply_host_fault_snapshot<=0;
             reply_has_snapshot<=0; reply_has_readback<=0; reply_data_hold<=0;
@@ -753,7 +763,7 @@ module nano_gpu_core #(
                 abort_pending<=1;
                 if(pass_active) begin color_valid[target_id]<=0; depth_valid<=0; end
                 if(copy_active) color_valid[copy_target_id]<=0;
-                sealed<=0;
+                sealed<=0; present_wait<=0; present_reply_due<=0;
             end
             for(i=0;i<6;i=i+1) begin
                 if(mem_done[i]) pending_memory[i]<=0;
@@ -774,11 +784,19 @@ module nano_gpu_core #(
                 abort_pending<=0; fault_pending<=0; fault_code<=0;
                 completed_sequence<=0; fence_token<=0; present_token<=0;
                 pass_active<=0; copy_active<=0; sealed<=0;
+                present_wait<=0; present_reply_due<=0; present_reply<=0;
                 if(epoch==32'hffffffff) begin fault_pending<=1; fault_code<=8'hff; state<=S_FAULT; host_abort<=0; end
                 else epoch<=epoch+1;
             end else if(fault_pending && foreground_quiet && pending_memory[5:1]==0) begin
                 state<=S_FAULT; renderer_reset<=1;
             end else begin
+                // The pending PRESENT swaps at vertical blank whatever the
+                // executor is doing: only WRITE_HEAP can run meanwhile, and it
+                // touches neither target_id nor reply_token.
+                if(present_wait && vblank_pulse && !fault_pending && !abort_pending) begin
+                    front_id<=target_id; present_token<=reply_token; sealed<=0;
+                    present_wait<=0; present_reply_due<=1;
+                end
                 case(state)
                 S_BOOT_WAIT: if(memory_initialized) begin boot_address<=0; state<=S_BOOT_CMD; end
                 S_BOOT_CMD: if(mem_cmd_ready[3]) begin beat<=0; state<=S_BOOT_DATA; end
@@ -787,7 +805,11 @@ module nano_gpu_core #(
                     if(boot_address+64==HEAP_BASE) begin initialized<=1; color_valid<=3; depth_valid<=1; state<=S_IDLE; end
                     else begin boot_address<=boot_address+64; state<=S_BOOT_CMD; end
                 end
-                S_IDLE: if(initialized && !host_recovering && host_cmd_valid && !host_cmd_pop) begin
+                S_IDLE: if(present_reply_due) begin
+                    // The swapped PRESENT's reply precedes every later reply.
+                    present_reply_due<=0; present_reply<=1; start_reply(reply_token,0,0);
+                end else if(initialized && !host_recovering && host_cmd_valid && !host_cmd_pop &&
+                        (!present_wait || host_cmd_opcode==3)) begin
                     capture_index<=0; capture_invalid<=0; copy_command_invalid<=0;
                     case(host_cmd_opcode)
                     1,2: begin capture_length<=0; if(host_cmd_length!=0) raise_fault(2); else state<=S_EXECUTE; end
@@ -901,7 +923,10 @@ module nano_gpu_core #(
                        else begin tex_flush<=1; state<=S_DESC_CMD; end
                     6: begin fence_token<=packet_word; start_reply(packet_word,0,0); end
                     7: if(capture_invalid || target_id==front_id || sealed || !color_valid[target_id]) raise_fault(4);
-                       else begin sealed<=1; state<=S_PRESENT; end
+                       else begin
+                           sealed<=1; present_wait<=1; present_sequence<=command_sequence;
+                           reply_token<=packet_word; complete_command();
+                       end
                     8: if(capture_invalid) raise_fault(3);
                        else begin
                            read_cursor<=0; read_next_address<=read_address&23'h7ffffc;
@@ -1138,9 +1163,12 @@ module nano_gpu_core #(
                     color_valid[target_id]<=1; depth_valid<=!depth_discard && (!skip_empty || depth_keep); pass_active<=0;
                     complete_command();
                 end
-                S_PRESENT: if(vblank_pulse) begin front_id<=target_id; present_token<=packet_word; sealed<=0; start_reply(packet_word,0,0); end
                 S_REPLY: if(response_ready) begin
-                    if(reply_index+1==reply_length) complete_command();
+                    // A deferred PRESENT reply has no current command to retire.
+                    if(reply_index+1==reply_length) begin
+                        if(present_reply) begin present_reply<=0; state<=S_IDLE; end
+                        else complete_command();
+                    end
                     else begin
                         reply_index<=reply_index+1;
                         if(reply_has_readback && reply_index+1>=36) state<=S_REPLY_RAM_REQ;

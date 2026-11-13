@@ -32,6 +32,12 @@ core at 59.29 MHz Fmax. It uses **18,169/20,736 logic (Gowin count)**,
 **7,426 registers**, **46/46 BSRAM**, 63% DSP and one PLL. Section 12 notes
 one uncommitted build-script input.
 
+**The RTL is now ahead of the image.** Row exit (section 6) and overlapped
+PRESENT (section 10) pass simulation, but no image of these sources is
+qualified yet. The signed Gowin EDA V1.9.11.03 now required by `AGENTS.md`
+does not close timing on them (section 12). The flashed image above
+does not contain them.
+
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
 SDRAM-write backend; its only additional decoder storage is an eight-bit group
@@ -235,7 +241,9 @@ record encoding, and link recovery. The firmware serializes records and the
 application prepares geometry and bins, manages resource lifetimes, and
 draws its pointer. MMBasic stages the next frame's draw records in CPU memory
 while the current pass renders. It uses blocking PRESENT for the swap, which
-waits for vertical blank. Its host draw SDK tracks tiles that may differ
+waits for vertical blank. The draw SDK's pipelined frame loop instead sends
+each PRESENT with `NARM_GPU_PRESENT_BEGIN`, then the next frame's uploads and
+pass, and reads the PRESENT reply later (section 10; control guide). Its host draw SDK tracks tiles that may differ
 between the two color buffers and synchronizes only those tiles for
 incremental updates. The editor paints each background once, then uses
 `COPY_RECT` to place RGB565 source strips from a VRAM cache. The strips are
@@ -558,9 +566,24 @@ They advance only with the rasterizer and hold on stalls; the line walker
 retains its separate Bresenham behavior. Full raw bounds validation and
 viewport intersection still precede these bounded counters.
 
+**Row exit (2026-11-12).** The rasterizer still visits a triangle's window
+row by row at one sample per clock, but a row can end early. An edge whose
+X step is zero or negative never improves to the right. Once the current
+sample fails such an edge (by sign, or by zero without its tie bit), every
+later sample of the row fails it too. The row then ends: a `ROW_SKIP` clock
+reads the Y-step coefficients and takes the ordinary row step from the saved
+row start. It applies to triangles only and only when at least two samples
+remain, so it never costs a clock. Samples before the triangle's left edges
+are still walked, because skipping them would need multi-sample or leftward
+plane steps, a 64-bit multiplexer on each of the seven plane adders. In the
+benchmark, row exit removes about half of the samples walked outside
+triangles (section 13). It adds one controller state, three edge-sign tests
+and the extra coefficient read address.
+
 Each of the seven plane adders and three edge adders has a sticky overflow
 flag. Only consumed offset/grid additions can set it; an unused next sum at
-the final sample cannot fault a draw. Their combined public fault asserts on
+the final sample cannot fault a draw. Samples a row exit skips are never
+summed, so they cannot fault a draw either. Their combined public fault asserts on
 the same arithmetic-overflow edge as before, immediately lowering busy and
 suppressing pending attachment writes and new fragment acceptance. The private
 controller enters its failed state on the following edge. This keeps the
@@ -924,6 +947,20 @@ earlier work, seals the requested target and swaps at the next eligible vertical
 blank. The old front becomes writable. If a new frame is late, the display
 continues reading the existing front instead of exposing unfinished rendering.
 
+**Overlapped PRESENT (2026-11-12).** The executor accepts a valid `PRESENT` at
+once: it seals the target, retires the command and records its sequence and
+token. The swap still happens at the next vertical-blank pulse, whatever the
+executor is doing. Until then, only `WRITE_HEAP` commands execute. Every
+other command waits in the queue, including the next pass, which needs the
+buffer the swap frees. After the swap, the executor's next idle clock sends
+the PRESENT reply. Replies therefore stay in command order, and nothing but
+uploads runs between a PRESENT and its swap. The status flags keep busy and
+sealed set until the swap. This lets a host send the next frame's uploads
+right behind the PRESENT, so they use the vertical-blank wait instead of
+following the swap. It costs a 32-bit sequence register and three flags;
+the reply engine, token register and swap logic are shared with the
+earlier blocking implementation, whose wait state is removed.
+
 Depth is **one shared attachment** and is not swapped. The newly writable color
 buffer contains an older frame, while shared depth describes the most recent
 pass. A normal new 3D frame clears depth; `LOAD` alone does not make an old color
@@ -1104,6 +1141,39 @@ The reports retain source/artifact hashes and validate unchanged inputs.
 Production-board qualification must include the clock/reset and video/pad
 wrappers, final pin constraints and complete clock/I/O timing closure. Neither
 a C++ resource allocation nor an isolated arithmetic probe replaces that work.
+
+### Builds of the current RTL (row exit and overlapped PRESENT), 2026-11-12
+
+No image of the current sources is qualified. The image described in the next
+subsection is built from the previous sources, without row exit and
+overlapped PRESENT.
+
+Gowin EDA V1.9.11.03 Education is now installed. Its `gw_sh.exe` carries a
+valid Authenticode signature from Guangdong Gowin Semiconductor, so under
+`AGENTS.md` images must now be built with it. `scripts/build-tang20k.py`
+records the version, the signature and whether the synthesized netlist is
+encrypted. It still is (`pragma protect`), so the SiP connection check
+remains impossible. With the same uncommitted 4 ns host-pad constraints,
+none of the 15 placement/routing combinations passed the timing gate:
+- options 0–2 with routing 0–2 reached 23.5–24.3 MHz on the host clock
+  against 25.2 MHz, and 47.99–50.47 MHz on the core;
+- the best, placement 0 and routing 2, failed only one path. It runs from
+  the host address register through about six logic levels of write
+  acceptance to the `gpu_wready` pin, −0.71 ns against the 4 ns output
+  budget. Its core reached 50.47 MHz, limited by the COPY clipping setup
+  enables and the SDRAM mask-RAM address;
+- placement options 3 and 4 did not complete.
+
+Logic was 18,420/20,736 (89%).
+
+A diagnostic build of the same sources with the earlier V1.9.8.11, placement
+0 and routing 2, passed every gate: core 52.04 MHz, host 27.28 MHz, pixel
+211.92 MHz, logic 18,321, image `8b35a4e6…74dd`. Row exit and overlapped
+PRESENT therefore cost about 150 logic in that flow; the timing loss is in
+V1.9.11.03's placement of existing paths. `AGENTS.md` no longer allows
+publishing a V1.9.8.11 image, so this one is not published. Before an image
+can be qualified, the RTL must close timing in V1.9.11.03, or the user must
+change the policy or the host-clock constraint.
 
 ### Current board implementation (Gowin EDA)
 
@@ -1386,7 +1456,7 @@ the command queue executes in order. 30 FPS needs uploads plus rendering
 below 33.3 ms. These are user-reported on-screen timings, not a qualified
 benchmark. Like MC10's, the binary32 setup is not bit-identical to the oracle.
 
-### Early SDRAM release and overlapped tile stores (current image)
+### Early SDRAM release and overlapped tile stores
 
 A `--profile` run of the previous RTL showed tile stores dominated by
 per-transaction overhead rather than data beats: each 16-word transfer waited
@@ -1423,6 +1493,48 @@ for `demo_3d_engine9`'s town view was not kept, so its new pass time is not
 measured. From the store share of its pass (about 32%), a gain similar to the
 scenes, roughly 2–3 ms of the 30.2 ms measured on the board, is an estimate
 only. These are simulation figures, not board measurements.
+
+**Board measurement, 2026-11-12 (image `ecc7030b…608c`).** At the same
+starting view, the user measured 30 fps. The rows of the pipelined timing
+build add up to a 33.0 ms frame: UPD 1.3, CPU 12.5, BIN 3.6, a 10.6 ms wait
+for rendering, 0.4 ms VBL and 4.6 ms of uploads. Its label read GPU on that
+copy; it is the wait row. Rendering is therefore about 28.0 ms, down from
+30.2 ms, in line with the 2–3 ms estimate. The frame is 0.3 ms inside the
+30 fps period. Close to the car, the frame dropped to 15 fps:
+- 4,025 tile references from 335 records, against 1,664;
+- a 33.9 ms wait, so about 49.4 ms of rendering;
+- 12.2 ms of vertical-blank wait and 4.5 ms of uploads.
+
+Large facets cross many tiles, so each tile holds about 13 references, each
+walking its window. These are user-reported on-screen timings.
+
+### Row exit, CPU culling and the close-up case (current RTL)
+
+A close-up case added to the benchmark draws a coarse sphere that fills most
+of the screen, in front of a finer one that it partly hides. Both are
+kind-4 flat triangles whose back faces the CPU drops before binning, as the
+draw SDK now does. With row exit (section 6), the same oracle-checked
+benchmark gives:
+
+| Case | Before (ms) | Now (ms) | Empty samples before | Empty samples now |
+| --- | ---: | ---: | ---: | ---: |
+| Showcase scene frame | 89.26 | 86.32 | 307,452 | 143,780 |
+| Overdraw scene frame | 118.75 | 115.85 | 1,004,673 | 844,876 |
+| Icosahedron, full clear | 10.53 | 10.00 | 63,965 | 32,451 |
+| Icosahedron, SKIP with dirty tiles | 6.22 | 5.54 | 68,022 | 36,218 |
+| Icosahedron, flat kind-4 with GPU culling | 10.09 | 9.77 | 39,065 | 21,907 |
+| 400 kind-4 triangles, 12,950 references | 148.84 | 134.54 | 1,655,694 | 902,470 |
+| 400 kind-4 triangles, 17,541 references | 141.04 | 128.52 | 1,458,196 | 805,595 |
+| Close-up spheres, 144 records, 1,171 references | 23.95 | 22.04 | 222,166 | 120,563 |
+
+Rectangle, copy and clear cases are unchanged. Every case matches the SRR,
+with zero scanout underflows; the self-test and the four verified scenes also
+pass. Results are in [the row-exit regression](../docs/benchmarks/rtl-row-exit.json).
+In the close-up case, the rasterizer runs only 32% of the pass. Tile stores
+take about 39%. The kind-4 setup takes about 107 clocks per reference (11%),
+and this RTL does not overlap it with the previous reference's drawing.
+Removing back-face references on the CPU removes both the setup and the
+record fetch for those references.
 
 The [earlier board-profile regression](https://github.com/apc53pro/Nano-20K-GPU/blob/e538741/docs/benchmarks/rtl-tang20k.json) ran the real core at the 50.4 MHz
 core / 25.2 MHz host and pixel ratios, with refresh interval 787. Command tests
@@ -1534,10 +1646,10 @@ a measured silicon frequency limit or 30 FPS scenes.
 | --- | --- |
 | [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Board clocks/reset, synchronized pixel-event handoff, shared host pads, SDRAM boundary and TMDS integration |
 | [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and expected fixed embedded SDRAM terminals |
-| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule and overlapped stores, copies, presentation/recovery |
+| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule and overlapped stores, copies, overlapped presentation, recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) | Kind-4 vertex-triangle setup per tile: orientation/culling, edges, window and tile rejection, depth gradients and seed |
-| [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage, interpolation and 2D walking |
+| [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage with row exit, interpolation and 2D walking |
 | [`nano_fragment_pipeline.sv`](../rtl/gpu/nano_fragment_pipeline.sv) | Textured contexts, ordered depth/key/shading commits |
 | [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Selected exact integer-texel path, separate generic Q16 path, native delay RAMs and multipliers |
 | [`nano_texture_cache.sv`](../rtl/gpu/nano_texture_cache.sv) | Pitched texture addressing, cache hits and refills |

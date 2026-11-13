@@ -49,6 +49,19 @@ completes only after every store has reached SDRAM, so a FENCE or PRESENT
 that follows it observes the finished buffers exactly as before. No packet,
 reply or driver sequence changes, and no host software needs rebuilding.
 
+Since 2026-11-12:
+- **Overlapped PRESENT.** `PRESENT` retires at once and swaps at vertical
+  blank. Only `WRITE_HEAP` commands sent after it execute before the swap,
+  and its reply comes first. Packets are unchanged, and a host that waits
+  for the reply before sending more sees the same behaviour as before. A
+  host may now send the next frame's uploads and pass before reading that
+  reply ([section 4](#4-memory-passes-and-buffer-ownership),
+  [section 7](#7-frame-sequence)).
+- **Row exit.** Triangle rows end at the first sample that fails an edge
+  which cannot improve to the right. Images are unchanged. A plane or edge
+  overflow that could only occur in such a skipped sample no longer faults
+  the pass.
+
 ## 1. What the CPU sends
 
 The CPU sends an ordered stream of packets. It uploads textures and prepared
@@ -743,6 +756,8 @@ block, which firmware serializes to the GPU.
 | `RESET` (`0x0106`) | None | Issues a hard reset and reloads the terminal font. |
 | `FRAME_READY` (`0x0107`) | None | Returns 1 after earlier commands and any async present retire, or 0 while busy. |
 | `TRY_PRESENT` (`0x0108`) | `target, token` | Returns 1 when it queues the present, or 0 while busy. |
+| `PRESENT_BEGIN` (`0x0109`) | `target, token` | Sends `PRESENT` for the back buffer and returns without reading its reply. Until the reply is read, `WRITE_HEAP` and `SUBMIT_PASS` go out at once; any other command reads it first. |
+| `PRESENT_END` (`0x010A`) | None | Reads the open `PRESENT_BEGIN` reply, waiting for the swap. Does nothing when none is open. |
 
 The other commands return zero on success. Negative results are unknown
 command (`-1`), invalid arguments (`-2`), missing capability (`-3`), the
@@ -764,6 +779,16 @@ first and performs blocking PRESENT at a later service point once the pass
 retires, or when the next batch needs the back buffer. Query the back target
 again after each completed swap.
 [MMBasic presentation code](https://github.com/apc53pro/MPC-2350/commit/92b9dc7f904df436c18d5b2f3f4bcb3ccccef985)
+
+`PRESENT_BEGIN` and `PRESENT_END` are the overlapped present that the draw
+SDK's `gpu_draw_submit_frame()` uses ([section 7](#7-frame-sequence)). The
+reply is read with the same blocking, status-polled read as `PRESENT`, only
+later; there is no `FRAME_READY` polling. While it is open, the firmware sends
+uploads and pass submits at once and reads the reply before anything else.
+Firmware without these commands returns unknown command (`-1`); the SDK then
+falls back to `PRESENT`. On an FPGA image without overlapped PRESENT, the
+uploads wait in the queue until the swap, so the result is correct but there
+is no overlap.
 
 `narm_gpu_try_present()` is exercised in the software model. The board still
 has intermittent failures with that path. While such a swap is pending,
@@ -836,6 +861,12 @@ installer and the encrypted synthesis netlist, which prevents checking the
 fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
 SDRAM on the board.
 Gowin EDA V1.9.11.03 Education is now installed on the build PC, and its `gw_sh.exe` and programmer carry a valid Authenticode signature from Guangdong Gowin Semiconductor (checked 2026-11-12); the 1.9.8.11 copy is unsigned. Under `AGENTS.md`, that ends the exception: this image, built with 1.9.8.11, must be rebuilt with the signed tool and fully re-qualified.
+
+The current RTL adds row exit and overlapped PRESENT, but no image of it is
+qualified yet. The signed Gowin EDA V1.9.11.03 does not yet close timing on
+it; the architecture guide's section 12 has the results. Firmware with
+`PRESENT_BEGIN` works with the image below, but without overlap: there the
+uploads wait in the queue until the swap.
 
 The current image is **7,264,137 bytes**, SHA-256
 `ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It adds
@@ -1082,8 +1113,17 @@ After boot initialization, color 0 is front, color 1 is back, both are black,
 and depth is `0xFFFFFF`. Render/copy only to the writable non-front buffer;
 LOAD and partial copies additionally require valid preserved contents.
 `PRESENT` seals its target when it executes, then swaps at vertical blank.
-The old front becomes writable after the reply. Never mutate the displayed or
+The old front becomes writable at the swap. Never mutate the displayed or
 sealed buffer. Late rendering repeats the current front.
+
+The current RTL retires a valid `PRESENT` at once and keeps the swap pending
+(**overlapped PRESENT**). Until the swap, only `WRITE_HEAP` commands execute;
+any other command waits in the queue. A pass or copy that writes the old
+front may therefore be sent right after the `PRESENT`, and the GPU starts it
+at the swap. The `PRESENT` reply is sent after the swap, before any later
+reply. Status bits busy and sealed stay set until the swap. Earlier images
+kept `PRESENT` executing until the swap, so commands sent after it waited
+there; the order of replies is the same.
 
 Depth is shared and never swapped. After a swap, the new back contains the old
 front's color, while depth contains the latest pass's depth. Clear depth for a
@@ -1465,23 +1505,28 @@ identity and physical buffer ownership.
 The fence is not required for ordering: commands execute in order, so later
 uploads cannot overwrite a pass's records before that pass finishes. A host
 can therefore build frame N+1 on the CPU while frame N renders, and present N
-only afterwards. The MPC-2350 NARM SDK does this with blocking PRESENT
-(`gpu_draw_prepare_frame`, `gpu_draw_present_submitted`,
-`gpu_draw_submit_frame`; board-measured in `demo_3d_engine9`):
+only afterwards. With overlapped PRESENT, the next frame's uploads also go
+out right behind the PRESENT, without waiting for its reply. The MPC-2350
+NARM SDK does this in `gpu_draw_submit_frame()` (with
+`gpu_draw_prepare_frame`; used by `demo_3d_engine9`):
 
 ```text
 (CPU) build and bin frame N+1 in host memory   -- overlaps frame N rendering
-PRESENT(frame N's buffer, token) -> wait for matching reply
+PRESENT(frame N's buffer, token)               -- do not wait for the reply
 WRITE_HEAP(frame N+1 records, lists, table, descriptor)
-SUBMIT_PASS(descriptor address)                -- frame N+1 renders
+                                               -- run during the vblank wait
+SUBMIT_PASS(descriptor address)                -- starts at frame N's swap
+(later) read the PRESENT reply                 -- before any other reply
 ```
 
-Frame N+1's pass must target the buffer that frame N's swap releases (the
-buffer displayed before it), and no command may write that buffer, not even a
-COPY_RECT, before the PRESENT reply. The pending present therefore comes
-before any such command. Uploads to the heap may be sent earlier, while frame
-N renders. The queue holds only about two packet leases, so the host then
-stalls on WREADY, and the uploads execute when frame N's pass ends. The GPU
+Frame N+1's pass targets the buffer that frame N's swap releases (the buffer
+displayed before it); the GPU holds it until the swap. Read the PRESENT reply
+before the next command that has a reply, because replies arrive in order.
+The uploads then cost no rendering time whenever the vertical-blank wait is
+longer than they are. The earlier sequence, a blocking PRESENT followed by
+the uploads, is still valid; its uploads run after the swap. Uploads sent
+while frame N's pass still runs wait in the queue: it holds only about two
+packet leases, so the host stalls on WREADY until the pass ends. The GPU
 does not process uploads concurrently with a pass.
 
 ## 8. COPY_RECT payload: 56 bytes

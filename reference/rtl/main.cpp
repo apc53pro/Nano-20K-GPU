@@ -539,6 +539,55 @@ void self_test(Simulation& simulation) {
     const auto after_upload_status = simulation.command(hw::Opcode::GetStatus, sequence++);
     require(hw::read_u32(after_upload_status, 52) == before_underflows, "host uploads cannot starve scanout");
     require(simulation.checked_scanout_frames > before_stress_frames, "upload stress spans a complete displayed frame");
+    {
+        // Overlapped PRESENT: uploads queued behind a PRESENT execute while it
+        // waits for vertical blank; a later FENCE waits for the swap, and the
+        // PRESENT reply precedes the FENCE reply. Start just after a vertical
+        // blank, so the next one is a whole frame away.
+        simulation.phase = "overlapped-present";
+        simulation.expected_scanout.clear(); // The front changes mid-test.
+        const auto frame = simulation.completed_frames;
+        simulation.wait([&] { return simulation.completed_frames > frame; }, "frame boundary");
+        // The capture completes within clocks of the vertical-blank pulse.
+        for (unsigned edge = 0; edge < 5000; ++edge) simulation.tick();
+        std::vector<std::uint8_t> payload(8);
+        hw::write_u32(payload, 0, 0); hw::write_u32(payload, 4, 0x0b5e);
+        const auto present_sequence = sequence++;
+        simulation.send(hw::encode_packet(hw::Opcode::Present, present_sequence, payload));
+        std::vector<std::uint8_t> data(2 * hw::maximum_upload_decoded_bytes);
+        for (unsigned i = 0; i < data.size(); ++i) data[i] = static_cast<std::uint8_t>(i * 7 + 3);
+        const std::uint32_t data_address = heap + 0x10000;
+        upload(data_address, data);
+        const auto last_upload = sequence - 1;
+        bool overlapped = false;
+        for (unsigned poll = 0; poll < 2000 && !overlapped; ++poll) {
+            const auto flags = simulation.read_register(1); // Refreshes the snapshot.
+            std::uint32_t completed = 0;
+            for (unsigned byte = 0; byte < 4; ++byte)
+                completed |= static_cast<std::uint32_t>(simulation.read_register(6 + byte)) << (8 * byte);
+            require((flags & 0x10) == 0, "no reply before the swap");
+            overlapped = (flags & 4) != 0 && completed == last_upload;
+        }
+        require(overlapped, "uploads retire while PRESENT waits for vertical blank");
+        std::vector<std::uint8_t> fence_token(4); hw::write_u32(fence_token, 0, 0xfe11);
+        const auto fence_sequence = sequence++;
+        simulation.send(hw::encode_packet(hw::Opcode::Fence, fence_sequence, fence_token));
+        require(hw::read_u32(simulation.reply(hw::Opcode::Present, present_sequence), 24) == 0x0b5e,
+                "overlapped PRESENT reply token");
+        require(hw::read_u32(simulation.reply(hw::Opcode::Fence, fence_sequence), 24) == 0xfe11,
+                "FENCE reply follows the PRESENT reply");
+        require(readback(data_address, 512) == std::vector<std::uint8_t>(data.begin(), data.begin() + 512) &&
+                readback(data_address + data.size() - 512, 512) ==
+                    std::vector<std::uint8_t>(data.end() - 512, data.end()),
+                "uploads behind a pending PRESENT");
+        const auto swapped = simulation.command(hw::Opcode::GetStatus, sequence++);
+        require(swapped.at(28 + 14) == 0 && hw::read_u32(swapped, 28 + 36) == 0x0b5e && (swapped.at(29) & 4) == 0,
+                "overlapped PRESENT swaps the front and records its token");
+        oracle.queue_present(0); oracle.vertical_blank();
+        // Restore the earlier front for the recovery cases below.
+        simulation.present(1, sequence++, &oracle.color(1)); oracle.queue_present(1); oracle.vertical_blank();
+        std::cout << "overlapped PRESENT with uploads and a later FENCE passed\n";
+    }
     simulation.phase = "idle";
     const auto before = simulation.memory.inspect_word(hw::color_buffer_base(1) + 6 * screen_width * 2);
     // Deliver a partial packet and cancel it without a memory backdoor.
@@ -925,6 +974,72 @@ VertexPass vertex_pass(const std::vector<std::pair<VertexSource, RenderState>>& 
     return result;
 }
 
+// A close-up: a coarse faceted sphere (subdivision `level`) of screen radius
+// `radius` around (cx, cy), seen in perspective, as kind-4 flat triangles.
+// Like the draw SDK, the CPU drops back faces before binning; the cull bit
+// stays set. Large facets cross many tiles, as when the camera nears a model.
+std::vector<std::pair<VertexSource, RenderState>> sphere_triangles(int level, float cx, float cy,
+                                                                   float radius, float distance) {
+    std::vector<std::array<float, 3>> v{{-1, 1.618f, 0}, {1, 1.618f, 0}, {-1, -1.618f, 0}, {1, -1.618f, 0},
+        {0, -1, 1.618f}, {0, 1, 1.618f}, {0, -1, -1.618f}, {0, 1, -1.618f},
+        {1.618f, 0, -1}, {1.618f, 0, 1}, {-1.618f, 0, -1}, {-1.618f, 0, 1}};
+    std::vector<std::array<int, 3>> faces{{0,11,5},{0,5,1},{0,1,7},{0,7,10},{0,10,11},{1,5,9},{5,11,4},
+        {11,10,2},{10,7,6},{7,1,8},{3,9,4},{3,4,2},{3,2,6},{3,6,8},{3,8,9},{4,9,5},{2,4,11},{6,2,10},
+        {8,6,7},{9,8,1}};
+    const auto unit = [](std::array<float, 3> p) {
+        const float l = std::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+        return std::array<float, 3>{p[0] / l, p[1] / l, p[2] / l};
+    };
+    for (auto& p : v) p = unit(p);
+    for (int s = 0; s < level; ++s) {
+        std::vector<std::array<int, 3>> next;
+        for (const auto& f : faces) {
+            int m[3];
+            for (int k = 0; k < 3; ++k) {
+                const auto& a = v[f[k]]; const auto& b = v[f[(k + 1) % 3]];
+                v.push_back(unit({a[0] + b[0], a[1] + b[1], a[2] + b[2]})); m[k] = static_cast<int>(v.size()) - 1;
+            }
+            next.push_back({f[0], m[0], m[2]}); next.push_back({f[1], m[1], m[0]});
+            next.push_back({f[2], m[2], m[1]}); next.push_back({m[0], m[1], m[2]});
+        }
+        faces = next;
+    }
+    // Perspective: the sphere's centre at `distance` radii; its silhouette
+    // spans about `radius` pixels.
+    const float focal = radius * std::sqrt(distance * distance - 1.0f);
+    std::vector<std::pair<VertexSource, RenderState>> result;
+    for (std::size_t f = 0; f < faces.size(); ++f) {
+        VertexSource source; source.cull_negative = true;
+        for (int k = 0; k < 3; ++k) {
+            const auto& p = v[faces[f][k]];
+            const float z = distance + p[2];
+            source.points[k].x = static_cast<int>(std::lround((cx + focal * p[0] / z) * 16.0f));
+            source.points[k].y = static_cast<int>(std::lround((cy - focal * p[1] / z) * 16.0f));
+            source.depth[k] = static_cast<std::uint32_t>(z / (distance + 2.0f) * 16777215.0f) << 8;
+        }
+        bool fits = true;
+        for (const auto& p : source.points) fits = fits && p.x >= 0 && p.x <= 16383 && p.y >= 0 && p.y <= 8191;
+        // Visible from the camera when the facet's outward direction (its
+        // centroid) points toward it: c.z < -1/distance.
+        const float cz = (v[faces[f][0]][2] + v[faces[f][1]][2] + v[faces[f][2]][2]) / 3.0f;
+        if (!fits || cz >= -1.0f / distance) continue;
+        const auto signed_area = [&] {
+            const auto& a = source.points[0]; const auto& b = source.points[1]; const auto& c = source.points[2];
+            return static_cast<long long>(b.x - a.x) * (c.y - a.y) - static_cast<long long>(b.y - a.y) * (c.x - a.x);
+        };
+        // Front faces get the GPU's positive winding.
+        if (signed_area() < 0) { std::swap(source.points[1], source.points[2]); std::swap(source.depth[1], source.depth[2]); }
+        if (signed_area() <= 0) continue;
+        source.bounds = vertex_bounds(source.points);
+        RenderState render;
+        render.color = {static_cast<std::uint8_t>(60 + (f * 53) % 190), static_cast<std::uint8_t>(40 + (f * 97) % 200),
+                        static_cast<std::uint8_t>(80 + (f * 31) % 170)};
+        render.depth_test = render.depth_write = true;
+        result.push_back({source, render});
+    }
+    return result;
+}
+
 // Random kind-4 triangles: large, small and sliver shapes, both windings,
 // some culled, zero-area and screen-edge cases, depth-tested with mixed
 // flags and functions. Depths span the full u32 input range.
@@ -995,7 +1110,7 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
     const std::map<unsigned, const char*> tile_names{
         {0, "IDLE"}, {1, "START"}, {2, "CONFIG"}, {3, "EDGE_LAUNCH"}, {4, "EDGE_WAIT"}, {5, "EDGE_CAPTURE"},
         {6, "OFFSET_Y"}, {7, "OFFSET_X"}, {8, "RASTER"}, {9, "SEED_CAPTURE"}, {10, "CLIP_SCISSOR"},
-        {11, "CLIP_TILE"}, {12, "PREPARE"}, {17, "DRAIN"}};
+        {11, "CLIP_TILE"}, {12, "PREPARE"}, {13, "ROW_SKIP"}, {17, "DRAIN"}};
     const auto begin_case = [&] {
         simulation.profiling = profile;
         simulation.core_states.fill(0); simulation.memory_states.fill(0); simulation.tile_states.fill(0);
@@ -1129,6 +1244,20 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
         simulation.render(vertex.program);
         oracle.render(vertex.oracle, RenderMode::Monolithic); simulation.compare(oracle);
         record("icosahedron, flat kind-4 records with GPU culling", simulation.last_submission_cycles);
+    }
+    {
+        // Close-up: a coarse sphere filling most of the screen, in front of a
+        // finer one it partly hides. Large facets span many tiles each.
+        auto faces = sphere_triangles(1, 300.0f, 250.0f, 230.0f, 2.2f);
+        const auto back = sphere_triangles(2, 470.0f, 210.0f, 160.0f, 4.0f);
+        faces.insert(faces.end(), back.begin(), back.end());
+        Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;
+        auto vertex = vertex_pass(faces, descriptor, 0, sequence);
+        simulation.render(vertex.program);
+        oracle.render(vertex.oracle, RenderMode::Monolithic); simulation.compare(oracle);
+        const std::string name = "close-up spheres, " + std::to_string(vertex.records) + " kind-4 records, " +
+            std::to_string(vertex.references) + " refs";
+        record(name.c_str(), simulation.last_submission_cycles);
     }
     const std::string report = "{\n  \"profile\": \"N20K-RTL-BENCH-1\",\n  \"clock_hz\": 50400000,\n"
         "  \"scanout_underflows\": " + std::to_string(simulation.scanout_underflows()) +
