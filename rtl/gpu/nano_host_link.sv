@@ -5,6 +5,10 @@ module nano_host_link (
     input wire clk, input wire reset, input wire host_clk, input wire core_abort,
     input wire host_wr_valid, input wire [7:0] host_wr_data,
     output wire host_wr_ready,
+    // host_wr_ready's register-only terms. A board pad that already knows the
+    // address selects register 0 and that no read is requested can use this
+    // instead, keeping the address decode off its half-cycle output path.
+    output wire host_wr_ready_base,
     input wire host_rd_req, input wire [6:0] host_reg_addr,
     output reg [7:0] host_rd_data, output reg host_rd_valid,
     input wire [511:0] status_snapshot, input wire [511:0] capabilities,
@@ -73,12 +77,14 @@ module nano_host_link (
     wire tx_read_valid, tx_read_ready;
     wire [7:0] tx_read_data;
     reg [7:0] host_error;
+    reg host_error_clear; // host_error == 0, as its own register
     reg status_pending;
     reg waiting_write;
     reg [7:0] waiting_data;
     reg [6:0] waiting_address;
-    wire host_write_legal = host_reg_addr == 0 && !host_rd_req && host_error == 0 && !host_flush;
+    wire host_write_legal = host_reg_addr == 0 && !host_rd_req && host_error_clear && !host_flush;
     assign host_wr_ready = rx_write_ready && host_write_legal;
+    assign host_wr_ready_base = rx_write_ready && host_error_clear && !host_flush;
     nano_host_async_fifo #(.ADDRESS_BITS(8)) rx_fifo (
         .reset(reset), .wclk(host_clk), .wflush(host_flush),
         .wvalid(host_wr_valid && host_write_legal), .wready(rx_write_ready), .wdata(host_wr_data),
@@ -92,14 +98,18 @@ module nano_host_link (
     );
     assign tx_read_ready = host_rd_req && host_reg_addr == 0 && !host_wr_valid && !host_flush && !status_pending;
     always @(posedge host_clk or posedge host_reset) begin
-        if (host_reset) begin host_error <= 0; waiting_write <= 0; waiting_data <= 0; waiting_address <= 0; end
-        else if (host_flush) begin host_error <= 0; waiting_write <= 0; end
+        if (host_reset) begin
+            host_error <= 0; host_error_clear <= 1; waiting_write <= 0; waiting_data <= 0; waiting_address <= 0;
+        end
+        else if (host_flush) begin host_error <= 0; host_error_clear <= 1; waiting_write <= 0; end
         else begin
-            if (host_error == 0) begin
-                if (host_wr_valid && host_rd_req) host_error <= 8'd1;
-                else if (host_wr_valid && host_reg_addr != 0) host_error <= 8'd2;
+            if (host_error_clear) begin
+                if (host_wr_valid && host_rd_req) begin host_error <= 8'd1; host_error_clear <= 0; end
+                else if (host_wr_valid && host_reg_addr != 0) begin host_error <= 8'd2; host_error_clear <= 0; end
                 else if (waiting_write && host_wr_valid &&
-                    (waiting_data != host_wr_data || waiting_address != host_reg_addr)) host_error <= 8'd5;
+                    (waiting_data != host_wr_data || waiting_address != host_reg_addr)) begin
+                    host_error <= 8'd5; host_error_clear <= 0;
+                end
             end
             if (!host_wr_valid || host_wr_ready) waiting_write <= 0;
             else if (!waiting_write) begin
@@ -168,7 +178,7 @@ module nano_host_link (
         if (reset) begin host_error_meta <= 0; host_error_sync <= 0; fault <= 0; end
         else if (core_flush) begin host_error_meta <= 0; host_error_sync <= 0; fault <= 0; end
         else begin
-            host_error_meta <= host_error != 0; host_error_sync <= host_error_meta;
+            host_error_meta <= !host_error_clear; host_error_sync <= host_error_meta;
             if (fault == 0) begin
                 // host_error is a bundled, sticky value established before
                 // its synchronized flag; it never changes until recovery.
@@ -310,7 +320,7 @@ module nano_host_link (
                     status_latched <= 1; status_pending <= 0;
                     host_rd_data <= selected_status_byte |
                         (status_address == 1 ? ((!rx_write_ready ? 8'h40 : 8'h00) |
-                            (tx_read_valid ? 8'h10 : 8'h00) | (host_error != 0 ? 8'h80 : 8'h00)) : 8'h00);
+                            (tx_read_valid ? 8'h10 : 8'h00) | (!host_error_clear ? 8'h80 : 8'h00)) : 8'h00);
                     host_rd_valid <= 1;
                 end
             end else if (host_rd_req && !host_wr_valid) begin

@@ -60,28 +60,32 @@ display FIFO and the SKIP pass flag came first; the user measured
 presentation). The next image added **GPU triangle setup** for 64-byte
 kind-4 vertex triangles (feature bit 8): the GPU orients, culls, computes the
 edges and depth plane, and rejects uncovered tiles, so the CPU sends only
-projected vertices. The RTL has since added row exit and overlapped PRESENT,
-which are not yet in a qualified image (see the architecture guide, section
-12). The current image adds **early SDRAM command release**
+projected vertices. The next added **early SDRAM command release**
 and overlapped tile stores, which make simulated 3D passes 7–17% faster and
-clear-dominated passes up to 30% faster, with no packet change.
+clear-dominated passes up to 30% faster, with no packet change. The current
+image adds **row exit**, which halves the empty samples walked around
+triangles, and **overlapped PRESENT**, which lets the next frame's uploads run
+while the swap waits for vertical blank.
 
-The image is built with **Gowin EDA** by `make tang20k`. The open-source flow's
-image failed the host address latch on the board, and `AGENTS.md` records this
-exception and the gate it cannot meet. The
+The image is built with **Gowin EDA V1.9.8.11** by `make tang20k`. The
+open-source flow's image failed the host address latch on the board, and
+`AGENTS.md` records this exception and the gate it cannot meet. The signed
+V1.9.11.03 is also installed; on the current RTL it reached a slower core
+clock (56.45 against 60.36 MHz), and the user keeps the faster one. The
 [board report](docs/hardware/tang20k-board.json) verifies every
-package pin and meets every required clock: the core reaches 59.29 MHz Fmax
+package pin and meets every required clock: the core reaches 60.36 MHz Fmax
 against 50.4 MHz (placement option 0, routing option 2). The only
 negative-slack paths are listed reset-release paths. The build used
 uncommitted host-pad timing constraints in `scripts/build-tang20k.py`; the
 report records both script hashes.
-It uses **18,169/20,736 logic (Gowin count)**, **7,426 registers**,
-**46/46 BSRAM** and 63% DSP.
+It uses **19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**,
+**46/46 BSRAM** and 63% DSP, so little logic is left for new features.
 
 The matching image is **7,264,137 bytes**, SHA-256
-`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. On 2026-11-12 it was written to the Tang's SPI flash with `make tang20k-flash` and the signed standalone Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded it with status `0x6020`, user code `0x16D1`). It has not yet been tested with the RP2350. The previous image
-(`93739598…f886`, user code `0xB6B9`) ran `demo_3d_engine9` at 20 fps with
-the RP2350 (user-reported, 2026-11-10).
+`39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It has not
+yet been written to the board. The previous image (`ecc7030b…608c`, user
+code `0x16D1`) ran `demo_3d_engine9` at about 30 fps in its starting view and
+15 fps in a close-up with the RP2350 (user-reported, 2026-11-12).
 Its [structural file check](docs/hardware/tang20k-bitstream-check.json) and
 [functional evidence](docs/hardware/tang20k-functional.json) accompany the
 board report. External electrical margins remain unqualified.

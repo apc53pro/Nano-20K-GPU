@@ -4,25 +4,29 @@
   "top": "tang20k_top",
   "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education",
   "gowin_shell": "C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe",
+  "toolchain_signature": {
+    "status": "NotSigned",
+    "signer": ""
+  },
   "source_sha256": {
     "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
     "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
     "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
-    "rtl/gpu/nano_gpu_core.sv": "9f0cb23147645f4a46b16264eea0ead95c057b93a25422dae5362024fd602e0c",
-    "rtl/gpu/nano_host_link.sv": "2f39fe1e5e40af006bb2b17c69629de251bba8caf6d43d6fe004434e5f9a167c",
+    "rtl/gpu/nano_gpu_core.sv": "cda0e310e8fa14667fc1e75cac42bbc1d618bd54f6977d2720e4bc59eaeaceb9",
+    "rtl/gpu/nano_host_link.sv": "f9f7e6380e189ede492ae544e80d2e7c349edc97b0113851ddf7ec81ddace38b",
     "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
     "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
     "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
     "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
     "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
-    "rtl/gpu/nano_sdram_service.sv": "48a51cb4e07cd2996053708f9f47a6c9a56ba2487496f1c9082ec7d2f56bf7cb",
+    "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
     "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
-    "rtl/gpu/nano_tile_renderer.sv": "5bd0b2ba557451862365c85a1946347c389795cf86666f6a6dd450621333e86b",
+    "rtl/gpu/nano_tile_renderer.sv": "5327c2c94b9c82f669e6a4cbae664a97f9c64e042b57c6f2e2ab14daf4bdf113",
     "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
     "rtl/gpu/nano_triangle_setup.sv": "2cfe003300ce39cc4302acfc54e1537a6c4f455144289881bfea21b45f5601c6",
-    "rtl/board/tang20k_top.sv": "ad6794e95fd910b145dc5007f0a529703a9b952490a46308ae6cd122ef3af9db",
+    "rtl/board/tang20k_top.sv": "5994ec8b8b662d9e48fbd0dee0f8c73244e61acefdb086cf2d78afa7c9ae4e04",
     "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
-    "scripts/build-tang20k.py": "5f643734ef84d011773df814ad83ee4c87b134b8009f2491bb19675c06cb2d17",
+    "scripts/build-tang20k.py": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
     "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
     "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
     "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
@@ -40,73 +44,74 @@
   "hardware_tested": false,
   "external_io_timing_measured": false,
   "upload_ready": true,
-  "agents_exception": "AGENTS.md addendum 2026-11-07: SiP SDRAM connection not checkable from the encrypted Gowin netlist; Gowin EDA copy unverified (third-party installer).",
+  "agents_exception": "AGENTS.md addenda 2026-11-07 and 2026-11-13: the SiP SDRAM connection cannot be checked from an encrypted Gowin netlist (see netlist_encrypted); the user keeps the toolchain whose image reaches the faster clock.",
   "sip_pins_verified": false,
   "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
-  "functional_report_sha256": "3c4b2dca8831cfe200ac3e74948bfbd16e0013ae30f4923cd8d973cf376a0bd4",
+  "functional_report_sha256": "53e01ffb54e5b99fafae670091373c94fdef9e96a7de84d51e1603043aeeb373",
   "gowin_returncode": 0,
   "synthesized": true,
   "placed": true,
   "routed": true,
+  "netlist_encrypted": true,
   "package_pins_checked": 26,
   "package_pins_verified": true,
   "pin_mismatches": [],
   "fmax": {
     "clk27": {
       "constraint_mhz": 27.0,
-      "achieved_mhz": 404.956
+      "achieved_mhz": 406.291
     },
     "gpu_hclk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 31.323
+      "achieved_mhz": 32.983
     },
     "core_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 50.4,
-      "achieved_mhz": 59.285
+      "achieved_mhz": 60.357
     },
     "pixel_div/CLKOUT.default_gen_clk": {
       "constraint_mhz": 25.2,
-      "achieved_mhz": 181.636
+      "achieved_mhz": 200.816
     }
   },
   "violations_listed": [
     {
-      "slack_ns": -2.661,
-      "from": "poweron_6_s0/Q",
+      "slack_ns": -3.25,
+      "from": "poweron_0_s0/Q",
       "to": "core_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -2.661,
-      "from": "poweron_6_s0/Q",
+      "slack_ns": -3.25,
+      "from": "poweron_0_s0/Q",
       "to": "core_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -1.737,
-      "from": "poweron_6_s0/Q",
+      "slack_ns": -1.926,
+      "from": "poweron_0_s0/Q",
       "to": "pixel_reset_pipe_0_s0/PRESET"
     },
     {
-      "slack_ns": -1.737,
-      "from": "poweron_6_s0/Q",
+      "slack_ns": -1.926,
+      "from": "poweron_0_s0/Q",
       "to": "pixel_reset_pipe_1_s0/PRESET"
     },
     {
-      "slack_ns": -0.407,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[0].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.407,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[1].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.407,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[2].serializer/serializer/RESET"
     },
     {
-      "slack_ns": -0.407,
+      "slack_ns": -0.26,
       "from": "pixel_reset_pipe_1_s0/Q",
       "to": "video/lanes[3].serializer/serializer/RESET"
     }
@@ -118,8 +123,8 @@
   },
   "timing_passed": true,
   "resources": {
-    "Logic": "18169/20736  88%",
-    "Register": "7426/15915  47%",
+    "Logic": "19841/20736  96%",
+    "Register": "7496/15915  48%",
     "I/O Port": "26",
     "BSRAM": "100%",
     "DSP": "63%",
@@ -128,13 +133,13 @@
   },
   "inputs_changed": [],
   "bitstream_generated": true,
-  "bitstream_sha256": "ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c",
+  "bitstream_sha256": "39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730",
   "bitstream_bytes": 7264137,
   "uncommitted_build_inputs": {
     "scripts/build-tang20k.py": {
-      "built_sha256": "5f643734ef84d011773df814ad83ee4c87b134b8009f2491bb19675c06cb2d17",
-      "committed_sha256": "3a985180ab3f100e329e4b436788bae7b28599f7edce5dd41d55f2089e77bd02",
-      "difference": "The working-tree script used for this build adds host-pad constraints: set_input_delay -clock gpu_hclk -clock_fall -max 4.0 on gpu_d[*], gpu_ale_n, gpu_wr_n, gpu_rd_n and set_output_delay -clock gpu_hclk -clock_fall -max 4.0 on gpu_d[*], gpu_rvalid, gpu_wready. That change belongs to separate, uncommitted work; with it the gpu_hclk Fmax covers the half-cycle pad paths (31.32 MHz)."
+      "built_sha256": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
+      "committed_sha256": "dc4026603149e84fc47354a53050d905bccbd0e121d9e03e4214b526dd80f49a",
+      "difference": "The working-tree script used for this build adds host-pad constraints: set_input_delay -clock gpu_hclk -clock_fall -max 4.0 on gpu_d[*], gpu_ale_n, gpu_wr_n, gpu_rd_n and set_output_delay -clock gpu_hclk -clock_fall -max 4.0 on gpu_d[*], gpu_rvalid, gpu_wready. That change belongs to separate, uncommitted work; with it the gpu_hclk Fmax covers the half-cycle pad paths (32.98 MHz)."
     }
   }
 }

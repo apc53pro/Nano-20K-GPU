@@ -14,7 +14,7 @@ module nano_gpu_core #(
     input wire clk, input wire reset, input wire host_clk, input wire abort_request,
     input wire pixel_advance,
     input wire host_wr_valid, input wire [7:0] host_wr_data,
-    output wire host_wr_ready,
+    output wire host_wr_ready, output wire host_wr_ready_base,
     input wire host_rd_req, input wire [6:0] host_reg_addr,
     output reg [7:0] host_rd_data, output reg host_rd_valid,
     input wire [31:0] sd_dq_in,
@@ -33,6 +33,7 @@ module nano_gpu_core #(
     reg [7:0] last_byte=0;
     reg [15:0] stamp=0;
     assign host_wr_ready=!reset && host_reg_addr==0 && !host_rd_req;
+    assign host_wr_ready_base=!reset;
     always @(posedge host_clk or posedge reset) begin
         if(reset) begin host_rd_data<=0;host_rd_valid<=0;writes<=0;end
         else begin

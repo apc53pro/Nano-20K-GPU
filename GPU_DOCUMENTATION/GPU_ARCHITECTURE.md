@@ -24,19 +24,18 @@ image added the SKIP load flag to the pipelined SDRAM controller, word-wide
 display FIFO and tile clearing during stores; the user reported
 `demo_3d_engine6` running on it with the RP2350 at a stable 60 fps. The
 image after it added **GPU triangle setup** for kind-4 vertex triangles
-(section 6). The current image adds **early SDRAM command release** and
-overlapped tile stores (section 9). It is built with
-Gowin EDA; `AGENTS.md` records why, and which gate that flow cannot meet. Its
-build verifies every package pin and meets every required clock, with the
-core at 59.29 MHz Fmax. It uses **18,169/20,736 logic (Gowin count)**,
-**7,426 registers**, **46/46 BSRAM**, 63% DSP and one PLL. Section 12 notes
-one uncommitted build-script input.
-
-**The RTL is now ahead of the image.** Row exit (section 6) and overlapped
-PRESENT (section 10) pass simulation, but no image of these sources is
-qualified yet. The signed Gowin EDA V1.9.11.03 now required by `AGENTS.md`
-does not close timing on them (section 12). The flashed image above
-does not contain them.
+(section 6). The image after that added **early SDRAM command release** and
+overlapped tile stores (section 9); the user measured it with
+`demo_3d_engine9` (section 13). The current image adds **row exit**
+(section 6), **overlapped PRESENT** (section 10) and five timing fixes
+(section 12). It is built with Gowin EDA V1.9.8.11, which reached a faster
+clock than the signed V1.9.11.03 on these sources; `AGENTS.md` records that
+choice and the gate this flow cannot meet. Its build verifies every package
+pin and meets every required clock, with the core at 60.36 MHz Fmax. It uses
+**19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**, **46/46
+BSRAM**, 63% DSP and one PLL. Little logic is left for new features.
+Section 12 notes one uncommitted build-script input. The current image has
+not yet been written to the board.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -72,7 +71,9 @@ The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 **`GW2A-18C`** device database and that exact package/part. On the received
 board, the open-flow GPU image's host address latch failed while the same RTL
 built by the vendor Gowin EDA worked (section 14). Board images now use Gowin
-EDA V1.9.8.11 Education under the temporary exception in `AGENTS.md`.
+EDA V1.9.8.11 Education under the exception in `AGENTS.md`. Its 2026-11-13
+addendum keeps whichever installed version reaches the faster clock
+(section 12).
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -107,6 +108,11 @@ identify manufacturer header contacts and package pins.
 [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) implements that wiring:
 seven-bit address latching on ALE_N writes, active-low read/write controls,
 shared-data output enable, WREADY/RVALID gating and GPU_RESET_N logic reset.
+For a packet byte, WREADY combines a registered address-is-zero flag with the
+host link's register-only readiness: FIFO space, no sticky host error
+(registered separately from the error code) and no flush. This gives the same
+value as the core's `host_wr_ready` while RD_N is high, but keeps the address
+decode off the half-cycle WREADY pad path (2026-11-13).
 [`tang20k.cst`](../rtl/board/tang20k.cst) fixes the external package pins.
 [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) records the expected fixed
 SDRAM terminals. The current Gowin build's encrypted netlist prevents that
@@ -578,7 +584,10 @@ are still walked, because skipping them would need multi-sample or leftward
 plane steps, a 64-bit multiplexer on each of the seven plane adders. In the
 benchmark, row exit removes about half of the samples walked outside
 triangles (section 13). It adds one controller state, three edge-sign tests
-and the extra coefficient read address.
+and the extra coefficient read address. For timing, the exiting sample still
+takes its ordinary X step, so the plane and edge register enables never wait
+for the edge tests; `ROW_SKIP` then overwrites every register that step
+changed. Its sums are discarded and their overflow is not recorded.
 
 Each of the seven plane adders and three edge adders has a sticky overflow
 flag. Only consumed offset/grid additions can set it; an unused next sum at
@@ -857,6 +866,13 @@ each one paid its arbitration, check, row activation and staging serially;
 early release hides most of that behind the previous burst. It costs about
 56 LUT/ALU cells and 26 flip-flops in a Yosys comparison of the service alone.
 
+The payload and mask RAM read address has two sources: the transaction
+issuing column commands, and the background beat run. Since 2026-11-13 each
+source computes its own read enable and address in parallel, and the column
+command decision selects between the two results last. Its row comparison
+therefore no longer runs through the beat multiplexers. A simulation-only
+check compares every edge against the earlier single expression.
+
 The arbiter computes foreground eligibility from the round-robin cursor in
 parallel, choosing the first request at or after the cursor or wrapping to the
 first earlier request. Its one-hot grant drives `cmd_ready` directly; binary
@@ -924,8 +940,11 @@ no 56-byte command-prefix copy:
 it validates complete raw words through one 32-bit accumulator and reuses the
 owned native packet lease until retirement. COPY refetches 14 parameter words,
 clips X then Y through one signed 33-bit interval/subtract/compare datapath,
-and retains only bounded nonempty origins/counts. That refetch/clipping phase
-uses about **128 core setup clocks** before address walking and pixel traffic,
+and retains only bounded nonempty origins/counts. Since 2026-11-13, each of
+the eight interval steps holds its 33-bit candidate in a register, and the
+compare and bound update take a second clock, which removes the long
+candidate → compare → bound-enable path. That refetch/clipping phase uses
+about **136 core setup clocks** before address walking and pixel traffic,
 while preserving signed-coordinate clipping, including `INT32_MIN`.
 
 Primitive-record fetches have a one-word pipeline between the SDRAM read port
@@ -1142,38 +1161,59 @@ Production-board qualification must include the clock/reset and video/pad
 wrappers, final pin constraints and complete clock/I/O timing closure. Neither
 a C++ resource allocation nor an isolated arithmetic probe replaces that work.
 
-### Builds of the current RTL (row exit and overlapped PRESENT), 2026-11-12
-
-No image of the current sources is qualified. The image described in the next
-subsection is built from the previous sources, without row exit and
-overlapped PRESENT.
+### Timing fixes and toolchain comparison, 2026-11-13
 
 Gowin EDA V1.9.11.03 Education is now installed. Its `gw_sh.exe` carries a
-valid Authenticode signature from Guangdong Gowin Semiconductor, so under
-`AGENTS.md` images must now be built with it. `scripts/build-tang20k.py`
-records the version, the signature and whether the synthesized netlist is
-encrypted. It still is (`pragma protect`), so the SiP connection check
-remains impossible. With the same uncommitted 4 ns host-pad constraints,
-none of the 15 placement/routing combinations passed the timing gate:
-- options 0–2 with routing 0–2 reached 23.5–24.3 MHz on the host clock
-  against 25.2 MHz, and 47.99–50.47 MHz on the core;
-- the best, placement 0 and routing 2, failed only one path. It runs from
-  the host address register through about six logic levels of write
-  acceptance to the `gpu_wready` pin, −0.71 ns against the 4 ns output
-  budget. Its core reached 50.47 MHz, limited by the COPY clipping setup
-  enables and the SDRAM mask-RAM address;
-- placement options 3 and 4 did not complete.
+valid Authenticode signature from Guangdong Gowin Semiconductor.
+`scripts/build-tang20k.py` records the version, the signature and whether
+the synthesized netlist is encrypted. That netlist is still encrypted
+(`pragma protect`), so the SiP connection check remains impossible with
+either version.
 
-Logic was 18,420/20,736 (89%).
+On the row-exit and overlapped-PRESENT sources (2026-11-12), none of the 15
+V1.9.11.03 placement/routing combinations passed the timing gate. The host
+clock reached 23.5–24.3 MHz against 25.2 MHz, failing on the address register →
+write acceptance → `gpu_wready` pad path. The core reached at most
+50.47 MHz, limited by the COPY clipping bound enables and the SDRAM mask-RAM
+address. V1.9.8.11 passed the same sources at 52.04 MHz, limited by the row
+exit's edge tests feeding the plane register enables. Five RTL changes
+remove those paths without changing any image, reply or cycle count of the
+rendering benchmark:
+- the WREADY packet-byte term reads a registered address-is-zero flag and a
+  register-only host readiness (section 1);
+- the host link keeps "no host error" as its own register;
+- each COPY clipping step registers its candidate before the compare
+  (section 9; about 8 more setup clocks per COPY);
+- the SDRAM payload/mask read address is computed separately for column
+  commands and the beat run (section 9);
+- a row-exit sample still takes its X step (section 6).
 
-A diagnostic build of the same sources with the earlier V1.9.8.11, placement
-0 and routing 2, passed every gate: core 52.04 MHz, host 27.28 MHz, pixel
-211.92 MHz, logic 18,321, image `8b35a4e6…74dd`. Row exit and overlapped
-PRESENT therefore cost about 150 logic in that flow; the timing loss is in
-V1.9.11.03's placement of existing paths. `AGENTS.md` no longer allows
-publishing a V1.9.8.11 image, so this one is not published. Before an image
-can be qualified, the RTL must close timing in V1.9.11.03, or the user must
-change the policy or the host-clock constraint.
+Both versions then built the same sources, with the same uncommitted 4 ns
+host-pad constraints, for placement 0–2 × routing 0–2. The best passing
+build of each:
+
+| Toolchain | Options | Core (50.4) | Host (25.2) | Pixel (25.2) | Logic |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **V1.9.8.11** (unsigned) | 0/2, 2/2 | **60.36 MHz** | 32.98 MHz | 200.82 MHz | 19,841 (96%) |
+| V1.9.11.03 (signed) | 0/2 | 56.45 MHz | 27.60 MHz | 195.85 MHz | 19,158 (93%) |
+
+All nine V1.9.11.03 builds passed (core 50.50–56.45 MHz). Of the
+V1.9.8.11 builds, three passed, one failed timing (41.68 MHz core) and five
+left nets unrouted, a sign of routing congestion at 96%.
+Both are limited by the same SDRAM path, from the segment base through the
+bank-row comparison. Per `AGENTS.md` (addendum 2026-11-13), the user keeps
+the version whose image reaches the faster clock, so V1.9.8.11 is the
+default. These Fmax figures are timing margin: the core still runs at
+50.4 MHz.
+
+The logic count rose by about 1,500 from the 18,321 of the earlier V1.9.8.11
+build. Nearly all of the rise is ordinary LUTs in the tile renderer, which
+grew from 3,992 to 5,331. No memory was remapped. A diagnostic build with
+the earlier renderer source and the other four fixes counted the renderer at
+5,347, and Yosys `synth_gowin` maps both renderer versions to about the same
+size (5,565 and 5,469 LUTs). The rise is therefore Gowin's mapping of the
+changed netlist, not hardware added by the fixes. V1.9.11.03 counts
+the same sources at 19,158. Either way, little logic is left for new features.
 
 ### Current board implementation (Gowin EDA)
 
@@ -1185,37 +1225,39 @@ records both script hashes and the difference
 (`uncommitted_build_inputs`). Those constraints add `set_input_delay` and
 `set_output_delay` of 4 ns on the falling host-clock edge for the bus pads.
 The RTL and every other input match the committed sources. It is built
-by `make tang20k` with Gowin EDA V1.9.8.11 Education, using placement option 0
-and routing option 2 (Makefile `TANG20K_PLACE`/`TANG20K_ROUTE`). With the
-earlier options 2/1 this design routed but the core reached only 40.5 MHz;
-these are build choices, not hardware modes. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
+by `make tang20k` with Gowin EDA V1.9.8.11 Education (the Makefile default),
+using placement option 0 and routing option 2 (Makefile
+`TANG20K_PLACE`/`TANG20K_ROUTE`). The previous comparison shows the other
+options; these are build choices, not hardware modes. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
 resets, the physical host wrapper, registered SDRAM boundary pads, the
 pixel-event handoff, and the TMDS serializers and pads. All 26 package pins,
 including the four derived HDMI N pins, match `tang20k.cst`.
 
 | Physical resource | Used | Capacity |
 | --- | ---: | ---: |
-| Logic (Gowin LUT/ALU count) | **18,169 (88%)** | 20,736 |
-| Registers | 7,426 (47%) | 15,915 |
+| Logic (Gowin LUT/ALU count) | **19,841 (96%)** | 20,736 |
+| Registers | 7,496 (48%) | 15,915 |
 | Native BSRAM banks | 46 (100%) | 46 |
 | DSP | 63% | |
 | rPLL / CLKDIV | 1 / 2 | 2 / 8 |
 
 Gowin's logic count is not directly comparable with the nextpnr LUT-site
-counts of earlier reports. No BSRAM bank is spare. The previous image
+counts of earlier reports. No BSRAM bank is spare. The previous comparison
+explains the rise from the previous image's 18,169. The image before that
 (triangle setup, without early release) used 18,058, so early release and
 overlapped stores cost about 111. The image before the kind-4 setup unit used
 16,481, so the unit and its core integration cost about 1,600.
 
 | Board domain | Constraint | Gowin Fmax (slow corner, 0.95 V, 85 °C) |
 | --- | ---: | ---: |
-| Core/SDRAM | 50.4 MHz | **59.29 MHz** |
-| Host | 25.2 MHz | 31.32 MHz |
-| Physical pixel | 25.2 MHz | 181.64 MHz |
-| Reference | 27 MHz | 404.96 MHz |
+| Core/SDRAM | 50.4 MHz | **60.36 MHz** |
+| Host | 25.2 MHz | 32.98 MHz |
+| Physical pixel | 25.2 MHz | 200.82 MHz |
+| Reference | 27 MHz | 406.29 MHz |
 
-The core closes with about 18% margin in this placement; the previous image
-reached 54.97 MHz. The host figure now includes the constrained half-cycle
+The core closes with about 20% margin in this placement, limited by the
+SDRAM segment base → bank-row comparison → column-command path. The previous
+image reached 59.29 MHz, and the one before it 54.97 MHz. The host figure now includes the constrained half-cycle
 pad paths described above; the previous image, without those constraints,
 reported 68.18 MHz for internal host paths only. Two core decisions
 read registered flags computed when a reference is fetched (the 320-byte
@@ -1225,41 +1267,51 @@ executor's next-state logic. The image before the setup unit closed at
 without SKIP) closed at 51.67 MHz with a Gowin count of 18,185 logic, although
 a Yosys `synth_gowin` of its sources mapped slightly fewer LUTs than before;
 Gowin's count varies with its mapping of each netlist. Earlier placements
-ranged from 51.13 to 62.8 MHz. Two RTL timing fixes took the core from
-41.2 MHz to these results:
+ranged from 51.13 to 62.8 MHz. Two earlier RTL timing fixes took the core
+from 41.2 MHz to above 50.4 MHz:
 - the retimed U/V reciprocal multipliers (section 6);
 - registering the copy direction and starting row before the address
   arithmetic (section 9).
 
 Eight reset-release paths have negative slack, and the report lists each one:
-power-on into the core and pixel reset synchronizers, −2.66 ns and −1.74 ns,
+power-on into the core and pixel reset synchronizers, −3.25 ns and −1.93 ns,
 which is an asynchronous preset into two-flop synchronizers that release
 synchronously; and the synchronized pixel reset into the four OSER10
-serializer resets, −0.41 ns, as listed for earlier images.
+serializer resets, −0.26 ns, as listed for earlier images.
 
 The build fails on any other negative-slack path.
 
-`AGENTS.md` records the exception for this flow. The fixed SiP SDRAM connection
-cannot be checked from Gowin's encrypted netlist; on the board, the font upload,
-copies and scanout show the SDRAM working. The Gowin EDA copy is unverified.
+`AGENTS.md` records the exception for this flow and the user's choice of the
+faster toolchain. The fixed SiP SDRAM connection cannot be checked from
+Gowin's encrypted netlist; on the board, the font upload, copies and scanout
+of earlier images show the SDRAM working. The V1.9.8.11 copy is unsigned and
+its provenance unverified.
 
 The image is **7,264,137 bytes**, SHA-256
-`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. On 2026-11-12 it was written to the Tang's SPI flash with `make tang20k-flash` and the signed standalone Gowin Programmer V1.9.12.04 (program and verify succeeded; the FPGA reloaded it with status `0x6020`, user code `0x16D1`). It has not yet been tested with the RP2350.
-Gowin EDA V1.9.11.03 Education is now installed on the build PC, and its `gw_sh.exe` and programmer carry a valid Authenticode signature from Guangdong Gowin Semiconductor (checked 2026-11-12); the 1.9.8.11 copy is unsigned. Under `AGENTS.md`, that ends the exception: this image, built with 1.9.8.11, must be rebuilt with the signed tool and fully re-qualified.
-
-The previous image (`93739598…f886`, triangle setup without early release)
-was written to the Tang's SPI flash on 2026-11-09 with `make tang20k-flash`
-(program and verify succeeded; the FPGA reloaded it with status `0x6020`,
-user code `0xB6B9`). The 2026-11-10 `demo_3d_engine9` board measurement in
-section 13 used it. The
+`39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It has not
+yet been written to the board. The
 [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs; this is structural
 file validation. The [matching functional evidence](../docs/hardware/tang20k-functional.json)
 covers two layers:
 - the board-wrapper testbench (773 clock/pad/bus checks with an isolated core
   model);
-- five real-core cases at the 50.4 MHz board profile: the command/copy/DISCARD/SKIP self-test
-  with 44 copy oracle cases, plus four rendering scenes.
+- five real-core cases at the 50.4 MHz board profile: the
+  command/copy/DISCARD/SKIP/overlapped-PRESENT self-test with 44 copy oracle
+  cases, plus four rendering scenes.
+
+The previous image (`ecc7030b…608c`, early release, without row exit and
+overlapped PRESENT) was written to the Tang's SPI flash on 2026-11-12 with
+`make tang20k-flash` and the signed standalone Gowin Programmer V1.9.12.04
+(program and verify succeeded; the FPGA reloaded it with status `0x6020`,
+user code `0x16D1`). The 2026-11-12 `demo_3d_engine9` board measurement in
+section 13 used it.
+
+The image before that (`93739598…f886`, triangle setup without early release)
+was written to the Tang's SPI flash on 2026-11-09 with `make tang20k-flash`
+(program and verify succeeded; the FPGA reloaded it with status `0x6020`,
+user code `0xB6B9`). The 2026-11-10 `demo_3d_engine9` board measurement in
+section 13 used it.
 
 On 2026-11-08 the previous image (`5b6f75aa…08e6`, SKIP without the setup
 unit) was written to the Tang's SPI flash with
@@ -1530,6 +1582,8 @@ benchmark gives:
 Rectangle, copy and clear cases are unchanged. Every case matches the SRR,
 with zero scanout underflows; the self-test and the four verified scenes also
 pass. Results are in [the row-exit regression](../docs/benchmarks/rtl-row-exit.json).
+The 2026-11-13 timing fixes (section 12) leave every cycle count of this
+benchmark unchanged.
 In the close-up case, the rasterizer runs only 32% of the pass. Tile stores
 take about 39%. The kind-4 setup takes about 107 clocks per reference (11%),
 and this RTL does not overlap it with the previous reference's drawing.
@@ -1589,8 +1643,11 @@ MSYS2 UCRT64:
 
 ```bash
 make tang20k-test
-make tang20k GOWIN_SH="C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe"
+make tang20k
 ```
+
+`make tang20k` uses Gowin EDA V1.9.8.11 by default (see section 12);
+`GOWIN_SH=...` selects another `gw_sh.exe`.
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
 address/data bus behavior and the real core at the board profile. Wrapper

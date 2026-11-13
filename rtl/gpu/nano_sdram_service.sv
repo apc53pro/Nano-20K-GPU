@@ -222,6 +222,59 @@ module nano_sdram_service #(
         (!write_beat_active || (last_useful_write && beat_last)) &&
         issued != request_words && fill_index > issued;
     wire write_done_event = wbeat_active && wbeat == 7 && w_last;
+    // The payload RAM read for write beats, evaluated for both values of
+    // write_command from retained registers. write_command (open-row compare
+    // and column decision) then only selects between the two, instead of
+    // feeding the beat multiplexers, comparisons and index adders. The result
+    // equals the beat_* expressions above.
+    // write_command: physical beat 0 of the segment just issued.
+    wire cmd_useful = seg_prefix == 0 && seg_useful != 0;
+    wire cmd_last_useful = seg_prefix == 0 && seg_useful == 1;
+    wire cmd_last = issued + {1'b0, seg_useful} == request_words;
+    wire [4:0] cmd_head = issued + {1'b0, seg_useful};
+    wire cmd_head_ready = !cmd_last && cmd_head != request_words && fill_index > cmd_head;
+    wire cmd_prefetch = txn && request_write && !head_loaded && !read_stream_active &&
+        cmd_last_useful && cmd_last && issued != request_words && fill_index > issued;
+    // Otherwise: the retained beat run, if any.
+    wire run_useful = wbeat_active && wbeat >= w_prefix &&
+        {1'b0, wbeat} < {1'b0, w_prefix} + w_useful;
+    wire run_last_useful = run_useful && {1'b0, wbeat} + 4'd1 == {1'b0, w_prefix} + w_useful;
+    wire [4:0] run_head = w_index + {1'b0, w_useful};
+    wire run_head_ready = !w_last && run_head != request_words && fill_index > run_head;
+    wire run_prefetch = txn && request_write && !head_loaded && !read_stream_active &&
+        (!wbeat_active || (run_last_useful && w_last)) && issued != request_words && fill_index > issued;
+    reg cmd_re, run_re;
+    reg [9:0] cmd_raddr, run_raddr;
+    always @* begin
+        cmd_re = 0; cmd_raddr = 0; run_re = 0; run_raddr = 0;
+        if (cmd_useful && !cmd_last_useful) begin
+            cmd_re = 1; cmd_raddr = {4'b0, front_slot, issued - {2'b0, seg_prefix} + 5'd1};
+        end else if (cmd_last_useful && cmd_head_ready) begin
+            cmd_re = 1; cmd_raddr = {4'b0, front_slot, cmd_head};
+        end else if (cmd_prefetch) begin
+            cmd_re = 1; cmd_raddr = {4'b0, front_slot, issued};
+        end
+        if (run_useful && !run_last_useful) begin
+            run_re = 1; run_raddr = {4'b0, w_slot, w_index + {2'b0, wbeat} - {2'b0, w_prefix} + 5'd1};
+        end else if (run_last_useful && run_head_ready) begin
+            run_re = 1; run_raddr = {4'b0, w_slot, run_head};
+        end else if (run_prefetch) begin
+            run_re = 1; run_raddr = {4'b0, front_slot, issued};
+        end
+    end
+`ifndef SYNTHESIS
+    // The split must equal the original beat_* selection on every edge.
+    wire split_re = write_command ? cmd_re : run_re;
+    wire [9:0] split_raddr = write_command ? cmd_raddr : run_raddr;
+    wire expect_re = (useful_write && !last_useful_write) || (last_useful_write && next_head_ready) ||
+        head_prefetch;
+    wire [9:0] expect_raddr = (useful_write && !last_useful_write) ?
+        {4'b0, beat_slot, write_buffer_index + 5'd1} :
+        (last_useful_write && next_head_ready) ? {4'b0, beat_slot, next_head} : {4'b0, front_slot, issued};
+    always @(posedge clk)
+        if (!reset && (split_re != expect_re || (split_re && split_raddr != expect_raddr)))
+            $fatal(1, "SDRAM write-beat read address split differs");
+`endif
     // This small physically initialized tracker deliberately survives runtime
     // logic reset until a physical WRITE finishes. FPGA configuration sets it
     // to zero; runtime reset must not erase the remaining-beat obligation.
@@ -340,13 +393,8 @@ module nano_sdram_service #(
         if (useful_read) begin
             ram_we = 1; ram_waddr = {4'b0, capture_slot, read_buffer_index}; ram_wdata = sd_dq_in;
         end
-        if (useful_write && !last_useful_write) begin
-            ram_re = 1; ram_raddr = {4'b0, beat_slot, write_buffer_index + 5'd1};
-        end else if (last_useful_write && next_head_ready) begin
-            ram_re = 1; ram_raddr = {4'b0, beat_slot, next_head};
-        end else if (head_prefetch) begin
-            ram_re = 1; ram_raddr = {4'b0, front_slot, issued};
-        end
+        if (write_command) begin ram_re = cmd_re; ram_raddr = cmd_raddr; end
+        else begin ram_re = run_re; ram_raddr = run_raddr; end
         // read_fill counts the stream's captured words. Never read the address
         // currently being written by SDRAM.
         if (read_stream_active && (!read_output_valid || r_ready[stream_owner]) &&

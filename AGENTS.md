@@ -100,3 +100,13 @@ additional hardware modes.
 > timing violation must be listed in the report. This exception ends when an
 > official, verifiable Gowin EDA can be obtained. The image must then be
 > rebuilt and fully re-qualified.
+
+> **Addendum, 2026-11-13: the user's toolchain decision.** A signed Gowin EDA
+> V1.9.11.03 Education (Authenticode, Guangdong Gowin Semiconductor) is now
+> installed. Its netlist is still encrypted, so the SiP connection check
+> remains impossible with either version. The user decided to build both
+> versions from the same sources and keep the one whose image reaches the
+> faster clock. On the current RTL, V1.9.8.11 reached a 60.36 MHz core
+> against 56.45 MHz for V1.9.11.03, so V1.9.8.11 stays the default and its
+> toolchain provenance stays unverified. All the other gates of the addendum
+> above still apply.

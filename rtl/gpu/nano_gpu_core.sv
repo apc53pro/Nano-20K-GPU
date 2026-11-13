@@ -22,7 +22,7 @@ module nano_gpu_core #(
     input wire clk, input wire reset, input wire host_clk, input wire abort_request,
     input wire pixel_advance,
     input wire host_wr_valid, input wire [7:0] host_wr_data,
-    output wire host_wr_ready,
+    output wire host_wr_ready, output wire host_wr_ready_base,
     input wire host_rd_req, input wire [6:0] host_reg_addr,
     output wire [7:0] host_rd_data, output wire host_rd_valid,
     input wire [31:0] sd_dq_in,
@@ -66,7 +66,7 @@ module nano_gpu_core #(
         S_UPLOAD_STAGE_MASK=71, S_UPLOAD_RAM_MASK=72,
         S_UPLOAD_HEADER_REQ=73, S_UPLOAD_HEADER_WAIT=74,
         S_UPLOAD_CODE=75, S_UPLOAD_CODE_REQ=76, S_UPLOAD_CODE_WAIT=77,
-        S_COPY_INIT_PREP=78, S_SETUP=79;
+        S_COPY_INIT_PREP=78, S_SETUP=79, S_COPY_CLIP_CMP=80;
     reg [7:0] state /*verilator public_flat_rd*/;
     reg initialized, front_id, sealed, depth_valid, pass_active, copy_active;
     // Overlapped PRESENT. The command is accepted at once and its target
@@ -300,8 +300,11 @@ module nano_gpu_core #(
     wire signed [32:0] copy_raw_coordinate = {packet_word[31],packet_word};
     reg signed [32:0] copy_clip_left, copy_clip_right, copy_clip_bound;
     wire signed [32:0] copy_clip_candidate = copy_clip_left - copy_clip_right;
-    wire copy_clip_less = copy_clip_candidate < copy_clip_bound;
-    wire copy_clip_equal = copy_clip_candidate == copy_clip_bound;
+    // The candidate is registered before it is compared: one subtract and one
+    // compare per clock, one extra clock per interval step.
+    reg signed [32:0] copy_clip_held;
+    wire copy_clip_less = copy_clip_held < copy_clip_bound;
+    wire copy_clip_equal = copy_clip_held == copy_clip_bound;
     wire copy_clip_better = copy_clip_minimum ? copy_clip_less :
         !(copy_clip_less || copy_clip_equal);
     reg [10:0] copy_count_x, copy_count_y, copy_row_number;
@@ -463,6 +466,17 @@ module nano_gpu_core #(
             if(store_kind==1) store_kind<=2;
             else if(store_kind==0 && xfer_depth) store_kind<=1;
             else begin row<=row+1; store_kind<=xfer_color ? 2'd0 : 2'd1; end
+        end
+    endtask
+    // After a COPY clip step: check an axis, finish setup or fetch the next word.
+    task automatic copy_clip_next;
+        begin
+            if(copy_setup_step==4 || copy_setup_step==11) state<=S_COPY_CLIP_CHECK;
+            else if(copy_setup_step==13) state<=S_COPY_INIT_PREP;
+            else begin
+                copy_setup_step<=copy_setup_step+1;
+                capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
+            end
         end
     endtask
     task automatic next_tile;
@@ -746,7 +760,7 @@ module nano_gpu_core #(
             copy_base<=0; copy_pitch<=0; copy_image_width<=0; copy_image_height<=0;
             copy_reverse<=0; copy_previous_valid<=0; copy_source_row<=0; copy_destination_row<=0;
             copy_destination_start_y_r<=0;
-            copy_low<=0; copy_high<=0; copy_setup_step<=0;
+            copy_low<=0; copy_high<=0; copy_setup_step<=0; copy_clip_held<=0;
             copy_first_source_x<=0; copy_first_source_y<=0;
             copy_first_destination_x<=0; copy_first_destination_y<=0;
             copy_count_x<=0; copy_count_y<=0; copy_row_number<=0;
@@ -1220,20 +1234,24 @@ module nano_gpu_core #(
                     // narrowing occurs until that axis has a nonempty interval.
                     case(copy_setup_step)
                     0,7: begin copy_high<=copy_raw_coordinate; copy_low<=0; end
-                    1,2,8,9: if(copy_clip_better) copy_low<=copy_clip_candidate;
-                    3,4,10,11: if(copy_clip_better) copy_high<=copy_clip_candidate;
+                    1,2,3,4,8,9,10,11: copy_clip_held<=copy_clip_candidate;
                     5: copy_first_source_x<=copy_raw_coordinate+copy_low;
                     6: copy_first_destination_x<=copy_raw_coordinate+copy_low;
                     12: copy_first_source_y<=copy_raw_coordinate+copy_low;
                     13: copy_first_destination_y<=copy_raw_coordinate+copy_low;
                     default: raise_fault(9);
                     endcase
-                    if(copy_setup_step==4 || copy_setup_step==11) state<=S_COPY_CLIP_CHECK;
-                    else if(copy_setup_step==13) state<=S_COPY_INIT_PREP;
-                    else begin
-                        copy_setup_step<=copy_setup_step+1;
-                        capture_index<=copy_parameter_offset(copy_setup_step+4'd1); state<=S_COPY_FETCH_REQ;
+                    case(copy_setup_step)
+                    1,2,3,4,8,9,10,11: state<=S_COPY_CLIP_CMP;
+                    default: copy_clip_next();
+                    endcase
+                end
+                S_COPY_CLIP_CMP: begin
+                    if(copy_clip_better) begin
+                        if(copy_clip_minimum) copy_high<=copy_clip_held;
+                        else copy_low<=copy_clip_held;
                     end
+                    copy_clip_next();
                 end
                 S_COPY_CLIP_CHECK: begin
                     if(copy_high<=copy_low) complete_command();
@@ -1329,7 +1347,7 @@ module nano_gpu_core #(
 
     nano_host_link host_link (
         .clk(clk),.reset(reset),.host_clk(host_clk),.core_abort(host_abort),
-        .host_wr_valid(host_wr_valid),.host_wr_data(host_wr_data),.host_wr_ready(host_wr_ready),
+        .host_wr_valid(host_wr_valid),.host_wr_data(host_wr_data),.host_wr_ready(host_wr_ready),.host_wr_ready_base(host_wr_ready_base),
         .host_rd_req(host_rd_req),.host_reg_addr(host_reg_addr),.host_rd_data(host_rd_data),.host_rd_valid(host_rd_valid),
         .status_snapshot(status_snapshot),.capabilities(capabilities),
         .cmd_valid(host_cmd_valid),.cmd_opcode(host_cmd_opcode),.cmd_sequence(host_cmd_sequence),.cmd_payload_length(host_cmd_length),

@@ -62,6 +62,11 @@ Since 2026-11-12:
   overflow that could only occur in such a skipped sample no longer faults
   the pass.
 
+Since 2026-11-13, five timing fixes are internal: packets, replies, status
+bytes and WREADY behaviour are unchanged. A nonempty COPY spends about eight
+more core clocks in its clipping setup (about 136 instead of 128). The
+current image contains row exit and overlapped PRESENT.
+
 ## 1. What the CPU sends
 
 The CPU sends an ordered stream of packets. It uploads textures and prepared
@@ -856,27 +861,31 @@ The image is built with Gowin EDA V1.9.8.11 Education by `make tang20k`
 (`scripts/build-tang20k.py`). The open-source flow's host address latch
 failed on the board. See [Address-path isolation](#address-path-isolation-2026-11-07).
 
-The temporary exception in `AGENTS.md` records the unverified Gowin EDA
-installer and the encrypted synthesis netlist, which prevents checking the
-fixed SiP SDRAM connection. Font upload, copies and scanout exercise the
-SDRAM on the board.
-Gowin EDA V1.9.11.03 Education is now installed on the build PC, and its `gw_sh.exe` and programmer carry a valid Authenticode signature from Guangdong Gowin Semiconductor (checked 2026-11-12); the 1.9.8.11 copy is unsigned. Under `AGENTS.md`, that ends the exception: this image, built with 1.9.8.11, must be rebuilt with the signed tool and fully re-qualified.
-
-The current RTL adds row exit and overlapped PRESENT, but no image of it is
-qualified yet. The signed Gowin EDA V1.9.11.03 does not yet close timing on
-it; the architecture guide's section 12 has the results. Firmware with
-`PRESENT_BEGIN` works with the image below, but without overlap: there the
-uploads wait in the queue until the swap.
+The exception in `AGENTS.md` records the unverified Gowin EDA installer and
+the encrypted synthesis netlist, which prevents checking the fixed SiP SDRAM
+connection. Font upload, copies and scanout exercise the SDRAM on the board.
+A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
+encrypted too. On the current RTL it reached a 56.45 MHz core against
+60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
+faster clock (`AGENTS.md` addendum 2026-11-13), so `make tang20k` still uses
+V1.9.8.11. The architecture guide's section 12 has the comparison.
 
 The current image is **7,264,137 bytes**, SHA-256
-`ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c`. It adds
-early SDRAM command release and overlapped tile stores, with no packet or
-capability change; it was written to the board's SPI flash and verified on 2026-11-12, and the FPGA reloaded it (status `0x6020`, user code `0x16D1`); it has not yet been tested with the RP2350.
-The previous image (`93739598…f886`) added kind-4 vertex triangles
+`39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
+row exit and overlapped PRESENT, with no packet or capability change.
+Firmware that sends `PRESENT` and then uploads before reading the reply now
+overlaps them with the wait for vertical blank. It has not yet been written
+to the board.
+The previous image (`ecc7030b…608c`) added early SDRAM command release and
+overlapped tile stores. On 2026-11-12 it was written to the board's SPI flash
+and verified, and the FPGA reloaded it (status `0x6020`, user code
+`0x16D1`). There, uploads sent after `PRESENT` wait in the queue until the
+swap.
+The image before it (`93739598…f886`) added kind-4 vertex triangles
 (capability feature bit 8). On 2026-11-09 it was written to the board's SPI
 flash and verified, and the FPGA reloaded it (status `0x6020`, user code
 `0xB6B9`); the 2026-11-10 `demo_3d_engine9` measurements above used it. The
-image before it (`5b6f75aa…08e6`)
+image before that (`5b6f75aa…08e6`)
 accepts load-flag bit 3 (SKIP) but faults on kind 4. On 2026-11-08 that image
 was written to the board's SPI flash and verified, and the FPGA reloaded it
 (status `0x6020`, user code `0x72CD`). The user measured `demo_3d_engine6` on
@@ -1555,7 +1564,7 @@ does not initialize an invalid target; a full destination-covering copy can.
 The current executor validates the prefix one full raw word at a time, then
 refetches 14 COPY parameter words from its immutable packet lease. X and Y
 reuse one signed 33-bit interval/clipping datapath. For a nonempty copy, that
-refetch/clipping phase takes about 128 core clocks before address walking and
+refetch/clipping phase takes about 136 core clocks before address walking and
 pixel transfers. Completion is determined by the ordered fence/reply rules,
 not a fixed CPU delay. Native coefficient capture adds one setup clock per
 nonempty primitive/tile invocation. Staged draw validation/clipping adds three

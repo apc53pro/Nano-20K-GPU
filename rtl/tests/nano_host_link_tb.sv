@@ -8,7 +8,7 @@ module nano_host_link_tb;
     reg core_abort = 0, host_wr_valid = 0, host_rd_req = 0;
     reg [7:0] host_wr_data = 0;
     reg [6:0] host_reg_addr = 0;
-    wire host_wr_ready, host_rd_valid;
+    wire host_wr_ready, host_wr_ready_base, host_rd_valid;
     wire [7:0] host_rd_data;
     reg [511:0] status_snapshot = 0, capabilities = 0;
     wire cmd_valid; wire [15:0] cmd_opcode; wire [31:0] cmd_sequence;
@@ -20,6 +20,11 @@ module nano_host_link_tb;
     wire response_ready, recovering; wire [7:0] fault;
     nano_host_link dut(.*);
     integer checks = 0, i;
+    // The board pad's register-only write ready equals host_wr_ready whenever
+    // register 0 is addressed and no read is requested.
+    always @(posedge host_clk)
+        if (host_reg_addr == 0 && !host_rd_req && host_wr_ready_base !== host_wr_ready)
+            $fatal(1, "host_wr_ready_base differs from host_wr_ready");
     reg [7:0] byte_result;
     reg producer_done = 0;
     reg tx_backpressure_seen = 0;

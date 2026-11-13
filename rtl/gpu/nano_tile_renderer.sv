@@ -760,11 +760,15 @@ module nano_tile_renderer (
                     pending<=1;pending_addr<=sample_addr;pending_depth<=sample_depth;
                     pending_color<=pack_color(sample_color);advance_candidate();
                 end
-            end else if(row_exit) begin
-                // The rest of this row is outside; the last row has none after it.
-                if(raster_step_y) state<=ROW_SKIP;
-                else state<=DRAIN;
-            end else advance_candidate();
+            end else begin
+                // The x step still runs on a row exit, so the plane and edge
+                // register enables never depend on the edge comparisons;
+                // ROW_SKIP overwrites everything it stepped. Its overflow is
+                // not captured (grid_step excludes row_exit). The rest of this
+                // row is outside; the last row has none after it.
+                advance_candidate();
+                if(row_exit) state<=raster_step_y ? ROW_SKIP : DRAIN;
+            end
             ROW_SKIP: begin
                 // The row step of advance_candidate, from the saved row start.
                 x<=x0; y<=y+10'sd1; source_x<=source_start_x; source_y<=source_y+12'sd1;

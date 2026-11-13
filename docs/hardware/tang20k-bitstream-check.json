@@ -1,12 +1,12 @@
 {
   "schema": "N20K-BITSTREAM-READCHECK-1",
-  "bitstream_sha256": "ecc7030b2ce2da7214e2fe449d218f6b77a0dc3edee1b069072ea68271a5608c",
+  "bitstream_sha256": "39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730",
   "device_id": "0x0000081b",
   "frame_crcs_verified": true,
   "bitmap_rows": 2110,
   "bitmap_columns": 3376,
   "hardware_tested": false,
-  "generator": "Gowin EDA V1.9.8.11 Education (see AGENTS.md exception)",
+  "generator": "Gowin EDA V1.9.8.11 Education (see AGENTS.md addenda)",
   "verifier": "Apicula bslib.read_bitstream from the pinned OSS CAD Suite",
   "scope": "Programming-file device ID, declared frame count, bitmap shape and frame CRCs only; not physical hardware validation"
 }

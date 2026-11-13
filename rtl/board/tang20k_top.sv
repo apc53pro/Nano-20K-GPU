@@ -58,12 +58,18 @@ module tang20k_top (
         else begin pixel_meta<=pixel_toggle;pixel_sync<=pixel_meta;pixel_previous<=pixel_sync;end
     wire pixel_advance=pixel_sync ^ pixel_previous;
     wire [7:0] rd_data;
-    wire native_ready, native_valid;
+    wire native_ready_base, native_valid;
     reg [6:0] address=0;
-    assign gpu_wready=!host_reset && gpu_rd_n && (gpu_ale_n ? native_ready : !gpu_d[7]);
+    // address==0, registered with the address so its decode is off the
+    // half-cycle WREADY pad path. With RD_N high no read is requested, so
+    // this equals the core's host_wr_ready.
+    reg address_zero=1;
+    assign gpu_wready=!host_reset && gpu_rd_n && (gpu_ale_n ? address_zero && native_ready_base : !gpu_d[7]);
     always @(posedge gpu_hclk or posedge host_reset)
-        if(host_reset) address<=0;
-        else if(!gpu_ale_n && !gpu_wr_n && gpu_rd_n && gpu_wready) address<=gpu_d[6:0];
+        if(host_reset) begin address<=0; address_zero<=1; end
+        else if(!gpu_ale_n && !gpu_wr_n && gpu_rd_n && gpu_wready) begin
+            address<=gpu_d[6:0]; address_zero<=gpu_d[6:0]==0;
+        end
     wire reading=!gpu_rd_n && gpu_wr_n && gpu_ale_n && !host_reset;
     assign gpu_d=reading ? rd_data : 8'bz;
     assign gpu_rvalid=reading && native_valid;
@@ -91,7 +97,7 @@ module tang20k_top (
         .clk(core_clk),.reset(reset),.host_clk(gpu_hclk),.abort_request(gpu_abort),
         .pixel_advance(pixel_advance),
         .host_wr_valid(!gpu_wr_n && gpu_ale_n),.host_wr_data(gpu_d),
-        .host_wr_ready(native_ready),.host_rd_req(!gpu_rd_n && gpu_ale_n),
+        .host_wr_ready(),.host_wr_ready_base(native_ready_base),.host_rd_req(!gpu_rd_n && gpu_ale_n),
         .host_reg_addr(address),.host_rd_data(rd_data),.host_rd_valid(native_valid),
         .sd_dq_in(IO_sdram_dq),.sd_dq_out(dq_out),.sd_dq_oe(dq_oe),
         .sd_clk(unused_sd_clk),.sd_cke(sd_cke),.sd_cs_n(sd_cs),

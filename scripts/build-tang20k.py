@@ -21,7 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
 DEVICE = "GW2AR-LV18QN88C8/I7"
 FAMILY = "GW2AR-18C"
-DEFAULT_GOWIN = r"C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe"
+# AGENTS.md addendum 2026-11-13: the user keeps the toolchain whose image reaches the
+# faster clock; V1.9.8.11 beat the signed V1.9.11.03 on the current RTL.
+DEFAULT_GOWIN = r"C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe"
 # Required clocks (Gowin-derived names) and their targets in MHz.
 REQUIRED = {"clk27": 27.0, "gpu_hclk": 25.2, "core_div/CLKOUT.default_gen_clk": 50.4,
             "pixel_div/CLKOUT.default_gen_clk": 25.2}
@@ -102,8 +104,9 @@ def main():
               "profile": "gpu-video-50mhz", "core_mhz": 50.4, "pixel_mhz": 25.2, "serial_mhz": 126.0,
               "host_max_mhz": 25.2, "command_player": False, "hardware_tested": False,
               "external_io_timing_measured": False, "upload_ready": False,
-              "agents_exception": ("AGENTS.md addendum 2026-11-07: the SiP SDRAM connection cannot be checked "
-                                   "from an encrypted Gowin netlist (see netlist_encrypted)."),
+              "agents_exception": ("AGENTS.md addenda 2026-11-07 and 2026-11-13: the SiP SDRAM connection cannot "
+                                   "be checked from an encrypted Gowin netlist (see netlist_encrypted); the "
+                                   "user keeps the toolchain whose image reaches the faster clock."),
               "sip_pins_verified": False,
               "timing_scope": ("Gowin static timing on its own placement; external SDRAM/parallel-bus margins "
                                "require hardware measurement")}
