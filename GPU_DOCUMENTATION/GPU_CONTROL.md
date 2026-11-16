@@ -795,6 +795,30 @@ falls back to `PRESENT`. On an FPGA image without overlapped PRESENT, the
 uploads wait in the queue until the swap, so the result is correct but there
 is no overlap.
 
+**The NARM draw SDK** (`sdk/narm_gpu_draw.tch` in the MPC-2350 firmware
+repository, documented in its `NARM_GPU.md`) builds records, tile lists and
+passes for applications. Since 2026-11-15 it covers every drawing feature of
+the GPU. No packet, record format or GPU behaviour changed; the additions are
+CPU-side:
+- **Resident images:** RGB565 images at stable VRAM addresses, uploaded on
+  first use, after a change (only the changed rows) or after residency loss.
+- **Sprites:** 1:1 and sprite-sheet parts (kind 3), with color key and
+  constant depth.
+- **Transformed sprites:** scaled, flipped, rotated and tinted, drawn as two
+  textured kind-0 triangles.
+- **General kind-0 triangles:** flat, Gouraud or any textured mode, with
+  perspective, clamp or repeat, key, depth and culling. They take subpixel
+  vertices, which the SDK clips to the viewport.
+- **Copies:** image blits and copies from the displayed frame. Each is
+  clipped on the CPU and ordered after the draws staged before it.
+- **Drawing state:** a clip rectangle (the record scissor, also used for
+  binning), the depth function, and depth for 2D primitives.
+
+Its triangle setup is the binary32 setup with exact fallback described in
+[Preparing triangle records](#preparing-triangle-records). Its test replays a
+NARM program's commands through the firmware client and this repository's
+oracle, and compares the frames with independently computed images.
+
 `narm_gpu_try_present()` is exercised in the software model. The board still
 has intermittent failures with that path. While such a swap is pending,
 `narm_gpu_frame_ready()` polls register 1 and reads the matching reply from
@@ -2041,6 +2065,8 @@ patched while the GPU is still using them.
 The examples are packet/control code and small CPU-built records. They do not
 provide an RP2350 GPIO/PIO program, electrical timing closure, a complete
 allocator, a scene engine, a triangle setup port, or retained hardware sprites.
+The MPC-2350 NARM draw SDK provides an RP2350 triangle setup and transformed
+sprites for that platform ([NARM GPU interface](#narm-gpu-interface)).
 The repository's desktop host compiler is available in
 [`protocol.hpp`](../reference/include/nano_gpu/hw/protocol.hpp) and
 [`hw_protocol.cpp`](../reference/src/hw_protocol.cpp), and actual RTL bus driving,

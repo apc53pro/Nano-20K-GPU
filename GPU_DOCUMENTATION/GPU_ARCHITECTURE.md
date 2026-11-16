@@ -740,6 +740,15 @@ needed and redrawing the affected back buffer. Its texture may remain resident.
 A sprite/cursor overlay composed during scanout is a possible future feature,
 not an implemented capability.
 
+Scaled, rotated, flipped or tinted images need no sprite hardware. A textured
+triangle maps any texel coordinates, so two of them draw such a sprite, with
+color key and depth. The MPC-2350 NARM draw SDK does this in
+`gpu_draw_sprite_ex()` (2026-11-15; [control guide](GPU_CONTROL.md#narm-gpu-interface)).
+The cost is two 320-byte records instead of one, with nearest-texel sampling.
+Each tile walks the triangles' bounding boxes, so the corners of a rotated
+quad are walked as well. With the board's logic 96% used (section 12),
+there is little room for dedicated rotation hardware.
+
 Supported states are composable within those limits; the full cross-product
 has not been exhaustively verified. One known validation gap remains: the CPU
 encoder rejects keying on an untextured Flat/Gouraud triangle, but a directly
