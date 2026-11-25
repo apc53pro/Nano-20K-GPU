@@ -8,7 +8,7 @@ module nano_tile_record_compact_tb;
  nano_tile_renderer dut(.clk(clk),.reset(reset),.cmd_word_we(cmd_word_we),
   .cmd_word_index(cmd_word_index),.cmd_word_data(cmd_word_data),.cmd_valid(cmd_valid),
   .cmd_tile_x(10'd0),.cmd_tile_y(9'd0),.pix_we(2'b00),.pix_addr(10'd0),
-  .pix_color(16'd0),.pix_depth(24'd0),.pix_re(1'b0),.pix_raddr(10'd0),
+  .pix_write_pair(1'b0),.pix_color(32'd0),.pix_depth(24'd0),.pix_re(1'b0),.pix_raddr(10'd0),
   .tex_flush(1'b0),.tex_cfg_ready(1'b1),.tex_req_ready(1'b1),.tex_rsp_valid(1'b0),
   .tex_rsp_texel(16'd0),.tex_rsp_tag(6'd0),.tex_fault(1'b0));
  reg [31:0] raw[0:79],base[0:79];

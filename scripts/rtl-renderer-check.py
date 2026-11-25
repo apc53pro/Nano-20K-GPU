@@ -39,13 +39,15 @@ def main():
     rtl = [ROOT / name for name in (
         "rtl/gpu/nano_sdp16.sv", "rtl/uv_mult.v", "rtl/uv_pipeline.v",
         "rtl/gpu/nano_fragment_pipeline.sv", "rtl/gpu/nano_tile_renderer.sv",
-        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv", "rtl/gpu/nano_triangle_setup.sv")]
+        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv", "rtl/gpu/nano_triangle_setup.sv",
+        "rtl/gpu/nano_sdp32_masked.sv")]
     tests = [ROOT / "rtl/tests" / name for name in (
         "generate_tile_vectors.cpp", "tile_renderer_tb.sv",
         "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv",
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
-        "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv")]
+        "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv",
+        "tile_attachment_pair_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -83,6 +85,7 @@ def main():
         ("nano_fragment_conservative_ready_tb", tests[11], []),
         ("nano_tile_edge_setup_tb", tests[12], []),
         ("nano_triangle_setup_divider_tb", tests[13], []),
+        ("nano_tile_attachment_pair_tb", tests[14], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -219,6 +222,17 @@ def main():
                       "strict_threshold_and_saturation_boundaries": True,
                       "retained_record_reuse_after_reset": True}
             print(match[0], flush=True)
+        elif top == "nano_tile_attachment_pair_tb":
+            match = re.search(r"PASS paired attachments: pairs(\d+) single_color(\d+) single_depth(\d+) reads(\d+) clearback(\d+) held(\d+)", output)
+            if not match or tuple(map(int, match.groups())) != (512, 1024, 1024, 3585, 512, 16):
+                raise RuntimeError("paired attachment port did not preserve complete tile pixels and held read lanes")
+            result = {"top": top, "passed": True, "paired_color_depth_writes": int(match[1]),
+                      "single_color_writes": int(match[2]), "single_depth_writes": int(match[3]),
+                      "paired_color_and_selected_depth_reads": int(match[4]),
+                      "streamed_pair_clearbacks": int(match[5]), "held_read_edges": int(match[6]),
+                      "all_tile_pixels_and_boundaries": True, "reset_preserves_attachment_contents": True,
+                      "single_writes_preserve_other_lane_and_attachment": True}
+            print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)
             if not match or int(match[1]) != 4 or int(match[2]) != 20:
@@ -229,6 +243,20 @@ def main():
                       "no_attachment_or_texture_requests": True}
             print(match[0], flush=True)
         results.append(result)
+
+    collision_top = "nano_sdp32_masked_collision_tb"
+    collision_binary = build / (collision_top + ".vvp")
+    HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", collision_top, "-o", str(collision_binary)] +
+               [str(rtl[-1]), str(tests[14])], build / (collision_top + "-compile.log"))
+    collision = subprocess.run(HDL["tool"]("vvp") + [str(collision_binary)],
+                               cwd=ROOT, env=HDL["environment"](), text=True, capture_output=True, check=False)
+    collision_output = collision.stdout + collision.stderr
+    (build / (collision_top + ".log")).write_text(collision_output, encoding="utf-8")
+    if collision.returncode == 0 or "nano_sdp32_masked undefined same-word read/write collision" not in collision_output:
+        raise RuntimeError("masked native RAM did not reject a same-word partial-write/read collision")
+    results.append({"top": collision_top, "passed": True,
+                    "undefined_same_word_partial_write_read_rejected": True})
+    print("Masked native RAM same-word collision correctly rejected", flush=True)
 
     if any(digest(path) != hashes[str(path.relative_to(ROOT))] for path in inputs):
         raise RuntimeError("renderer test inputs changed during the run; rerun against one source revision")

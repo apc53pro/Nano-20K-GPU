@@ -79,13 +79,14 @@ negative-slack paths are listed reset-release paths. The build used
 uncommitted host-pad timing constraints in `scripts/build-tang20k.py`; the
 report records both script hashes.
 
-The current RTL pipelines triangle edge initialization through the existing
-multiplier, reducing setup from 24 to nine clocks. Kind-4 depth setup skips
-nine more clocks per eligible gradient. Both Gowin builds meet the board
-clock gates. `make tang20k` defaults to V1.9.8.11, which reaches an estimated
-63.729 MHz core Fmax at the same 50.4 MHz operating clock. The two guides
-describe the validated builds, simulator measurements and the earlier
-published programming image. [GPU documentation](GPU_DOCUMENTATION/)
+The current RTL loads and stores paired RGB565 pixels and uses three
+native RAM banks for a full tile of color and depth. In the Verilated
+board-core benchmark, the continuous suite uses 4.50% fewer clocks than
+the divider-prefix revision. Both Gowin builds meet the board clock
+gates. `make tang20k` selects V1.9.8.11, which reaches an estimated
+57.626 MHz core Fmax at the 50.4 MHz operating clock. The two guides
+describe the local builds, measurements and earlier published image.
+[GPU documentation](GPU_DOCUMENTATION/)
 The retained image uses **19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**,
 **46/46 BSRAM** and 63% DSP, so little logic is left for new features.
 

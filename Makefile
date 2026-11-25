@@ -47,8 +47,8 @@ tang20k-test:
 	$(PYTHON) scripts/check-tang20k.py --build-dir "$(BUILD_DIR)/tang20k"
 
 # Board image: Gowin EDA (see AGENTS.md). GOWIN_SH overrides the gw_sh path.
-# On the divider-prefix RTL V1.9.8.11 reaches 63.729 MHz core Fmax,
-# compared with 50.595 MHz for signed V1.9.11.03 at placement/route 0/2.
+# On the paired-attachment RTL V1.9.8.11 reaches 57.626 MHz core Fmax,
+# compared with 52.215 MHz for signed V1.9.11.03 at placement/route 0/2.
 GOWIN_SH ?= C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe
 # Placement/routing options of the published image (a build choice, not a
 # hardware mode). Option 2/1 left the current design over its timing budget.

@@ -38,14 +38,13 @@ Section 12 notes one uncommitted build-script input. The current image was
 written to the board on 2026-11-13; it has not yet been tested with the
 RP2350.
 
-The current RTL pipelines triangle edge initialization through the existing
-multiplier. All three edges settle in nine core clocks instead of 24. Kind-4
-depth setup also avoids nine divider clocks per eligible gradient (section 6).
-The published programming image and its reports describe the earlier RTL
-and predate both optimizations. Sections 12 and 13 give the new build and
-performance evidence. With both optimizations, Gowin EDA V1.9.8.11 reaches
-the faster core estimate and is the build default. The operating core clock
-is 50.4 MHz in these builds.
+The current RTL transfers two RGB565 pixels per accepted SDRAM word and
+clears two tile pixels per core clock (section 5). Triangle edge
+initialization takes nine clocks instead of 24, and kind-4 depth setup
+avoids nine divider clocks per eligible gradient (section 6). The
+published programming image and its reports describe the earlier RTL.
+Sections 12 and 13 give the current build and performance evidence at
+the 50.4 MHz operating clock.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -494,9 +493,9 @@ For each tile the current executor fetches the tile entry, then:
   entirely, so an update costs only the tiles it draws in.
 - **Tile with draws.**
   1. Burst-loads the loaded attachments: one 16-word color burst and two
-     16-word depth bursts per tile row. A color word fills its two pixels on
-     consecutive clocks while the read response is held. Cleared attachments
-     are written with their clear values (1,024 clocks) only for the pass's
+     16-word depth bursts per tile row. A color word fills both pixels on
+     the clock that accepts the SDRAM response. Cleared attachments are
+     written two pixels at a time (512 clocks) for the pass's
      first tile with draws; see step 4.
   2. Fetches each reference, then the record's first 16-word burst. A kind-4
      vertex triangle is set up for this tile from those words (section 6);
@@ -506,18 +505,21 @@ For each tile the current executor fetches the tile entry, then:
   3. Runs the primitive in the tile and drains its fragment work before
      changing draw state.
   4. Streams color, and depth unless discarded, back to SDRAM in 16-word
-     bursts. Depth supplies one word per clock and RGB565 one word per two
-     clocks; the tile RAM output register holds a word while the SDRAM payload
-     slot is not ready. The tile write port is otherwise idle during a store,
-     so each pixel read is rewritten with its clear value on the next clock
-     (color during the color store; depth during its own store, or with color
-     when depth is discarded). The tile RAM is therefore already cleared for
-     the next tile, and later tiles of the pass skip the 1,024-clock clear.
+     bursts. Each accepted clock supplies one RGB565 pair or one depth word.
+     The tile RAM holds its output while the SDRAM payload slot is not ready.
+     The next clock can clear the previous read address while fetching a
+     different one. Color clears in pairs. Depth clears during its own store,
+     or two pixels at a time with color when depth is discarded. Later tiles
+     of the pass use these prepared clear values.
 
-The GPU currently has **one resident tile attachment set**. RGB565 uses one
-native 1024×16 RAM; D24 uses two more, with 16 low bits in one bank and eight
-high bits in the other. Full framebuffers remain in SDRAM. Tile-local storage
-reduces repeated external color/depth accesses during a draw list.
+The GPU has **one resident tile attachment set** of 1,024 RGB565 and 1,024
+D24 pixels in three native 512×32 RAMs. The color bank stores consecutive
+pixels in the low and high halfwords. A fragment writes only its halfword
+through the native byte enables. Each depth bank holds whole D24 pixels of
+one parity, so concurrent access to neighboring pixels uses separate banks.
+The read edge registers the parity that selects
+the depth value. Both depth banks can write the same clear value in parallel.
+Full framebuffers remain in SDRAM.
 
 List order defines visible overlap/depth behavior. Different primitives in one
 pass may carry different supported states; changing state does not require a
@@ -1435,15 +1437,15 @@ invocations must supply `--gowin` to reproduce these toolchain comparisons.
 The matching candidate image/checksum bundles remain local experiments;
 the published 2026-11-13 image and its reports are retained unchanged.
 
-### Divider-prefix source snapshot (2026-11-24)
+### Divider-prefix source snapshot before paired tile transfers (2026-11-24)
 
 The [V1.9.8.11 route](../docs/hardware/tang20k-divider-prefix-v1908.json)
 and [signed V1.9.11.03 route](../docs/hardware/tang20k-divider-prefix-v1911.json)
 use identical full-board sources and placement/routing options 0/2. Both
 pass the required clock gates and verify all 26 package pins. V1.9.8.11
 reaches a core Fmax estimate of **63.729 MHz** and host **31.900 MHz**. The
-signed build reaches **50.595 MHz** core and **25.812 MHz** host. The Makefile
-selects V1.9.8.11 under the existing faster-core policy. Both builds operate
+signed build reaches **50.595 MHz** core and **25.812 MHz** host. V1.9.8.11 was
+the selected tool for this snapshot. Both builds operate
 at 50.4 MHz core, 25.2 MHz pixel and 126 MHz serializer clocks.
 
 The selected route uses **20,077/20,736 logic**, 7,495 registers, all 46
@@ -1457,6 +1459,32 @@ paired with their SHA-256 checksums and verified device ID, frame count and
 frame CRCs. The published image remains the earlier release. The encrypted
 netlists prevent a fixed SiP check, V1.9.8.11 provenance is unverified,
 and external electrical timing still requires physical measurement.
+
+### Paired tile attachments source snapshot (2026-11-24)
+
+Both [V1.9.8.11](../docs/hardware/tang20k-paired-attachments-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-paired-attachments-v1911.json)
+implement the same complete board sources at placement/routing 0/2. The
+reports verify all 26 package pins and the clock gates. The old tool
+estimates **57.626 MHz core** and **29.039 MHz host**. The signed tool
+estimates 52.215 MHz core and 28.484 MHz host. V1.9.8.11 is selected under
+the faster-core rule. The board profile continues to run at 50.4 MHz core,
+25.2 MHz pixel and 126 MHz serialization.
+
+The selected route uses **18,687/20,736 logic**, 7,479 registers and all 46
+BSRAM banks. This is 1,390 fewer logic units than the preceding V1.9.8.11
+divider-prefix route. The signed route uses 20,174 logic and 7,403
+registers. Both use 63% of DSP blocks. The difference in mapped logic
+varies with the toolchain.
+
+The reports give the exact unchanged local host-pad constraints and link
+their [functional evidence](../docs/hardware/tang20k-paired-attachments-functional.json)
+by checksum. Each lists eight permitted negative-slack reset-release paths.
+The two local Gowin programming files passed device-ID, frame-count and
+frame-CRC checks and are stored alongside their checksums. The published
+image remains the earlier release. The encrypted netlists prevent the
+fixed SiP check. The V1.9.8.11 toolchain provenance is unverified and
+external electrical margins still require physical measurement.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -1754,6 +1782,37 @@ phase. The profile shows more tile-store command wait and fewer setup clocks
 for that pass. The report retains that duration alongside the matched-start
 comparisons. These times measure simulated submission and completion at the
 board clock.
+
+### Paired tile attachment transfers (2026-11-24)
+
+The [paired-transfer benchmark](../docs/benchmarks/rtl-paired-attachments.json)
+compares Verilated board-core runs at 50.4 MHz, including normal host uploads
+through the fence. Both RGB565 buffers and every D24 word match the
+independent reference renderer. Scanout reports zero underflows. In 30
+matched-start runs across 15 workloads, every case improves or ties.
+
+| Workload | Cycle reduction at matched starts |
+| --- | ---: |
+| UI, storing depth | 7.81–7.89% |
+| UI, discarding depth | 11.90–12.21% |
+| UI, loading color and depth | 10.55–10.73% |
+| Showcase and perspective | 4.87–5.52% |
+| Overdraw and opaque | 2.88–3.23% |
+| Close-up spheres | 14.62–15.09% |
+| Full-screen copy and empty constant clear | 0% |
+
+The continuous suite takes 31,482,680 clocks, down from 32,967,060
+(4.50%). The dirty-tile icosahedron pass uses 16.77% fewer clocks in
+that sequence. Every cumulative fence completes at least as early.
+The empty color-clear pass with depth discarded takes 10.35% longer
+in the continuous sequence, where earlier passes move its start to a
+different scanout and SDRAM phase. Its two matched-start measurements
+are cycle-identical across the change. Both timings are recorded.
+
+Focused tests check all attachment addresses, both write parities, output
+hold, reset retention and clear-back while reading the next pair. The
+wrapper's partial writes were also checked against both installed Gowin
+GW2A primitive models.
 
 ## 14. Build, verify and reach the board
 

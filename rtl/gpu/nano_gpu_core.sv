@@ -51,7 +51,7 @@ module nano_gpu_core #(
         S_REF_CMD=28, S_REF_DATA=29, S_REF_DONE=30,
         S_RECORD_CMD=31, S_RECORD_DATA=32, S_RECORD_DONE=33,
         S_DRAW_START=34, S_DRAW_WAIT=35,
-        S_STORE_CMD=36, S_STORE_PREFETCH=37, S_STORE_HIGH=38,
+        S_STORE_CMD=36, S_STORE_PREFETCH=37,
         S_STORE_WORD=41, S_STORE_DONE=42,
         S_REPLY=44, S_REPLY_RAM_REQ=45, S_REPLY_RAM_WAIT=46,
         S_READ_CMD=47, S_READ_DATA=48, S_READ_BYTES=49, S_READ_DONE=50,
@@ -156,7 +156,7 @@ module nano_gpu_core #(
     wire [15:0] tex_rsp_texel;
     reg tex_flush;
 
-    reg tile_cmd_word_we, tile_cmd_valid, tile_pix_re;
+    reg tile_cmd_word_we, tile_cmd_valid, tile_pix_re, tile_pix_write_pair;
     reg [1:0] tile_pix_we; // {depth, color}
     reg [6:0] tile_cmd_word_index;
     reg [31:0] tile_cmd_word_data;
@@ -171,9 +171,9 @@ module nano_gpu_core #(
     wire [31:0] setup_word_data;
     wire tile_cmd_ready, tile_busy, tile_done, tile_fault, tile_pix_rvalid;
     reg [9:0] tile_pix_addr, tile_pix_raddr;
-    reg [15:0] tile_pix_color;
+    reg [31:0] tile_pix_color;
     reg [23:0] tile_pix_depth;
-    wire [15:0] tile_pix_rcolor;
+    wire [31:0] tile_pix_rcolor;
     wire [23:0] tile_pix_rdepth;
 
     reg descriptor_invalid;
@@ -191,29 +191,28 @@ module nano_gpu_core #(
     wire [9:0] tile_origin_x = {tile_x_index,5'b0};
     wire [8:0] tile_origin_y = {tile_y_index,5'b0};
     reg [8:0] tile_index;
-    reg [9:0] pixel_index;
+    reg [8:0] clear_pair_index;
     reg [6:0] record_word;
     reg [4:0] beat;
     reg [4:0] row;
     // Tile attachment transfers walk rows; each row moves one 16-word color
     // burst (kind 0) and two 16-word depth bursts (kinds 1, 2) as enabled.
     // A constant store writes clear values for a tile without draws and
-    // never reads tile RAM. load_half selects the second pixel of a color word.
+    // never reads tile RAM. A color word moves both RGB565 pixels together.
     reg [1:0] store_kind;
-    reg xfer_color, xfer_depth, store_constant, load_half;
-    // The tile write port is idle during STORE: each pixel read for a store
-    // is rewritten with its attachment's clear value on the next edge. After
+    reg xfer_color, xfer_depth, store_constant;
+    // The tile write port is idle during STORE: each color pair or depth pixel
+    // read for a store can be rewritten with its clear value on the next edge. After
     // a tile with draws, every cleared attachment already holds its clear
     // value (tile_ram_clear), so later tiles of the pass skip TILE_INIT.
     // Depth is cleared when it is read for its own store, or with color when
     // depth is discarded.
-    reg tile_ram_clear, clear_back_valid;
+    reg tile_ram_clear, clear_back_valid, clear_back_pair;
     reg [1:0] clear_back_we;
     reg [9:0] clear_back_addr;
     wire clear_back_color = store_kind==0 && clear_color_enable;
     wire clear_back_depth = clear_depth_enable && (store_kind!=0 || depth_discard);
     wire xfer_last = row==31 && (store_kind==2 || (store_kind==0 && !xfer_depth));
-    reg [15:0] held_color;
     reg [31:0] packed_word;
     reg [22:0] boot_address;
 
@@ -557,8 +556,8 @@ module nano_gpu_core #(
             tile_cmd_word_we=state==S_SETUP && !abort_pending && !fault_pending && !foreground_quiet && !renderer_reset;
             tile_cmd_word_index=setup_word_index; tile_cmd_word_data=setup_word_data;
         end
-        tile_cmd_valid=0; tile_pix_we=0; tile_pix_addr=pixel_index[9:0];
-        tile_pix_color=clear_color; tile_pix_depth=clear_depth;
+        tile_cmd_valid=0; tile_pix_we=0; tile_pix_write_pair=0; tile_pix_addr={clear_pair_index,1'b0};
+        tile_pix_color={clear_color,clear_color}; tile_pix_depth=clear_depth;
         tile_pix_re=0; tile_pix_raddr=store_pixel_address;
         reply_ram_we=0; reply_ram_re=0; reply_ram_waddr=read_cursor;
         reply_ram_raddr=reply_index-36; reply_ram_wdata={8'd0,read_word_hold[read_lane*8 +:8]};
@@ -625,7 +624,10 @@ module nano_gpu_core #(
         end
         S_DESC_DATA,S_ENTRY_DATA,S_REF_DATA: mem_r_ready[2]=1;
         S_RECORD_DATA: mem_r_ready[2]=1;
-        S_TILE_INIT: tile_pix_we={clear_depth_enable,clear_color_enable};
+        S_TILE_INIT: begin
+            tile_pix_we={clear_depth_enable,clear_color_enable};
+            tile_pix_write_pair=1;
+        end
         S_LOAD_CMD: begin
             // Only after earlier tile stores complete: S_LOAD_DONE then
             // waits for this load's own completion.
@@ -633,12 +635,11 @@ module nano_gpu_core #(
             mem_cmd_words[15 +:5]=16;
         end
         S_LOAD_DATA: begin
-            // A color word fills two tile pixels: its low half is written
-            // first while the response is held, then the word is consumed.
-            mem_r_ready[3]=store_kind!=0 || load_half;
-            tile_pix_color=load_half ? mem_r_data[96+16 +:16] : mem_r_data[96 +:16];
+            mem_r_ready[3]=1;
+            tile_pix_write_pair=store_kind==0;
+            tile_pix_color=mem_r_data[96 +:32];
             tile_pix_depth=mem_r_data[96 +:24];
-            tile_pix_addr=store_pixel_address+{9'd0,load_half};
+            tile_pix_addr=store_pixel_address;
             if(mem_r_valid[3]) tile_pix_we=store_kind==0 ? 2'b01 : 2'b10;
         end
         S_DRAW_START: tile_cmd_valid=1;
@@ -646,14 +647,14 @@ module nano_gpu_core #(
             mem_cmd_valid[3]=1; mem_cmd_write[3]=1; mem_cmd_addr[69 +:23]=store_address;
             mem_cmd_words[15 +:5]=16;
         end
-        // The tile RAM output register holds a pixel until the next read, so
+        // The tile RAM output holds a color pair or one selected depth
+        // pixel until the next read, so
         // a stalled SDRAM fill simply withholds the following read enable.
         S_STORE_PREFETCH: tile_pix_re=1;
-        S_STORE_HIGH: begin tile_pix_re=1; tile_pix_raddr=store_pixel_address+10'd1; end
         S_STORE_WORD: begin
             mem_w_valid[3]=1; mem_w_strb[12 +:4]=15;
             if(store_constant) mem_w_data[96 +:32]=store_kind==0 ? {clear_color,clear_color} : {8'd0,clear_depth};
-            else mem_w_data[96 +:32]=store_kind==0 ? {tile_pix_rcolor,held_color} : {8'd0,tile_pix_rdepth};
+            else mem_w_data[96 +:32]=store_kind==0 ? tile_pix_rcolor : {8'd0,tile_pix_rdepth};
             if(!store_constant && mem_w_ready[3] && beat!=15) begin
                 tile_pix_re=1;
                 tile_pix_raddr=store_pixel_address+(store_kind==0 ? 10'd2 : 10'd1);
@@ -695,11 +696,12 @@ module nano_gpu_core #(
         end
         default: begin end
         endcase
-        // Clear-back of the pixel read for STORE on the previous edge. No
+        // Clear the pixel or pair read for STORE on the previous edge. No
         // other tile write occurs during a store.
         if(clear_back_valid) begin
             tile_pix_we=clear_back_we; tile_pix_addr=clear_back_addr;
-            tile_pix_color=clear_color; tile_pix_depth=clear_depth;
+            tile_pix_write_pair=clear_back_pair;
+            tile_pix_color={clear_color,clear_color}; tile_pix_depth=clear_depth;
         end
         // Stop issuing foreground work during recovery, but continue the
         // accepted payload/response handshakes so native transactions drain.
@@ -741,12 +743,12 @@ module nano_gpu_core #(
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; depth_discard<=0;
             skip_empty<=0; depth_keep<=0;
             clear_color<=0; clear_depth<=24'hffffff;
-            xfer_color<=0; xfer_depth<=0; store_constant<=0; load_half<=0;
-            tile_ram_clear<=0; clear_back_valid<=0; clear_back_we<=0; clear_back_addr<=0;
+            xfer_color<=0; xfer_depth<=0; store_constant<=0;
+            tile_ram_clear<=0; clear_back_valid<=0; clear_back_pair<=0; clear_back_we<=0; clear_back_addr<=0;
             descriptor_invalid<=0; setup_started<=0; record_long_bad<=0; last_reference<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
-            tile_x_index<=0; tile_y_index<=0; tile_index<=0; pixel_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
-            held_color<=0; packed_word<=0; packed_mask<=0; boot_address<=0;
+            tile_x_index<=0; tile_y_index<=0; tile_index<=0; clear_pair_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
+            packed_word<=0; packed_mask<=0; boot_address<=0;
             upload_address<=0; upload_length<=0; upload_cursor<=0; upload_chunk<=0; upload_fill<=0; upload_prefix<=0; upload_words<=0;
             upload_descriptor<=0;
             read_address<=0; read_length<=0; read_cursor<=0; read_next_address<=0;
@@ -772,6 +774,7 @@ module nano_gpu_core #(
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0;
             clear_back_valid<=tile_pix_re && !store_constant && (clear_back_color || clear_back_depth);
             clear_back_addr<=tile_pix_raddr; clear_back_we<={clear_back_depth,clear_back_color};
+            clear_back_pair<=store_kind==0;
             abort_sync1<=abort_request; abort_sync2<=abort_sync1; abort_previous<=abort_sync2;
             if(abort_sync2 && !abort_previous) begin
                 abort_pending<=1;
@@ -1073,8 +1076,8 @@ module nano_gpu_core #(
                     if((reference_count==0 && list_address!=0) || reference_count>21'd1048576 || pass_reference_total>22'd1048576 ||
                        (reference_count!=0 && !valid_heap({9'd0,list_address},{10'd0,reference_count,2'b0},1))) raise_fault(7);
                     else begin
-                        references_seen<=pass_reference_total[20:0]; reference_index<=0; pixel_index<=0;
-                        row<=0; beat<=0; load_half<=0;
+                        references_seen<=pass_reference_total[20:0]; reference_index<=0; clear_pair_index<=0;
+                        row<=0; beat<=0;
                         if(reference_count==0 && skip_empty) next_tile();
                         else if(reference_count==0) begin
                             // No draws: a loaded attachment is already correct
@@ -1098,17 +1101,14 @@ module nano_gpu_core #(
                     end
                 end
                 S_TILE_INIT: begin
-                    if(pixel_index==1023) begin
+                    if(clear_pair_index==511) begin
                         if(clear_color_enable && clear_depth_enable) state<=S_REF_CMD; else state<=S_LOAD_CMD;
-                    end else pixel_index<=pixel_index+1;
+                    end else clear_pair_index<=clear_pair_index+1'b1;
                 end
-                S_LOAD_CMD: if(mem_cmd_ready[3]) begin beat<=0; load_half<=0; state<=S_LOAD_DATA; end
+                S_LOAD_CMD: if(mem_cmd_ready[3]) begin beat<=0; state<=S_LOAD_DATA; end
                 S_LOAD_DATA: if(mem_r_valid[3]) begin
-                    if(store_kind==0 && !load_half) load_half<=1;
-                    else begin
-                        load_half<=0; beat<=beat+1;
-                        if(mem_r_last[3]) state<=S_LOAD_DONE;
-                    end
+                    beat<=beat+1;
+                    if(mem_r_last[3]) state<=S_LOAD_DONE;
                 end
                 S_LOAD_DONE: if(mem_done[3]) begin
                     if(xfer_last) state<=S_REF_CMD;
@@ -1152,20 +1152,15 @@ module nano_gpu_core #(
                 S_STORE_CMD: if(mem_cmd_ready[3]) begin
                     beat<=0; state<=store_constant ? S_STORE_WORD : S_STORE_PREFETCH;
                 end
-                S_STORE_PREFETCH: state<=store_kind==0 ? S_STORE_HIGH : S_STORE_WORD;
-                S_STORE_HIGH: begin held_color<=tile_pix_rcolor; state<=S_STORE_WORD; end
-                // Depth and constant words stream once per edge; RGB565 words
-                // alternate with S_STORE_HIGH to read their second pixel. The
-                // next burst is requested as soon as this one is staged: its
+                S_STORE_PREFETCH: state<=S_STORE_WORD;
+                // Every attachment streams one SDRAM word per accepted edge.
+                // The next burst is requested as soon as this one is staged: its
                 // completion arrives later (mem3_outstanding).
                 S_STORE_WORD: if(mem_w_ready[3]) begin
                     if(beat==15) begin
                         if(xfer_last) state<=S_STORE_DONE;
                         else begin next_transfer(); state<=S_STORE_CMD; end
-                    end else begin
-                        beat<=beat+1;
-                        if(!store_constant && store_kind==0) state<=S_STORE_HIGH;
-                    end
+                    end else beat<=beat+1;
                 end
                 // Every burst of this tile is staged, so its tile RAM may be
                 // reused; the stores themselves may still be finishing.
@@ -1393,7 +1388,8 @@ module nano_gpu_core #(
         .clk(clk),.reset(reset||renderer_reset),.cmd_word_we(tile_cmd_word_we),.cmd_word_index(tile_cmd_word_index),.cmd_word_data(tile_cmd_word_data),
         .cmd_valid(tile_cmd_valid),.cmd_ready(tile_cmd_ready),.cmd_tile_x(tile_origin_x),.cmd_tile_y(tile_origin_y),
         .busy(tile_busy),.done(tile_done),.fault(tile_fault),
-        .pix_we(tile_pix_we),.pix_addr(tile_pix_addr),.pix_color(tile_pix_color),.pix_depth(tile_pix_depth),
+        .pix_we(tile_pix_we),.pix_write_pair(tile_pix_write_pair),
+        .pix_addr(tile_pix_addr),.pix_color(tile_pix_color),.pix_depth(tile_pix_depth),
         .pix_re(tile_pix_re),.pix_raddr(tile_pix_raddr),.pix_rvalid(tile_pix_rvalid),.pix_rcolor(tile_pix_rcolor),.pix_rdepth(tile_pix_rdepth),
         .tex_flush(tex_flush),.tex_cfg_valid(tex_cfg_valid),.tex_cfg_ready(tex_cfg_ready),.tex_cfg_base(tex_cfg_base),
         .tex_cfg_width(tex_cfg_width),.tex_cfg_height(tex_cfg_height),.tex_cfg_pitch(tex_cfg_pitch),.tex_cfg_repeat_u(tex_cfg_repeat_u),.tex_cfg_repeat_v(tex_cfg_repeat_v),

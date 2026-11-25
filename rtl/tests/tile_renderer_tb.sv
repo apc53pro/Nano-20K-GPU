@@ -4,10 +4,13 @@
 // stalls requests; this is a raster unit test, not cache or SDRAM qualification.
 module nano_tile_testbench;
  reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_re=0,tex_flush=0;
- reg [1:0] pix_we=0;
+ reg [1:0] pix_we=0;reg pix_write_pair=0;
  reg [6:0]cmd_word_index=0;reg[31:0]cmd_word_data=0;reg[9:0]cmd_tile_x=0;reg[8:0]cmd_tile_y=0;
- wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[15:0]pix_color=0;reg[23:0]pix_depth=0;
- wire pix_rvalid;wire[15:0]pix_rcolor;wire[23:0]pix_rdepth;
+ wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[31:0]pix_color=0;reg[23:0]pix_depth=0;
+ wire pix_rvalid;wire[31:0]pix_rcolor;wire[23:0]pix_rdepth;
+ reg read_odd=0;
+ always @(posedge clk) if(pix_re&&cmd_ready&&!reset)read_odd<=pix_raddr[0];
+ wire[15:0]read_pixel_color=read_odd?pix_rcolor[31:16]:pix_rcolor[15:0];
  wire tex_cfg_valid;wire[22:0]tex_cfg_base,tex_cfg_pitch;wire[10:0]tex_cfg_width,tex_cfg_height;
  wire tex_cfg_repeat_u,tex_cfg_repeat_v;wire tex_req_valid;wire signed[31:0]tex_req_x,tex_req_y;wire[5:0]tex_req_tag;
  reg tex_rsp_valid=0;wire tex_rsp_ready;reg[15:0]tex_rsp_texel=0;reg[5:0]tex_rsp_tag=0;
@@ -70,7 +73,7 @@ module nano_tile_testbench;
    for(j=0;j<1024;j=j+1)begin rv=$fscanf(fd,"%h %h",ec[j],ez[j]);require_read(2);end
    for(j=0;j<1024;j=j+1)begin
     pix_re=1;pix_raddr=j;tick();
-    if(!pix_rvalid||pix_rcolor!==ec[j]||pix_rdepth!==ez[j])$fatal(1,"case%0d pixel%0d color%h expected%h depth%h expected%h",c,j,pix_rcolor,ec[j],pix_rdepth,ez[j]);
+    if(!pix_rvalid||read_pixel_color!==ec[j]||pix_rdepth!==ez[j])$fatal(1,"case%0d pixel%0d color%h expected%h depth%h expected%h",c,j,read_pixel_color,ec[j],pix_rdepth,ez[j]);
    end
    pix_re=0;tick();$display("PASS tile case %0d",c);
   end

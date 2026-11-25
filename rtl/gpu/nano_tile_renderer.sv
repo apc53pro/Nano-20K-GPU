@@ -11,10 +11,15 @@ module nano_tile_renderer (
     input wire [9:0] cmd_tile_x, input wire [8:0] cmd_tile_y,
     output wire busy, output reg done, output wire fault,
     // External attachment port: pix_we[0] writes color, pix_we[1] depth.
+    // A pair write uses pix_addr[9:1], both RGB565 halfwords and the same
+    // depth for both pixels. A single write takes color from the low half.
     input wire [1:0] pix_we, input wire [9:0] pix_addr,
-    input wire [15:0] pix_color, input wire [23:0] pix_depth,
+    input wire pix_write_pair,
+    input wire [31:0] pix_color, input wire [23:0] pix_depth,
     input wire pix_re, input wire [9:0] pix_raddr,
-    output reg pix_rvalid, output wire [15:0] pix_rcolor,
+    // Color reads always return even/odd pixels in low/high halfwords;
+    // depth remains selected by the parity of the accepted read address.
+    output reg pix_rvalid, output wire [31:0] pix_rcolor,
     output wire [23:0] pix_rdepth,
     input wire tex_flush,
     output wire tex_cfg_valid, input wire tex_cfg_ready,
@@ -319,24 +324,41 @@ module nano_tile_renderer (
     wire [9:0] fragment_address;
     wire [23:0] fragment_depth;
     wire [15:0] fragment_color;
-    wire [15:0] ram_color,ram_depth_low,ram_depth_high;
-    wire [23:0] stored_depth={ram_depth_high[7:0],ram_depth_low};
+    wire [31:0] ram_color,ram_depth_even,ram_depth_odd;
+    reg depth_read_odd;
+    wire [23:0] stored_depth=depth_read_odd?ram_depth_odd[23:0]:ram_depth_even[23:0];
     wire fast_commit=pending&&(!depth_test||depth_pass(pending_depth,stored_depth))&&!fault&&!reset;
     wire ext_write=(state==IDLE)&&(|pix_we)&&!fault&&!reset;
     wire color_we=(ext_write&&pix_we[0])||(fast_commit&&color_write)||(fragment_color_write&&!fault&&!reset);
     wire depth_we=(ext_write&&pix_we[1])||(fast_commit&&depth_write)||(fragment_depth_write&&!fault&&!reset);
     wire [9:0] write_addr=ext_write?pix_addr:(fragment_retired?fragment_address:pending_addr);
-    wire [15:0] write_color=ext_write?pix_color:(fragment_retired?fragment_color:pending_color);
+    wire [15:0] write_color=ext_write?pix_color[15:0]:(fragment_retired?fragment_color:pending_color);
     wire [23:0] write_depth=ext_write?pix_depth:(fragment_retired?fragment_depth:pending_depth);
     wire sample_re=(state==RASTER)&&inside_sample&&depth_test&&(!need_texture||fragment_ready)&&!fault&&!reset;
     wire external_re=(state==IDLE)&&pix_re&&!fault&&!reset;
     wire [9:0] read_addr=external_re?pix_raddr:sample_addr;
-    nano_sdp16 color_ram(.wclk(clk),.wce(1'b1),.we(color_we),.waddr(write_addr),.wdata(write_color),
-        .rclk(clk),.rce(1'b1),.re(external_re),.raddr(read_addr),.reset_output(reset),.rdata(ram_color));
-    nano_sdp16 depth_low_ram(.wclk(clk),.wce(1'b1),.we(depth_we),.waddr(write_addr),.wdata(write_depth[15:0]),
-        .rclk(clk),.rce(1'b1),.re(external_re||sample_re),.raddr(read_addr),.reset_output(reset),.rdata(ram_depth_low));
-    nano_sdp16 depth_high_ram(.wclk(clk),.wce(1'b1),.we(depth_we),.waddr(write_addr),.wdata({8'b0,write_depth[23:16]}),
-        .rclk(clk),.rce(1'b1),.re(external_re||sample_re),.raddr(read_addr),.reset_output(reset),.rdata(ram_depth_high));
+    wire pair_write=ext_write&&pix_write_pair;
+    wire [3:0] color_lanes=pair_write?4'b1111:(write_addr[0]?4'b1100:4'b0011);
+    wire [31:0] color_write_word=pair_write?pix_color:{write_color,write_color};
+    wire depth_re=external_re||sample_re;
+    always @(posedge clk)
+        if(reset)depth_read_odd<=0;
+        else if(depth_re)depth_read_odd<=read_addr[0];
+    nano_sdp32_masked color_ram(.wclk(clk),.wce(1'b1),.we(color_we),.wstrb(color_lanes),
+        .waddr(write_addr[9:1]),.wdata(color_write_word),
+        .rclk(clk),.rce(1'b1),.re(external_re),.raddr(read_addr[9:1]),.reset_output(reset),.rdata(ram_color));
+    // Each depth bank owns one pixel parity. Thus reading the next pixel
+    // while committing the preceding one never introduces a same-word
+    // collision: equal bank/address still means the same original pixel.
+    // Pair clearing can use the independent write ports together.
+    nano_sdp32_masked depth_even_ram(.wclk(clk),.wce(1'b1),.we(depth_we&&(pair_write||!write_addr[0])),
+        .wstrb(4'b1111),.waddr(write_addr[9:1]),.wdata({8'b0,write_depth}),
+        .rclk(clk),.rce(1'b1),.re(depth_re&&!read_addr[0]),.raddr(read_addr[9:1]),
+        .reset_output(reset),.rdata(ram_depth_even));
+    nano_sdp32_masked depth_odd_ram(.wclk(clk),.wce(1'b1),.we(depth_we&&(pair_write||write_addr[0])),
+        .wstrb(4'b1111),.waddr(write_addr[9:1]),.wdata({8'b0,write_depth}),
+        .rclk(clk),.rce(1'b1),.re(depth_re&&read_addr[0]),.raddr(read_addr[9:1]),
+        .reset_output(reset),.rdata(ram_depth_odd));
     assign pix_rcolor=ram_color;
     assign pix_rdepth=stored_depth;
     assign busy=(state!=IDLE)&&(state!=FAILED)&&!fault;

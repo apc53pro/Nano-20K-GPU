@@ -3,10 +3,13 @@
 // corrupting attachments. Reset must cancel control without clearing RAM.
 module nano_tile_fault_tb;
  reg clk=0,reset=0,cmd_word_we=0,cmd_valid=0,pix_re=0,tex_flush=0;
- reg [1:0] pix_we=0;
+ reg [1:0] pix_we=0;reg pix_write_pair=0;
  reg [6:0]cmd_word_index=0;reg[31:0]cmd_word_data=0;reg[9:0]cmd_tile_x=0;reg[8:0]cmd_tile_y=0;
- wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[15:0]pix_color=0;reg[23:0]pix_depth=0;
- wire pix_rvalid;wire[15:0]pix_rcolor;wire[23:0]pix_rdepth;
+ wire cmd_ready,busy,done,fault;reg[9:0]pix_addr=0,pix_raddr=0;reg[31:0]pix_color=0;reg[23:0]pix_depth=0;
+ wire pix_rvalid;wire[31:0]pix_rcolor;wire[23:0]pix_rdepth;
+ reg read_odd=0;
+ always @(posedge clk) if(pix_re&&cmd_ready&&!reset)read_odd<=pix_raddr[0];
+ wire[15:0]read_pixel_color=read_odd?pix_rcolor[31:16]:pix_rcolor[15:0];
  wire tex_cfg_valid;wire[22:0]tex_cfg_base,tex_cfg_pitch;wire[10:0]tex_cfg_width,tex_cfg_height;
  wire tex_cfg_repeat_u,tex_cfg_repeat_v;wire tex_req_valid;wire signed[31:0]tex_req_x,tex_req_y;wire[5:0]tex_req_tag;
  wire tex_cfg_ready=1,tex_req_ready=1,tex_rsp_valid=0;wire[15:0]tex_rsp_texel=0;wire[5:0]tex_rsp_tag=0;
@@ -68,7 +71,7 @@ module nano_tile_fault_tb;
    // A sticky fault inhibits all attachment accesses; reset restores idle
    // control without clearing or writing any attachment RAM.
    reset=1;tick();reset=0;tick();pix_re=1;pix_raddr=0;tick();pix_re=0;
-   if(!pix_rvalid||pix_rcolor!==16'hbeef||pix_rdepth!==24'h654321)$fatal(1,"fault case%0d modified attachment",c);
+   if(!pix_rvalid||read_pixel_color!==16'hbeef||pix_rdepth!==24'h654321)$fatal(1,"fault case%0d modified attachment",c);
   end
   $display("PASS 28 malformed/numeric records, fault write suppression and reset retention");$finish;
  end

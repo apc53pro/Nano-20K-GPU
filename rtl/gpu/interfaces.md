@@ -54,9 +54,13 @@ Configuration and flush occur while drained. The memory client is read-only.
 primitive record. `cmd_valid,cmd_ready,cmd_tile_x[9:0],cmd_tile_y[8:0]` starts a
 primitive; `busy,done,fault` expose completion. Loading is legal only when idle.
 
-Native attachment access while idle uses `pix_we,pix_addr[9:0],pix_color[15:0],
-pix_depth[23:0]` and `pix_re,pix_raddr[9:0]` with registered
-`pix_rvalid,pix_rcolor[15:0],pix_rdepth[23:0]`. The renderer has texture-cache
+Native attachment access while idle uses `pix_we,pix_write_pair,pix_addr[9:0],
+pix_color[31:0],pix_depth[23:0]`. A single write takes the low color halfword
+and selects the addressed pixel. A pair write uses both color halfwords and
+duplicates the depth value across the pair. The even pixel is low.
+`pix_re,pix_raddr[9:0]` produce the registered
+`pix_rvalid,pix_rcolor[31:0],pix_rdepth[23:0]`. Color returns the full pair,
+and depth returns the addressed pixel. The renderer has texture-cache
 configuration/request/response ports with prefix `tex_` and the same names and
 widths as the cache above. `tex_flush` is a separate idle control input.
 

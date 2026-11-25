@@ -1,0 +1,762 @@
+{
+  "schema": "N20K-RTL-PAIRED-ATTACHMENTS-1",
+  "baseline_commit": "29f7d6e7b6fae607edaf53ba0ea38f7ef402e3fa",
+  "scope": "Verilated board core at 50.4 MHz. Normal host upload through fence. Independent SRR full RGB565 and D24 comparison, zero scanout underflows.",
+  "continuous": {
+    "cases": [
+      {
+        "case": "warm-up: empty, clear color and depth",
+        "before": 641290,
+        "after": 641290,
+        "cycle_reduction_percent": 0.0,
+        "cumulative_before": 641290,
+        "cumulative_after": 641290
+      },
+      {
+        "case": "empty pass, clear color and depth",
+        "before": 905812,
+        "after": 905812,
+        "cycle_reduction_percent": 0.0,
+        "cumulative_before": 1547102,
+        "cumulative_after": 1547102
+      },
+      {
+        "case": "empty pass, load color, clear depth",
+        "before": 621056,
+        "after": 621056,
+        "cycle_reduction_percent": 0.0,
+        "cumulative_before": 2168158,
+        "cumulative_after": 2168158
+      },
+      {
+        "case": "empty pass, load color and depth",
+        "before": 14450,
+        "after": 14450,
+        "cycle_reduction_percent": 0.0,
+        "cumulative_before": 2182608,
+        "cumulative_after": 2182608
+      },
+      {
+        "case": "full-screen front-to-back copy",
+        "before": 694276,
+        "after": 694276,
+        "cycle_reduction_percent": 0.0,
+        "cumulative_before": 2876884,
+        "cumulative_after": 2876884
+      },
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "before": 2435704,
+        "after": 2228280,
+        "cycle_reduction_percent": 8.515977310871925,
+        "cumulative_before": 5312588,
+        "cumulative_after": 5105164
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "before": 24382,
+        "after": 23874,
+        "cycle_reduction_percent": 2.0835042244278568,
+        "cumulative_before": 5336970,
+        "cumulative_after": 5129038
+      },
+      {
+        "case": "empty pass, clear color, discard depth",
+        "before": 289646,
+        "after": 319628,
+        "cycle_reduction_percent": -10.351256361213345,
+        "cumulative_before": 5626616,
+        "cumulative_after": 5448666
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "before": 1843356,
+        "after": 1631156,
+        "cycle_reduction_percent": 11.51161251543381,
+        "cumulative_before": 7469972,
+        "cumulative_after": 7079822
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "before": 21504,
+        "after": 19084,
+        "cycle_reduction_percent": 11.253720238095234,
+        "cumulative_before": 7491476,
+        "cumulative_after": 7098906
+      },
+      {
+        "case": "empty pass, load color, discard depth",
+        "before": 14896,
+        "after": 14464,
+        "cycle_reduction_percent": 2.9001074113856107,
+        "cumulative_before": 7506372,
+        "cumulative_after": 7113370
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "before": 4350020,
+        "after": 4155700,
+        "cycle_reduction_percent": 4.4671058983636875,
+        "cumulative_before": 11856392,
+        "cumulative_after": 11269070
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "before": 5796506,
+        "after": 5616068,
+        "cycle_reduction_percent": 3.112875238980173,
+        "cumulative_before": 17652898,
+        "cumulative_after": 16885138
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "before": 515676,
+        "after": 457344,
+        "cycle_reduction_percent": 11.311753891978682,
+        "cumulative_before": 18168574,
+        "cumulative_after": 17342482
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": 269958,
+        "after": 224690,
+        "cycle_reduction_percent": 16.76853436460486,
+        "cumulative_before": 18438532,
+        "cumulative_after": 17567172
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": 6615586,
+        "after": 6409940,
+        "cycle_reduction_percent": 3.1085076968238368,
+        "cumulative_before": 25054118,
+        "cumulative_after": 23977112
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": 6347886,
+        "after": 6140094,
+        "cycle_reduction_percent": 3.2734047208787254,
+        "cumulative_before": 31402004,
+        "cumulative_after": 30117206
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "before": 467776,
+        "after": 435908,
+        "cycle_reduction_percent": 6.812662470926256,
+        "cumulative_before": 31869780,
+        "cumulative_after": 30553114
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": 1097280,
+        "after": 929566,
+        "cycle_reduction_percent": 15.284521726450862,
+        "cumulative_before": 32967060,
+        "cumulative_after": 31482680
+      }
+    ],
+    "before_total": 32967060,
+    "after_total": 31482680,
+    "cycle_reduction_percent": 4.5026156411885125
+  },
+  "matched_starts": {
+    "cases": [
+      {
+        "case": "ui-store",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 2339746,
+        "after": 2157024,
+        "cycle_reduction_percent": 7.809480174343708
+      },
+      {
+        "case": "ui-store",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 2429230,
+        "after": 2237556,
+        "cycle_reduction_percent": 7.890319154629244
+      },
+      {
+        "case": "ui-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 1785508,
+        "after": 1572944,
+        "cycle_reduction_percent": 11.904959260893822
+      },
+      {
+        "case": "ui-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 1845580,
+        "after": 1620158,
+        "cycle_reduction_percent": 12.21415489981469
+      },
+      {
+        "case": "ui-load",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 3618460,
+        "after": 3230300,
+        "cycle_reduction_percent": 10.727215445244664
+      },
+      {
+        "case": "ui-load",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 3714792,
+        "after": 3322996,
+        "cycle_reduction_percent": 10.546916220342883
+      },
+      {
+        "case": "pointer",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 20326,
+        "after": 19326,
+        "cycle_reduction_percent": 4.919807143559973
+      },
+      {
+        "case": "pointer",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 25302,
+        "after": 23792,
+        "cycle_reduction_percent": 5.967907675282591
+      },
+      {
+        "case": "copy",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 516940,
+        "after": 516940,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 708490,
+        "after": 708490,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "showcase",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 4336284,
+        "after": 4125070,
+        "cycle_reduction_percent": 4.870852554860338
+      },
+      {
+        "case": "showcase",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 4344940,
+        "after": 4123076,
+        "cycle_reduction_percent": 5.106261536407864
+      },
+      {
+        "case": "perspective",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 3729288,
+        "after": 3523528,
+        "cycle_reduction_percent": 5.517407076096026
+      },
+      {
+        "case": "perspective",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 3736302,
+        "after": 3531348,
+        "cycle_reduction_percent": 5.485477351670176
+      },
+      {
+        "case": "overdraw",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 5764324,
+        "after": 5598440,
+        "cycle_reduction_percent": 2.8777702294319307
+      },
+      {
+        "case": "overdraw",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 5790378,
+        "after": 5619528,
+        "cycle_reduction_percent": 2.9505845732351155
+      },
+      {
+        "case": "opaque",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 4490772,
+        "after": 4345694,
+        "cycle_reduction_percent": 3.230580399093963
+      },
+      {
+        "case": "opaque",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 4620334,
+        "after": 4472644,
+        "cycle_reduction_percent": 3.19652215619044
+      },
+      {
+        "case": "ico",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 385100,
+        "after": 348122,
+        "cycle_reduction_percent": 9.602181251622955
+      },
+      {
+        "case": "ico",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 517012,
+        "after": 463356,
+        "cycle_reduction_percent": 10.378095672827714
+      },
+      {
+        "case": "ico-flat",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 361738,
+        "after": 325018,
+        "cycle_reduction_percent": 10.150993260315477
+      },
+      {
+        "case": "ico-flat",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 488512,
+        "after": 435064,
+        "cycle_reduction_percent": 10.940979955456577
+      },
+      {
+        "case": "closeup",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 1013270,
+        "after": 865150,
+        "cycle_reduction_percent": 14.61801888933848
+      },
+      {
+        "case": "closeup",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 1097144,
+        "after": 931608,
+        "cycle_reduction_percent": 15.087900950103172
+      },
+      {
+        "case": "vertex0",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 6599700,
+        "after": 6405784,
+        "cycle_reduction_percent": 2.938254769156179
+      },
+      {
+        "case": "vertex0",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 6615576,
+        "after": 6406906,
+        "cycle_reduction_percent": 3.154222701092091
+      },
+      {
+        "case": "vertex1",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 6345204,
+        "after": 6134348,
+        "cycle_reduction_percent": 3.3230767679021778
+      },
+      {
+        "case": "vertex1",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 6342004,
+        "after": 6141440,
+        "cycle_reduction_percent": 3.1624704115607583
+      },
+      {
+        "case": "empty-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_xy": [
+          253,
+          148
+        ],
+        "initial_refreshes": 1602,
+        "before": 212270,
+        "after": 212270,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_xy": [
+          653,
+          60
+        ],
+        "initial_refreshes": 2663,
+        "before": 319154,
+        "after": 319154,
+        "cycle_reduction_percent": 0.0
+      }
+    ],
+    "before_build": {
+      "schema": "N20K-GPU-RTL-BUILD-1",
+      "top": "nano_gpu_core",
+      "device": "GW2AR-LV18QN88C8/I7",
+      "family": "GW2A-18C",
+      "simulation_backend": "verilator",
+      "sdl_enabled": false,
+      "board_core_profile": true,
+      "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+      "cpp_device_backends_linked": false,
+      "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+      "whole_gpu_fit_qualified": false,
+      "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+      "executable_sha256": "4455f4b50d162bd7c5a62283a5c0b3da0b9d4b85db6e5d667406fd7283e54472",
+      "cpp_translation_units": [
+        "reference/src/setup.cpp",
+        "reference/src/renderer.cpp",
+        "reference/src/demo.cpp",
+        "reference/src/hw_protocol.cpp",
+        "reference/rtl/main.cpp",
+        "reference/rtl/sdram_model.cpp"
+      ],
+      "source_sha256": {
+        "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+        "build/pass3-before-model/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+        "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+        "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+        "rtl/gpu/nano_gpu_core.sv": "cda0e310e8fa14667fc1e75cac42bbc1d618bd54f6977d2720e4bc59eaeaceb9",
+        "rtl/gpu/nano_host_link.sv": "f9f7e6380e189ede492ae544e80d2e7c349edc97b0113851ddf7ec81ddace38b",
+        "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+        "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+        "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+        "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+        "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+        "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+        "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+        "rtl/gpu/nano_tile_renderer.sv": "e5487ee4a5e33428a7641594ff2f7d8ac8661a3e2d89f8bd19e11db50f2e6a46",
+        "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+        "rtl/gpu/nano_triangle_setup.sv": "9f517bb595f26226e06fd983cb752afa85b9eda43b0887ba1abe99871f9cd07e",
+        "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+        "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+        "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+        "reference/src/hw_protocol.cpp": "273afd232a3be49376ce23dcd06bcd42a80fce61c446d279f93fbba6ca775001",
+        "reference/rtl/main.cpp": "4608d41f4e7f74e5eb70ea7a125d5357d9052250df4c468b5c4b7439043ff797",
+        "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+        "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+        "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+        "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+        "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+        "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+        "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+        "reference/include/nano_gpu/hw/host_link.hpp": "d9f7f0529098dfeea758380dd27ef4b8b97d18ba6c2749d5798874c36a605350",
+        "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+        "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+        "reference/include/nano_gpu/hw/protocol.hpp": "38fe66050c58e06a12550d3143e570044cc8050d41392c6502b2037c15e93463",
+        "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+        "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+        "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+        "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+        "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+        "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+        "reference/include/nano_gpu/hw/system.hpp": "50632391fa358f070fa39265bc1bcce91ed3ea5f3ee7ba361ed9a83191013d24",
+        "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+        "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+        "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+        "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+        "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+        "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+        "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+        "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+        "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+        "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+        "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+        "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+        "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+      }
+    },
+    "after_build": {
+      "schema": "N20K-GPU-RTL-BUILD-1",
+      "top": "nano_gpu_core",
+      "device": "GW2AR-LV18QN88C8/I7",
+      "family": "GW2A-18C",
+      "simulation_backend": "verilator",
+      "sdl_enabled": false,
+      "board_core_profile": true,
+      "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+      "cpp_device_backends_linked": false,
+      "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+      "whole_gpu_fit_qualified": false,
+      "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+      "executable_sha256": "59a06195365f2622f67f8ad3bb060f23a8b88e7d92fb02a0d30abdd8044ddd8b",
+      "cpp_translation_units": [
+        "reference/src/setup.cpp",
+        "reference/src/renderer.cpp",
+        "reference/src/demo.cpp",
+        "reference/src/hw_protocol.cpp",
+        "reference/rtl/main.cpp",
+        "reference/rtl/sdram_model.cpp"
+      ],
+      "source_sha256": {
+        "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+        "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+        "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+        "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+        "rtl/gpu/nano_gpu_core.sv": "5cf0bbb8d48d23dc7b212d666f83cc47287e9d7d2b03df9cc3719720b44a8db9",
+        "rtl/gpu/nano_host_link.sv": "f9f7e6380e189ede492ae544e80d2e7c349edc97b0113851ddf7ec81ddace38b",
+        "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+        "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+        "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+        "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+        "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+        "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+        "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+        "rtl/gpu/nano_texture_cache.sv": "9a778eb22627b3360b962998226013bbadaeb5fed85265820f013eb41d18e469",
+        "rtl/gpu/nano_tile_renderer.sv": "f7302df9b5f01d4a4e1f6fc2f45cacc32f554fdaa1a71941e637f451a1f8b59b",
+        "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+        "rtl/gpu/nano_triangle_setup.sv": "9f517bb595f26226e06fd983cb752afa85b9eda43b0887ba1abe99871f9cd07e",
+        "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+        "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+        "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+        "reference/src/hw_protocol.cpp": "273afd232a3be49376ce23dcd06bcd42a80fce61c446d279f93fbba6ca775001",
+        "reference/rtl/main.cpp": "4608d41f4e7f74e5eb70ea7a125d5357d9052250df4c468b5c4b7439043ff797",
+        "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+        "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+        "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+        "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+        "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+        "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+        "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+        "reference/include/nano_gpu/hw/host_link.hpp": "d9f7f0529098dfeea758380dd27ef4b8b97d18ba6c2749d5798874c36a605350",
+        "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+        "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+        "reference/include/nano_gpu/hw/protocol.hpp": "38fe66050c58e06a12550d3143e570044cc8050d41392c6502b2037c15e93463",
+        "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+        "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+        "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+        "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+        "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+        "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+        "reference/include/nano_gpu/hw/system.hpp": "50632391fa358f070fa39265bc1bcce91ed3ea5f3ee7ba361ed9a83191013d24",
+        "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+        "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+        "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+        "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+        "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+        "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+        "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+        "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+        "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+        "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+        "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+        "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+        "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+      }
+    },
+    "driver_sha256": "286d9f23807cbd29fa24976683941f28dddefa95c8120ad538524c167a2be2a2",
+    "driver": "// Local matched-start experiment: reuse the exact host/oracle driver, but make\n// each workload the first submission of a fresh board-profile simulation.\n#define main original_gpu_main\n#include \"main.cpp\"\n#undef main\n\nint main(int argc, char** argv) {\n    try {\n        if (argc != 4) throw std::invalid_argument(\"CASE IDLE_CYCLES OUTPUT.json\");\n        const std::string name = argv[1];\n        const auto idle = std::stoull(argv[2]);\n        Simulation sim(\"\"); Renderer oracle; std::uint32_t sequence = 1;\n        for (std::uint64_t n = 0; n < idle; ++n) sim.tick();\n        const auto ui_primitives = [] {\n            std::vector<Primitive> result;\n            result.push_back(Rect{{0, 0, 640, 480}, overlay_state({16, 24, 48}), 0});\n            result.push_back(Rect{{0, 0, 640, 24}, overlay_state({40, 80, 160}), 0});\n            result.push_back(Rect{{8, 32, 632, 440}, overlay_state({220, 220, 220}), 0});\n            for (int row = 0; row < 32; ++row) {\n                const int y = 36 + row * 12;\n                if (row % 2) result.push_back(Rect{{10, y, 630, y + 12}, overlay_state({200, 200, 210}), 0});\n                for (int word = 0; word < 4; ++word) {\n                    const int x = 16 + word * 150 + (row * 7) % 30;\n                    result.push_back(Rect{{x, y + 2, x + 40 + (row * 13 + word * 17) % 80, y + 10},\n                                          overlay_state({20, 20, 20}), 0});\n                }\n            }\n            result.push_back(Rect{{0, 448, 640, 480}, overlay_state({40, 80, 160}), 0});\n            return result;\n        };\n        hw::HostProgram program; Pass expected;\n        if (name == \"ico\") {\n            Bounds box{}; expected = icosahedron_pass(0.42f, 0.75f, 0.18f, box);\n            program = hw::compile_pass(expected, sequence);\n        } else if (name == \"ui-store\" || name == \"ui-discard\" ||\n                   name == \"ui-load\" || name == \"pointer\") {\n            expected.target = 1;\n            expected.primitives = ui_primitives();\n            if (name == \"ui-discard\") expected.depth_store = StoreOp::Discard;\n            if (name == \"ui-load\" || name == \"pointer\") {\n                expected.color_load = LoadOp::Load; expected.depth_load = LoadOp::Load;\n            }\n            if (name == \"pointer\") expected.primitives = {\n                Rect{{300, 200, 306, 209}, overlay_state({255, 255, 255}), 0}};\n            program = hw::compile_pass(expected, sequence);\n        } else if (name == \"copy\") {\n            hw::CopyCommand copy;\n            copy.source = 0; copy.target = 1; copy.width = 640; copy.height = 480;\n            program.bytes = hw::encode_packet(hw::Opcode::CopyRect, sequence++, hw::encode_copy_command(copy));\n            std::vector<std::uint8_t> token(4); hw::write_u32(token, 0, 0xbe7c);\n            program.fence_token = 0xbe7c; program.fence_sequence = sequence;\n            const auto fence = hw::encode_packet(hw::Opcode::Fence, sequence, token);\n            program.bytes.insert(program.bytes.end(), fence.begin(), fence.end());\n        } else if (name == \"ico-flat\") {\n            // A flat icosahedron as kind-4 records: the setup's own orientation\n            // and back-face culling replace the CPU's.\n            Bounds box{};\n            const auto gouraud = icosahedron_pass(0.42f, 0.75f, 0.18f, box);\n            std::vector<std::pair<VertexSource, RenderState>> faces;\n            for (const auto& primitive : gouraud.primitives) {\n                const auto& t = std::get<Triangle>(primitive);\n                VertexSource source; source.cull_negative = true;\n                source.bounds = vertex_bounds(t.snapped);\n                for (unsigned k = 0; k < 3; ++k) {\n                    source.points[k] = t.snapped[k];\n                    // The Gouraud plane's depth near each vertex, as D24*256.\n                    const int px = std::clamp(t.snapped[k].x / 16, t.bounds.x0, t.bounds.x1 - 1);\n                    const int py = std::clamp(t.snapped[k].y / 16, t.bounds.y0, t.bounds.y1 - 1);\n                    source.depth[k] = depth_code(t.z.at(px - t.bounds.x0, py - t.bounds.y0)) << 8;\n                }\n                // Submit every other face reversed: culling must drop exactly those.\n                faces.push_back({source, overlay_state({200, 120, 40})});\n                faces.back().second.depth_test = faces.back().second.depth_write = true;\n                std::swap(source.points[1], source.points[2]); std::swap(source.depth[1], source.depth[2]);\n                faces.push_back({source, faces.back().second});\n            }\n            Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;\n            auto vertex = vertex_pass(faces, descriptor, 0, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else if (name == \"closeup\") {\n            auto faces = sphere_triangles(1, 300.0f, 250.0f, 230.0f, 2.2f);\n            const auto back = sphere_triangles(2, 470.0f, 210.0f, 160.0f, 4.0f);\n            faces.insert(faces.end(), back.begin(), back.end());\n            Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;\n            auto vertex = vertex_pass(faces, descriptor, 0, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else if (name == \"vertex0\" || name == \"vertex1\") {\n            const int margin = name == \"vertex0\" ? 0 : 1;\n            Pass descriptor; descriptor.target = 1; descriptor.clear_color = 0x18e3;\n            auto vertex = vertex_pass(vertex_triangles(margin + 11, 400), descriptor, margin, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else {\n            const auto scene = name == \"showcase\" ? DemoScene::Showcase : name == \"perspective\" ? DemoScene::Perspective :\n                name == \"overdraw\" ? DemoScene::Overdraw : DemoScene::Opaque;\n            if (name != \"showcase\" && name != \"perspective\" && name != \"overdraw\" && name != \"opaque\")\n                throw std::invalid_argument(\"unknown isolated case\");\n            expected = make_demo_pass(scene, 1, 1.2L); program = hw::compile_pass(expected, sequence);\n        }\n        const auto start = sim.cycles;\n        const auto initial_x = sim.dut.video_x, initial_y = sim.dut.video_y;\n        const auto initial_refreshes = sim.memory.statistics().refreshes;\n        sim.render(program);\n        if (name == \"copy\") oracle.copy_rect(0, 1, {0, 0}, {0, 0}, 640, 480, RenderMode::Monolithic);\n        else oracle.render(expected, RenderMode::Monolithic);\n        sim.compare(oracle);\n        const auto underflows = sim.scanout_underflows();\n        if (underflows) throw std::runtime_error(\"isolated benchmark scanout underflow\");\n        std::ofstream out(argv[3]);\n        if (!out) throw std::runtime_error(\"cannot open isolated report\");\n        out << \"{\\\"case\\\":\\\"\" << name << \"\\\",\\\"idle_cycles\\\":\" << idle\n            << \",\\\"initial_core_cycle\\\":\" << start << \",\\\"initial_video_x\\\":\" << unsigned(initial_x)\n            << \",\\\"initial_video_y\\\":\" << unsigned(initial_y) << \",\\\"initial_sdram_refreshes\\\":\" << initial_refreshes\n            << \",\\\"core_cycles\\\":\" << sim.last_submission_cycles\n            << \",\\\"oracle_checked\\\":true,\\\"scanout_underflows\\\":\" << underflows << \"}\\n\";\n        std::cout << name << \" delay=\" << idle << \" cycles=\" << sim.last_submission_cycles << '\\n';\n        return 0;\n    } catch (const std::exception& error) { std::cerr << error.what() << '\\n'; return 1; }\n}\n",
+    "constant_store_driver_sha256": "d7c22e78eb7e84432810adca045d22d98ebc634e9f76ccb291dd098776ddf616",
+    "constant_store_driver": "// Local matched-start experiment: reuse the exact host/oracle driver, but make\n// each workload the first submission of a fresh board-profile simulation.\n#define main original_gpu_main\n#include \"main.cpp\"\n#undef main\n\nint main(int argc, char** argv) {\n    try {\n        if (argc != 4) throw std::invalid_argument(\"CASE IDLE_CYCLES OUTPUT.json\");\n        const std::string name = argv[1];\n        const auto idle = std::stoull(argv[2]);\n        Simulation sim(\"\"); Renderer oracle; std::uint32_t sequence = 1;\n        for (std::uint64_t n = 0; n < idle; ++n) sim.tick();\n        const auto ui_primitives = [] {\n            std::vector<Primitive> result;\n            result.push_back(Rect{{0, 0, 640, 480}, overlay_state({16, 24, 48}), 0});\n            result.push_back(Rect{{0, 0, 640, 24}, overlay_state({40, 80, 160}), 0});\n            result.push_back(Rect{{8, 32, 632, 440}, overlay_state({220, 220, 220}), 0});\n            for (int row = 0; row < 32; ++row) {\n                const int y = 36 + row * 12;\n                if (row % 2) result.push_back(Rect{{10, y, 630, y + 12}, overlay_state({200, 200, 210}), 0});\n                for (int word = 0; word < 4; ++word) {\n                    const int x = 16 + word * 150 + (row * 7) % 30;\n                    result.push_back(Rect{{x, y + 2, x + 40 + (row * 13 + word * 17) % 80, y + 10},\n                                          overlay_state({20, 20, 20}), 0});\n                }\n            }\n            result.push_back(Rect{{0, 448, 640, 480}, overlay_state({40, 80, 160}), 0});\n            return result;\n        };\n        hw::HostProgram program; Pass expected;\n        if (name == \"ico\") {\n            Bounds box{}; expected = icosahedron_pass(0.42f, 0.75f, 0.18f, box);\n            program = hw::compile_pass(expected, sequence);\n        } else if (name == \"ui-store\" || name == \"ui-discard\" ||\n                   name == \"ui-load\" || name == \"pointer\") {\n            expected.target = 1;\n            expected.primitives = ui_primitives();\n            if (name == \"ui-discard\") expected.depth_store = StoreOp::Discard;\n            if (name == \"ui-load\" || name == \"pointer\") {\n                expected.color_load = LoadOp::Load; expected.depth_load = LoadOp::Load;\n            }\n            if (name == \"pointer\") expected.primitives = {\n                Rect{{300, 200, 306, 209}, overlay_state({255, 255, 255}), 0}};\n            program = hw::compile_pass(expected, sequence);\n        } else if (name == \"empty-discard\") {\n            expected.target = 1;\n            expected.depth_store = StoreOp::Discard;\n            program = hw::compile_pass(expected, sequence);\n        } else if (name == \"copy\") {\n            hw::CopyCommand copy;\n            copy.source = 0; copy.target = 1; copy.width = 640; copy.height = 480;\n            program.bytes = hw::encode_packet(hw::Opcode::CopyRect, sequence++, hw::encode_copy_command(copy));\n            std::vector<std::uint8_t> token(4); hw::write_u32(token, 0, 0xbe7c);\n            program.fence_token = 0xbe7c; program.fence_sequence = sequence;\n            const auto fence = hw::encode_packet(hw::Opcode::Fence, sequence, token);\n            program.bytes.insert(program.bytes.end(), fence.begin(), fence.end());\n        } else if (name == \"ico-flat\") {\n            // A flat icosahedron as kind-4 records: the setup's own orientation\n            // and back-face culling replace the CPU's.\n            Bounds box{};\n            const auto gouraud = icosahedron_pass(0.42f, 0.75f, 0.18f, box);\n            std::vector<std::pair<VertexSource, RenderState>> faces;\n            for (const auto& primitive : gouraud.primitives) {\n                const auto& t = std::get<Triangle>(primitive);\n                VertexSource source; source.cull_negative = true;\n                source.bounds = vertex_bounds(t.snapped);\n                for (unsigned k = 0; k < 3; ++k) {\n                    source.points[k] = t.snapped[k];\n                    // The Gouraud plane's depth near each vertex, as D24*256.\n                    const int px = std::clamp(t.snapped[k].x / 16, t.bounds.x0, t.bounds.x1 - 1);\n                    const int py = std::clamp(t.snapped[k].y / 16, t.bounds.y0, t.bounds.y1 - 1);\n                    source.depth[k] = depth_code(t.z.at(px - t.bounds.x0, py - t.bounds.y0)) << 8;\n                }\n                // Submit every other face reversed: culling must drop exactly those.\n                faces.push_back({source, overlay_state({200, 120, 40})});\n                faces.back().second.depth_test = faces.back().second.depth_write = true;\n                std::swap(source.points[1], source.points[2]); std::swap(source.depth[1], source.depth[2]);\n                faces.push_back({source, faces.back().second});\n            }\n            Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;\n            auto vertex = vertex_pass(faces, descriptor, 0, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else if (name == \"closeup\") {\n            auto faces = sphere_triangles(1, 300.0f, 250.0f, 230.0f, 2.2f);\n            const auto back = sphere_triangles(2, 470.0f, 210.0f, 160.0f, 4.0f);\n            faces.insert(faces.end(), back.begin(), back.end());\n            Pass descriptor; descriptor.target = 1; descriptor.depth_store = StoreOp::Discard;\n            auto vertex = vertex_pass(faces, descriptor, 0, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else if (name == \"vertex0\" || name == \"vertex1\") {\n            const int margin = name == \"vertex0\" ? 0 : 1;\n            Pass descriptor; descriptor.target = 1; descriptor.clear_color = 0x18e3;\n            auto vertex = vertex_pass(vertex_triangles(margin + 11, 400), descriptor, margin, sequence);\n            program = std::move(vertex.program); expected = std::move(vertex.oracle);\n        } else {\n            const auto scene = name == \"showcase\" ? DemoScene::Showcase : name == \"perspective\" ? DemoScene::Perspective :\n                name == \"overdraw\" ? DemoScene::Overdraw : DemoScene::Opaque;\n            if (name != \"showcase\" && name != \"perspective\" && name != \"overdraw\" && name != \"opaque\")\n                throw std::invalid_argument(\"unknown isolated case\");\n            expected = make_demo_pass(scene, 1, 1.2L); program = hw::compile_pass(expected, sequence);\n        }\n        const auto start = sim.cycles;\n        const auto initial_x = sim.dut.video_x, initial_y = sim.dut.video_y;\n        const auto initial_refreshes = sim.memory.statistics().refreshes;\n        sim.render(program);\n        if (name == \"copy\") oracle.copy_rect(0, 1, {0, 0}, {0, 0}, 640, 480, RenderMode::Monolithic);\n        else oracle.render(expected, RenderMode::Monolithic);\n        sim.compare(oracle);\n        const auto underflows = sim.scanout_underflows();\n        if (underflows) throw std::runtime_error(\"isolated benchmark scanout underflow\");\n        std::ofstream out(argv[3]);\n        if (!out) throw std::runtime_error(\"cannot open isolated report\");\n        out << \"{\\\"case\\\":\\\"\" << name << \"\\\",\\\"idle_cycles\\\":\" << idle\n            << \",\\\"initial_core_cycle\\\":\" << start << \",\\\"initial_video_x\\\":\" << unsigned(initial_x)\n            << \",\\\"initial_video_y\\\":\" << unsigned(initial_y) << \",\\\"initial_sdram_refreshes\\\":\" << initial_refreshes\n            << \",\\\"core_cycles\\\":\" << sim.last_submission_cycles\n            << \",\\\"oracle_checked\\\":true,\\\"scanout_underflows\\\":\" << underflows << \"}\\n\";\n        std::cout << name << \" delay=\" << idle << \" cycles=\" << sim.last_submission_cycles << '\\n';\n        return 0;\n    } catch (const std::exception& error) { std::cerr << error.what() << '\\n'; return 1; }\n}\n",
+    "runner": "\"\"\"Compare isolated board-profile passes after identical startup phases.\"\"\"\nimport hashlib\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nOUTPUT = Path(__file__).resolve().parent\nTREE = OUTPUT.parent / \"worktree\"\nINCLUDE = OUTPUT.parents[2] / \".deps/rtl/oss-cad-suite/share/verilator/include\"\nEMPTY_ONLY = \"--empty\" in sys.argv[2:]\nDRIVER = OUTPUT / (\"isolated-empty.cpp\" if EMPTY_ONLY else \"isolated.cpp\")\nMODELS = {\"before\": \"pass3-before-model\", \"after\": \"tang20k-core-sim\"}\nSCENES = (\"ui-store\", \"ui-discard\", \"ui-load\", \"pointer\", \"copy\", \"showcase\",\n          \"perspective\", \"overdraw\", \"opaque\", \"ico\", \"ico-flat\", \"closeup\", \"vertex0\", \"vertex1\")\n\n\ndef measure(label):\n    model = TREE / \"build\" / MODELS[label]\n    obj = model / \"obj\"\n    suffix = \"-empty\" if EMPTY_ONLY else \"\"\n    exe = OUTPUT / f\"{label}-isolated{suffix}.exe\"\n    names = (\"setup\", \"renderer\", \"demo\", \"hw_protocol\", \"sdram_model\",\n             \"verilated\", \"verilated_dpi\", \"verilated_vcd_c\", \"verilated_threads\")\n    objects = [obj / f\"{name}.o\" for name in names]\n    objects.append(obj / \"Vnano_gpu_core__ALL.a\")\n    flags = [\"-std=c++17\", \"-O2\", \"-pthread\", \"-DVL_TIME_CONTEXT=1\",\n             \"-DNANO_GPU_ORACLE_ONLY=1\", \"-DNANO_GPU_BOARD_PROFILE=1\",\n             \"-DVM_TRACE=1\", \"-DVM_TRACE_VCD=1\", \"-DVM_TRACE_FST=0\"]\n    includes = (obj, INCLUDE, INCLUDE / \"vltstd\", TREE / \"reference/include\", TREE / \"reference/rtl\")\n    subprocess.run([\"g++\", *flags, *(f\"-I{path}\" for path in includes),\n                    str(DRIVER), *map(str, objects), \"-o\", str(exe)], check=True)\n    cases = []\n    for scene in ((\"empty-discard\",) if EMPTY_ONLY else SCENES):\n        for offset in (0, 700000):\n            stats = OUTPUT / f\"{label}-{scene}-{offset}.json\"\n            subprocess.run([str(exe), scene, str(offset), str(stats)], check=True)\n            cases.append(json.loads(stats.read_text(encoding=\"utf-8\")))\n    report = {\"build\": json.loads((model / \"build-report.json\").read_text(encoding=\"utf-8\")),\n              \"driver_sha256\": hashlib.sha256(DRIVER.read_bytes()).hexdigest(),\n              \"exe_sha256\": hashlib.sha256(exe.read_bytes()).hexdigest(), \"cases\": cases}\n    (OUTPUT / f\"{label}-matched{suffix}.json\").write_text(\n        json.dumps(report, indent=2) + \"\\n\", encoding=\"utf-8\", newline=\"\\n\")\n\n\nmeasure(sys.argv[1])\n"
+  },
+  "validation": {
+    "attachment_tests": [
+      {
+        "top": "nano_tile_attachment_pair_tb",
+        "passed": true,
+        "paired_color_depth_writes": 512,
+        "single_color_writes": 1024,
+        "single_depth_writes": 1024,
+        "paired_color_and_selected_depth_reads": 3585,
+        "streamed_pair_clearbacks": 512,
+        "held_read_edges": 16,
+        "all_tile_pixels_and_boundaries": true,
+        "reset_preserves_attachment_contents": true,
+        "single_writes_preserve_other_lane_and_attachment": true
+      },
+      {
+        "top": "nano_sdp32_masked_collision_tb",
+        "passed": true,
+        "undefined_same_word_partial_write_read_rejected": true
+      }
+    ],
+    "native_and_memory_check": "Passed",
+    "docs_examples": "Passed",
+    "recovery_checks": 1507,
+    "vendor_masked_ram": {
+      "read_checks_per_model": 2563,
+      "models": [
+        "Gowin V1.9.8.11 GW2A prim_sim.v",
+        "Gowin V1.9.11.03 GW2A prim_sim.v"
+      ],
+      "scope": "Native SDPB behavior: mask polarity and lanes, all 512 addresses, output hold and reset retention",
+      "fixture": "`timescale 1ns/1ps\nmodule validation_vendor_masked_tb;\n reg wclk=0,wce=1,we=0,rclk=0,rce=1,re=0,reset_output=0;\n reg [3:0]wstrb=0;reg[8:0]waddr=0,raddr=0;reg[31:0]wdata=0;\n wire[31:0]rdata;\n nano_sdp32_masked dut(.*);\n reg[31:0]expected[0:511];reg[31:0]held;integer i,j,reads=0;\n task write_word(input integer a,input[31:0]data,input[3:0]mask);begin\n  we=1;waddr=a;wdata=data;wstrb=mask;\n  for(j=0;j<4;j=j+1)if(mask[j])expected[a][j*8+:8]=data[j*8+:8];\n  #5;wclk=1;#5;wclk=0;we=0;\n end endtask\n task read_word(input integer a);begin\n  raddr=a;re=1;#5;rclk=1;#5;rclk=0;re=0;\n  if(rdata!==expected[a])$fatal(1,\"native mask address%0d got%h expected%h\",a,rdata,expected[a]);\n  reads=reads+1;\n end endtask\n initial begin\n  for(i=0;i<512;i=i+1)begin expected[i]=0;write_word(i,32'hcafebabe^i*32'h1f0e0d0c,4'hf);end\n  for(i=0;i<512;i=i+1)begin\n   write_word(i,32'h01234567^i,4'h3);read_word(i);\n   write_word(i,32'h89abcdef^i,4'hc);read_word(i);\n   write_word(i,32'h10325476^i,4'h5);read_word(i);\n   write_word(i,32'hfedcba98^i,4'ha);read_word(i);\n   write_word(i,32'hffffffff,4'h0);read_word(i);\n  end\n  // A stalled output is retained even when the stored word changes.\n  read_word(511);held=rdata;write_word(511,32'h55667788,4'hf);\n  repeat(4)begin #5;rclk=1;#5;rclk=0;if(rdata!==held)$fatal(1,\"disabled read did not hold\");end\n  reset_output=1;#5;rclk=1;#5;rclk=0;reset_output=0;\n  if(rdata!==0)$fatal(1,\"native output reset failed\");\n  read_word(511);read_word(0);\n  $display(\"PASS vendor SDPB32 masked lanes: reads%0d endpoints partial/full/zero masks hold/reset retention\",reads);\n  $finish;\n end\nendmodule\n"
+    },
+    "recovery_log_sha256": "353a981c483f0090601245766ce1fa6d4dafb957afce070c4cd9ba9d896a0700",
+    "recovery_build_note": "Recompiled the Verilator runtime with native UCRT GCC -std=c++20 -O2 to avoid the pre-existing GCC constructor-clone link issue, then linked and ran the normal fixture."
+  },
+  "whole_board": {
+    "reports": [
+      "docs/hardware/tang20k-paired-attachments-v1908.json",
+      "docs/hardware/tang20k-paired-attachments-v1911.json"
+    ],
+    "selected": "v1908",
+    "functional": "docs/hardware/tang20k-paired-attachments-functional.json"
+  }
+}

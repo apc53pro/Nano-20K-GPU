@@ -892,13 +892,14 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. The signed tool led for the intermediate pipelined-edge snapshot.
-With the kind-4 divider change, complete-board builds estimate 63.729 MHz
-core Fmax for V1.9.8.11 and 50.595 MHz for V1.9.11.03. Both meet the
-selected clock gates, so `make tang20k` selects V1.9.8.11. The architecture
-guide's section 12 links the source hashes, checked image metadata and all
-remaining reset-release violations. The build uses 50.4 MHz core/SDRAM,
-25.2 MHz pixels and 126 MHz serialization.
+V1.9.8.11. For the current paired-attachment RTL, the complete-board
+builds estimate 57.626 MHz core Fmax for V1.9.8.11 and 52.215 MHz for
+V1.9.11.03. Both meet the selected clock gates, so `make tang20k`
+selects V1.9.8.11. The architecture guide's section 12 links the source
+hashes, checked image metadata and all remaining reset-release violations.
+The board clocks are 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
+serialization. The local candidate used the same package pins and
+host-pad timing constraints as the divider-prefix snapshot.
 
 The retained published image is **7,264,137 bytes**, SHA-256
 `39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
@@ -1162,6 +1163,13 @@ Color pitch is 1280 bytes; pixel `(x,y)` is at `color_base + 1280*y + 2*x`.
 Depth pitch is 2560 bytes, with low 24 bits meaningful and high eight bits zero.
 Depth zero is near and `0xFFFFFF` is far; LESS rejects a sample equal to the
 clear value, while LEQUAL accepts equality.
+
+The tile executor loads and stores two adjacent RGB565 pixels per accepted
+SDRAM word. The even pixel occupies the low halfword, matching the external
+buffer layout. Internally, two parity banks hold full D24 pixels and can
+clear a pair on one clock. A pass still retires after its required stores
+complete. Hosts use the existing ownership and fence rules for LOAD,
+CLEAR, STORE and DISCARD.
 `WRITE_HEAP` cannot write attachments. Heap allocation, nonoverlap and resource
 lifetime belong to the CPU driver. Check sums with at least 64-bit arithmetic.
 
