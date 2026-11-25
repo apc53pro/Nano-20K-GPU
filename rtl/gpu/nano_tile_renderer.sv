@@ -48,13 +48,12 @@ module nano_tile_renderer (
     assign fault=sticky_fault||(|plane_fault)||(|edge_fault);
     // Header/edge words remain direct registers. The seven seed/dx/dy
     // triplets use 14 native 512x32 banks instead of 1344 coefficient FFs.
-    // Per-word nonzero flags preserve reserved-field checks and permit command
-    // words to be loaded in arbitrary order, including rewrites to zero.
+    // Short 2D records end before the triangle fields. Their absent tails
+    // are never consulted, including when a preceding draw used these RAMs.
     // Retain only semantically live payload bits. Malformed high/reserved
     // bits become a per-word sentinel, preserving exact validation without
     // spending one fabric FF (and its physical feed LUT) per discarded bit.
     wire [31:0] words [0:37];
-    reg [41:0] coefficient_nonzero;
     wire signed [63:0] coefficient_data [0:6];
     reg [9:0] origin_x;
     reg [8:0] origin_y;
@@ -87,7 +86,7 @@ module nano_tile_renderer (
     reg signed [15:0] line_dx, line_dy, line_sx, line_sy, line_error;
     reg signed [31:0] edge_row [0:2], edge_current [0:2];
     reg signed [63:0] plane_row [0:6], plane_current [0:6];
-    wire [6:0] plane_enable={
+    wire [6:0] plane_enable={7{kind==0}}&{
         {3{words[0][7:0]==0&&(|words[1][7:1])&&(words[0][16]||words[0][19])}},
         {3{words[0][16]&&(words[1][7:0]==1||words[1][7:0]==4)}},
         (words[0][17]||words[0][18])};
@@ -196,9 +195,9 @@ module nano_tile_renderer (
         if(w==0) begin:h0
             reg [6:0] value;
             always @(posedge clk) if(write_word) value<={
-                (cmd_word_data[15:8]!=1)||(|cmd_word_data[7:2])||(|cmd_word_data[31:20]),
+                (cmd_word_data[15:8]!=2)||(|cmd_word_data[7:2])||(|cmd_word_data[31:20]),
                 cmd_word_data[19:16],cmd_word_data[1:0]};
-            assign words[w]={11'd0,value[6],value[5:2],8'h01,6'd0,value[1:0]};
+            assign words[w]={11'd0,value[6],value[5:2],8'h02,6'd0,value[1:0]};
         end else if(w==1) begin:h1
             reg [8:0] value;
             always @(posedge clk) if(write_word) value<={
@@ -440,9 +439,8 @@ module nano_tile_renderer (
     wire sprite_extent_bad=sprite_nonempty&&(sprite_wide||
         (|sprite_limit_x[12:11])||sprite_limit_x[10:0]>words[13][10:0]||
         (|sprite_limit_y[12:11])||sprite_limit_y[10:0]>words[14][10:0]);
-    integer check_word;
     always @* begin
-        record_bad_static=words[0][15:8]!=1||(|words[0][7:2])||words[0][31:20]!=0||
+        record_bad_static=words[0][15:8]!=2||(|words[0][7:2])||words[0][31:20]!=0||
             ((|words[1][7:3])||(words[1][2]&&(|words[1][1:0])))||((|words[1][15:10])||(&words[1][9:8]))||words[1][31:19]!=0||
             words[2][31:24]!=0||words[3][31:16]!=0||words[16][31:24]!=0||
             words[19]!=0||(!words[0][19]&&words[3]!=0)||
@@ -463,19 +461,13 @@ module nano_tile_renderer (
         end
         1:begin
             record_bad_static=record_bad_static||words[17]!=0||words[18]!=0||words[1][7:0]!=0||words[0][19];
-            for(check_word=20;check_word<38;check_word=check_word+1)record_bad_static=record_bad_static||words[check_word]!=0;
-            record_bad_static=record_bad_static||(|coefficient_nonzero);
         end
         2:begin
             record_bad_static=record_bad_static||words[8]!=0||words[9]!=0||words[10]!=0||words[11]!=0||
                 words[1][7:0]!=0||words[0][19]||outside_x(words[17])||outside_x(words[20])||outside_y(words[18])||outside_y(words[21]);
-            for(check_word=22;check_word<38;check_word=check_word+1)record_bad_static=record_bad_static||words[check_word]!=0;
-            record_bad_static=record_bad_static||(|coefficient_nonzero);
         end
         3:begin
             record_bad_static=record_bad_static||(words[1][7:0]!=0&&words[1][7:0]!=2)||words[17][31]||words[18][31];
-            for(check_word=20;check_word<38;check_word=check_word+1)record_bad_static=record_bad_static||words[check_word]!=0;
-            record_bad_static=record_bad_static||(|coefficient_nonzero);
         end
         default:begin end
         endcase
@@ -545,7 +537,7 @@ module nano_tile_renderer (
         wire [1:0] wa=(cmd_word_index==DY_LO||cmd_word_index==DY_HI)?2:
             ((cmd_word_index==DX_LO||cmd_word_index==DX_HI)?1:0);
         wire [31:0] data_lo,data_hi;
-        wire read_coefficient=(state!=IDLE)&&(state!=FAILED);
+        wire read_coefficient=(kind==0)&&(state!=IDLE)&&(state!=FAILED);
         nano_sdp32 low_bank(.wclk(clk),.wce(1'b1),.we(write_lo),.waddr({7'd0,wa}),.wdata(cmd_word_data),
             .rclk(clk),.rce(1'b1),.re(read_coefficient),.raddr({7'd0,coefficient_read_address}),
             .reset_output(reset),.rdata(data_lo));
@@ -560,8 +552,10 @@ module nano_tile_renderer (
     // Once any flag sets, fault blocks capture and all attachment writes until
     // reset; no carry chain continues through the collective OR/state mux.
     wire offset_step=(state==OFFSET_X)||(state==OFFSET_Y);
-    wire grid_step=(advance_raster&&!row_exit&&(kind!=2)&&(raster_step_x||raster_step_y))||
-        (state==ROW_SKIP);
+    // Neither the edge nor plane fields exist in a short 2D record. Only
+    // triangle steps consume them or can record their arithmetic overflow.
+    wire grid_step=(kind==0)&&((advance_raster&&!row_exit&&(raster_step_x||raster_step_y))||
+        (state==ROW_SKIP));
     always @(posedge clk) begin
         if(reset) begin plane_fault<=0;edge_fault<=0;end
         else if(!fault) begin
@@ -653,7 +647,6 @@ module nano_tile_renderer (
             done<=0; pending<=0; pix_rvalid<=external_re;
             if(cmd_word_we) begin
                 if(state!=IDLE||cmd_word_index>=80) begin sticky_fault<=1;state<=FAILED;end
-                else if(cmd_word_index>=38) coefficient_nonzero[cmd_word_index-38]<=|cmd_word_data;
             end
             if(fault) begin sticky_fault<=1;state<=FAILED;end
             else if((tex_flush&&busy)||tex_fault||fragment_fault) begin sticky_fault<=1;state<=FAILED;end
@@ -721,6 +714,10 @@ module nano_tile_renderer (
                 line_error<=line_dx+line_dy;
                 edge_step<=0;
                 if(((x0>=x1)||(y0>=y1))&&!words[1][18])state<=DRAIN;
+                // Every present descriptor must still reach cache validation,
+                // even for an empty or inert 2D draw. Constant D24 and sprite
+                // source positions need no triangle coefficient-RAM seed.
+                else if(kind!=0)state<=words[1][18]?CONFIG:RASTER;
                 else state<=SEED_CAPTURE;
             end
             SEED_CAPTURE: begin

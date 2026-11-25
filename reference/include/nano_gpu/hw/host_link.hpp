@@ -8,7 +8,7 @@
 namespace nano_gpu::hw {
 
 constexpr std::uint8_t protocol_major = 0;
-constexpr std::uint8_t protocol_minor = 2;
+constexpr std::uint8_t protocol_minor = 3;
 
 enum class Opcode : std::uint16_t {
     GetCaps = 1, GetStatus = 2, WriteHeap = 3, SubmitPass = 4,

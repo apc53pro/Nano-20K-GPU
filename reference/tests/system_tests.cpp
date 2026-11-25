@@ -128,7 +128,7 @@ public:
             if (!result.read_valid) continue;
             bytes.push_back(result.read_data);
             if (bytes.size() == packet_header_bytes) {
-                expect(read_u32(bytes, 0) == 0x5550474eu && bytes[4] == 0 && bytes[5] == 2 &&
+                expect(read_u32(bytes, 0) == 0x5550474eu && bytes[4] == protocol_major && bytes[5] == protocol_minor &&
                        read_u16(bytes, 6) == (static_cast<std::uint16_t>(opcode) | 0x8000u) &&
                        read_u32(bytes, 12) == sequence && read_u32(bytes, 8) <= 780,
                        "raw reply envelope or command identity differs");
@@ -325,8 +325,11 @@ void rendering_tests() {
         const auto& system = actual.system_statistics();
         const auto& host = actual.host_statistics();
         const auto& memory = actual.memory_statistics();
+        std::uint64_t expected_record_bytes = 0;
+        for(const auto& bin : bin_primitives(pass.primitives))
+            for(const auto index : bin)expected_record_bytes += record_bytes(pass.primitives[index]);
         expect(system.passes_completed == 1 && system.uploaded_bytes == program.upload_bytes &&
-               system.fetched_record_bytes == program.reference_count * primitive_record_bytes &&
+               system.fetched_record_bytes == expected_record_bytes &&
                system.fetched_bin_bytes == tile_count * tile_entry_bytes + 4 * program.reference_count,
                "records or ordered references arrived without physical fetch accounting");
         expect(host.rx_bytes == program.bytes.size() && host.cycles >= host.rx_bytes * actual.config().host.clock_divider &&
@@ -757,7 +760,7 @@ void recovery_tests() {
         pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, overlay_state({200, 80, 30}), 0});
         pass.primitives.emplace_back(Rect{{0, 0, 32, 32}, overlay_state({30, 80, 200}), 0});
         auto program = compile_pass(pass);
-        const auto corrupt_address = heap_base + primitive_record_bytes + 76;
+        const auto corrupt_address = heap_base + record_bytes(pass.primitives.front()) + 76;
         const bool changed = mutate_uploaded_byte(program, corrupt_address, 1);
         expect(changed, "test did not corrupt the second uploaded record");
         SystemModel model; boot(model); RawHost host(model); ThroughputMonitor monitor;

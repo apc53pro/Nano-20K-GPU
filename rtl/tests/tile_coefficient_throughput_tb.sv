@@ -49,7 +49,7 @@ module nano_tile_coefficient_throughput_tb;
    for(i=0;i<1024;i=i+1)begin pix_we=3;pix_addr=i;tick();end
    pix_we=0;
    for(i=0;i<80;i=i+1)record[i]=0;
-   record[0]=(kind==0)?32'h00070103:32'h00070100;
+   record[0]=(kind==0)?32'h00070203:32'h00070200;
    record[1]=32'h00040002;record[6]=640;record[7]=480;
    record[10]=32;record[11]=32;
    record[12]=32'h258000;record[13]=32;record[14]=32;record[15]=64;
@@ -66,10 +66,10 @@ module nano_tile_coefficient_throughput_tb;
     record[70]=32'h04000000; // U.dx=(1/2)*2^27.
     record[78]=32'h04000000; // V.dy=(1/2)*2^27.
    end
-   // Reverse loading plus a seed rewrite coincident with cmd_valid proves
-   // the native seed read cannot collide with that last accepted write.
-   for(i=79;i>=0;i=i-1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
-   cmd_word_index=39;cmd_word_data=record[39];cmd_valid=1;tick();
+   // Reverse prefix loading plus a final rewrite coincident with cmd_valid
+   // proves a triangle seed read cannot collide with its last word write.
+   for(i=(kind==0?19:79);i>=0;i=i-1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
+   cmd_word_index=kind==0?19:39;cmd_word_data=record[cmd_word_index];cmd_valid=1;tick();
    cmd_word_we=0;cmd_valid=0;steps=0;
    while(!done&&steps<10000)begin tick();steps=steps+1;end
    if(!done||got!=1024||max_accept!=1024||max_commit!=1024)

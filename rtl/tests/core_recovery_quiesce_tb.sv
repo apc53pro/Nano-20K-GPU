@@ -192,14 +192,20 @@ module nano_core_recovery_quiesce_tb;
             release dut.mem_r_last[2];release dut.mem_r_data[95:64];release dut.mem_done[2];
         end
     endtask
-    task record_stream;
-        integer index,gap;
+    task record_stream(input integer word_count, input [7:0] kind,
+                       input [22:0] address, input bit range_fault);
+        integer index,gap,requested_words,supplied_words;
         begin
             record_boundary_begin();
-            for(index=0;index<80;index=index+1)begin
+            dut.record_address=address;
+            supplied_words=range_fault ? 16 : word_count;
+            for(index=0;index<supplied_words;index=index+1)begin
                 if(index!=0 && index%16==0)begin
                     @(negedge clk);record_response_valid=0;record_response_last=0;record_response_done=1;
                     step();check(dut.state==8'd31,"completed burst advances record command");
+                    requested_words=word_count-index;
+                    if(requested_words>16)requested_words=16;
+                    check(dut.mem_cmd_words[10+:5]==5'(requested_words),"record command requests only the remaining words");
                     @(negedge clk);record_response_done=0;
                     step();check(dut.state==8'd32,"next record burst accepts command");
                 end
@@ -211,18 +217,23 @@ module nano_core_recovery_quiesce_tb;
                     step();
                 end
                 @(negedge clk);record_input_index=index;
-                record_response_data=32'ha5963cc3 ^ (index*32'h01020305);
-                record_response_last=index%16==15;record_response_valid=1;
+                record_response_data=index==0 ? {24'h000102,kind} : (32'ha5963cc3 ^ (index*32'h01020305));
+                record_response_last=index%16==15 || index==supplied_words-1;
+                record_response_valid=1;
                 step();
             end
             @(negedge clk);record_response_valid=0;record_response_last=0;record_response_done=1;
             step();
-            check(record_words_accepted==80 && record_words_written==80,"all eighty words retire before draw launch");
-            check(dut.state==8'd34 && dut.tile_cmd_valid && !dut.record_load_valid,"draw begins only after final staged write");
+            check(record_words_accepted==supplied_words && record_words_written==supplied_words,
+                  "all supplied words retire at the record boundary");
+            if(range_fault)
+                check(dut.fault_pending && dut.fault_code==3 && !dut.mem_cmd_valid[2] && !dut.tile_cmd_valid,
+                      "truncated heap record faults before followup or draw");
+            else
+                check(dut.state==8'd34 && dut.tile_cmd_valid && !dut.record_load_valid,"draw begins only after final staged write");
             @(negedge clk);record_response_done=0;
             step();check(!dut.tile_cmd_word_we,"no staged word leaks into active draw");
             record_boundary_end();
-            $display("PASS eighty record words retain one-edge latency, burst/gap order and final-word-before-launch");
         end
     endtask
     task record_cancel(input integer kind);
@@ -308,7 +319,15 @@ module nano_core_recovery_quiesce_tb;
         texture_entry_race(1);
         upload_payload_drain();
         active_renderer_abort();
-        record_stream();
+        record_stream(80,0,23'h7ffec0,0);
+        $display("PASS eighty record words retain one-edge latency, burst/gap order and final-word-before-launch");
+        record_stream(20,1,23'h7fffb0,0);
+        record_stream(22,2,23'h7fffa8,0);
+        record_stream(20,3,23'h7fffb0,0);
+        record_stream(20,1,23'h7fffb4,1);
+        record_stream(22,2,23'h7fffac,1);
+        record_stream(20,3,23'h7fffb4,1);
+        $display("PASS 2D record fetches use exact tail size and reject out-of-heap tails");
         record_cancel(0);
         record_cancel(1);
         record_cancel(2);

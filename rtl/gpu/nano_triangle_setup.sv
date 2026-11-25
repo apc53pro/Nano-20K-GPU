@@ -60,7 +60,7 @@ module nano_triangle_setup (
             case(capture_index[3:0])
             0: begin
                 kind4<=capture_data[7:0]==4;
-                word_bad[0]<=capture_data[7:0]!=4||capture_data[15:8]!=1||capture_data[19]||(|capture_data[31:21]);
+                word_bad[0]<=capture_data[7:0]!=4||capture_data[15:8]!=2||capture_data[19]||(|capture_data[31:21]);
                 flags<=capture_data[18:16]; cull<=capture_data[20];
             end
             1: begin
@@ -300,7 +300,7 @@ module nano_triangle_setup (
         out_index={2'd0,out_count};
         out_data=0;
         case(out_count)
-        0: out_data={13'd0,flags,8'h01,8'h00};
+        0: out_data={13'd0,flags,8'h02,8'h00};
         1: out_data={22'd0,depth_func,8'd0};
         2: out_data={8'd0,color};
         6: out_data=32'd640;

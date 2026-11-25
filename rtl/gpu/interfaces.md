@@ -50,8 +50,10 @@ Configuration and flush occur while drained. The memory client is read-only.
 ## Tile renderer
 
 `nano_tile_renderer`: `clk,reset`; serial command loading
-`cmd_word_we,cmd_word_index[6:0],cmd_word_data[31:0]` for the existing eighty-word
-primitive record. `cmd_valid,cmd_ready,cmd_tile_x[9:0],cmd_tile_y[8:0]` starts a
+`cmd_word_we,cmd_word_index[6:0],cmd_word_data[31:0]` for the primitive record's
+20 words (rectangle or sprite), 22 words (line), or 80 words (prepared
+triangle). The triangle setup unit expands the 16-word vertex record before
+starting the renderer. `cmd_valid,cmd_ready,cmd_tile_x[9:0],cmd_tile_y[8:0]` starts a
 primitive; `busy,done,fault` expose completion. Loading is legal only when idle.
 
 Native attachment access while idle uses `pix_we,pix_write_pair,pix_addr[9:0],

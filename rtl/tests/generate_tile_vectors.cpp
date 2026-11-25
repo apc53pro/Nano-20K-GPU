@@ -209,7 +209,8 @@ void generate(const char* path) {
             const auto descriptor = has_texture ?
                 std::optional<hw::TextureDescriptor>{{hw::heap_base, 8, 8, 16}} : std::nullopt;
             const auto record = hw::encode_primitive(primitive, descriptor);
-            for (unsigned word = 0; word < 80; ++word) {
+            output << std::dec << record.size() / 4 << ' ';
+            for (unsigned word = 0; word < record.size() / 4; ++word) {
                 output << std::hex << hw::read_u32(record, 4 * word) << ' ';
             }
             output << '\n';

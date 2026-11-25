@@ -39,7 +39,7 @@ std::vector<std::uint8_t> packet(std::uint32_t sequence, Opcode opcode = Opcode:
                                  const std::vector<std::uint8_t>& payload = {}) {
     std::vector<std::uint8_t> bytes(16 + payload.size());
     bytes[0] = 0x4e; bytes[1] = 0x47; bytes[2] = 0x50; bytes[3] = 0x55;
-    bytes[4] = 0; bytes[5] = 2;
+    bytes[4] = protocol_major; bytes[5] = protocol_minor;
     bytes[6] = static_cast<std::uint8_t>(opcode);
     bytes[7] = static_cast<std::uint8_t>(static_cast<std::uint16_t>(opcode) >> 8);
     put32(bytes, 8, static_cast<std::uint32_t>(payload.size()));
@@ -362,9 +362,11 @@ void parser_tests() {
             expect_fault(bytes, HostFault::Version);
         }
     });
-    run_case("obsolete 0.1 packets are rejected instead of executing a legacy path", [] {
-        auto bytes = packet(1); bytes[5] = 1;
-        expect_fault(bytes, HostFault::Version);
+    run_case("obsolete packets are rejected instead of executing a legacy path", [] {
+        for(const auto minor : {std::uint8_t{1}, std::uint8_t{2}}) {
+            auto bytes = packet(1); bytes[5] = minor;
+            expect_fault(bytes, HostFault::Version);
+        }
     });
     run_case("unknown opcode and oversized declared payload are rejected", [] {
         for (std::uint16_t code : {std::uint16_t{0}, std::uint16_t{9}, std::uint16_t{65535}}) {

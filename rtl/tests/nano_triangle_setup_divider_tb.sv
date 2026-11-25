@@ -37,7 +37,7 @@ module nano_triangle_setup_divider_tb;
   reg [31:0]swap_word;
   begin
    for(i=0;i<16;i=i+1)record[i]=0;
-   record[0]=32'h00070104;record[2]=24'h57a123;
+   record[0]=32'h00070204;record[2]=24'h57a123;
    tile_x=0;tile_y=0;
    // A one-subpixel right triangle has area 1, NX=Z1-Z0, NY=Z2-Z0.
    // Its vertex at the sample center makes even saturated cases observable
@@ -130,7 +130,7 @@ module nano_triangle_setup_divider_tb;
    if(output_words[26+4*e]!==ea[e][31:0]||output_words[27+4*e]!==eb[e][31:0]||
       output_words[28+4*e]!==ec[e][31:0])$fatal(1,"case%0d edge%0d changed during divider work",case_id,e);
   end
-  if(output_words[0]!==32'h00070100||output_words[2]!==record[2]||
+  if(output_words[0]!==32'h00070200||output_words[2]!==record[2]||
      output_words[8]!==wx[31:0]||output_words[9]!==wy[31:0])
    $fatal(1,"case%0d header/window output mismatch",case_id);
   cases=cases+1;case_id=case_id+1;tick();

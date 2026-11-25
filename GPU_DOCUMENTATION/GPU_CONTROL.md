@@ -1,7 +1,7 @@
 # GPU control: CPU interface, commands and examples
 
 This is the CPU programmer's guide for the **implemented RTL**, protocol
-**N20K-SYS-0.2**. Read [GPU_ARCHITECTURE.md](GPU_ARCHITECTURE.md) for the rendering
+**N20K-SYS-0.3**. Read [GPU_ARCHITECTURE.md](GPU_ARCHITECTURE.md) for the rendering
 pipeline and CPU/GPU division of work. These two files are the primary GPU
 documentation and must be updated with architecture or control changes in the
 same change and pushed with those changes to GitHub.
@@ -16,14 +16,12 @@ terminal and a native GPU service. Physical electrical margins remain
 The examples implement generic packet/driver logic; their transport callbacks
 must be connected to the eventual board interface or a simulator adapter.
 
-Version **0.2 breaks the previous 0.1 byte ABI**. `WRITE_HEAP` now uses one
-lossless encoded representation for every resource; no uncompressed upload
-mode or legacy packet decoder remains. Request/reply version bytes and the
-capability version are 0.2. Update host software together with the GPU.
-Primitive records remain 320 bytes after decoding, and rendering precision,
-state, buffer ownership and completion rules are unchanged. The earlier
-[timing-optimization regression](../docs/benchmarks/rtl-timing-optimized.json)
-describes the historical 0.1 implementation, not the new upload path.
+Version **0.3** uses packet minor version 3 and primitive record version 2.
+Rectangle and sprite records use 80 bytes, and lines use 88 bytes. Prepared
+and vertex triangles use 320 and 64 bytes respectively. Rebuild GPU
+applications that write record words directly. The GPU checks the record
+version independently of the packet header. `WRITE_HEAP` uses the lossless
+encoding introduced in 0.2.
 
 **Hardware compatibility policy:** old host software or packet formats must
 never require additional GPU hardware resources. Interface changes may break
@@ -391,10 +389,14 @@ Manufacturer sources: [Core2350B schematic](https://files.waveshare.com/wiki/Cor
 ### MPC-2350 GPU driver
 
 `gpu_bus.pio` defines the byte transport, `gpu_display.cpp` controls it, and
-`nano_gpu.cpp` serializes N20K-SYS-0.2 packets and issues terminal commands.
+`nano_gpu.cpp` serializes packets and issues terminal commands.
+The 0.3 RTL uses the packet version and short-record encoder in the
+[MPC-2350 companion firmware](https://github.com/apc53pro/MPC-2350/tree/0b64ea7aa6ea6af5b2259c242d0ead6fa3ff9fb9).
 `font.cpp` supplies the bitmap font for the **40×30 black-on-white terminal**.
 The FPGA copies each 16×16 glyph and scans out the front buffer over HDMI.
-See the [MPC-2350 firmware](https://github.com/apc53pro/MPC-2350/tree/6b4ebda7e0bffb24ea81aead5970b014f4146e2c).
+Applications that build records directly must write record version 2 and
+upload the kind-specific byte count. The firmware encoder keeps its native
+input structure and returns the same success or error codes.
 
 The CPU submits each byte operation through the TX FIFO of one PIO2 state
 machine and waits for its completion in the RX FIFO. PIO controls the clock,
@@ -414,14 +416,17 @@ The 250 kHz default gives a 4 µs period at the firmware's 375 MHz system
 clock. `GPU_STATUS` prints the requested rate as `hclk_target_hz=`.
 Manual reset and offline diagnostic phases round up to whole microseconds
 using the same setting.
-The setting describes HCLK bursts. Electrical timing at the pads still
-needs measurement.
+The setting describes HCLK bursts. The current local MPC-2350
+configuration targets 18.75 MHz; the published companion branch retains
+its 250 kHz default. Electrical timing at the pads still needs
+measurement.
 
 Startup asserts GPU_RESET_N and keeps the data bus released for **1000 ms**
 before any host clock/transfer, allowing for FPGA flash configuration. This is
 a minimum allowance, not a configuration-DONE detector. It then clocks
 the host domain during reset and release, and checks the immutable sideband
-capability prefix `0 2 8 20` before interpreting status. An unconfigured FPGA
+capability prefix for its protocol revision before interpreting status.
+An unconfigured FPGA
 reads all `FF` or times out. While the prefix is wrong, the driver releases the
 bus, waits 100 ms and repeats the reset pulse and prefix check. It stops at the
 first match or **10 s** after initialization began; without a PIO state machine
@@ -430,7 +435,7 @@ still connects (host-mock tested; on 2026-11-08 the user reported the first
 boot after a full power cycle connecting on the board). The firmware
 starts this sequence only after its final system-clock change, because the HCLK
 divider is derived from `clk_sys`. It then polls coherent startup
-status, checks the full 0.2 capabilities, and uploads a **64 KiB
+status, checks the full capabilities, and uploads a **64 KiB
 256×128 RGB565 font texture at heap `0x258000`**, and fences. The CPU expands
 immutable font bits into one 512-byte upload row at a time; it allocates no
 screen pixel buffer. The first frame uses 1200 heap-image `COPY_RECT` commands.
@@ -479,7 +484,7 @@ shows the last address byte driven and sensed at the RP data pads. Equal
 values check the local output level, not inter-board continuity.
 For an offline link, `GPU_PROBE` reads immutable capability bytes 64..79 through
 the sideband path without submitting/retrying packets. Its expected hexadecimal
-prefix is `0 2 8 20` (version 0.2, 8-bit bus, 32-pixel tiles). All-ones responses
+prefix for 0.3 is `0 3 8 20` (8-bit bus, 32-pixel tiles). All-ones responses
 point to invalid readback and require checking data/control wiring and bus drive.
 An all-zero or otherwise incorrect capability prefix reports `invalid capability
 readback` rather than being treated as an SDRAM initialization timeout: these
@@ -568,9 +573,9 @@ address path without an FPGA change:
   GPU_RESET_N LOW, release, 64 idle edges), without the configuration wait or
   client startup. It then reads capability registers **`0x41 0x42 0x43 0x41`**,
   never `0x40` first, and prints
-  `GPU LATCHTEST: <4 HEX bytes>; edges=<4 decimal>; expected=2 8 20 2`.
-  `2 8 20 2` means that these address writes reached the latch. `2 2 2 2`
-  matches latching only the first address after reset. `0 0 0 0` matches the
+  `GPU LATCHTEST: <4 HEX bytes>; edges=<4 decimal>; expected=3 8 20 3`.
+  On 0.3, `3 8 20 3` means that these address writes reached the latch.
+  `3 3 3 3` matches latching only the first address after reset. `0 0 0 0` matches the
   FPGA seeing other addresses, for example a fixed `0x40`. These signatures
   come from the host model and are not unique diagnoses.
 - **`GPU_DRIVE <hex>`** (one or two hexadecimal digits) releases the bus,
@@ -638,7 +643,8 @@ host diagnostic changes no FPGA RTL, constraints, clock or programming image.
 
 For stable measurements, the offline-only `GPU_HOLD` command first releases
 the bus with WR_N/RD_N/ALE_N HIGH and RP data pins as inputs. Before selecting
-an address, it samples RVALID after one HCLK phase (2 us) with HCLK LOW and
+an address, it samples RVALID after one diagnostic HCLK phase (2 us at
+the 250 kHz default) with HCLK LOW and
 after one phase with HCLK HIGH. `GPU IDLE` prints `RVALID_LOWCLK` and `RVALID_HIGHCLK`; both should
 be **0** because RD_N is inactive. A clock-linked RVALID miswire is one possible
 cause of an incorrect idle result, not an established diagnosis. The check
@@ -646,7 +652,7 @@ adds one idle rising edge, submits no packet and continues to the held read
 even if idle RVALID is wrong.
 
 It freshly selects register **65 / `0x41`**, whose immutable expected
-byte is **`0x02`**. It releases all RP data outputs, asserts RD_N LOW with
+byte is **`0x03`** for 0.3 and **`0x02`** for the released 0.2 image. It releases all RP data outputs, asserts RD_N LOW with
 WR_N/ALE_N HIGH, and clocks until RVALID is sampled HIGH or the 250 ms read
 timeout expires. It then **keeps HCLK HIGH and RD_N LOW**, including when the
 data is zero or RVALID timed out. An address-write/WREADY timeout instead
@@ -755,7 +761,7 @@ block, which firmware serializes to the GPU.
 | `BACK_TARGET` (`0x0100`) | None | Returns the writable physical target, 0 or 1. |
 | `ENCODE_PASS` (`0x0101`) | `out, target, flags, clear_rgb565, clear_d24, table` | Encodes the 32-byte descriptor in CPU memory. Use the current FPGA image for depth DISCARD. |
 | `ENCODE_TILE` (`0x0102`) | `out, list, count` | Encodes an 8-byte tile entry. |
-| `ENCODE_PRIMITIVE` (`0x0103`) | `out, input` | Encodes the 320-byte record from a separate CPU-side `NarmGpuPrimitive`. |
+| `ENCODE_PRIMITIVE` (`0x0103`) | `out, input` | Encodes the version-2 record of the input kind from a separate CPU-side `NarmGpuPrimitive`. |
 | `LINK_STATUS` (`0x0104`) | `out` | Reads the 64-byte sideband status bank even if the packet client is offline. |
 | `ABORT` (`0x0105`) | None | Issues the out-of-band soft abort and waits for recovery. |
 | `RESET` (`0x0106`) | None | Issues a hard reset and reloads the terminal font. |
@@ -877,6 +883,12 @@ retransmission in this protocol revision.
 
 ### Programming and first board bring-up
 
+The retained programming image below requires 0.2 firmware. Builds of the
+short-record RTL require packet minor 3 and record version 2 on the same
+pin assignments. A GPU program that writes version-1 records directly must
+be rebuilt for the new record version even when its firmware sends 0.3
+packets. Use a coordinated firmware and GPU build when switching versions.
+
 Use the full-board image `bitstreams/tangnano20k/nano-gpu.fs` and its matching
 `docs/hardware/tang20k-board.json` implementation report. Do not program a
 serial-probe image as a working GPU.
@@ -892,14 +904,13 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current paired-attachment RTL, the complete-board
-builds estimate 57.626 MHz core Fmax for V1.9.8.11 and 52.215 MHz for
-V1.9.11.03. Both meet the selected clock gates, so `make tang20k`
-selects V1.9.8.11. The architecture guide's section 12 links the source
-hashes, checked image metadata and all remaining reset-release violations.
-The board clocks are 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
-serialization. The local candidate used the same package pins and
-host-pad timing constraints as the divider-prefix snapshot.
+V1.9.8.11. For the short-record 0.3 RTL, the complete-board routes
+estimate 58.664 MHz core Fmax for V1.9.8.11 and 54.193 MHz for
+V1.9.11.03. Both meet the selected clock gates on the existing package
+pins and host-pad constraints, so `make tang20k` selects V1.9.8.11.
+The architecture guide's section 12 links the source hashes, checked image
+metadata and all remaining reset-release violations. The design runs at
+50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz serialization.
 
 The retained published image is **7,264,137 bytes**, SHA-256
 `39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
@@ -935,20 +946,28 @@ An older image (`3fc16700…06ef`, user code `0xE7A9`, flashed and verified on
 2026-11-08) and the one before it (`a249064f…9ef9`, user code `0x3354`)
 reject SKIP with fault 6 but accept the depth-DISCARD flag (bit 2); the image
 before those (`55ebdfbd…d170`, user code `0x33E2`) rejects DISCARD too.
-Program this image before running software built with the current draw SDK.
+Pair this published image with the 0.2 draw SDK and firmware.
 The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
 wrapper-model and real-core simulation; neither is a physical-board test.
 
-The current RTL also pipelines triangle edge initialization through its
-existing multiplier (nine core clocks instead of 24). Packet bytes,
-capabilities, numeric validation, coverage, resource residency and completion
+The current RTL pipelines triangle edge initialization through its
+existing multiplier (nine core clocks instead of 24). That edge scheduler leaves packet bytes, capabilities, numeric validation,
+coverage, resource residency and completion
 ordering are unchanged; drivers continue to honor readiness and fences and
 do not insert delays based on this private setup latency. Both prepared
 triangles and kind-4 triangles use it after their record preparation.
 The published image and release reports above retain the previous scheduler.
-[The source-matched experiment](../docs/benchmarks/rtl-edge-setup-pipeline.json)
+For short-record RTL the host compiler sends the exact 2D record prefix
+through the existing encoded upload. With a 25.2 MHz logical host the
+148-rectangle UI sends 12,386 instead of 15,503 bytes and reaches its fence
+13.76–15.09% sooner with depth store. At a slower logical host of about
+249.5 kHz, it reaches the same fence in 4,346,376 instead of 5,155,386 core
+clocks. [The short-record benchmark](../docs/benchmarks/rtl-short-2d-records.json)
+records both simulated cadences, including first-use uploads where needed.
+The RP2350 PIO and physical link need separate measurement.
+[The source-matched edge-setup experiment](../docs/benchmarks/rtl-edge-setup-pipeline.json)
 separates RTL cycle measurements, including phase-dependent pass-duration
 increases, from whole-board static timing. Its local candidate builds retain
 the explicitly hashed, separately owned uncommitted host-pad constraints;
@@ -1057,7 +1076,7 @@ No C compiler structure layout or padding is transmitted.
 | --- | ---: | --- |
 | 0 | 4 | `4E 47 50 55`, ASCII `NGPU`; LE u32 `0x5550474E`. |
 | 4 | 1 | Major version **0**. |
-| 5 | 1 | Minor version **2**; other versions are rejected. |
+| 5 | 1 | Minor version **3**. |
 | 6 | 2 | Opcode, u16. |
 | 8 | 4 | Payload byte length, excluding this header; maximum 1024. |
 | 12 | 4 | Request sequence, u32, nonzero and strictly increasing within the epoch. |
@@ -1315,13 +1334,13 @@ There is no second host-domain copy of all 64 bytes.
 | Byte offset | Type | Current value / meaning |
 | --- | --- | --- |
 | 0 | u8 | Major 0. |
-| 1 | u8 | Minor 2. |
+| 1 | u8 | Minor 3. |
 | 2 | u8 | Bus data width 8. |
 | 3 | u8 | Tile side 32. |
 | 4 | u32 | SDRAM bytes: `0x800000`. |
 | 8 | u32 | Heap base: `0x258000`. |
 | 12 | u32 | Maximum request payload: 1024. |
-| 16 | u32 | Largest primitive record bytes: 320 (a kind-4 record is 64). |
+| 16 | u32 | Maximum primitive record size in bytes: 320. See section 6 for exact lengths. |
 | 20 | u32 | Maximum pass references: 1,048,576. |
 | 24 | u32 | Configured core Hz: board 50,400,000; default simulation 100,800,000. Not measured Fmax. |
 | 28 | u32 | Host-divider metadata: board 0 (independent), default simulation 4; host supplies its clock. |
@@ -1380,25 +1399,29 @@ reinitializes attachments, and invalidates heap assumptions. Therefore epoch
 is not a globally unique power-cycle identifier: a reconnecting driver must
 establish a fresh transport session and discard stale bytes/completions.
 
-## 6. Primitive record formats: 320 bytes, or 64 for a vertex triangle
+## 6. Primitive record formats
 
-Zero the entire record before encoding it. Primitive kinds are triangle 0,
-rectangle 1, line 2, sprite 3 and vertex triangle 4. Kinds 0..3 use the
-320-byte layout below; kind 4 uses the 64-byte layout in
-[Vertex triangle records](#vertex-triangle-records-kind-4-64-bytes). Version
-is 1. All unused/reserved bytes and bits must be zero.
+Zero the record's bytes before encoding it. All kinds use record version 2.
 
-The GPU fetches the first 64 bytes of every referenced record, then the other
-256 bytes only for kinds 0..3. A reference faults (code 3) unless its first
-64 bytes lie in the heap, and a kind 0..3 record also needs all 320 bytes in
-the heap. Records may be packed at their own sizes; each list entry holds the
-record's four-byte-aligned address.
+| Kind | Record | Bytes |
+| --- | --- | ---: |
+| 0 | Prepared triangle | 320 |
+| 1 | Rectangle | 80 |
+| 2 | Line | 88 |
+| 3 | Sprite | 80 |
+| 4 | [Vertex triangle](#vertex-triangle-records-kind-4-64-bytes) | 64 |
 
-`WRITE_HEAP` decodes into this unchanged record layout. The
+Each list entry holds a four-byte-aligned record address. The first 64 bytes
+must lie in the heap. Once the GPU reads the kind, it checks the full extent
+before fetching the remaining words, with code 3 on an out-of-heap range.
+A 2D record fetch uses one 64-byte burst and one short burst. Reserved fields
+within the record must be zero. Data following the record belongs to the
+next heap allocation.
+
+`WRITE_HEAP` decodes these records into SDRAM. The
 [earlier standalone experiment](../docs/hardware/upload-codec.md) measured a
 separate decoder and failed GPU co-residency probe; the current implementation
-instead shares the existing upload staging and register datapath. Shared-state
-references and compact records stored in SDRAM remain unimplemented.
+instead shares the existing upload staging and register datapath.
 
 | Offset | Type / size | Meaning |
 | --- | --- | --- |
@@ -1412,7 +1435,7 @@ references and compact records stored in SDRAM remain unimplemented.
 | 64 | u32 | Constant D24 for 2D; zero for a triangle. |
 | 68,72 | i32, i32 | Sprite source X/Y or line endpoint A X/Y; zero for triangle/rectangle. |
 | 76 | u32 | Reserved zero. |
-| 80 | i32 × 6 | Triangle Q4 vertex `{X0,Y0,X1,Y1,X2,Y2}`. For a line only offsets 80/84 hold endpoint B X/Y; remaining bytes zero. |
+| 80 | i32 × 6 or i32 × 2 | Triangle Q4 vertex `{X0,Y0,X1,Y1,X2,Y2}`, or line endpoint B X/Y at 80 and 84. |
 | 104 | 3 × 16 bytes | Triangle edges `{i32 A,i32 B,i32 C,u32 inclusive}`; inclusive is 0 or 1. |
 | 152 | 7 × 24 bytes | Triangle planes in order **z,r,g,b,q,U,V**; each `{i64 seed,i64 step_x,i64 step_y}`. |
 
@@ -1463,7 +1486,7 @@ zero tail.
 
 | Offset | Type / size | Meaning |
 | --- | --- | --- |
-| 0 | u32 | Kind 4 in bits 0..7; version 1 in bits 8..15; color write bit 16, depth test bit 17, depth write bit 18; **cull negative area** bit 20. Bit 19 (key) and bits 21..31 zero. |
+| 0 | u32 | Kind 4 in bits 0..7, version 2 in bits 8..15, color write bit 16, depth test bit 17, depth write bit 18, and **cull negative area** bit 20. Bit 19 (key) and bits 21..31 zero. |
 | 4 | u32 | Depth function in bits 8..9 (0 LESS, 1 LEQUAL, 2 ALWAYS); all other bits zero. |
 | 8 | u32 | Constant RGB888 as in kinds 0..3; high byte zero. |
 | 12 | u32 × 3 | Vertex 0..2: Q4 X in bits 0..13 (0..16383), Q4 Y in bits 16..28 (0..8191); other bits zero. The viewport is X 0..10240, Y 0..7680; larger values form a right/bottom guard band. |
@@ -1755,7 +1778,7 @@ bool gpu_send(Gpu *g, uint16_t opcode, const uint8_t *payload,
         g->next_sequence == UINT32_MAX) return false;
     seq = g->next_sequence++; /* Reserve the final value for planned recovery. */
     gpu_put32(header, UINT32_C(0x5550474e));
-    header[4] = 0; header[5] = 2;
+    header[4] = 0; header[5] = 3;
     gpu_put16(header + 6, opcode); gpu_put32(header + 8, length);
     gpu_put32(header + 12, seq);
     for (i = 0; i < 16; ++i)
@@ -1773,7 +1796,7 @@ bool gpu_reply(Gpu *g, uint16_t opcode, uint32_t sequence,
         !gpu_read_bytes(g, header, 16)) return false;
     length = gpu_get32(header + 8);
     returned_opcode = (uint16_t)((uint16_t)header[6] | ((uint16_t)header[7] << 8));
-    if (gpu_get32(header) != UINT32_C(0x5550474e) || header[4] != 0 || header[5] != 2 ||
+    if (gpu_get32(header) != UINT32_C(0x5550474e) || header[4] != 0 || header[5] != 3 ||
         returned_opcode != (uint16_t)(opcode | UINT16_C(0x8000)) ||
         gpu_get32(header + 12) != sequence || length != 12 + extra_bytes)
         return gpu_fail(g);
@@ -1802,7 +1825,7 @@ bool gpu_start_session(Gpu *g, GpuTransport transport, unsigned max_polls,
         if (status[1] & 1) {
             g->epoch = gpu_get32(status + 2);
             if (!g->epoch || !gpu_query(g, GPU_GET_CAPS, caps)) return false;
-            return caps[0] == 0 && caps[1] == 2 && caps[2] == 8 && caps[3] == 32 &&
+            return caps[0] == 0 && caps[1] == 3 && caps[2] == 8 && caps[3] == 32 &&
                    gpu_get32(caps + 4) == GPU_MEMORY_BYTES &&
                    gpu_get32(caps + 8) == GPU_HEAP_BASE &&
                    gpu_get32(caps + 12) == GPU_MAX_PAYLOAD &&
@@ -1877,7 +1900,7 @@ void gpu_put_bounds(uint8_t *p, GpuBounds bounds) {
 void gpu_record_base(uint8_t record[320], uint32_t kind, uint32_t flags) {
     GpuBounds viewport = {0, 0, 640, 480};
     memset(record, 0, 320);
-    gpu_put32(record, kind | UINT32_C(0x100) | (flags << 16));
+    gpu_put32(record, kind | UINT32_C(0x200) | (flags << 16));
     gpu_put_bounds(record + 16, viewport);
 }
 void gpu_make_rect(uint8_t record[320], GpuBounds bounds, uint32_t rgb888) {
@@ -1914,7 +1937,7 @@ bool gpu_make_vertex_triangle(uint8_t record[320], const int32_t x[3], const int
         if (y[i] > max_y) max_y = y[i];
     }
     memset(record, 0, 320); /* The GPU reads only the first 64 bytes. */
-    gpu_put32(record, 4u | UINT32_C(0x100) | ((flags & 7u) << 16) | (cull ? UINT32_C(1) << 20 : 0u));
+    gpu_put32(record, 4u | UINT32_C(0x200) | ((flags & 7u) << 16) | (cull ? UINT32_C(1) << 20 : 0u));
     gpu_put32(record + 8, rgb888 & UINT32_C(0xffffff));
     for (i = 0; i < 3; ++i) {
         gpu_put32(record + 12 + 4 * i, (uint32_t)x[i] | ((uint32_t)y[i] << 16));
@@ -1950,6 +1973,15 @@ bool gpu_make_sprite(uint8_t record[320], GpuBounds bounds, int32_t source_x,
     gpu_put32(record + 68, (uint32_t)source_x); gpu_put32(record + 72, (uint32_t)source_y);
     return true;
 }
+uint32_t gpu_record_size(uint8_t kind) {
+    switch (kind) {
+    case 0: return GPU_RECORD_BYTES;
+    case 1: case 3: return 80;
+    case 2: return 88;
+    case 4: return 64;
+    default: return 0;
+    }
+}
 bool gpu_submit_one(Gpu *g, uint32_t target, uint16_t clear565,
                     const uint8_t *record, GpuBounds bounds) {
     uint8_t table[2400] = {0}, refs[1200] = {0}, descriptor[32] = {0}, payload[4];
@@ -1959,7 +1991,9 @@ bool gpu_submit_one(Gpu *g, uint32_t target, uint16_t clear565,
     if (target > 1) return false;
     if (record) {
         int32_t tx, ty;
-        if (!gpu_upload(g, GPU_RECORD_ADDR, record, 320)) return false;
+        uint32_t record_size = gpu_record_size(record[0]);
+        if (!record_size || record[1] != 2 ||
+            !gpu_upload(g, GPU_RECORD_ADDR, record, record_size)) return false;
         if (x0 < x1 && y0 < y1) for (ty = y0 / 32; ty <= (y1 - 1) / 32; ++ty)
             for (tx = x0 / 32; tx <= (x1 - 1) / 32; ++tx) {
                 uint32_t tile = (uint32_t)ty * 20u + (uint32_t)tx;
@@ -1980,7 +2014,7 @@ bool gpu_submit_one(Gpu *g, uint32_t target, uint16_t clear565,
 }
 bool gpu_patch_bounds(Gpu *g, uint32_t record_address, GpuBounds bounds) {
     uint8_t bytes[16];
-    if ((record_address & 3) || !gpu_heap_range(record_address, 320)) return false;
+    if ((record_address & 3) || !gpu_heap_range(record_address, 80)) return false;
     gpu_put_bounds(bytes, bounds);
     return gpu_upload(g, record_address + 32, bytes, sizeof(bytes));
 }

@@ -80,7 +80,7 @@ AppliedProgram apply_host_program(const HostProgram& program, std::uint32_t firs
         const std::vector<std::uint8_t> header(program.bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
             program.bytes.begin() + static_cast<std::ptrdiff_t>(cursor + packet_header_bytes));
         expect(header[0] == 'N' && header[1] == 'G' && header[2] == 'P' && header[3] == 'U' &&
-               header[4] == 0 && header[5] == 2, "CPU program has invalid NGPU envelope");
+               header[4] == protocol_major && header[5] == protocol_minor, "CPU program has invalid NGPU envelope");
         const auto length = read_u32(header, 8);
         expect(length <= maximum_packet_payload && program.bytes.size() - cursor - packet_header_bytes >= length,
                "CPU program has an unbounded or truncated packet body");
@@ -126,7 +126,8 @@ TextureDescriptor first_texture(const HostProgram& program, const AppliedProgram
             descriptor.tile_table_address + tile * tile_entry_bytes, tile_entry_bytes));
         if (entry.count == 0) continue;
         const auto record = read_u32(slice(applied.heap, entry.address, 4), 0);
-        const auto decoded = decode_primitive(slice(applied.heap, record, primitive_record_bytes));
+        const auto bytes = record_bytes_for_kind(read_u32(slice(applied.heap, record, 4), 0));
+        const auto decoded = decode_primitive(slice(applied.heap, record, bytes));
         if (decoded.texture) return *decoded.texture;
     }
     throw std::runtime_error("test program has no textured primitive");
@@ -153,7 +154,7 @@ void byte_tests() {
         expect(bytes == before, "invalid field write mutated bytes");
     });
     run_case("NGPU envelope matches independent byte vector", [] {
-        const std::vector<std::uint8_t> expected{'N', 'G', 'P', 'U', 0, 2, 3, 0,
+        const std::vector<std::uint8_t> expected{'N', 'G', 'P', 'U', 0, 3, 3, 0,
             4, 0, 0, 0, 0x78, 0x56, 0x34, 0x12, 0x01, 0x23, 0x45, 0x67};
         expect(encode_packet(Opcode::WriteHeap, 0x12345678u, {1, 0x23, 0x45, 0x67}) == expected,
                "NGPU header no longer matches published envelope");
@@ -238,7 +239,7 @@ void record_tests() {
         rectangle.state = overlay_state({0x12, 0x34, 0x56});
         rectangle.depth = 0x123456;
         const auto bytes = encode_primitive(rectangle);
-        expect(bytes.size() == 320 && read_u32(bytes, 0) == 0x00010101u && read_u32(bytes, 4) == 0 &&
+        expect(bytes.size() == rectangle_record_bytes && read_u32(bytes, 0) == 0x00010201u && read_u32(bytes, 4) == 0 &&
                read_u32(bytes, 8) == 0x00563412u && read_i32(bytes, 32) == -7 &&
                read_u32(bytes, 40) == 100 && read_u32(bytes, 64) == 0x123456u,
                "rectangle differs from packed ABI offsets");
@@ -250,7 +251,7 @@ void record_tests() {
     run_case("line endpoints and sprite origins survive signed packing", [] {
         Line line{{639, 0}, {0, 479}, overlay_state({6, 7, 8}), 777};
         const auto bytes = encode_primitive(line);
-        expect(read_u32(bytes, 68) == 639 && read_u32(bytes, 72) == 0 &&
+        expect(bytes.size() == line_record_bytes && read_u32(bytes, 68) == 639 && read_u32(bytes, 72) == 0 &&
                read_u32(bytes, 80) == 0 && read_u32(bytes, 84) == 479, "line endpoint fields moved");
         auto decoded = decode_primitive(bytes);
         const auto& restored = std::get<Line>(decoded.primitive);
@@ -260,6 +261,7 @@ void record_tests() {
         Sprite sprite{{-2, -1, 0, 1}, 1, 2, state, 123};
         const TextureDescriptor texture{heap_base, 4, 4, 12};
         const auto packed = encode_primitive(sprite, texture);
+        expect(packed.size() == sprite_record_bytes, "sprite retained an absent triangle tail");
         decoded = decode_primitive(packed);
         expect(decoded.texture && *decoded.texture == texture, "sprite lost physical texture descriptor");
         expect(encode_primitive(decoded.primitive, decoded.texture) == packed, "sprite roundtrip failed");
@@ -292,7 +294,7 @@ void record_tests() {
         RenderState state = overlay_state({1, 2, 3});
         state.depth_test = state.depth_write = true;
         const auto bytes = encode_vertex_triangle(source, state);
-        expect(bytes.size() == vertex_triangle_record_bytes && read_u32(bytes, 0) == 0x00070104u &&
+        expect(bytes.size() == vertex_triangle_record_bytes && read_u32(bytes, 0) == 0x00070204u &&
                read_u32(bytes, 8) == 0x030201u && read_u32(bytes, 16) == 256u &&
                read_u32(bytes, 20) == (256u << 16) && read_u32(bytes, 32) == 256000u,
                "vertex triangle differs from packed ABI offsets");
@@ -322,7 +324,8 @@ void record_tests() {
         }
         // The bounds field is a drawing rectangle (a scissor within the viewport).
         auto clipped = source; clipped.bounds = {4, 2, 9, 30};
-        const auto& narrow = std::get<Triangle>(decode_primitive(encode_vertex_triangle(clipped, state)).primitive);
+        const auto clipped_decoded = decode_primitive(encode_vertex_triangle(clipped, state));
+        const auto& narrow = std::get<Triangle>(clipped_decoded.primitive);
         expect(narrow.bounds.x0 == 4 && narrow.bounds.x1 == 9 && narrow.bounds.y0 == 2 &&
                narrow.bounds.y1 == 16 && narrow.state.scissor.y1 == 30, "vertex triangle bounds not applied");
         expect(narrow.z.seed == triangle.z.seed + 4 * triangle.z.step_x + 2 * triangle.z.step_y,
@@ -331,15 +334,15 @@ void record_tests() {
     });
     run_case("reserved and malformed primitive fields cannot enter execution", [] {
         const auto original = encode_primitive(Rect{{1, 2, 3, 4}, overlay_state(), 0});
-        for (const auto offset : std::array<std::size_t, 5>{3, 11, 15, 76, 152}) {
+        for (const auto offset : std::array<std::size_t, 4>{3, 11, 15, 76}) {
             auto corrupt = original; corrupt[offset] = 0xff;
             expect_throws([&] { decode_primitive(corrupt); }, "reserved primitive field accepted");
         }
-        auto corrupt = original; corrupt[0] = 4;
+        auto corrupt = original; corrupt[0] = 5;
         expect_throws([&] { decode_primitive(corrupt); }, "unknown primitive kind accepted");
-        corrupt = original; corrupt[1] = 2;
+        corrupt = original; corrupt[1] = 1;
         expect_throws([&] { decode_primitive(corrupt); }, "unknown primitive version accepted");
-        corrupt = original; corrupt.resize(319);
+        corrupt = original; corrupt.pop_back();
         expect_throws([&] { decode_primitive(corrupt); }, "truncated primitive accepted");
         auto textured = encode_primitive(triangle(ShadeMode::TextureReplace, pattern()),
                                           TextureDescriptor{heap_base, 4, 4, 12});
@@ -349,6 +352,48 @@ void record_tests() {
                                       TextureDescriptor{heap_base, 4, 4, 12});
         write_u32(textured, 52, 3);
         expect_throws([&] { decode_primitive(textured); }, "NPOT shader texture accepted");
+    });
+    run_case("short 2D records preserve full signed geometry and reject implicit or legacy tails", [] {
+        const auto minimum = std::numeric_limits<std::int32_t>::min();
+        const auto maximum = std::numeric_limits<std::int32_t>::max();
+        auto state = overlay_state({17, 31, 53});
+        state.scissor = {minimum, maximum, maximum, minimum};
+        Rect rect{{minimum, -27, maximum, 33}, state, 0xffffff};
+        auto image = pattern();
+        auto sprite_state = state; sprite_state.texture = image;
+        Sprite sprite{{minimum, 0, minimum, 1}, maximum, maximum, sprite_state, 0x123456};
+        const std::array<Primitive, 4> primitives{{rect,
+            Line{{639, 479}, {0, 0}, state, 0x654321}, sprite,
+            triangle(ShadeMode::Flat)}};
+        const std::array<std::size_t, 4> expected_sizes{{80, 88, 80, 320}};
+        for(std::size_t i = 0; i < primitives.size(); ++i) {
+            const auto texture = i == 2 ? std::optional<TextureDescriptor>{{heap_base, 4, 4, 12}} : std::nullopt;
+            const auto bytes = encode_primitive(primitives[i], texture);
+            expect(bytes.size() == expected_sizes[i] && record_bytes(primitives[i]) == expected_sizes[i] &&
+                   record_bytes_for_kind(read_u32(bytes, 0)) == expected_sizes[i], "kind-specific exact extent changed");
+            const auto decoded = decode_primitive(bytes);
+            expect(encode_primitive(decoded.primitive, decoded.texture) == bytes, "signed short-prefix fields changed");
+            auto corrupt = bytes; corrupt.pop_back();
+            expect_throws([&] { decode_primitive(corrupt); }, "truncated exact record accepted");
+            corrupt = bytes; corrupt.push_back(0);
+            expect_throws([&] { decode_primitive(corrupt); }, "zero trailing byte accepted as a record field");
+            corrupt = bytes; corrupt[1] = 1;
+            expect_throws([&] { decode_primitive(corrupt); }, "obsolete record version accepted");
+            if(i < 3) {
+                corrupt = bytes; corrupt.resize(320, 0);
+                expect_throws([&] { decode_primitive(corrupt); }, "legacy full-length 2D record accepted");
+                corrupt.back() = 0xff;
+                expect_throws([&] { decode_primitive(corrupt); }, "stale tail altered the typed short record");
+            }
+        }
+        const auto decoded_rect = std::get<Rect>(decode_primitive(encode_primitive(rect)).primitive);
+        expect(decoded_rect.bounds.x0 == minimum && decoded_rect.bounds.x1 == maximum &&
+               decoded_rect.state.scissor.y0 == maximum && decoded_rect.state.scissor.y1 == minimum,
+               "rectangle/scissor endpoints were narrowed before clipping");
+        const auto decoded_sprite = std::get<Sprite>(decode_primitive(encode_primitive(sprite,
+            TextureDescriptor{heap_base, 4, 4, 12})).primitive);
+        expect(decoded_sprite.source_x == maximum && decoded_sprite.source_y == maximum,
+               "empty sprite lost its accepted full-width positive origin");
     });
     run_case("pass descriptors and tile entries validate exact sizes and extents", [] {
         PassDescriptor pass{1, LoadOp::Load, LoadOp::Clear, 0x9abc, 0x654321, heap_base};
@@ -444,9 +489,10 @@ void program_tests() {
                 unique_records.insert(address);
                 const auto index = expected_bins[tile][item];
                 const auto expected_texture = (index < 2 || index == 4) ? std::optional<TextureDescriptor>{texture} : std::nullopt;
-                expect(slice(applied.heap, address, primitive_record_bytes) == encode_primitive(pass.primitives[index], expected_texture),
+                const auto bytes = record_bytes(pass.primitives[index]);
+                expect(slice(applied.heap, address, bytes) == encode_primitive(pass.primitives[index], expected_texture),
                        "compiled list reordered or duplicated the wrong primitive");
-                const auto decoded = decode_primitive(slice(applied.heap, address, primitive_record_bytes));
+                const auto decoded = decode_primitive(slice(applied.heap, address, bytes));
                 if (expected_texture) expect(decoded.texture && *decoded.texture == texture, "shared texture was uploaded twice");
             }
         }

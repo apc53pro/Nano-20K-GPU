@@ -45,7 +45,7 @@ module nano_tile_edge_setup_tb;
   // immutable attribute anchor or either raw/tile origin alone.
   cmd_tile_x=(variant%2)?608:32;cmd_tile_y=(variant%2)?448:64;
   start_x=cmd_tile_x+3+(variant%13);start_y=cmd_tile_y+2+(variant%11);
-  record[0]=32'h00010100;record[2]=24'h112233;
+  record[0]=32'h00010200;record[2]=24'h112233;
   record[4]=start_x;record[5]=start_y;record[6]=640;record[7]=480;
   record[8]=cmd_tile_x-2;record[9]=cmd_tile_y-1;
   record[10]=start_x+1;record[11]=start_y+1;

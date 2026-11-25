@@ -40,7 +40,7 @@ module nano_tile_step_control_tb;
  end
  task base;begin
   for(i=0;i<80;i=i+1)record[i]=0;
-  record[0]=32'h00050100;record[2]=24'h112233;
+  record[0]=32'h00050200;record[2]=24'h112233;
   record[6]=640;record[7]=480;record[10]=3;record[11]=1;
   record[28]=1;record[32]=1;record[36]=1;
  end endtask
@@ -50,7 +50,7 @@ module nano_tile_step_control_tb;
    pix_we=3;pix_addr=axis?32*i:i;pix_color=16'hbeef;pix_depth=24'h654321;tick();
   end
   pix_we=0;
-  for(i=0;i<80;i=i+1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
+  for(i=0;i<(record[0][7:0]==0?80:20);i=i+1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
   cmd_word_we=0;cmd_valid=1;tick();cmd_valid=0;candidates=0;writes=0;active=1;
  end endtask
  task inspect;begin
@@ -129,7 +129,7 @@ module nano_tile_step_control_tb;
   // The scissor clips a larger raw rectangle into the bottom/right tile.
   cmd_tile_x=608;cmd_tile_y=448;axis=0;mode=1;
   for(span=1;span<=32;span=span+1)begin
-   base();record[0]=32'h00050101;record[16]=24'h123456;
+   base();record[0]=32'h00050201;record[16]=24'h123456;
    record[28]=0;record[32]=0;record[36]=0;
    record[4]=640-span;record[5]=448;record[8]=600;record[9]=440;record[10]=640;record[11]=480;
    start_x=640-span;start_y=448;height=32;

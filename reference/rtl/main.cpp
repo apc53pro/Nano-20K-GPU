@@ -226,7 +226,7 @@ public:
             if (host_falling && dut.host_rd_valid) {
                 result.push_back(dut.host_rd_data);
                 if (result.size() == 16) {
-                    if (hw::read_u32(result, 0) != 0x5550474e || result[4] != 0 || result[5] != 2 ||
+                    if (hw::read_u32(result, 0) != 0x5550474e || result[4] != hw::protocol_major || result[5] != hw::protocol_minor ||
                         hw::read_u16(result, 6) != (static_cast<unsigned>(opcode) | 0x8000u) ||
                         hw::read_u32(result, 12) != sequence || hw::read_u32(result, 8) > 780)
                         throw std::runtime_error("invalid RTL response header");
@@ -754,7 +754,7 @@ void self_test(Simulation& simulation) {
         simulation.recover();
     }
     // No compatibility decoder remains: the old envelope must be rejected.
-    auto obsolete = hw::encode_packet(hw::Opcode::GetCaps, 1); obsolete[5] = 1;
+    auto obsolete = hw::encode_packet(hw::Opcode::GetCaps, 1); obsolete[5] = 2;
     observed_fault = false;
     try {
         simulation.send(obsolete);
@@ -763,10 +763,10 @@ void self_test(Simulation& simulation) {
         if (!simulation.dut.fault) throw;
         observed_fault = true;
     }
-    require(observed_fault, "obsolete0.1 envelope is rejected");
+    require(observed_fault, "obsolete0.2 envelope is rejected");
     simulation.recover();
-    require(simulation.command(hw::Opcode::GetCaps, 1).at(5) == 2,
-            "codec and obsolete-version faults recover to sole0.2 stream");
+    require(simulation.command(hw::Opcode::GetCaps, 1).at(5) == hw::protocol_minor,
+            "codec and obsolete-version faults recover to sole0.3 stream");
     std::cout << upload_faults.size() << " malformed encoded-upload cases and obsolete-version rejection passed\n";
     // Depth DISCARD never writes the external depth attachment and leaves it
     // invalid, so a later depth LOAD must fault before any attachment write.

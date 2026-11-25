@@ -272,11 +272,21 @@ HeapUpload decode_heap_upload(const std::vector<std::uint8_t>& payload) {
 
 std::size_t record_bytes(const Primitive& primitive) {
     const auto* triangle = std::get_if<Triangle>(&primitive);
-    return triangle && triangle->source ? vertex_triangle_record_bytes : primitive_record_bytes;
+    return triangle && triangle->source ? vertex_triangle_record_bytes :
+        record_bytes_for_kind(static_cast<std::uint32_t>(primitive.index()));
 }
 
 std::size_t record_bytes_for_kind(std::uint32_t first_word) {
-    return (first_word & 0xffu) == 4 ? vertex_triangle_record_bytes : primitive_record_bytes;
+    switch(first_word & 0xffu) {
+    case 0: return primitive_record_bytes;
+    case 1: return rectangle_record_bytes;
+    case 2: return line_record_bytes;
+    case 3: return sprite_record_bytes;
+    case 4: return vertex_triangle_record_bytes;
+    // An unrecognized first word still has a bounded speculative extent;
+    // the typed decoder rejects it only when that record reaches execution.
+    default: return primitive_record_bytes;
+    }
 }
 
 std::vector<std::uint8_t> encode_vertex_triangle(const VertexSource& source, const RenderState& state) {
@@ -285,7 +295,7 @@ std::vector<std::uint8_t> encode_vertex_triangle(const VertexSource& source, con
     std::vector<std::uint8_t> result(vertex_triangle_record_bytes, 0);
     const auto flags = (state.color_write ? 1u : 0u) | (state.depth_test ? 2u : 0u) |
                        (state.depth_write ? 4u : 0u);
-    write_u32(result, 0, 4u | 0x100u | (flags << 16) | (source.cull_negative ? 1u << 20 : 0u));
+    write_u32(result, 0, 4u | (primitive_record_version << 8) | (flags << 16) | (source.cull_negative ? 1u << 20 : 0u));
     write_u32(result, 4, static_cast<std::uint32_t>(state.depth_func) << 8);
     write_u32(result, 8, state.color.r | (static_cast<std::uint32_t>(state.color.g) << 8) |
                            (static_cast<std::uint32_t>(state.color.b) << 16));
@@ -311,13 +321,13 @@ std::vector<std::uint8_t> encode_primitive(const Primitive& primitive,
     if (needs_texture(primitive) && !texture)
         throw std::invalid_argument("packed textured primitive needs a GPU texture descriptor");
     if (texture) require_texture(*texture);
-    std::vector<std::uint8_t> result(primitive_record_bytes, 0);
+    std::vector<std::uint8_t> result(record_bytes(primitive), 0);
     std::visit([&](const auto& item) {
         using T = std::decay_t<decltype(item)>;
         const auto& state = item.state;
         const auto flags = (state.color_write ? 1u : 0u) | (state.depth_test ? 2u : 0u) |
                            (state.depth_write ? 4u : 0u) | (state.color_key ? 8u : 0u);
-        write_u32(result, 0, static_cast<std::uint32_t>(primitive.index()) | 0x100u | (flags << 16));
+        write_u32(result, 0, static_cast<std::uint32_t>(primitive.index()) | (primitive_record_version << 8) | (flags << 16));
         write_u32(result, 4, static_cast<std::uint32_t>(state.shade) |
             (static_cast<std::uint32_t>(state.depth_func) << 8) |
             (state.address_u == AddressMode::Repeat ? 1u << 16 : 0u) |
@@ -371,7 +381,7 @@ DecodedPrimitive decode_vertex_triangle(const std::vector<std::uint8_t>& bytes) 
     require_size(bytes, vertex_triangle_record_bytes);
     const auto kind_flags = read_u32(bytes, 0);
     const auto modes = read_u32(bytes, 4);
-    if (((kind_flags >> 8) & 0xffu) != 1 || (kind_flags & 0xffe80000u) != 0 ||
+    if (((kind_flags >> 8) & 0xffu) != primitive_record_version || (kind_flags & 0xffe80000u) != 0 ||
         (modes & ~0x300u) != 0 || ((modes >> 8) & 3u) == 3 || (read_u32(bytes, 8) & 0xff000000u) != 0)
         throw std::invalid_argument("invalid vertex triangle fields");
     for (unsigned i = 0; i < 3; ++i)
@@ -407,10 +417,10 @@ DecodedPrimitive decode_vertex_triangle(const std::vector<std::uint8_t>& bytes) 
 
 DecodedPrimitive decode_primitive(const std::vector<std::uint8_t>& bytes) {
     if (bytes.size() >= 4 && (read_u32(bytes, 0) & 0xffu) == 4) return decode_vertex_triangle(bytes);
-    require_size(bytes, primitive_record_bytes);
     const auto kind_flags = read_u32(bytes, 0);
+    require_size(bytes, record_bytes_for_kind(kind_flags));
     const unsigned kind = kind_flags & 0xffu;
-    if (kind > 3 || ((kind_flags >> 8) & 0xffu) != 1 || (kind_flags & 0xfff00000u) != 0)
+    if (kind > 3 || ((kind_flags >> 8) & 0xffu) != primitive_record_version || (kind_flags & 0xfff00000u) != 0)
         throw std::invalid_argument("unsupported primitive kind, version, or flags");
     const auto modes = read_u32(bytes, 4);
     if ((modes & 0xfff80000u) != 0 || (modes & 0xffu) > 4 || ((modes >> 8) & 0xffu) > 2 ||
@@ -459,14 +469,13 @@ DecodedPrimitive decode_primitive(const std::vector<std::uint8_t>& bytes) {
         const auto depth = read_u32(bytes, 64);
         if (depth > depth_max) throw std::invalid_argument("packed constant depth exceeds D24");
         if (kind == 1) {
-            require_zero(bytes, 68, 76); require_zero(bytes, 80, primitive_record_bytes);
+            require_zero(bytes, 68, 76);
             result.primitive = Rect{get_bounds(bytes, 32), state, depth};
         } else if (kind == 2) {
-            require_zero(bytes, 32, 48); require_zero(bytes, 88, primitive_record_bytes);
+            require_zero(bytes, 32, 48);
             result.primitive = Line{{read_i32(bytes, 68), read_i32(bytes, 72)},
                                      {read_i32(bytes, 80), read_i32(bytes, 84)}, state, depth};
         } else {
-            require_zero(bytes, 80, primitive_record_bytes);
             result.primitive = Sprite{get_bounds(bytes, 32), read_i32(bytes, 68), read_i32(bytes, 72), state, depth};
         }
     }

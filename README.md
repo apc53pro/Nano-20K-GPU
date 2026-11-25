@@ -249,11 +249,13 @@ and UV delay payloads use native RAM; command execution reads its owned packet
 lease without duplicating the payload prefix. The private exact integer-texel
 UV path has 19 enabled-edge latency and initiation interval one; the generic
 full-Q16 arithmetic module remains separate at 26 edges. Rendering features
-are preserved. The current **`N20K-SYS-0.2`** CPU ABI uses one lossless encoded
+are preserved. The current **`N20K-SYS-0.3`** CPU ABI uses one lossless encoded
 upload format for every resource. Literal words belong to that same encoding;
 there is no old 0.1 packet path or uncompressed upload fallback. The decoder
 shares the existing registers, staging RAM and SDRAM-write engine. Host software
-must be rebuilt for 0.2. The [unified-upload regression](docs/benchmarks/rtl-unified-upload.json)
+must be rebuilt for 0.3. Rectangle and sprite records now use 80 decoded
+bytes, and line records use 88. The earlier released image still requires
+0.2 host software. The [0.2 unified-upload regression](docs/benchmarks/rtl-unified-upload.json)
 records exact rendering parity, 22.9–41.8% fewer serialized request bytes and
 0.4–3.7% more submission cycles in the sampled scenes. This is a bandwidth
 improvement, not a demonstrated FPS improvement.

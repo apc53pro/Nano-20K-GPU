@@ -165,7 +165,13 @@ module nano_gpu_core #(
     reg [31:0] record_load_data;
     // Kind-4 vertex-triangle setup (nano_triangle_setup).
     reg setup_started;
-    reg record_long_bad, last_reference;   // registered at S_REF_DATA
+    reg last_reference;                   // registered at S_REF_DATA
+    reg [4:0] record_followup_words;
+    reg record_length_bad;
+    wire record_is_line=record_load_data[7:0]==8'd2;
+    wire record_is_rect_or_sprite=record_load_data[7:0]==8'd1 || record_load_data[7:0]==8'd3;
+    wire [22:0] record_last_address=record_is_line ? 23'h7fffa8 :
+        (record_is_rect_or_sprite ? 23'h7fffb0 : 23'h7ffec0);
     wire setup_vertex, setup_done, setup_draw, setup_bad, setup_word_we;
     wire [6:0] setup_word_index;
     wire [31:0] setup_word_data;
@@ -412,7 +418,7 @@ module nano_gpu_core #(
         begin
             word_value=0;
             if (index<4) word_value=32'h5550474e;
-            else if(index<8) word_value={(present_reply ? 16'd7 : opcode)|16'h8000,8'd2,8'd0};
+            else if(index<8) word_value={(present_reply ? 16'd7 : opcode)|16'h8000,8'd3,8'd0};
             else if(index<12) word_value={21'd0,reply_payload_bytes};
             else if(index<16) word_value=present_reply ? present_sequence : command_sequence;
             else if(index<20) word_value=epoch;
@@ -515,7 +521,7 @@ module nano_gpu_core #(
         status_snapshot[256 +:32]={24'd0,fault_code};
         status_snapshot[288 +:32]=present_token;
         status_snapshot[448 +:8]=host_fault;
-        capabilities[0 +:32]=32'h20080200;
+        capabilities[0 +:32]=32'h20080300;
         capabilities[32 +:32]=MEMORY_BYTES;
         capabilities[64 +:32]={9'd0,HEAP_BASE};
         capabilities[96 +:32]=1024; capabilities[128 +:32]=320;
@@ -620,7 +626,8 @@ module nano_gpu_core #(
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=list_address+{reference_index,2'b0}; mem_cmd_words[10 +:5]=1;
         end
         S_RECORD_CMD: begin
-            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=record_address+{14'd0,record_word,2'b0}; mem_cmd_words[10 +:5]=16;
+            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=record_address+{14'd0,record_word,2'b0};
+            mem_cmd_words[10 +:5]=record_word==0 ? 5'd16 : record_followup_words;
         end
         S_DESC_DATA,S_ENTRY_DATA,S_REF_DATA: mem_r_ready[2]=1;
         S_RECORD_DATA: mem_r_ready[2]=1;
@@ -745,7 +752,8 @@ module nano_gpu_core #(
             clear_color<=0; clear_depth<=24'hffffff;
             xfer_color<=0; xfer_depth<=0; store_constant<=0;
             tile_ram_clear<=0; clear_back_valid<=0; clear_back_pair<=0; clear_back_we<=0; clear_back_addr<=0;
-            descriptor_invalid<=0; setup_started<=0; record_long_bad<=0; last_reference<=0;
+            descriptor_invalid<=0; setup_started<=0; last_reference<=0;
+            record_followup_words<=16; record_length_bad<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
             tile_x_index<=0; tile_y_index<=0; tile_index<=0; clear_pair_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
             packed_word<=0; packed_mask<=0; boot_address<=0;
@@ -775,6 +783,13 @@ module nano_gpu_core #(
             clear_back_valid<=tile_pix_re && !store_constant && (clear_back_color || clear_back_depth);
             clear_back_addr<=tile_pix_raddr; clear_back_we<={clear_back_depth,clear_back_color};
             clear_back_pair<=store_kind==0;
+            // Classify the first registered record word while the rest of
+            // the first burst arrives. S_REF_DATA already checks alignment
+            // and the first 64 bytes, so only the upper bound remains here.
+            if(record_load_valid && record_load_index==0) begin
+                record_followup_words<=record_is_line ? 5'd6 : (record_is_rect_or_sprite ? 5'd4 : 5'd16);
+                record_length_bad<=record_address>record_last_address;
+            end
             abort_sync1<=abort_request; abort_sync2<=abort_sync1; abort_previous<=abort_sync2;
             if(abort_sync2 && !abort_previous) begin
                 abort_pending<=1;
@@ -1117,12 +1132,9 @@ module nano_gpu_core #(
                 S_REF_CMD: if(mem_cmd_ready[2]) state<=S_REF_DATA;
                 S_REF_DATA: if(mem_r_valid[2]) begin
                     record_address<=mem_r_data[64 +:23];
-                    // Every record has at least the 64-byte first burst; the
-                    // 320-byte kinds are range-checked once word 0 is known.
+                    // Every record starts with a 64-byte burst. Its remaining
+                    // size is checked once the first word identifies its kind.
                     if(!valid_heap(mem_r_data[64 +:32],33'd64,1)) raise_fault(3);
-                    // Registered for S_RECORD_DONE and finish_reference, so
-                    // neither range nor count comparison feeds those decisions.
-                    record_long_bad<=!valid_heap(mem_r_data[64 +:32],33'd320,1);
                     last_reference<=reference_index+1==reference_count;
                     state<=S_REF_DONE;
                 end
@@ -1131,9 +1143,9 @@ module nano_gpu_core #(
                 S_RECORD_DATA: if(mem_r_valid[2]) begin beat<=beat+1; if(mem_r_last[2]) state<=S_RECORD_DONE; end
                 S_RECORD_DONE: if(mem_done[2]) begin
                     if(record_word==0 && setup_vertex) begin setup_started<=0; state<=S_SETUP; end
-                    else if(record_word==64) state<=S_DRAW_START;
+                    else if(record_word==0 && record_length_bad) raise_fault(3);
+                    else if(record_word==64 || (record_word!=0 && record_followup_words!=16)) state<=S_DRAW_START;
                     else begin
-                        if(record_word==0 && record_long_bad) raise_fault(3);
                         record_word<=record_word+16; state<=S_RECORD_CMD;
                     end
                 end

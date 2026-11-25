@@ -27,7 +27,7 @@ module nano_tile_setup_tb;
   for(kind=0;kind<2;kind=kind+1)for(reject=0;reject<2;reject=reject+1)begin
    reset=1;tex_fault=0;tex_cfg_ready=0;tick();reset=0;tick();
    for(i=0;i<80;i=i+1)record[i]=0;
-   record[0]=kind?32'h00050103:32'h00050101;
+   record[0]=kind?32'h00050203:32'h00050201;
    record[1]=kind?32'h00040002:32'h00040000;
    record[2]=24'h112233;record[6]=640;record[7]=480;
    // This raw positive eight-pixel span is entirely left of the viewport.
@@ -39,7 +39,7 @@ module nano_tile_setup_tb;
    // it. For a sprite with positive raw spans that would independently fail
    // source bounds, use zero raw width so the descriptor owns the rejection.
    if(kind&&reject)record[10]=record[8];
-   for(i=79;i>=0;i=i-1)begin
+   for(i=19;i>=0;i=i-1)begin
     cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();
    end
    cmd_word_we=0;cmd_valid=1;tick();cmd_valid=0;steps=0;

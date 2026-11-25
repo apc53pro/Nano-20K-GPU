@@ -12,7 +12,7 @@
 
 namespace nano_gpu::hw {
 
-// Provisional simulation ABI N20K-SYS-0.2, not a released RP2350 driver ABI.
+// Provisional ABI N20K-SYS-0.3, shared by RTL and the current host software.
 // Every integer is little-endian; every heap structure is four-byte aligned.
 constexpr std::size_t packet_header_bytes = 16;
 constexpr std::size_t maximum_packet_payload = 1024;
@@ -20,6 +20,10 @@ static_assert(maximum_packet_payload == host_max_payload_bytes);
 // Worst case:239 literal words plus60 descriptors =1016 encoded bytes.
 constexpr std::size_t maximum_upload_decoded_bytes = 956;
 constexpr std::size_t primitive_record_bytes = 320;
+constexpr std::size_t rectangle_record_bytes = 80;
+constexpr std::size_t sprite_record_bytes = 80;
+constexpr std::size_t line_record_bytes = 88;
+constexpr std::uint32_t primitive_record_version = 2;
 // Kind 4: a flat triangle whose setup the GPU computes from its vertices.
 constexpr std::size_t vertex_triangle_record_bytes = 64;
 constexpr std::size_t pass_descriptor_bytes = 32;
@@ -29,7 +33,7 @@ constexpr std::uint32_t maximum_pass_references = 1u << 20;
 constexpr std::uint32_t maximum_primitive_records = 16384;
 
 // Primitive record offsets:
-//   0 u32: kind[7:0] (Triangle=0,Rect=1,Line=2,Sprite=3), version[15:8]=1,
+//   0 u32: kind[7:0] (Triangle=0,Rect=1,Line=2,Sprite=3), version[15:8]=2,
 //          color-write/depth-test/depth-write/key-enabled bits[19:16].
 //   4 u32: ShadeMode[7:0], DepthFunc[15:8], repeat-U/V bits16/17,
 //          texture-descriptor-present bit18. All other bits are zero.
@@ -42,18 +46,21 @@ constexpr std::uint32_t maximum_primitive_records = 16384;
 //  80 i32[6]: Triangle snapped Q4 X/Y pairs (except Line B as above).
 // 104 i32/u32[12]: three {a,b,c,inclusive} edges, inclusive is 0 or1.
 // 152 i64[21]: {seed,step_x,step_y} for z,r,g,b,q,u,v.
-// Unused kind-specific bytes MUST be zero.
+// Prepared triangles occupy 320 bytes, rectangles/sprites 80 and lines 88.
+// Only bytes present in that kind's record exist; present unused fields MUST
+// be zero. The absent triangle edges/planes are not fetched for 2D records.
 //
 // Vertex triangle (kind 4) records are 64 bytes:
-//   0 u32: kind 4, version[15:8]=1, color-write/depth-test/depth-write bits
+//   0 u32: kind 4, version[15:8]=2, color-write/depth-test/depth-write bits
 //          [18:16], bit 20 culls a negative signed area; others zero.
 //   4 u32: DepthFunc in bits 9:8; others zero.
 //   8 u32: R,G,B in bits 0..23.
 //  12 u32[3]: vertex X (bits 15:0, Q4 0..10240) and Y (bits 31:16, Q4 0..7680).
 //  24 u32[3]: vertex depth, D24 code * 256.
-//  36..63: zero.
-// The GPU derives edges, bounds and the depth plane (vertex_triangle_setup).
-// The scissor is the full viewport; shading is flat without texture or key.
+//  36/40 u32: bounds X0/X1 and Y0/Y1 in low/high 16-bit halves.
+//  44..63: zero.
+// The GPU derives edges and the depth plane (vertex_triangle_setup), clipped
+// to the record bounds. Shading is flat without texture or key.
 //
 // Pass descriptor: magic,target,load flags(bit0=colorCLEAR,bit1=depthCLEAR,
 // bit2=depthDISCARD: depth is never stored and becomes invalid,
@@ -82,7 +89,8 @@ struct DecodedPrimitive {
     // empty bounds); primitive is then an empty rectangle.
     bool draws = true;
 };
-// Encoded record size for a primitive: 64 bytes for a GPU-setup triangle.
+// Encoded size in bytes: prepared triangle 320, vertex triangle 64,
+// rectangle/sprite 80, line 88. The supported record count is unchanged.
 std::size_t record_bytes(const Primitive& primitive);
 // Record size from its first word, as the GPU decides after its first burst.
 std::size_t record_bytes_for_kind(std::uint32_t first_word);

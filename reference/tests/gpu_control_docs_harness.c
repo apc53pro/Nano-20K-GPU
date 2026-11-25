@@ -52,7 +52,7 @@ static void mock_reply(Mock *m, uint16_t opcode, uint32_t sequence,
     m->response_count = 28 + extra;
     m->response_cursor = 0;
     gpu_put32(m->response, UINT32_C(0x5550474e));
-    m->response[5] = 2;
+    m->response[5] = 3;
     gpu_put16(m->response + 6, (uint16_t)(opcode | UINT16_C(0x8000)));
     gpu_put32(m->response + 8, 12 + extra);
     gpu_put32(m->response + 12, sequence);
@@ -66,7 +66,7 @@ static int packet_tests(void) {
     uint32_t sequence, offset, index;
     uint8_t data[2052], expected[GPU_MAX_PAYLOAD];
     const uint8_t payload[4] = {1, 0x23, 0x45, 0x67};
-    const uint8_t golden[20] = {'N', 'G', 'P', 'U', 0, 2, 3, 0, 4, 0, 0, 0,
+    const uint8_t golden[20] = {'N', 'G', 'P', 'U', 0, 3, 3, 0, 4, 0, 0, 0,
                                0x78, 0x56, 0x34, 0x12, 1, 0x23, 0x45, 0x67};
     mock_reset(&m);
     gpu_init(&g, mock_transport(&m));

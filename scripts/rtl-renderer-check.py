@@ -47,7 +47,7 @@ def main():
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
         "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv",
-        "tile_attachment_pair_tb.sv")]
+        "tile_attachment_pair_tb.sv", "tile_short_record_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -86,6 +86,7 @@ def main():
         ("nano_tile_edge_setup_tb", tests[12], []),
         ("nano_triangle_setup_divider_tb", tests[13], []),
         ("nano_tile_attachment_pair_tb", tests[14], []),
+        ("nano_tile_short_record_tb", tests[15], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -232,6 +233,16 @@ def main():
                       "streamed_pair_clearbacks": int(match[5]), "held_read_edges": int(match[6]),
                       "all_tile_pixels_and_boundaries": True, "reset_preserves_attachment_contents": True,
                       "single_writes_preserve_other_lane_and_attachment": True}
+            print(match[0], flush=True)
+        elif top == "nano_tile_short_record_tb":
+            match = re.search(r"PASS short records: cases(\d+) pixels(\d+) textures(\d+) keyed(\d+) reset(\d+)", output)
+            if not match or tuple(map(int, match.groups())) != (4, 4096, 12, 1, 1):
+                raise RuntimeError("short 2D prefixes did not preserve pixels/depth across stale triangle tails and reset")
+            result = {"top": top, "passed": True, "short_prefix_cases": int(match[1]),
+                      "complete_attachment_pixels_checked": int(match[2]), "sprite_samples": int(match[3]),
+                      "keyed_pixel_preserves_color_and_depth": True, "reset_interleaving_cases": int(match[5]),
+                      "rectangle_line_sprite_prefixes_only": True, "stale_triangle_planes_and_edges_ignored": True,
+                      "no_coefficient_ram_read_or_seed_stage_for_2d": True, "constant_d24_unchanged": True}
             print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)

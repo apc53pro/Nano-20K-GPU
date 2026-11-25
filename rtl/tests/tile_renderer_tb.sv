@@ -43,7 +43,7 @@ module nano_tile_testbench;
   end
  end
  task tick;begin #5;clk=1;#5;clk=0;end endtask
- integer fd,ncases,c,tx,ty,ncmd,j,k,n,rv,steps;reg[15:0]clear_color;reg[23:0]clear_depth;
+ integer fd,ncases,c,tx,ty,ncmd,j,k,n,rv,steps,record_words;reg[15:0]clear_color;reg[23:0]clear_depth;
  reg[15:0]ec[0:1023];reg[23:0]ez[0:1023];
  string vectors_path;
  task require_read;
@@ -64,7 +64,11 @@ module nano_tile_testbench;
    for(j=0;j<1024;j=j+1)begin pix_we=3;pix_addr=j;pix_color=clear_color;pix_depth=clear_depth;tick();end
    pix_we=0;tick();
    for(n=0;n<ncmd;n=n+1)begin
-    for(j=0;j<80;j=j+1)begin rv=$fscanf(fd,"%h",cmd_word_data);require_read(1);cmd_word_index=j;cmd_word_we=1;tick();end
+    rv=$fscanf(fd,"%d",record_words);require_read(1);
+    if(record_words!=20&&record_words!=22&&record_words!=80)$fatal(1,"invalid unit record size %0d",record_words);
+    // Only the encoded record is loaded. A following short 2D draw keeps
+    // the previous triangle's coefficient/header tail resident.
+    for(j=0;j<record_words;j=j+1)begin rv=$fscanf(fd,"%h",cmd_word_data);require_read(1);cmd_word_index=j;cmd_word_we=1;tick();end
     cmd_word_we=0;cmd_valid=1;tick();cmd_valid=0;
     steps=0;while(!done&&!fault&&steps<200000)begin tick();steps=steps+1;end
     if(fault||steps==200000)$fatal(1,"case%0d command%0d fault=%b state=%d",c,n,fault,dut.state);

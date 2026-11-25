@@ -287,8 +287,8 @@ struct SystemModel::Impl {
     enum class Prefetch { Idle, Reference, Record, Ready } prefetch = Prefetch::Idle;
     std::uint32_t prefetch_record = 0;
     bool prefetch_invalid = false;
-    // Records are fetched as a 64-byte first block; kinds 0..3 then read all
-    // 320 bytes. The invalid range size is kept for the deferred fault.
+    // Every record starts with 64 bytes; its kind selects the exact remaining
+    // extent. The invalid range size is kept for the deferred fault.
     std::size_t prefetch_invalid_bytes = vertex_triangle_record_bytes;
     std::uint32_t current_record = 0;
     bool record_extended = false;
@@ -632,12 +632,13 @@ struct SystemModel::Impl {
             }
         } else if (!record_extended && record_bytes_for_kind(read_u32(reader.view(), 0)) > vertex_triangle_record_bytes) {
             record_extended = true;
-            if (!range_ok(prefetch_record, primitive_record_bytes)) {
-                prefetch_invalid = true; prefetch_invalid_bytes = primitive_record_bytes;
+            const auto bytes = record_bytes_for_kind(read_u32(reader.view(), 0));
+            if (!range_ok(prefetch_record, bytes)) {
+                prefetch_invalid = true; prefetch_invalid_bytes = bytes;
                 prefetch = Prefetch::Ready;
-            } else reader.extend(primitive_record_bytes);
+            } else reader.extend(static_cast<unsigned>(bytes));
         } else {
-            totals.fetched_record_bytes += record_extended ? primitive_record_bytes : vertex_triangle_record_bytes;
+            totals.fetched_record_bytes += record_bytes_for_kind(read_u32(reader.view(), 0));
             ++totals.prefetched_records;
             prefetch = Prefetch::Ready;
         }
@@ -883,11 +884,12 @@ struct SystemModel::Impl {
             if (completed) {
                 if (!record_extended && record_bytes_for_kind(read_u32(reader.view(), 0)) > vertex_triangle_record_bytes) {
                     record_extended = true;
-                    validate_heap_range(current_record, primitive_record_bytes);
-                    reader.extend(primitive_record_bytes);
+                    const auto bytes = record_bytes_for_kind(read_u32(reader.view(), 0));
+                    validate_heap_range(current_record, bytes);
+                    reader.extend(static_cast<unsigned>(bytes));
                     break;
                 }
-                totals.fetched_record_bytes += record_extended ? primitive_record_bytes : vertex_triangle_record_bytes;
+                totals.fetched_record_bytes += record_bytes_for_kind(read_u32(reader.view(), 0));
                 begin_record_draw();
             }
             break;

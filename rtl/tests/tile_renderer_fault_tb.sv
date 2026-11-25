@@ -15,21 +15,22 @@ module nano_tile_fault_tb;
  wire tex_cfg_ready=1,tex_req_ready=1,tex_rsp_valid=0;wire[15:0]tex_rsp_texel=0;wire[5:0]tex_rsp_tag=0;
  wire tex_rsp_ready,tex_fault=0;
  nano_tile_renderer dut(.*);
- reg[31:0]record[0:79];integer i,c,steps;
+ reg[31:0]record[0:79];integer i,c,steps,record_words;
  task tick;begin #5;clk=1;#5;clk=0;end endtask
  task base;begin
   for(i=0;i<80;i=i+1)record[i]=0;
-  record[0]=32'h00050101;record[2]=32'h00112233;record[6]=640;record[7]=480;
+  record[0]=32'h00050201;record[2]=32'h00112233;record[6]=640;record[7]=480;
   record[10]=4;record[11]=4;record[16]=24'h123456;
  end endtask
  task triangle;begin
-  base();record[0]=32'h00050100;record[16]=0;
+  base();record[0]=32'h00050200;record[16]=0;
   record[28]=1;record[32]=1;record[36]=1;
  end endtask
  task launch;begin
   reset=1;tick();reset=0;tick();
   pix_we=3;pix_addr=0;pix_color=16'hbeef;pix_depth=24'h654321;tick();pix_we=0;
-  for(i=0;i<80;i=i+1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
+  record_words=record[0][7:0]==0?80:(record[0][7:0]==2?22:20);
+  for(i=0;i<record_words;i=i+1)begin cmd_word_index=i;cmd_word_data=record[i];cmd_word_we=1;tick();end
   cmd_word_we=0;cmd_valid=1;tick();cmd_valid=0;
  end endtask
  initial begin
@@ -39,12 +40,12 @@ module nano_tile_fault_tb;
    0:record[19]=1;
    1:record[3]=1;
    2:record[17]=1;
-   3:record[79]=1;
+   3:record[0][15:8]=1; // Retired record version must still be rejected.
    4:record[1]=1;
-   5:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[20]=640;end
+   5:begin record[0]=32'h00050202;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[20]=640;end
    6:begin record[1]=32'h00040000;record[12]=32'h80258000;record[13]=8;record[14]=8;record[15]=16;end
    7:record[12]=32'h00258000;
-   8:begin record[0]=32'h00050103;record[1]=32'h00040002;record[12]=32'h00258000;record[13]=8;record[14]=8;record[15]=16;record[17]=7;end
+   8:begin record[0]=32'h00050203;record[1]=32'h00040002;record[12]=32'h00258000;record[13]=8;record[14]=8;record[15]=16;record[17]=7;end
    9:begin triangle();record[26]=32'h00020000;end
    10:begin triangle();record[26]=1;record[28]=32'h7fffffff;end
    11:begin triangle();record[38]=32'hffffffff;record[39]=32'h7fffffff;record[40]=1;end
@@ -55,12 +56,12 @@ module nano_tile_fault_tb;
    16:begin triangle();record[10]=32'h80000000;end
    17:begin triangle();record[11]=481;end
    18:begin triangle();record[11]=512;end
-   19:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[17]=32'h80000000;end
-   20:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[20]=32'h00010000;end
-   21:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[18]=480;end
-   22:begin record[0]=32'h00050102;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[21]=512;end
-   23:begin record[0]=32'h00050103;record[1]=32'h00040002;record[12]=32'h258000;record[13]=8;record[14]=8;record[15]=16;record[17]=32'h7fffffff;end
-   24:record[0]=32'h00050104;
+   19:begin record[0]=32'h00050202;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[17]=32'h80000000;end
+   20:begin record[0]=32'h00050202;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[20]=32'h00010000;end
+   21:begin record[0]=32'h00050202;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[18]=480;end
+   22:begin record[0]=32'h00050202;record[8]=0;record[9]=0;record[10]=0;record[11]=0;record[21]=512;end
+   23:begin record[0]=32'h00050203;record[1]=32'h00040002;record[12]=32'h258000;record[13]=8;record[14]=8;record[15]=16;record[17]=32'h7fffffff;end
+   24:record[0]=32'h00050204;
    25:record[1]=5;
    26:record[1]=32'h00000300;
    27:record[1]=32'h00008000;

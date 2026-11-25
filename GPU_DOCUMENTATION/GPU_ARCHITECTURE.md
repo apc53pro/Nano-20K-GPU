@@ -4,9 +4,9 @@ This is the architecture guide for the **current SystemVerilog GPU** in this
 repository. Read [GPU_CONTROL.md](GPU_CONTROL.md) for the CPU-facing bus,
 registers, binary commands, data structures and generic host-code examples.
 
-The current command/data profile is **`N20K-SYS-0.2`**, a provisional wire ABI
-implemented in the RTL, board image and MPC-2350 host. Older M0 design documents
-describe the original requirements. This guide describes the current implementation.
+The current RTL uses **`N20K-SYS-0.3`**, a provisional wire ABI. The earlier
+published programming image uses version 0.2. See the control guide for
+packet and record versions and the required host migration.
 
 **Current status:** rendering and CPU control execute functional RTL under
 Verilator, with an independent software reference renderer (SRR) checking the
@@ -26,7 +26,7 @@ display FIFO and tile clearing during stores; the user reported
 image after it added **GPU triangle setup** for kind-4 vertex triangles
 (section 6). The image after that added **early SDRAM command release** and
 overlapped tile stores (section 9); the user measured it with
-`demo_3d_engine9` (section 13). The current image adds **row exit**
+`demo_3d_engine9` (section 13). The published image adds **row exit**
 (section 6), **overlapped PRESENT** (section 10) and five timing fixes
 (section 12). It is built with Gowin EDA V1.9.8.11, which reached a faster
 clock than the signed V1.9.11.03 on these sources; `AGENTS.md` records that
@@ -51,8 +51,9 @@ It shares the existing packet-word register, counters, 64-byte staging RAM and
 SDRAM-write backend; its only additional decoder storage is an eight-bit group
 descriptor. All resource types use this engine, with literal words inside the
 same encoding. There is no legacy 0.1 packet path or uncompressed fallback.
-Decoded primitive records are 320 bytes, except the 64-byte kind-4 vertex
-triangle, whose setup the GPU computes (capability feature bit 8).
+Version 0.3 keeps the same upload encoding. Decoded rectangle and sprite
+records occupy 80 bytes and line records occupy 88 bytes. Prepared triangles
+use 320 bytes and vertex triangles use 64 bytes.
 The [earlier standalone decoder experiment](../docs/hardware/upload-codec.md)
 was a different probe with additional measurement registers; its failed
 co-residency result is historical, not an integrated fit measurement. The
@@ -498,10 +499,13 @@ For each tile the current executor fetches the tile entry, then:
      written two pixels at a time (512 clocks) for the pass's
      first tile with draws; see step 4.
   2. Fetches each reference, then the record's first 16-word burst. A kind-4
-     vertex triangle is set up for this tile from those words (section 6);
-     a tile it cannot cover is skipped without starting the renderer. Other
-     kinds fetch their remaining 64 words, so one prepared record costs five
-     bursts.
+     vertex triangle is set up for this tile from those words (section 6).
+     The setup can reject a tile without starting the renderer. A prepared
+     triangle fetches four more full bursts. Rectangles and sprites follow
+     with four words and lines with six. The registered kind selects the
+     heap bound and remaining burst length before issuing the transfer.
+     A 2D primitive uses its constant depth and skips plane setup. Retained
+     triangle coefficients and edges are irrelevant to a following 2D draw.
   3. Runs the primitive in the tile and drains its fragment work before
      changing draw state.
   4. Streams color, and depth unless discarded, back to SDRAM in 16-word
@@ -773,7 +777,8 @@ Scaled, rotated, flipped or tinted images need no sprite hardware. A textured
 triangle maps any texel coordinates, so two of them draw such a sprite, with
 color key and depth. The MPC-2350 NARM draw SDK does this in
 `gpu_draw_sprite_ex()` (2026-11-15; [control guide](GPU_CONTROL.md#narm-gpu-interface)).
-The cost is two 320-byte records instead of one, with nearest-texel sampling.
+The cost is two prepared triangle records instead of one sprite record, with
+nearest-texel sampling.
 Each tile walks the triangles' bounding boxes, so the corners of a rotated
 quad are walked as well. With the board's logic 96% used (section 12),
 there is little room for dedicated rotation hardware.
@@ -1486,6 +1491,30 @@ image remains the earlier release. The encrypted netlists prevent the
 fixed SiP check. The V1.9.8.11 toolchain provenance is unverified and
 external electrical margins still require physical measurement.
 
+### Short-record source snapshot (2026-11-24)
+
+Both [Gowin V1.9.8.11](../docs/hardware/tang20k-short-records-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-short-records-v1911.json)
+routed identical complete-board sources at placement/routing 0/2, verified
+all 26 package pins and met the board clock and host capture gates.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | Registers | BSRAM |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| V1.9.8.11 | 58.664 MHz | 31.444 MHz | 18,441/20,736 | 7,436 | 46/46 |
+| V1.9.11.03 | 54.193 MHz | 27.694 MHz | 19,445/20,736 | 7,358 | 46/46 |
+
+The selected V1.9.8.11 route uses 246 fewer logic units than its matched
+paired-attachment predecessor and retains the 50.4 MHz core/SDRAM,
+25.2 MHz pixel and 126 MHz serialization clocks. Each report lists
+the remaining permitted reset-release violations and records the same
+uncommitted host-pad timing script and
+[functional evidence](../docs/hardware/tang20k-short-records-functional.json).
+The two local image checksums are paired with their source, device, frame
+count and frame CRC evidence. The earlier 0.2 programming file remains
+the published image. Encrypted netlists prevent a fixed SiP check, the
+V1.9.8.11 installer provenance remains unverified, and external electrical
+margins still require measurement.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -1813,6 +1842,45 @@ Focused tests check all attachment addresses, both write parities, output
 hold, reset retention and clear-back while reading the next pair. The
 wrapper's partial writes were also checked against both installed Gowin
 GW2A primitive models.
+
+### Short 2D primitive records (2026-11-24)
+
+The [short-record benchmark](../docs/benchmarks/rtl-short-2d-records.json)
+compares the previous packet and record versions with 0.3 using Verilated
+board-core RTL. Each submission includes encoded heap uploads and runs
+through its fence at a 50.4 MHz core clock and a 25.2 MHz virtual host. Both
+complete RGB565 buffers and full D24 storage match the independent renderer,
+with zero scanout underflows. The continuous suite falls from 31,482,680 to
+30,295,388 core clocks, a **3.77% reduction**.
+
+| Workload | Cycle reduction at matched starts |
+| --- | ---: |
+| UI, storing depth | 13.76–15.09% |
+| UI, discarding depth | 17.58–18.75% |
+| UI, loading color and depth | 8.44–9.54% |
+| Showcase and perspective | 7.89–8.95% |
+| Overdraw | 2.87–3.67% |
+| Full-screen copy, opaque and triangle-only controls | 0% |
+
+The 148-rectangle UI with depth store submits 12,386 bytes instead of
+15,503, including record, table, list, command and fence bytes. Textured
+scenes still include their first-use uploads. Across 36 matched starts,
+each case improves or ties. Five individual durations in the continuous
+sequence increase by 0.09–2.76% as preceding passes shift scanout and SDRAM
+phase. Every cumulative fence is at least as early. Matched empty LOAD,
+dirty SKIP after an identical prior frame, and prepared or vertex triangle
+runs isolate those changes. The evidence records both sets of durations
+and logical-host controls at 18.75 MHz and near 250 kHz. At
+18.75 MHz the matched UI submissions use 15.07% fewer core clocks with
+depth store and 18.82% fewer with depth discard. The simulated host clocks
+represent nominal burst rates; they exclude RP2350 software and PIO
+overhead.
+
+Focused RTL regressions check exact 2D tail reads at the heap boundary,
+faults before an out-of-bounds tail request, and cancellation of staged
+record words. They also draw using short rectangle, line and keyed sprite
+records after a prepared triangle and reset, checking complete tile RGB565
+and D24 contents and preventing stale coefficients from affecting 2D draws.
 
 ## 14. Build, verify and reach the board
 
