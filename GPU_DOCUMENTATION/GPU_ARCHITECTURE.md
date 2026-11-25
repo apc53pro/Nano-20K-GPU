@@ -38,16 +38,14 @@ Section 12 notes one uncommitted build-script input. The current image was
 written to the board on 2026-11-13; it has not yet been tested with the
 RP2350.
 
-The current RTL additionally pipelines triangle edge initialization through
-the existing multiplier: six products launch consecutively and all three
-edges settle in nine core clocks instead of 24 (section 6). The retained
-programming image described above predates this change. Its image, checksum
-and release reports remain a matched bundle for that earlier RTL; they do
-not qualify the optimized sources. The new source-matched experiments and
-their timing/provenance limits are described in sections 12 and 13.
-For these sources the signed Gowin EDA V1.9.11.03 reaches a faster core
-than V1.9.8.11, so it becomes the `make tang20k` default. Operating clocks
-remain unchanged; higher estimated Fmax is not counted as a speedup.
+The current RTL pipelines triangle edge initialization through the existing
+multiplier. All three edges settle in nine core clocks instead of 24. Kind-4
+depth setup also avoids nine divider clocks per eligible gradient (section 6).
+The published programming image and its reports describe the earlier RTL
+and predate both optimizations. Sections 12 and 13 give the new build and
+performance evidence. With both optimizations, Gowin EDA V1.9.8.11 reaches
+the faster core estimate and is the build default. The operating core clock
+is 50.4 MHz in these builds.
 
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
@@ -551,7 +549,8 @@ signed 38-bit sum and signed 32-bit overflow rejection before rasterization.
 This takes nine clocks rather than the previous six serial four-clock
 operations. It changes neither coverage nor record validation, and adds no
 multiplier or RAM. The same path handles prepared triangles and the prepared
-words generated from kind-4 records; the separate kind-4 setup unit is unchanged.
+words generated from kind-4 records. The separate kind-4 setup unit computes
+depth gradients before emitting those words.
 
 | Quantity | Stored plane scale |
 | --- | --- |
@@ -650,8 +649,13 @@ command words, so the tile renderer is unchanged:
 4. **Depth numerators.** Since `A0+A1+A2 = 0`, `Nx = Z0*A1 + Z1*A2 + Z2*A0` and
    `Ny = Z0*B1 + Z1*B2 + Z2*B0` need only three products each and no depth
    subtractors. The divider takes `|Nx|`; `|Ny|` waits in a register.
-5. **Gradients.** One restoring divider runs for each axis in turn: one check
-   clock plus 43 quotient bits, the last of which rounds. Each result is
+5. **Gradients.** One restoring divider runs for each axis in turn. When
+   the high 26 bits of the numerator magnitude are strictly below the
+   area, the first eight quotient bits are zero. The divider loads the
+   remainder and unused dividend bits directly at that point. This skips
+   eight restore clocks and the initial saturation check. The divider
+   follows the full iteration count when the comparison fails, including
+   at equality. Each result is
    `|N|*4096/|area|`, rounded half away from zero and saturated at `2^42-1`.
    Its sign is that of `N*area`. Between the two divisions, the X gradient
    words and the seed's X term are formed. Meanwhile the header, window,
@@ -669,8 +673,10 @@ only four sources (coordinate, depth, quotient or 1), and its second operand
 is an edge coefficient, a sample offset or a constant. Each issued step
 carries its accumulator operation down the multiplier pipeline, and a
 follow-up action reads the settled result. A depth-free triangle skips steps
-4–6. A visible depth-tested reference costs about 130 setup clocks, plus the
-renderer's own edge setup. That replaces four of the five record bursts and
+4–6. A visible depth-tested reference costs up to about 130 setup clocks,
+plus the renderer's own edge setup. Each gradient that starts with eight
+zero quotient bits saves nine clocks, up to 18 per reference. Vertex records
+replace four of the five record bursts and
 the offset walk. Vertex positions use 14/13-bit fields, so X up to 16383 and
 Y up to 8191 form a right/bottom guard band; every edge and plane value stays
 in range. An earlier draft with two parallel dividers and a wide operand
@@ -1398,16 +1404,15 @@ firmware stack overflow, not a GPU fault; the control guide records it.
 
 Their reports remain in git history and do not qualify the current sources.
 
-### Pipelined-edge source snapshot (2026-11-24)
+### Pipelined-edge source snapshot before divider change (2026-11-24)
 
 The [V1.9.8.11 experiment](../docs/hardware/tang20k-edge-pipeline-v1908.json)
 and [signed V1.9.11.03 experiment](../docs/hardware/tang20k-edge-pipeline-v1911.json)
 implement the same full `tang20k_top` sources, package and 0/2 placement/routing
 options. Both pass the required 50.4 MHz core, 25.2 MHz host and pixel timing
 gates and all 26 package-pin checks. The core estimates are 57.699 and
-58.251 MHz respectively, so the signed tool becomes the Makefile default
-under the existing faster-core selection policy. These are internal static
-timing estimates; the GPU still operates at 50.4 MHz.
+58.251 MHz respectively. The signed tool was the default for that snapshot.
+The operating clock for both builds was 50.4 MHz.
 
 The signed build uses 19,606/20,736 logic and 7,421 registers; the older tool
 reports 19,903 logic and 7,495 registers for the same sources. Both use all
@@ -1429,6 +1434,29 @@ input set. The Makefile passes the chosen tool explicitly; direct builder
 invocations must supply `--gowin` to reproduce these toolchain comparisons.
 The matching candidate image/checksum bundles remain local experiments;
 the published 2026-11-13 image and its reports are retained unchanged.
+
+### Divider-prefix source snapshot (2026-11-24)
+
+The [V1.9.8.11 route](../docs/hardware/tang20k-divider-prefix-v1908.json)
+and [signed V1.9.11.03 route](../docs/hardware/tang20k-divider-prefix-v1911.json)
+use identical full-board sources and placement/routing options 0/2. Both
+pass the required clock gates and verify all 26 package pins. V1.9.8.11
+reaches a core Fmax estimate of **63.729 MHz** and host **31.900 MHz**. The
+signed build reaches **50.595 MHz** core and **25.812 MHz** host. The Makefile
+selects V1.9.8.11 under the existing faster-core policy. Both builds operate
+at 50.4 MHz core, 25.2 MHz pixel and 126 MHz serializer clocks.
+
+The selected route uses **20,077/20,736 logic**, 7,495 registers, all 46
+BSRAM banks and 63% DSP. The signed route uses 19,931 logic and 7,417
+registers, with the same BSRAM and DSP use. Each report lists the eight
+negative-slack reset-release paths permitted by the existing gate. Both
+record the exact local host-pad timing script and the hash of the
+[functional report](../docs/hardware/tang20k-divider-prefix-functional.json).
+Local images are
+paired with their SHA-256 checksums and verified device ID, frame count and
+frame CRCs. The published image remains the earlier release. The encrypted
+netlists prevent a fixed SiP check, V1.9.8.11 provenance is unverified,
+and external electrical timing still requires physical measurement.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -1706,6 +1734,26 @@ retained image. A clean checkout alone therefore does not reproduce those
 routes. The local candidate images stay beside their checksums and reports;
 the published programming-image bundle is unchanged. Neither image was
 programmed or measured on hardware by this experiment.
+
+### Kind-4 depth-divider prefix (2026-11-24)
+
+The [divider measurements](../docs/benchmarks/rtl-divider-prefix.json) compare
+the previous and current RTL with the same 50.4 MHz core, 25.2 MHz virtual
+host/pixel clocks and normal packet delivery through the fence. Both RGB565
+buffers and every depth word match the independent renderer. Scanout records
+zero underflows. The focused test checks signed gradients, the strict prefix
+threshold, rounding, saturation, reverse winding and reset across 40 records.
+
+Twelve executions of four kind-4 workloads start after fresh boots at identical
+idle offsets. The 400-triangle submissions use 0.96–1.31% fewer clocks, the
+spheres 1.41–1.60% fewer, and the flat icosahedron 0.33–0.60% fewer.
+The continuous suite takes 32,967,060 clocks, down from 33,122,732 (0.47%).
+Every cumulative fence is at least as early. The flat icosahedron alone lasts
+1.87% longer in that sequence because the prior passes shift its arrival
+phase. The profile shows more tile-store command wait and fewer setup clocks
+for that pass. The report retains that duration alongside the matched-start
+comparisons. These times measure simulated submission and completion at the
+board clock.
 
 ## 14. Build, verify and reach the board
 

@@ -39,13 +39,13 @@ def main():
     rtl = [ROOT / name for name in (
         "rtl/gpu/nano_sdp16.sv", "rtl/uv_mult.v", "rtl/uv_pipeline.v",
         "rtl/gpu/nano_fragment_pipeline.sv", "rtl/gpu/nano_tile_renderer.sv",
-        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv")]
+        "rtl/gpu/nano_sdp32.sv", "rtl/gpu/nano_sdp36.sv", "rtl/gpu/nano_triangle_setup.sv")]
     tests = [ROOT / "rtl/tests" / name for name in (
         "generate_tile_vectors.cpp", "tile_renderer_tb.sv",
         "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv",
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
-        "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv")]
+        "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -82,6 +82,7 @@ def main():
         ("nano_tile_setup_tb", tests[10], []),
         ("nano_fragment_conservative_ready_tb", tests[11], []),
         ("nano_tile_edge_setup_tb", tests[12], []),
+        ("nano_triangle_setup_divider_tb", tests[13], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -203,6 +204,20 @@ def main():
                       "clipped_start_and_signed18_endpoints": True,
                       "all_three_edges_checked_before_raster": True,
                       "setup_fault_and_reset_preserve_attachments": True}
+            print(match[0], flush=True)
+        elif top == "nano_triangle_setup_divider_tb":
+            match = re.search(r"PASS triangle divider: records(\d+) reverse(\d+) resets(\d+) zero_edges(\d+) below_edges(\d+) threshold_edges(\d+)", output)
+            if (not match or tuple(map(int, match.groups()[:3])) != (40, 18, 4) or
+                    int(match[6]) < int(match[5]) + 8 or int(match[4]) > int(match[5])):
+                raise RuntimeError("triangle divider did not preserve public signed arithmetic and threshold latency")
+            result = {"top": top, "passed": True, "public_record_cases": int(match[1]),
+                      "reverse_winding_cases": int(match[2]), "active_reset_cases": int(match[3]),
+                      "zero_gradient_setup_edges": int(match[4]),
+                      "below_threshold_setup_edges": int(match[5]), "at_threshold_setup_edges": int(match[6]),
+                      "reference": "Independent signed64 division, saturated half-away gradients and floored seed",
+                      "exact_gradient_and_seed_words": True, "both_gradient_signs": True,
+                      "strict_threshold_and_saturation_boundaries": True,
+                      "retained_record_reuse_after_reset": True}
             print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)

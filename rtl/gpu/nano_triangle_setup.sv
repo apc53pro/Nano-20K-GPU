@@ -318,6 +318,11 @@ module nano_triangle_setup (
 
     wire divide_y=state==RUN&&step==36;
     wire [47:0] divide_source=divide_y?hold_ny:acc[47:0];
+    // If the first eight restoring steps would all shift in zero quotient
+    // bits, load the state they would have reached. The largest intermediate
+    // remainder is the dividend's high 26 bits, with no subtraction yet.
+    wire [28:0] high_digit_remainder={3'b0,divide_source[47:22]};
+    wire skip_high_digits=high_digit_remainder<area;
     wire [43:0] rounded={1'b0,quotient}+44'd1;
     wire take={remainder,numerator[41]}>={1'b0,area};
     always @(posedge clk) begin
@@ -335,8 +340,18 @@ module nano_triangle_setup (
             if(op_q2!=OP_NONE) acc<=add_sum;
             // Divider (|NX| from an action, |NY| from hold_ny at step 36).
             if(divide_y||(state!=IDLE&&act_q3==AC_DIV_X)) begin
-                remainder<={11'd0,divide_source[47:30]}; numerator<={divide_source[29:0],12'd0};
-                div_count<=0; div_busy<=1;
+                div_busy<=1;
+                if(skip_high_digits) begin
+                    remainder<=high_digit_remainder;
+                    numerator<={divide_source[21:0],20'd0};
+                    quotient<=0;
+                    saturate<=0;
+                    div_count<=9;
+                end else begin
+                    remainder<={11'd0,divide_source[47:30]};
+                    numerator<={divide_source[29:0],12'd0};
+                    div_count<=0;
+                end
             end else if(div_busy) begin
                 if(div_count==0) begin
                     saturate<={1'b0,remainder}>={1'b0,area};

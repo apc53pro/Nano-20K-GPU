@@ -892,12 +892,13 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. On the current pipelined-edge RTL, fresh full-board routes reach
-57.699 MHz with V1.9.8.11 and 58.251 MHz with the signed V1.9.11.03, so
-`make tang20k` now defaults to V1.9.11.03. Operating clocks remain 50.4 MHz
-core/SDRAM, 25.2 MHz pixels and 126 MHz serialization. The architecture
-guide's section 12 links both exact-input reports, including all remaining
-reset-release violations and the separately checked signature.
+V1.9.8.11. The signed tool led for the intermediate pipelined-edge snapshot.
+With the kind-4 divider change, complete-board builds estimate 63.729 MHz
+core Fmax for V1.9.8.11 and 50.595 MHz for V1.9.11.03. Both meet the
+selected clock gates, so `make tang20k` selects V1.9.8.11. The architecture
+guide's section 12 links the source hashes, checked image metadata and all
+remaining reset-release violations. The build uses 50.4 MHz core/SDRAM,
+25.2 MHz pixels and 126 MHz serialization.
 
 The retained published image is **7,264,137 bytes**, SHA-256
 `39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
@@ -1488,6 +1489,12 @@ For each tile reference the GPU computes, exactly as the reference function
   `SY = 16y+8-Y0`. The value does not depend on which tile computes it.
   Only depth slopes steeper than 2^26 codes per pixel saturate; that needs
   a triangle narrower than about 1/4 pixel.
+
+The divider skips eight iterations and its initial saturation check when
+the first eight quotient bits are provably zero. Gradient and seed values
+follow the equations above for every record. Hosts use the existing fence
+and fault status to observe completion because setup time now varies with
+the depth gradients as well as the tile coverage.
 
 A tile reference whose window cannot contain a covered pixel center is
 rejected without rasterizing. List a vertex triangle in the tiles its bounds
