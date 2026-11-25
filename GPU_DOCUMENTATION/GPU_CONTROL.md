@@ -904,9 +904,9 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with batched tile references,
-`make tang20k` selects the qualified V1.9.8.11 route at
-59.408 MHz estimated core Fmax on the existing package pins and
+V1.9.8.11. For the current 0.3 RTL with overlapped COPY writes,
+`make tang20k` selects the qualified V1.9.11.03 route at
+53.362 MHz estimated core Fmax on the existing package pins and
 host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
@@ -985,7 +985,7 @@ sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 
 | Job | Tool (exact) | Location on the user's PC |
 | --- | --- | --- |
-| Build the current RTL (`make tang20k`) | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
+| Build the current RTL (`make tang20k`) | Signed Gowin EDA **V1.9.11.03 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe` |
 | Build the published 0.2 release | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Program SRAM or flash | Standalone Gowin Programmer **V1.9.12.04 (64-bit)** `programmer_cli.exe`, Authenticode-signed by Gowin | `C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe` |
 
@@ -1408,8 +1408,10 @@ stream. A command accepted on the edge that establishes quiescence is still
 tracked and drained. An accepted tile-reference burst drains even when
 its remaining pointers will be discarded. Recovery resumes with a new
 pass and its own list reads. Quiescence remains asserted through host flush
-acknowledgement before the executor returns to idle. These internal control edges can extend recovery;
-drivers must use the epoch/status checks above rather than a fixed delay.
+acknowledgement before the executor returns to idle. An accepted COPY write
+continues to receive its remaining payload and drains its physical writes.
+Recovery invalidates the interrupted copy's destination and cancels its
+command completion. Use the epoch and status checks above to observe recovery.
 The display memory client remains active throughout soft recovery.
 
 Soft recovery increments the 32-bit epoch. It cannot recover past
@@ -1689,6 +1691,15 @@ Source/destination clipping preserves their pixel correspondence. Same-buffer
 overlap has snapshot/memmove semantics. Zero-area copies are no-ops. Copies
 do not apply keying, shading, filtering or depth operations. A partial copy
 does not initialize an invalid target; a full destination-covering copy can.
+
+COPY may request the next write burst for a row once the preceding burst's
+payload has been accepted, sharing the existing two SDRAM transaction slots.
+It reads a full source row before writing it and drains all its writes before
+reusing the row storage, reading another source row or completing the copy.
+Clipping, same-buffer overlap, and the masks for partial words remain exact.
+The 56-byte packet uses the same fields and limits. Wait for completion
+through the existing fence or status sequence before using the destination.
+
 The current executor validates the prefix one full raw word at a time, then
 refetches 14 COPY parameter words from its immutable packet lease. X and Y
 reuse one signed 33-bit interval/clipping datapath. For a nonempty copy, that

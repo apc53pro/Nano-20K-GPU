@@ -101,6 +101,11 @@ module nano_gpu_core #(
     reg [1:0] mem3_outstanding;
     wire [1:0] mem3_next = mem3_outstanding + {1'b0, mem_cmd_valid[3] && mem_cmd_ready[3]} -
         {1'b0, mem_done[3]};
+    // COPY keeps one read at a time but can have writes in both slots.
+    // Count the physical completions, including after payload acceptance.
+    reg [1:0] mem5_outstanding;
+    wire [1:0] mem5_next = mem5_outstanding + {1'b0, mem_cmd_valid[5] && mem_cmd_ready[5]} -
+        {1'b0, mem_done[5]};
     reg [137:0] mem_cmd_addr;
     reg [29:0] mem_cmd_words;
     reg [191:0] mem_w_data;
@@ -116,6 +121,9 @@ module nano_gpu_core #(
     wire [31:0] host_cmd_sequence;
     wire [10:0] host_cmd_length;
     wire [7:0] payload_data, host_fault;
+    wire abort_arrived=abort_sync2&&!abort_previous;
+    wire runtime_fault=!abort_pending&&state!=S_RECOVER&&!host_abort&&
+        ((|mem_error)||host_fault!=0||tile_fault||tex_fault);
     assign ready = initialized && !host_recovering;
     assign fault = fault_pending || state == S_FAULT;
     // A PRESENT waiting for its swap or reply keeps the core busy, as before.
@@ -776,7 +784,7 @@ module nano_gpu_core #(
             abort_sync1<=0; abort_sync2<=0; abort_previous<=0; abort_pending<=0; fault_pending<=0; fault_code<=0;
             foreground_quiet<=0;
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0; pending_memory<=0;
-            mem3_outstanding<=0;
+            mem3_outstanding<=0; mem5_outstanding<=0;
             capture_index<=0; capture_length<=0;
             packet_word<=0; capture_invalid<=0; copy_command_invalid<=0;
             target_id<=1; clear_color_enable<=1; clear_depth_enable<=1; depth_discard<=0;
@@ -823,7 +831,7 @@ module nano_gpu_core #(
                 record_length_bad<=record_address>record_last_address;
             end
             abort_sync1<=abort_request; abort_sync2<=abort_sync1; abort_previous<=abort_sync2;
-            if(abort_sync2 && !abort_previous) begin
+            if(abort_arrived) begin
                 abort_pending<=1;
                 if(pass_active) begin color_valid[target_id]<=0; depth_valid<=0; end
                 if(copy_active) color_valid[copy_target_id]<=0;
@@ -835,13 +843,15 @@ module nano_gpu_core #(
             end
             mem3_outstanding<=mem3_next;
             pending_memory[3]<=mem3_next!=0;
+            mem5_outstanding<=mem5_next;
+            pending_memory[5]<=mem5_next!=0;
             if(mem_done[2]) read_done_hold<=1;
             // Abort lets the active primitive finish before stopping texture
             // fetches. A fault may cancel that work once accepted memory has
             // drained. Keep quiet asserted through the renderer reset and the
             // host-link flush, so an unaccepted cache miss cannot sneak out.
             if(fault_pending || (abort_pending && !tile_busy)) foreground_quiet<=1;
-            if(!abort_pending && state!=S_RECOVER && !host_abort && ((|mem_error) || host_fault!=0 || tile_fault || tex_fault))
+            if(runtime_fault)
                 raise_fault(host_fault!=0 ? 8'd1 : ((|mem_error) ? 8'd8 : 8'd6));
             if(reference_active_word&&!abort_pending&&!fault_pending&&!foreground_quiet)begin
                 // Validate the full pointer only when it becomes the next
@@ -1345,11 +1355,15 @@ module nano_gpu_core #(
                 S_COPY_PREFETCH: state<=S_COPY_WRITE_DATA;
                 S_COPY_WRITE_DATA: if(mem_w_ready[5]) begin
                     copy_word<=copy_word+1;
-                    if(copy_word+1==copy_burst_end) state<=S_COPY_WRITE_DONE;
+                    if(copy_word+1==copy_burst_end)
+                        state<=copy_burst_end==copy_dst_words ? S_COPY_WRITE_DONE : S_COPY_WRITE_CMD;
                 end
-                S_COPY_WRITE_DONE: if(mem_done[5]) begin
-                    if(copy_word!=copy_dst_words) state<=S_COPY_WRITE_CMD;
-                    else if((!copy_reverse && copy_row_number+1==copy_count_y) || (copy_reverse && copy_row_number==0)) begin
+                // Drain the row's physical writes before reading another
+                // source row or publishing a valid target. Keep accepting
+                // the data of any already granted burst during recovery.
+                S_COPY_WRITE_DONE: if(mem5_next==0&&!abort_arrived&&!abort_pending&&
+                    !runtime_fault&&!fault_pending&&!foreground_quiet) begin
+                    if((!copy_reverse && copy_row_number+1==copy_count_y) || (copy_reverse && copy_row_number==0)) begin
                         color_valid[copy_target_id]<=copy_previous_valid ||
                             (copy_first_destination_x==0 && copy_first_destination_y==0 && copy_count_x==640 && copy_count_y==480);
                         copy_active<=0; complete_command();

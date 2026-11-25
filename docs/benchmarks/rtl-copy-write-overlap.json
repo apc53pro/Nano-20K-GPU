@@ -1,0 +1,3811 @@
+{
+  "schema": "N20K-RTL-COPY-WRITE-OVERLAP-1",
+  "baseline_commit": "feb244bf224388e1595869e647e50137720981c8",
+  "candidate": "The commit containing this evidence. The model and board input hashes identify these sources.",
+  "scope": "Source-matched Verilated 0.3 board core at 50.4 MHz with 25.2 MHz virtual host and pixel clocks. Measured from the identical host submission to fixed fence. Independent SRR verifies both complete RGB565 attachments and every D24 word. No physical performance inferred.",
+  "continuous": {
+    "before": 26587478,
+    "after": 26496856,
+    "cases": [
+      {
+        "case": "warm-up: empty, clear color and depth",
+        "before": 641290,
+        "after": 641290,
+        "before_cumulative": 641290,
+        "after_cumulative": 641290,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color and depth",
+        "before": 905812,
+        "after": 905812,
+        "before_cumulative": 1547102,
+        "after_cumulative": 1547102,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, clear depth",
+        "before": 621056,
+        "after": 621056,
+        "before_cumulative": 2168158,
+        "after_cumulative": 2168158,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color and depth",
+        "before": 14450,
+        "after": 14450,
+        "before_cumulative": 2182608,
+        "after_cumulative": 2182608,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "full-screen front-to-back copy",
+        "before": 694276,
+        "after": 623802,
+        "before_cumulative": 2876884,
+        "after_cumulative": 2806410,
+        "cycle_reduction_percent": 10.150718158196447
+      },
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "before": 1492302,
+        "after": 1493134,
+        "before_cumulative": 4369186,
+        "after_cumulative": 4299544,
+        "cycle_reduction_percent": -0.055752789984864215
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "before": 22626,
+        "after": 22360,
+        "before_cumulative": 4391812,
+        "after_cumulative": 4321904,
+        "cycle_reduction_percent": 1.17563864580571
+      },
+      {
+        "case": "empty pass, clear color, discard depth",
+        "before": 319058,
+        "after": 319296,
+        "before_cumulative": 4710870,
+        "after_cumulative": 4641200,
+        "cycle_reduction_percent": -0.07459458781788886
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "before": 908406,
+        "after": 899506,
+        "before_cumulative": 5619276,
+        "after_cumulative": 5540706,
+        "cycle_reduction_percent": 0.9797381347106948
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "before": 15718,
+        "after": 18934,
+        "before_cumulative": 5634994,
+        "after_cumulative": 5559640,
+        "cycle_reduction_percent": -20.460618399287434
+      },
+      {
+        "case": "empty pass, load color, discard depth",
+        "before": 14290,
+        "after": 14312,
+        "before_cumulative": 5649284,
+        "after_cumulative": 5573952,
+        "cycle_reduction_percent": -0.15395381385583384
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "before": 3250010,
+        "after": 3254944,
+        "before_cumulative": 8899294,
+        "after_cumulative": 8828896,
+        "cycle_reduction_percent": -0.15181491749256537
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "before": 4302330,
+        "after": 4310576,
+        "before_cumulative": 13201624,
+        "after_cumulative": 13139472,
+        "cycle_reduction_percent": -0.191663586940094
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "before": 434866,
+        "after": 414910,
+        "before_cumulative": 13636490,
+        "after_cumulative": 13554382,
+        "cycle_reduction_percent": 4.588999829832641
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": 200972,
+        "after": 201590,
+        "before_cumulative": 13837462,
+        "after_cumulative": 13755972,
+        "cycle_reduction_percent": -0.3075055231574586
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": 5912518,
+        "after": 5913956,
+        "before_cumulative": 19749980,
+        "after_cumulative": 19669928,
+        "cycle_reduction_percent": -0.0243212790218994
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": 5550450,
+        "after": 5548210,
+        "before_cumulative": 25300430,
+        "after_cumulative": 25218138,
+        "cycle_reduction_percent": 0.0403570881640225
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "before": 420308,
+        "after": 419874,
+        "before_cumulative": 25720738,
+        "after_cumulative": 25638012,
+        "cycle_reduction_percent": 0.1032576110852057
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": 866740,
+        "after": 858844,
+        "before_cumulative": 26587478,
+        "after_cumulative": 26496856,
+        "cycle_reduction_percent": 0.9109998384752016
+      }
+    ],
+    "release_gate": "No cumulative fence delay. Retain individual increases and interpret using matched starts.",
+    "cumulative_fences_no_later": true,
+    "cycle_reduction_percent": 0.34084466379248335
+  },
+  "matched_copy_trials": [
+    {
+      "workload": "copy",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        516940,
+        451914
+      ],
+      "cycle_reduction_percent": 12.579022710566024,
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 480,
+      "copy_write_data_clocks": [
+        154500,
+        153600
+      ],
+      "copy_write_command_clocks": [
+        9630,
+        32731
+      ],
+      "copy_write_completion_clocks": [
+        91401,
+        4944
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        708490,
+        656956
+      ],
+      "cycle_reduction_percent": 7.273779446428319,
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 480,
+      "copy_write_data_clocks": [
+        186191,
+        185654
+      ],
+      "copy_write_command_clocks": [
+        68024,
+        110902
+      ],
+      "copy_write_completion_clocks": [
+        90642,
+        4685
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-patterned-full",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        6179811,
+        6179811
+      ],
+      "core_clocks": [
+        698414,
+        623328
+      ],
+      "cycle_reduction_percent": 10.75092996417597,
+      "packet_sha256": "345cd5319e7bee7b6475bf3e4ff75d07dbde070c497841191dc5554076110a29",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 480,
+      "copy_write_data_clocks": [
+        182159,
+        180236
+      ],
+      "copy_write_command_clocks": [
+        60908,
+        97967
+      ],
+      "copy_write_completion_clocks": [
+        91156,
+        4490
+      ],
+      "verified_scanout_frames": [
+        4,
+        4
+      ]
+    },
+    {
+      "workload": "copy-patterned-full",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        6879811,
+        6879811
+      ],
+      "core_clocks": [
+        696548,
+        641782
+      ],
+      "cycle_reduction_percent": 7.862487581616772,
+      "packet_sha256": "345cd5319e7bee7b6475bf3e4ff75d07dbde070c497841191dc5554076110a29",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 480,
+      "copy_write_data_clocks": [
+        182650,
+        182896
+      ],
+      "copy_write_command_clocks": [
+        61824,
+        104200
+      ],
+      "copy_write_completion_clocks": [
+        90608,
+        4514
+      ],
+      "verified_scanout_frames": [
+        5,
+        5
+      ]
+    },
+    {
+      "workload": "copy-console-scroll",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        673336,
+        601910
+      ],
+      "cycle_reduction_percent": 10.607779771169223,
+      "packet_sha256": "4de7deb89b6b6308e615977d0a3bf10c62ec8fbf311a6bd0290954d41c70cfba",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 464,
+      "copy_write_data_clocks": [
+        176512,
+        174153
+      ],
+      "copy_write_command_clocks": [
+        60594,
+        94529
+      ],
+      "copy_write_completion_clocks": [
+        87674,
+        4302
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-console-scroll",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        669186,
+        601182
+      ],
+      "cycle_reduction_percent": 10.162197057320387,
+      "packet_sha256": "4de7deb89b6b6308e615977d0a3bf10c62ec8fbf311a6bd0290954d41c70cfba",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 640,
+      "copy_height": 464,
+      "copy_write_data_clocks": [
+        177794,
+        173916
+      ],
+      "copy_write_command_clocks": [
+        61787,
+        93891
+      ],
+      "copy_write_completion_clocks": [
+        88398,
+        4448
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-up-odd",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        243932,
+        224716
+      ],
+      "cycle_reduction_percent": 7.87760523424561,
+      "packet_sha256": "470757a9fd81059fb1620134d6c2033bea46cc5b69db93ebf41cf27095352a34",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 391,
+      "copy_height": 257,
+      "copy_write_data_clocks": [
+        59012,
+        57592
+      ],
+      "copy_write_command_clocks": [
+        17636,
+        44223
+      ],
+      "copy_write_completion_clocks": [
+        45238,
+        2637
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-up-odd",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        272512,
+        257972
+      ],
+      "cycle_reduction_percent": 5.335544856740249,
+      "packet_sha256": "470757a9fd81059fb1620134d6c2033bea46cc5b69db93ebf41cf27095352a34",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 391,
+      "copy_height": 257,
+      "copy_write_data_clocks": [
+        64369,
+        62900
+      ],
+      "copy_write_command_clocks": [
+        25750,
+        56155
+      ],
+      "copy_write_completion_clocks": [
+        45677,
+        2553
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-down-clipped",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        222994,
+        213272
+      ],
+      "cycle_reduction_percent": 4.359758558526239,
+      "packet_sha256": "7529b54b9cb18110d55cb8af81b2344b08111a2a9a9d8082b3931d4e98fd289c",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 389,
+      "copy_height": 258,
+      "copy_write_data_clocks": [
+        57863,
+        57296
+      ],
+      "copy_write_command_clocks": [
+        15126,
+        45403
+      ],
+      "copy_write_completion_clocks": [
+        42648,
+        3121
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-down-clipped",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        249726,
+        246382
+      ],
+      "cycle_reduction_percent": 1.3390676181094463,
+      "packet_sha256": "7529b54b9cb18110d55cb8af81b2344b08111a2a9a9d8082b3931d4e98fd289c",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 389,
+      "copy_height": 258,
+      "copy_write_data_clocks": [
+        63426,
+        62767
+      ],
+      "copy_write_command_clocks": [
+        23677,
+        58306
+      ],
+      "copy_write_completion_clocks": [
+        43179,
+        3096
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-left-odd",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        41198,
+        38742
+      ],
+      "cycle_reduction_percent": 5.9614544395358955,
+      "packet_sha256": "62e04cd48e5a7747e49ae589115b6b3cc43a1ccfc63879be4003a84ae91d74f4",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 359,
+      "copy_height": 43,
+      "copy_write_data_clocks": [
+        9956,
+        9668
+      ],
+      "copy_write_command_clocks": [
+        4395,
+        9468
+      ],
+      "copy_write_completion_clocks": [
+        7839,
+        425
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-left-odd",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        41356,
+        38842
+      ],
+      "cycle_reduction_percent": 6.078924460779578,
+      "packet_sha256": "62e04cd48e5a7747e49ae589115b6b3cc43a1ccfc63879be4003a84ae91d74f4",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 359,
+      "copy_height": 43,
+      "copy_write_data_clocks": [
+        9995,
+        9812
+      ],
+      "copy_write_command_clocks": [
+        4226,
+        9576
+      ],
+      "copy_write_completion_clocks": [
+        7829,
+        421
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-right-clipped",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        31526,
+        30008
+      ],
+      "cycle_reduction_percent": 4.815073272854153,
+      "packet_sha256": "c3646f4acfdd7264dac9727e3bbd88a4b87a523b2b7fc52928032311e5ff7815",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 279,
+      "copy_height": 43,
+      "copy_write_data_clocks": [
+        7125,
+        6979
+      ],
+      "copy_write_command_clocks": [
+        2855,
+        5952
+      ],
+      "copy_write_completion_clocks": [
+        4710,
+        483
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-overlap-right-clipped",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        31630,
+        30096
+      ],
+      "cycle_reduction_percent": 4.849826114448308,
+      "packet_sha256": "c3646f4acfdd7264dac9727e3bbd88a4b87a523b2b7fc52928032311e5ff7815",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 279,
+      "copy_height": 43,
+      "copy_write_data_clocks": [
+        7134,
+        6981
+      ],
+      "copy_write_command_clocks": [
+        2852,
+        5946
+      ],
+      "copy_write_completion_clocks": [
+        4779,
+        468
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-skinny",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        23504,
+        23504
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "9a943701d87af3b8204bbaeed04b158e57ebef1e62d812be862bd30d3df9997e",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 3,
+      "copy_height": 463,
+      "copy_write_data_clocks": [
+        2229,
+        2229
+      ],
+      "copy_write_command_clocks": [
+        2756,
+        2756
+      ],
+      "copy_write_completion_clocks": [
+        5999,
+        5999
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-skinny",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        23534,
+        23534
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "9a943701d87af3b8204bbaeed04b158e57ebef1e62d812be862bd30d3df9997e",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 3,
+      "copy_height": 463,
+      "copy_write_data_clocks": [
+        2286,
+        2286
+      ],
+      "copy_write_command_clocks": [
+        3010,
+        3010
+      ],
+      "copy_write_completion_clocks": [
+        6051,
+        6051
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-short",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        692,
+        692
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "782089f249e6d5a2657cbf720a78678e82595e01a81a8f7f9affdb78c170607d",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 17,
+      "copy_height": 3,
+      "copy_write_data_clocks": [
+        35,
+        35
+      ],
+      "copy_write_command_clocks": [
+        22,
+        22
+      ],
+      "copy_write_completion_clocks": [
+        42,
+        42
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-short",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        620,
+        620
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "782089f249e6d5a2657cbf720a78678e82595e01a81a8f7f9affdb78c170607d",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 17,
+      "copy_height": 3,
+      "copy_write_data_clocks": [
+        27,
+        27
+      ],
+      "copy_write_command_clocks": [
+        3,
+        3
+      ],
+      "copy_write_completion_clocks": [
+        42,
+        42
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-heap-pitched",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        3145907,
+        3145907
+      ],
+      "core_clocks": [
+        224674,
+        221614
+      ],
+      "cycle_reduction_percent": 1.3619733480509488,
+      "packet_sha256": "337346100ec1202c59bc27333d945250d5819083dab368d7590ba6513a267ca7",
+      "wire_bytes": 37680,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 34532,
+      "resident_texture_bytes": 34532,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 173,
+      "copy_height": 95,
+      "copy_write_data_clocks": [
+        8730,
+        8538
+      ],
+      "copy_write_command_clocks": [
+        1619,
+        5140
+      ],
+      "copy_write_completion_clocks": [
+        8082,
+        1551
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "copy-heap-pitched",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        3845907,
+        3845907
+      ],
+      "core_clocks": [
+        234948,
+        232090
+      ],
+      "cycle_reduction_percent": 1.2164393823314135,
+      "packet_sha256": "337346100ec1202c59bc27333d945250d5819083dab368d7590ba6513a267ca7",
+      "wire_bytes": 37680,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 34532,
+      "resident_texture_bytes": 34532,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_width": 173,
+      "copy_height": 95,
+      "copy_write_data_clocks": [
+        10498,
+        10242
+      ],
+      "copy_write_command_clocks": [
+        4323,
+        9097
+      ],
+      "copy_write_completion_clocks": [
+        8148,
+        1544
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    }
+  ],
+  "other_matched": [
+    {
+      "workload": "reference-singleton-grid",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        835520,
+        835520
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+      "wire_bytes": 12700,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_reference_words": 300,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "reference-singleton-grid",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1040632,
+        1040632
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+      "wire_bytes": 12700,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_reference_words": 300,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "reference-burst-grid",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1932754,
+        1932754
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+      "wire_bytes": 89050,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_reference_words": 2460,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "reference-burst-grid",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1938750,
+        1938750
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+      "wire_bytes": 89050,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_reference_words": 2460,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2138268,
+        2138268
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2247420,
+        2247420
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2004500,
+        2004500
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2096500,
+        2096500
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1022598,
+        1022598
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1179594,
+        1179594
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1269569,
+        1269569
+      ],
+      "core_clocks": [
+        852052,
+        852052
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "initial_texture_bytes": 33280,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1969569,
+        1969569
+      ],
+      "core_clocks": [
+        999880,
+        999880
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "initial_texture_bytes": 33280,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        675808,
+        675808
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 128,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        928954,
+        928954
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 128,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        689802,
+        689802
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 348,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        938486,
+        938486
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 348,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1379716,
+        1379716
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1511468,
+        1511468
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        821014,
+        821014
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        903854,
+        903854
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2454978,
+        2454978
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2594816,
+        2594816
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        2292825,
+        2292825
+      ],
+      "core_clocks": [
+        82154,
+        82154
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+      "wire_bytes": 654,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        2992825,
+        2992825
+      ],
+      "core_clocks": [
+        82214,
+        82214
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+      "wire_bytes": 654,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        18412,
+        18412
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        22526,
+        22526
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        3221812,
+        3221812
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 155648,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        3237434,
+        3237434
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 155648,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2766290,
+        2766290
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 147456,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2773694,
+        2773694
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 147456,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        4325282,
+        4325282
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 139264,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        4334054,
+        4334054
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 139264,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2812630,
+        2812630
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2942720,
+        2942720
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        320360,
+        320360
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        435528,
+        435528
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        311318,
+        311318
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        420738,
+        420738
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        792944,
+        792944
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        864148,
+        864148
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        5895936,
+        5895936
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        5909884,
+        5909884
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        5544030,
+        5544030
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        5553380,
+        5553380
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        212270,
+        212270
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        319154,
+        319154
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        12792,
+        12792
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        12778,
+        12778
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1598521,
+        1598521
+      ],
+      "core_clocks": [
+        188358,
+        188358
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c9352e5bcdd013e5bc88a8c278fad7e81e9b9dfc4e1893c3a146dcb06ac856fd",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        2298521,
+        2298521
+      ],
+      "core_clocks": [
+        191582,
+        191582
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c9352e5bcdd013e5bc88a8c278fad7e81e9b9dfc4e1893c3a146dcb06ac856fd",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ]
+    }
+  ],
+  "natural_dirty_skip": [
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1397685,
+        1397685
+      ],
+      "core_clocks": [
+        168330,
+        168330
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ],
+      "natural_sequence_clocks": [
+        488690,
+        488690
+      ]
+    },
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        2097685,
+        2097685
+      ],
+      "core_clocks": [
+        201296,
+        201296
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "copy_write_data_clocks": [
+        0,
+        0
+      ],
+      "copy_write_command_clocks": [
+        0,
+        0
+      ],
+      "copy_write_completion_clocks": [
+        0,
+        0
+      ],
+      "verified_scanout_frames": [
+        0,
+        0
+      ],
+      "natural_sequence_clocks": [
+        521656,
+        521656
+      ]
+    }
+  ],
+  "matched_dirty_skip_seed_scope": "Frame A uses the real original prepared geometry and each tile's exact coefficient origins, with the independent SRR running the original aggregate pass. No COPY is used for seed A, so its before/after starting counters, phase and attachments must match. Natural A+B remains above.",
+  "pointer_phase_audit": {
+    "scope": "Production benchmark prefix reproduced in continuous cases with exact timed packets and cycles. Matched tests use exactly the original normal UI geometry and an ordinary copy-free render pass to establish identical complete color and D24 contents, final depth validity, clock state and SDRAM/scanout phase. Matched streams have identical bytes between revisions and use a different earlier sequence range from the continuous seed's command history.",
+    "driver_sha256": "5e824c0aaf3e7fd853d6f2d5642e25795fd9ccf771a4f5db2bdf5256714d2dc3",
+    "cases": [
+      {
+        "case": "continuous-load-depth-0",
+        "before": {
+          "mode": "continuous",
+          "save_depth": true,
+          "idle_cycles": 0,
+          "seed_cycles": 4369186,
+          "initial_core_cycle": 5446511,
+          "initial_video_x": 46,
+          "initial_video_y": 254,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 209,
+          "initial_bank_open": 14,
+          "initial_sdram_refreshes": 8189,
+          "initial_sdram_reads": 113419,
+          "initial_sdram_writes": 308517,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 47,
+          "submitted_bytes": 314,
+          "core_cycles": 22626,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 689,
+          "load_response_cycles": 3056,
+          "store_command_cycles": 1142,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 1140,
+          "sdram_refreshes": 34,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "f1af7d8d463053672993fb2da89acea281893957f1cf6b56196d51298ea480e4"
+        },
+        "after": {
+          "mode": "continuous",
+          "save_depth": true,
+          "idle_cycles": 0,
+          "seed_cycles": 4299544,
+          "initial_core_cycle": 5376869,
+          "initial_video_x": 425,
+          "initial_video_y": 210,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 582,
+          "initial_bank_open": 15,
+          "initial_sdram_refreshes": 8083,
+          "initial_sdram_reads": 111683,
+          "initial_sdram_writes": 308517,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 47,
+          "submitted_bytes": 314,
+          "core_cycles": 22360,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 612,
+          "load_response_cycles": 2992,
+          "store_command_cycles": 1165,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 1131,
+          "sdram_refreshes": 34,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "f1af7d8d463053672993fb2da89acea281893957f1cf6b56196d51298ea480e4"
+        },
+        "cycle_reduction_percent": 1.17563864580571
+      },
+      {
+        "case": "continuous-discard-depth-0",
+        "before": {
+          "mode": "continuous",
+          "save_depth": false,
+          "idle_cycles": 0,
+          "seed_cycles": 5619276,
+          "initial_core_cycle": 6696601,
+          "initial_video_x": 291,
+          "initial_video_y": 510,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 136,
+          "initial_bank_open": 14,
+          "initial_sdram_refreshes": 10076,
+          "initial_sdram_reads": 148456,
+          "initial_sdram_writes": 348230,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 81,
+          "submitted_bytes": 315,
+          "core_cycles": 15718,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 44,
+          "load_response_cycles": 904,
+          "store_command_cycles": 115,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 445,
+          "sdram_refreshes": 23,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "67cb9a5fa14ae819cd1fc0d7b4b549d6f40a95d4918e8a76e2deba264a6af471"
+        },
+        "after": {
+          "mode": "continuous",
+          "save_depth": false,
+          "idle_cycles": 0,
+          "seed_cycles": 5540706,
+          "initial_core_cycle": 6618031,
+          "initial_video_x": 206,
+          "initial_video_y": 461,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 307,
+          "initial_bank_open": 15,
+          "initial_sdram_refreshes": 9957,
+          "initial_sdram_reads": 147708,
+          "initial_sdram_writes": 348230,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 81,
+          "submitted_bytes": 315,
+          "core_cycles": 18934,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 241,
+          "load_response_cycles": 1104,
+          "store_command_cycles": 417,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 916,
+          "sdram_refreshes": 29,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "67cb9a5fa14ae819cd1fc0d7b4b549d6f40a95d4918e8a76e2deba264a6af471"
+        },
+        "cycle_reduction_percent": -20.460618399287434
+      },
+      {
+        "case": "matched-load-depth-0",
+        "before": {
+          "mode": "matched",
+          "save_depth": true,
+          "idle_cycles": 0,
+          "seed_cycles": 1379716,
+          "initial_core_cycle": 2457041,
+          "initial_video_x": 511,
+          "initial_video_y": 485,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 42,
+          "initial_bank_open": 0,
+          "initial_sdram_refreshes": 3685,
+          "initial_sdram_reads": 25253,
+          "initial_sdram_writes": 135317,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 314,
+          "core_cycles": 18418,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 120,
+          "load_response_cycles": 2590,
+          "store_command_cycles": 371,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 573,
+          "sdram_refreshes": 27,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c36b64b807665090a492dd35e70293ffdb928e4e5739bb1351de47eeba2e4531"
+        },
+        "after": {
+          "mode": "matched",
+          "save_depth": true,
+          "idle_cycles": 0,
+          "seed_cycles": 1379716,
+          "initial_core_cycle": 2457041,
+          "initial_video_x": 511,
+          "initial_video_y": 485,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 42,
+          "initial_bank_open": 0,
+          "initial_sdram_refreshes": 3685,
+          "initial_sdram_reads": 25253,
+          "initial_sdram_writes": 135317,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 314,
+          "core_cycles": 18418,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 120,
+          "load_response_cycles": 2590,
+          "store_command_cycles": 371,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 573,
+          "sdram_refreshes": 27,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c36b64b807665090a492dd35e70293ffdb928e4e5739bb1351de47eeba2e4531"
+        },
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "matched-load-depth-700000",
+        "before": {
+          "mode": "matched",
+          "save_depth": true,
+          "idle_cycles": 700000,
+          "seed_cycles": 1379716,
+          "initial_core_cycle": 3157041,
+          "initial_video_x": 111,
+          "initial_video_y": 398,
+          "initial_memory_state": 19,
+          "initial_refresh_age": 656,
+          "initial_bank_open": 0,
+          "initial_sdram_refreshes": 4744,
+          "initial_sdram_reads": 41179,
+          "initial_sdram_writes": 135317,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 314,
+          "core_cycles": 22540,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 661,
+          "load_response_cycles": 3041,
+          "store_command_cycles": 1102,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 1137,
+          "sdram_refreshes": 34,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c36b64b807665090a492dd35e70293ffdb928e4e5739bb1351de47eeba2e4531"
+        },
+        "after": {
+          "mode": "matched",
+          "save_depth": true,
+          "idle_cycles": 700000,
+          "seed_cycles": 1379716,
+          "initial_core_cycle": 3157041,
+          "initial_video_x": 111,
+          "initial_video_y": 398,
+          "initial_memory_state": 19,
+          "initial_refresh_age": 656,
+          "initial_bank_open": 0,
+          "initial_sdram_refreshes": 4744,
+          "initial_sdram_reads": 41179,
+          "initial_sdram_writes": 135317,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 314,
+          "core_cycles": 22540,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 661,
+          "load_response_cycles": 3041,
+          "store_command_cycles": 1102,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 1137,
+          "sdram_refreshes": 34,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c36b64b807665090a492dd35e70293ffdb928e4e5739bb1351de47eeba2e4531"
+        },
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "matched-discard-depth-0",
+        "before": {
+          "mode": "matched",
+          "save_depth": false,
+          "idle_cycles": 0,
+          "seed_cycles": 821014,
+          "initial_core_cycle": 1898339,
+          "initial_video_x": 360,
+          "initial_video_y": 136,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 447,
+          "initial_bank_open": 15,
+          "initial_sdram_refreshes": 2843,
+          "initial_sdram_reads": 11515,
+          "initial_sdram_writes": 96917,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 315,
+          "core_cycles": 18334,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 244,
+          "load_response_cycles": 1075,
+          "store_command_cycles": 392,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 903,
+          "sdram_refreshes": 28,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c85bbf9f6f5d0d943a8b88855dadc6ef7768556cc5b3124addbf985e153dcac0"
+        },
+        "after": {
+          "mode": "matched",
+          "save_depth": false,
+          "idle_cycles": 0,
+          "seed_cycles": 821014,
+          "initial_core_cycle": 1898339,
+          "initial_video_x": 360,
+          "initial_video_y": 136,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 447,
+          "initial_bank_open": 15,
+          "initial_sdram_refreshes": 2843,
+          "initial_sdram_reads": 11515,
+          "initial_sdram_writes": 96917,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 315,
+          "core_cycles": 18334,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 244,
+          "load_response_cycles": 1075,
+          "store_command_cycles": 392,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 903,
+          "sdram_refreshes": 28,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c85bbf9f6f5d0d943a8b88855dadc6ef7768556cc5b3124addbf985e153dcac0"
+        },
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "matched-discard-depth-700000",
+        "before": {
+          "mode": "matched",
+          "save_depth": false,
+          "idle_cycles": 700000,
+          "seed_cycles": 821014,
+          "initial_core_cycle": 2598339,
+          "initial_video_x": 760,
+          "initial_video_y": 48,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 443,
+          "initial_bank_open": 2,
+          "initial_sdram_refreshes": 3903,
+          "initial_sdram_reads": 27213,
+          "initial_sdram_writes": 96917,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 315,
+          "core_cycles": 18520,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 207,
+          "load_response_cycles": 1050,
+          "store_command_cycles": 262,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 911,
+          "sdram_refreshes": 28,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c85bbf9f6f5d0d943a8b88855dadc6ef7768556cc5b3124addbf985e153dcac0"
+        },
+        "after": {
+          "mode": "matched",
+          "save_depth": false,
+          "idle_cycles": 700000,
+          "seed_cycles": 821014,
+          "initial_core_cycle": 2598339,
+          "initial_video_x": 760,
+          "initial_video_y": 48,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 443,
+          "initial_bank_open": 2,
+          "initial_sdram_refreshes": 3903,
+          "initial_sdram_reads": 27213,
+          "initial_sdram_writes": 96917,
+          "initial_framebuffer_fnv1a64": "74161e22b06d9d25",
+          "first_sequence": 25,
+          "submitted_bytes": 315,
+          "core_cycles": 18520,
+          "raster_covered_cycles": 27,
+          "load_command_cycles": 207,
+          "load_response_cycles": 1050,
+          "store_command_cycles": 262,
+          "store_response_cycles": 1,
+          "sdram_read_commands": 911,
+          "sdram_refreshes": 28,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "c85bbf9f6f5d0d943a8b88855dadc6ef7768556cc5b3124addbf985e153dcac0"
+        },
+        "cycle_reduction_percent": 0.0
+      }
+    ],
+    "source_matched_builds": {
+      "before": {
+        "driver_sha256": "5e824c0aaf3e7fd853d6f2d5642e25795fd9ccf771a4f5db2bdf5256714d2dc3",
+        "exe_sha256": "1a5d8264462b1a5ac6c2de3ff1962dc56708e3ab6db6c81603ee43e05f052f84",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "90abe94bc074f6cbba985ac36231b0710f584f69f4ece4f97f056f54710e47ea"
+        }
+      },
+      "after": {
+        "driver_sha256": "5e824c0aaf3e7fd853d6f2d5642e25795fd9ccf771a4f5db2bdf5256714d2dc3",
+        "exe_sha256": "af205323fb067397f1411d246d2e128ec878cda53a0cfe132c2170dff1e189cf",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "956ea2fa7e9126b2cda8b9cf73c204666b9e2d4b1dcb96fa7a4d99c0e5f95c13"
+        }
+      }
+    }
+  },
+  "copy_scheduler_profile": {
+    "standard_cycles_match": true,
+    "baseline": {
+      "case": "full-screen front-to-back copy",
+      "cycles": 694276,
+      "read_requests": 9600,
+      "write_requests": 9600,
+      "write_payload_words": 153600,
+      "peak_inflight": 1,
+      "write_grants_while_previous_live": 0,
+      "simultaneous_accept_and_done": 0,
+      "cycles_with_two_writes": 0,
+      "physical_bl8_writes": 19200,
+      "write_command_clocks": 63270,
+      "write_payload_state_clocks": 183645,
+      "write_drain_state_clocks": 90703,
+      "last_payload_to_physical_done": {
+        "9": 9324,
+        "19": 57,
+        "20": 7,
+        "21": 26,
+        "22": 14,
+        "23": 8,
+        "24": 15,
+        "25": 6,
+        "26": 5,
+        "27": 30,
+        "28": 82,
+        "30": 26
+      },
+      "same_row_write_grant_spacing": {
+        "27": 3473,
+        "35": 1900,
+        "37": 1080,
+        "38": 74,
+        "39": 21,
+        "40": 7,
+        "41": 8,
+        "42": 76,
+        "44": 693,
+        "45": 525,
+        "46": 94,
+        "47": 44,
+        "48": 16,
+        "49": 10,
+        "50": 13,
+        "51": 2,
+        "52": 710,
+        "53": 46,
+        "54": 3,
+        "55": 33,
+        "56": 25,
+        "57": 18,
+        "58": 9,
+        "59": 24,
+        "60": 4,
+        "61": 10,
+        "62": 28,
+        "63": 22,
+        "64": 28,
+        "65": 38,
+        "66": 12,
+        "67": 17,
+        "68": 8,
+        "69": 2,
+        "70": 1,
+        "71": 8,
+        "73": 13,
+        "74": 10,
+        "75": 2,
+        "77": 2,
+        "111": 7,
+        "118": 2,
+        "127": 2
+      }
+    },
+    "candidate": {
+      "case": "full-screen front-to-back copy",
+      "cycles": 623802,
+      "read_requests": 9600,
+      "write_requests": 9600,
+      "write_payload_words": 153600,
+      "peak_inflight": 2,
+      "write_grants_while_previous_live": 5976,
+      "simultaneous_accept_and_done": 0,
+      "cycles_with_two_writes": 35856,
+      "physical_bl8_writes": 19200,
+      "write_command_clocks": 98019,
+      "write_payload_state_clocks": 180230,
+      "write_drain_state_clocks": 4583,
+      "last_payload_to_physical_done": {
+        "9": 9288,
+        "19": 44,
+        "20": 2,
+        "21": 9,
+        "22": 5,
+        "23": 7,
+        "24": 64,
+        "25": 22,
+        "26": 5,
+        "27": 5,
+        "28": 140,
+        "30": 9
+      },
+      "same_row_write_grant_spacing": {
+        "20": 3493,
+        "28": 2352,
+        "32": 1,
+        "35": 32,
+        "36": 11,
+        "37": 1558,
+        "38": 111,
+        "39": 54,
+        "40": 1,
+        "41": 5,
+        "42": 5,
+        "44": 577,
+        "45": 239,
+        "46": 9,
+        "47": 4,
+        "52": 394,
+        "53": 3,
+        "54": 1,
+        "55": 45,
+        "56": 36,
+        "57": 16,
+        "58": 14,
+        "59": 34,
+        "60": 3,
+        "61": 1,
+        "62": 16,
+        "63": 16,
+        "64": 27,
+        "65": 10,
+        "66": 11,
+        "67": 4,
+        "69": 3,
+        "70": 1,
+        "71": 12,
+        "73": 3,
+        "74": 8,
+        "75": 2,
+        "77": 2,
+        "84": 2,
+        "103": 1,
+        "111": 3
+      }
+    },
+    "input_hashes": {
+      "before": {
+        "model_build_executable_sha256": "7cb8fb1d9df507185a761e6e54b8d404ed76ce0c78d257373caf785b658f4a5c",
+        "instrumentation_header_sha256": "145625428b349d26e1746107073cb1ad6b1a630ecc5f37b70ab664cb73427a21",
+        "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+        "generated_source_sha256": "b0c65dd8f108143e38989d73680e05a953fb640da80110ea7ef3d2f264b933da",
+        "profiler_executable_sha256": "706ad748f41f74babc01ebbfd638ee7912200ae63bf9e8debde1a55a07cd02e3",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "90abe94bc074f6cbba985ac36231b0710f584f69f4ece4f97f056f54710e47ea"
+        },
+        "counter_report_sha256": "49f82bef65820d477967cf03944dc359f176f9e0562b5a6a6a5a88555a4ab586",
+        "benchmark_report_sha256": "935afe83fcc7a0119ad958a65b5fb26b6800e45d83eb399739f26254fa7207f3"
+      },
+      "after": {
+        "model_build_executable_sha256": "d83c44444c4840d97ad3b1c3398f1948e991ea60290fc8e8a07bd7867a246deb",
+        "instrumentation_header_sha256": "145625428b349d26e1746107073cb1ad6b1a630ecc5f37b70ab664cb73427a21",
+        "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+        "generated_source_sha256": "b0c65dd8f108143e38989d73680e05a953fb640da80110ea7ef3d2f264b933da",
+        "profiler_executable_sha256": "b2d07f4bb86f15e74b6cd2997a183053bcf87ccec3b5912c5f3d7d2875263659",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "956ea2fa7e9126b2cda8b9cf73c204666b9e2d4b1dcb96fa7a4d99c0e5f95c13"
+        },
+        "counter_report_sha256": "91a0ef02487cacb737adf66c052e2f6543950454a547a0066407b2ef561414b1",
+        "benchmark_report_sha256": "daa3ca87fd27780c7ce4c7d67fb1890cff0b5b46a744b644627a75db1132a3d2"
+      }
+    }
+  },
+  "validation": {
+    "recovery_assertions": 4217,
+    "commands_log_sha256": "f4092df1b70b55aa33bace0ae393f0c97826df8a64001dd0ec069aa175d0e871",
+    "native_recovery_report_sha256": "4d0f7bf58d4eadd2eb9c5f75cfa85aa4fe077fe375d15c89f1bd1afc382fe027",
+    "reference_host_log_sha256": "096a3bca6ec14145ac935b06cc412a596ab7c61c1803356c4fff06ae9c51505d",
+    "reference_host_python_suite": {
+      "passed": true,
+      "tests": 133,
+      "skipped": 1
+    },
+    "docs_examples": "Passed",
+    "baseline_functional_sha256": "071b4c3a5c7d3c8085ec01db4c0cf59ac0109e14b70e8ca3a54a3fdac0c978fa"
+  },
+  "whole_board": {
+    "selected": "v1911",
+    "place_route_options": [
+      0,
+      2
+    ],
+    "functional": "docs/hardware/tang20k-copy-write-overlap-functional.json",
+    "reports": [
+      "docs/hardware/tang20k-copy-write-overlap-v1908.json",
+      "docs/hardware/tang20k-copy-write-overlap-v1911.json"
+    ],
+    "structure_and_checksum_scope": "Retained with the qualified local Gowin image. The repository programming image belongs to an earlier release."
+  },
+  "model_builds": {
+    "before": {
+      "commit_at_build": "feb244bf224388e1595869e647e50137720981c8",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "7cb8fb1d9df507185a761e6e54b8d404ed76ce0c78d257373caf785b658f4a5c",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "8b57f7c21ada9d60a6f35a28a3e7d4eb170d8606e04b2908ce21f5ce64835f2e",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "25fee6d1ed23270b205d35975b8a388e774c7fe38473837e5dc02f73ab6115e1",
+      "isolated_exe_sha256": "fea404ddf45a877afcaf078561da00cbefcf5bf097935fdb5191184584f015ce",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "90abe94bc074f6cbba985ac36231b0710f584f69f4ece4f97f056f54710e47ea"
+      },
+      "scenes": [
+        "copy",
+        "copy-patterned-full",
+        "copy-console-scroll",
+        "copy-overlap-up-odd",
+        "copy-overlap-down-clipped",
+        "copy-overlap-left-odd",
+        "copy-overlap-right-clipped",
+        "copy-skinny",
+        "copy-short",
+        "copy-heap-pitched",
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    },
+    "after": {
+      "commit_at_build": "feb244bf224388e1595869e647e50137720981c8",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "d83c44444c4840d97ad3b1c3398f1948e991ea60290fc8e8a07bd7867a246deb",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "de1bf4bf5c691ee44b62fec030e2f1405df7c9c2a5063f6a3f15fbd2a71852b8",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "25fee6d1ed23270b205d35975b8a388e774c7fe38473837e5dc02f73ab6115e1",
+      "isolated_exe_sha256": "47324cea20d3d27d01e5238bf6cdc57b6e188b32b6be1a56e306734a1cff3421",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "956ea2fa7e9126b2cda8b9cf73c204666b9e2d4b1dcb96fa7a4d99c0e5f95c13"
+      },
+      "scenes": [
+        "copy",
+        "copy-patterned-full",
+        "copy-console-scroll",
+        "copy-overlap-up-odd",
+        "copy-overlap-down-clipped",
+        "copy-overlap-left-odd",
+        "copy-overlap-right-clipped",
+        "copy-skinny",
+        "copy-short",
+        "copy-heap-pitched",
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    }
+  },
+  "measurement_source_sha256": {
+    "copy-write-matched.cpp": "25fee6d1ed23270b205d35975b8a388e774c7fe38473837e5dc02f73ab6115e1",
+    "run-copy-write-matched.py": "24e0b91e53be4e14b34dd27430a2617f95d6aa80e8b929afb07eae9d234de2c9",
+    "copy-overlap-stats.hpp": "145625428b349d26e1746107073cb1ad6b1a630ecc5f37b70ab664cb73427a21",
+    "run-copy-profile.py": "25cf362f04dea5701ced5e9ea9fbe9005ca8030552e4f84a4be937db326bcd63",
+    "copy-write-pointer-audit.cpp": "5e824c0aaf3e7fd853d6f2d5642e25795fd9ccf771a4f5db2bdf5256714d2dc3",
+    "run-copy-write-pointer-audit.py": "3fbcf3a8d36e9eff28ed049ec0b1a32dbff486c4ab9cc86cd66e823ff028665a"
+  }
+}

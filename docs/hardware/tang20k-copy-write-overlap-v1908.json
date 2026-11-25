@@ -1,0 +1,4034 @@
+{
+  "schema": "N20K-TANG20K-BOARD-2",
+  "device": "GW2AR-LV18QN88C8/I7",
+  "top": "tang20k_top",
+  "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education",
+  "gowin_shell": "C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe",
+  "toolchain_signature": null,
+  "source_sha256": {
+    "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+    "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_gpu_core.sv": "de1bf4bf5c691ee44b62fec030e2f1405df7c9c2a5063f6a3f15fbd2a71852b8",
+    "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+    "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+    "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+    "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+    "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+    "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+    "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+    "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+    "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+    "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+    "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+    "rtl/board/tang20k_top.sv": "5994ec8b8b662d9e48fbd0dee0f8c73244e61acefdb086cf2d78afa7c9ae4e04",
+    "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
+    "scripts/build-tang20k.py": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
+    "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
+  },
+  "place_option": 0,
+  "route_option": 2,
+  "profile": "gpu-video-50mhz",
+  "core_mhz": 50.4,
+  "pixel_mhz": 25.2,
+  "serial_mhz": 126.0,
+  "host_max_mhz": 25.2,
+  "command_player": false,
+  "hardware_tested": false,
+  "external_io_timing_measured": false,
+  "upload_ready": false,
+  "agents_exception": "AGENTS.md addenda 2026-11-07 and 2026-11-13: the SiP SDRAM connection cannot be checked from an encrypted Gowin netlist (see netlist_encrypted); the user keeps the toolchain whose image reaches the faster clock.",
+  "sip_pins_verified": false,
+  "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
+  "functional_report_sha256": "7a3f740e82ebbc235d3545102f0767ed6739ae1fda001b7265b9d7d67c95596b",
+  "gowin_returncode": 0,
+  "synthesized": true,
+  "placed": true,
+  "routed": true,
+  "netlist_encrypted": true,
+  "package_pins_checked": 26,
+  "package_pins_verified": true,
+  "pin_mismatches": [],
+  "fmax": {
+    "clk27": {
+      "constraint_mhz": 27.0,
+      "achieved_mhz": 439.817
+    },
+    "gpu_hclk": {
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 29.582
+    },
+    "core_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 50.4,
+      "achieved_mhz": 41.817
+    },
+    "pixel_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 183.018
+    }
+  },
+  "violations_listed": [
+    {
+      "slack_ns": -4.073,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_21_s0/CE"
+    },
+    {
+      "slack_ns": -4.073,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_2_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_24_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_27_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_3_s0/CE"
+    },
+    {
+      "slack_ns": -3.959,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_19_s0/CE"
+    },
+    {
+      "slack_ns": -3.933,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_1_s0/CE"
+    },
+    {
+      "slack_ns": -3.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_14_s0/CE"
+    },
+    {
+      "slack_ns": -3.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_30_s0/CE"
+    },
+    {
+      "slack_ns": -3.858,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_0_s5/D"
+    },
+    {
+      "slack_ns": -3.857,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_6_s0/CE"
+    },
+    {
+      "slack_ns": -3.844,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_16_s0/CE"
+    },
+    {
+      "slack_ns": -3.844,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_20_s0/CE"
+    },
+    {
+      "slack_ns": -3.839,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_3_s0/D"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_10_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_15_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_29_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.725,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_13_s0/CE"
+    },
+    {
+      "slack_ns": -3.721,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_23_s0/CE"
+    },
+    {
+      "slack_ns": -3.721,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_31_s0/CE"
+    },
+    {
+      "slack_ns": -3.696,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_0_s0/D"
+    },
+    {
+      "slack_ns": -3.576,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_7_s0/D"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_12_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_17_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_25_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.562,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_7_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_18_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_22_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_26_s0/CE"
+    },
+    {
+      "slack_ns": -3.53,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_28_s0/CE"
+    },
+    {
+      "slack_ns": -3.53,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_8_s0/CE"
+    },
+    {
+      "slack_ns": -3.379,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_11_s0/CE"
+    },
+    {
+      "slack_ns": -3.375,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_0_s0/CE"
+    },
+    {
+      "slack_ns": -3.375,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_9_s0/CE"
+    },
+    {
+      "slack_ns": -3.159,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.159,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_8_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_3_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_7_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_1_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_2_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.131,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.127,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.978,
+      "from": "poweron_3_s0/Q",
+      "to": "core_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -2.978,
+      "from": "poweron_3_s0/Q",
+      "to": "core_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_2_s0/CE"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_7_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_8_s0/CE"
+    },
+    {
+      "slack_ns": -2.947,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.923,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_22_s0/D"
+    },
+    {
+      "slack_ns": -2.908,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_1_s0/D"
+    },
+    {
+      "slack_ns": -2.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_12_s0/D"
+    },
+    {
+      "slack_ns": -2.899,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.839,
+      "from": "core/state_1_s0/Q",
+      "to": "core/color_valid_1_s0/D"
+    },
+    {
+      "slack_ns": -2.816,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_10_s0/D"
+    },
+    {
+      "slack_ns": -2.779,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_14_s0/D"
+    },
+    {
+      "slack_ns": -2.756,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_0_s0/CE"
+    },
+    {
+      "slack_ns": -2.712,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_21_s0/D"
+    },
+    {
+      "slack_ns": -2.709,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_1_s0/D"
+    },
+    {
+      "slack_ns": -2.703,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_11_s0/D"
+    },
+    {
+      "slack_ns": -2.657,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_6_s0/D"
+    },
+    {
+      "slack_ns": -2.656,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_4_s0/D"
+    },
+    {
+      "slack_ns": -2.63,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_20_s0/D"
+    },
+    {
+      "slack_ns": -2.59,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_3_s0/D"
+    },
+    {
+      "slack_ns": -2.551,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_17_s0/D"
+    },
+    {
+      "slack_ns": -2.514,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_5_s0/D"
+    },
+    {
+      "slack_ns": -2.48,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_15_s0/D"
+    },
+    {
+      "slack_ns": -2.47,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_9_s0/D"
+    },
+    {
+      "slack_ns": -2.469,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_4_s0/D"
+    },
+    {
+      "slack_ns": -2.457,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_2_s0/D"
+    },
+    {
+      "slack_ns": -2.442,
+      "from": "core/state_1_s0/Q",
+      "to": "core/host_cmd_pop_s0/D"
+    },
+    {
+      "slack_ns": -2.396,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_10_s0/D"
+    },
+    {
+      "slack_ns": -2.384,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_8_s0/D"
+    },
+    {
+      "slack_ns": -2.342,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_10_s0/D"
+    },
+    {
+      "slack_ns": -2.342,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_4_s0/CE"
+    },
+    {
+      "slack_ns": -2.337,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_9_s0/D"
+    },
+    {
+      "slack_ns": -2.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_10_s0/CE"
+    },
+    {
+      "slack_ns": -2.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_2_s0/CE"
+    },
+    {
+      "slack_ns": -2.292,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_8_s0/D"
+    },
+    {
+      "slack_ns": -2.277,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_3_s0/D"
+    },
+    {
+      "slack_ns": -2.268,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_5_s0/D"
+    },
+    {
+      "slack_ns": -2.24,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_21_s0/D"
+    },
+    {
+      "slack_ns": -2.24,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_11_s0/D"
+    },
+    {
+      "slack_ns": -2.233,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_17_s0/D"
+    },
+    {
+      "slack_ns": -2.233,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_22_s0/D"
+    },
+    {
+      "slack_ns": -2.197,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.164,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_0_s0/D"
+    },
+    {
+      "slack_ns": -2.164,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_14_s0/D"
+    },
+    {
+      "slack_ns": -2.129,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.129,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.127,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_5_s0/D"
+    },
+    {
+      "slack_ns": -2.086,
+      "from": "core/state_1_s0/Q",
+      "to": "core/color_valid_0_s0/D"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_7_s0/CE"
+    },
+    {
+      "slack_ns": -2.051,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_12_s0/D"
+    },
+    {
+      "slack_ns": -2.046,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_9_s0/D"
+    },
+    {
+      "slack_ns": -2.026,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_2_s0/D"
+    },
+    {
+      "slack_ns": -2.017,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_8_s0/D"
+    },
+    {
+      "slack_ns": -2.012,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_10_s0/CE"
+    },
+    {
+      "slack_ns": -2.012,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.011,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_16_s0/D"
+    },
+    {
+      "slack_ns": -2.005,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_4_s0/CE"
+    },
+    {
+      "slack_ns": -2.004,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_18_s0/CE"
+    },
+    {
+      "slack_ns": -1.995,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_13_s0/D"
+    },
+    {
+      "slack_ns": -1.969,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_19_s0/D"
+    },
+    {
+      "slack_ns": -1.908,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.884,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_0_s0/D"
+    },
+    {
+      "slack_ns": -1.87,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.87,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.848,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/context_factor/bank/CEB"
+    },
+    {
+      "slack_ns": -1.843,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_7_s0/D"
+    },
+    {
+      "slack_ns": -1.838,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.838,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.834,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_16_s0/D"
+    },
+    {
+      "slack_ns": -1.834,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_19_s0/D"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_18_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.807,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_58_s0/D"
+    },
+    {
+      "slack_ns": -1.795,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_32_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_16_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_17_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_19_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_20_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_21_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_22_s0/CE"
+    },
+    {
+      "slack_ns": -1.767,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_18_s0/D"
+    },
+    {
+      "slack_ns": -1.692,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.687,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_16_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_22_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.658,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_35_s0/D"
+    },
+    {
+      "slack_ns": -1.654,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.648,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_13_s0/D"
+    },
+    {
+      "slack_ns": -1.648,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_20_s0/D"
+    },
+    {
+      "slack_ns": -1.646,
+      "from": "poweron_3_s0/Q",
+      "to": "pixel_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -1.646,
+      "from": "poweron_3_s0/Q",
+      "to": "pixel_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_21_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.642,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.642,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_17_s0/CE"
+    },
+    {
+      "slack_ns": -1.637,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.637,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.626,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.586,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.569,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/fault_s0/CE"
+    },
+    {
+      "slack_ns": -1.55,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_58_s0/CE"
+    },
+    {
+      "slack_ns": -1.549,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_15_s0/D"
+    },
+    {
+      "slack_ns": -1.549,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_18_s0/D"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.533,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.533,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.508,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.504,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_6_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_20_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_6_s0/CE"
+    },
+    {
+      "slack_ns": -1.483,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_19_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.451,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.404,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_58_s0/D"
+    },
+    {
+      "slack_ns": -1.403,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_36_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.343,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_6_s0/D"
+    },
+    {
+      "slack_ns": -1.343,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/depth_valid_s0/CE"
+    },
+    {
+      "slack_ns": -1.342,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_s0/D"
+    },
+    {
+      "slack_ns": -1.334,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.328,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_35_s0/CE"
+    },
+    {
+      "slack_ns": -1.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.317,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_1_s0/D"
+    },
+    {
+      "slack_ns": -1.311,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_s0/CE"
+    },
+    {
+      "slack_ns": -1.311,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_53_s0/D"
+    },
+    {
+      "slack_ns": -1.3,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_58_s0/CE"
+    },
+    {
+      "slack_ns": -1.29,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_52_s0/D"
+    },
+    {
+      "slack_ns": -1.289,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.289,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.271,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.218,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_50_s0/D"
+    },
+    {
+      "slack_ns": -1.16,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_52_s0/CE"
+    },
+    {
+      "slack_ns": -1.159,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_50_s0/CE"
+    },
+    {
+      "slack_ns": -1.128,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_22_s0/D"
+    },
+    {
+      "slack_ns": -1.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_37_s0/D"
+    },
+    {
+      "slack_ns": -1.094,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_4_s0/D"
+    },
+    {
+      "slack_ns": -1.053,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_47_s0/CE"
+    },
+    {
+      "slack_ns": -1.03,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_3_s0/D"
+    },
+    {
+      "slack_ns": -1.029,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_62_s0/D"
+    },
+    {
+      "slack_ns": -0.998,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_7_s0/D"
+    },
+    {
+      "slack_ns": -0.977,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_50_s0/CE"
+    },
+    {
+      "slack_ns": -0.947,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_53_s0/CE"
+    },
+    {
+      "slack_ns": -0.898,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_47_s0/D"
+    },
+    {
+      "slack_ns": -0.871,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_15_s0/D"
+    },
+    {
+      "slack_ns": -0.863,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_33_s0/CE"
+    },
+    {
+      "slack_ns": -0.831,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_50_s0/D"
+    },
+    {
+      "slack_ns": -0.818,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_1_s0/D"
+    },
+    {
+      "slack_ns": -0.794,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_60_s0/D"
+    },
+    {
+      "slack_ns": -0.794,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_61_s0/D"
+    },
+    {
+      "slack_ns": -0.789,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_35_s0/D"
+    },
+    {
+      "slack_ns": -0.785,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_41_s0/D"
+    },
+    {
+      "slack_ns": -0.784,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_36_s0/CE"
+    },
+    {
+      "slack_ns": -0.783,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_8_s0/CE"
+    },
+    {
+      "slack_ns": -0.78,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_37_s0/CE"
+    },
+    {
+      "slack_ns": -0.779,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_7_s0/D"
+    },
+    {
+      "slack_ns": -0.778,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_2_s0/CE"
+    },
+    {
+      "slack_ns": -0.772,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_63_s0/CE"
+    },
+    {
+      "slack_ns": -0.768,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_15_s0/CE"
+    },
+    {
+      "slack_ns": -0.753,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_33_s0/D"
+    },
+    {
+      "slack_ns": -0.734,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_49_s0/D"
+    },
+    {
+      "slack_ns": -0.731,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_57_s0/CE"
+    },
+    {
+      "slack_ns": -0.716,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_35_s0/CE"
+    },
+    {
+      "slack_ns": -0.71,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_active_s0/CE"
+    },
+    {
+      "slack_ns": -0.707,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_10_s0/D"
+    },
+    {
+      "slack_ns": -0.707,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_10_s0/CE"
+    },
+    {
+      "slack_ns": -0.693,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_6_s0/D"
+    },
+    {
+      "slack_ns": -0.692,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.685,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_49_s0/CE"
+    },
+    {
+      "slack_ns": -0.684,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_5_s0/D"
+    },
+    {
+      "slack_ns": -0.684,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_1_s0/CE"
+    },
+    {
+      "slack_ns": -0.683,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_4_s0/D"
+    },
+    {
+      "slack_ns": -0.682,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_7_s0/CE"
+    },
+    {
+      "slack_ns": -0.676,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_39_s0/D"
+    },
+    {
+      "slack_ns": -0.676,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_5_s0/CE"
+    },
+    {
+      "slack_ns": -0.651,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_49_s0/D"
+    },
+    {
+      "slack_ns": -0.645,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_63_s0/D"
+    },
+    {
+      "slack_ns": -0.64,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_36_s0/D"
+    },
+    {
+      "slack_ns": -0.64,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_36_s0/D"
+    },
+    {
+      "slack_ns": -0.634,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_12_s0/CE"
+    },
+    {
+      "slack_ns": -0.622,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_high/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[6]"
+    },
+    {
+      "slack_ns": -0.601,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_8_s0/D"
+    },
+    {
+      "slack_ns": -0.589,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_14_s0/D"
+    },
+    {
+      "slack_ns": -0.582,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_52_s0/CE"
+    },
+    {
+      "slack_ns": -0.576,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_40_s0/CE"
+    },
+    {
+      "slack_ns": -0.56,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_3_s0/CE"
+    },
+    {
+      "slack_ns": -0.56,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_1_s0/D"
+    },
+    {
+      "slack_ns": -0.558,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_33_s0/CE"
+    },
+    {
+      "slack_ns": -0.545,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_50_s0/D"
+    },
+    {
+      "slack_ns": -0.543,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_23_s0/D"
+    },
+    {
+      "slack_ns": -0.542,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.54,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_53_s0/CE"
+    },
+    {
+      "slack_ns": -0.538,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "dq_registered_31_s0/D"
+    },
+    {
+      "slack_ns": -0.514,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_6_s0/CE"
+    },
+    {
+      "slack_ns": -0.511,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_37_s0/D"
+    },
+    {
+      "slack_ns": -0.501,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_even_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.501,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_31_s0/CE"
+    },
+    {
+      "slack_ns": -0.481,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_27_s0/CE"
+    },
+    {
+      "slack_ns": -0.48,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_27_s0/D"
+    },
+    {
+      "slack_ns": -0.48,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_52_s0/D"
+    },
+    {
+      "slack_ns": -0.479,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_53_s0/D"
+    },
+    {
+      "slack_ns": -0.465,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_45_s0/D"
+    },
+    {
+      "slack_ns": -0.462,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_45_s0/CE"
+    },
+    {
+      "slack_ns": -0.459,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_23_s0/D"
+    },
+    {
+      "slack_ns": -0.459,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_4_s0/CE"
+    },
+    {
+      "slack_ns": -0.456,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_26_s0/CE"
+    },
+    {
+      "slack_ns": -0.449,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_49_s0/CE"
+    },
+    {
+      "slack_ns": -0.448,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[4]"
+    },
+    {
+      "slack_ns": -0.444,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_5_s0/CE"
+    },
+    {
+      "slack_ns": -0.427,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_18_s0/CE"
+    },
+    {
+      "slack_ns": -0.42,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.42,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_38_s0/D"
+    },
+    {
+      "slack_ns": -0.418,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_33_s0/D"
+    },
+    {
+      "slack_ns": -0.418,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_34_s0/D"
+    },
+    {
+      "slack_ns": -0.403,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_39_s0/CE"
+    },
+    {
+      "slack_ns": -0.388,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_57_s0/D"
+    },
+    {
+      "slack_ns": -0.388,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_59_s0/D"
+    },
+    {
+      "slack_ns": -0.386,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_43_s0/D"
+    },
+    {
+      "slack_ns": -0.384,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_63_s0/D"
+    },
+    {
+      "slack_ns": -0.377,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_14_s0/CE"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/perspective/valid_0_s0/D"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_39_s0/D"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_44_s0/D"
+    },
+    {
+      "slack_ns": -0.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_40_s0/CE"
+    },
+    {
+      "slack_ns": -0.355,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_3_s0/CE"
+    },
+    {
+      "slack_ns": -0.346,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_51_s0/D"
+    },
+    {
+      "slack_ns": -0.344,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.33,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_9_s0/CE"
+    },
+    {
+      "slack_ns": -0.327,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[4]"
+    },
+    {
+      "slack_ns": -0.323,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_57_s0/D"
+    },
+    {
+      "slack_ns": -0.314,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_4_s0/D"
+    },
+    {
+      "slack_ns": -0.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_25_s0/CE"
+    },
+    {
+      "slack_ns": -0.312,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_10_s0/D"
+    },
+    {
+      "slack_ns": -0.304,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_4_s0/CE"
+    },
+    {
+      "slack_ns": -0.299,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_5_s0/D"
+    },
+    {
+      "slack_ns": -0.291,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_53_s0/D"
+    },
+    {
+      "slack_ns": -0.291,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_54_s0/D"
+    },
+    {
+      "slack_ns": -0.282,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_18_s0/D"
+    },
+    {
+      "slack_ns": -0.278,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_26_s0/D"
+    },
+    {
+      "slack_ns": -0.265,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_57_s0/CE"
+    },
+    {
+      "slack_ns": -0.262,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_59_s0/CE"
+    },
+    {
+      "slack_ns": -0.261,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_11_s0/D"
+    },
+    {
+      "slack_ns": -0.253,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_17_s0/CE"
+    },
+    {
+      "slack_ns": -0.253,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_54_s0/CE"
+    },
+    {
+      "slack_ns": -0.248,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_11_s0/CE"
+    },
+    {
+      "slack_ns": -0.233,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_18_s0/CE"
+    },
+    {
+      "slack_ns": -0.233,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_42_s0/D"
+    },
+    {
+      "slack_ns": -0.23,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.219,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_13_s0/CE"
+    },
+    {
+      "slack_ns": -0.215,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_48_s0/D"
+    },
+    {
+      "slack_ns": -0.214,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_34_s0/CE"
+    },
+    {
+      "slack_ns": -0.193,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_39_s0/CE"
+    },
+    {
+      "slack_ns": -0.187,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_9_s0/D"
+    },
+    {
+      "slack_ns": -0.184,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.184,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_51_s0/CE"
+    },
+    {
+      "slack_ns": -0.179,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_59_s0/D"
+    },
+    {
+      "slack_ns": -0.176,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_22_s0/CE"
+    },
+    {
+      "slack_ns": -0.174,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_33_s0/D"
+    },
+    {
+      "slack_ns": -0.167,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_high/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.159,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_57_s0/D"
+    },
+    {
+      "slack_ns": -0.151,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_16_s0/D"
+    },
+    {
+      "slack_ns": -0.14,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "O_sdram_dqm_2_s2/D"
+    },
+    {
+      "slack_ns": -0.133,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_58_s0/D"
+    },
+    {
+      "slack_ns": -0.129,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[6]"
+    },
+    {
+      "slack_ns": -0.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_46_s0/D"
+    },
+    {
+      "slack_ns": -0.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_46_s0/CE"
+    },
+    {
+      "slack_ns": -0.123,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_59_s0/CE"
+    },
+    {
+      "slack_ns": -0.115,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[0].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.11,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[1].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.11,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[2].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.11,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[3].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.106,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_42_s0/CE"
+    },
+    {
+      "slack_ns": -0.091,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_3_s0/D"
+    },
+    {
+      "slack_ns": -0.09,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_62_s0/D"
+    },
+    {
+      "slack_ns": -0.086,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_row[6]_32_s0/D"
+    },
+    {
+      "slack_ns": -0.08,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.079,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.079,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.077,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_12_s0/CE"
+    },
+    {
+      "slack_ns": -0.077,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_36_s0/D"
+    },
+    {
+      "slack_ns": -0.076,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_2_s0/D"
+    },
+    {
+      "slack_ns": -0.076,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_2_s0/CE"
+    },
+    {
+      "slack_ns": -0.068,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_12_s0/D"
+    },
+    {
+      "slack_ns": -0.066,
+      "from": "core/copy_low_1_s0/Q",
+      "to": "core/copy_high_30_s0/CE"
+    },
+    {
+      "slack_ns": -0.064,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[9]"
+    },
+    {
+      "slack_ns": -0.058,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_32_s0/D"
+    },
+    {
+      "slack_ns": -0.056,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_even_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.052,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_63_s0/D"
+    },
+    {
+      "slack_ns": -0.051,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.047,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_39_s0/D"
+    },
+    {
+      "slack_ns": -0.045,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_14_s0/CE"
+    },
+    {
+      "slack_ns": -0.039,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_42_s0/D"
+    },
+    {
+      "slack_ns": -0.038,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_11_s0/CE"
+    },
+    {
+      "slack_ns": -0.037,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_52_s0/D"
+    },
+    {
+      "slack_ns": -0.036,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_47_s0/CE"
+    },
+    {
+      "slack_ns": -0.034,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.032,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_7_s0/CE"
+    },
+    {
+      "slack_ns": -0.028,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_46_s0/CE"
+    },
+    {
+      "slack_ns": -0.027,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_22_s0/CE"
+    },
+    {
+      "slack_ns": -0.021,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_31_s0/D"
+    },
+    {
+      "slack_ns": -0.021,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_31_s0/CE"
+    },
+    {
+      "slack_ns": -0.017,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_22_s0/D"
+    },
+    {
+      "slack_ns": -0.015,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[9]"
+    },
+    {
+      "slack_ns": -0.004,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "O_sdram_dqm_0_s2/D"
+    }
+  ],
+  "violations_unexpected": [
+    {
+      "slack_ns": -4.073,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_21_s0/CE"
+    },
+    {
+      "slack_ns": -4.073,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_2_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_24_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_27_s0/CE"
+    },
+    {
+      "slack_ns": -3.961,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_3_s0/CE"
+    },
+    {
+      "slack_ns": -3.959,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_19_s0/CE"
+    },
+    {
+      "slack_ns": -3.933,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_1_s0/CE"
+    },
+    {
+      "slack_ns": -3.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_14_s0/CE"
+    },
+    {
+      "slack_ns": -3.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_30_s0/CE"
+    },
+    {
+      "slack_ns": -3.858,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_0_s5/D"
+    },
+    {
+      "slack_ns": -3.857,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_6_s0/CE"
+    },
+    {
+      "slack_ns": -3.844,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_16_s0/CE"
+    },
+    {
+      "slack_ns": -3.844,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_20_s0/CE"
+    },
+    {
+      "slack_ns": -3.839,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_3_s0/D"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_10_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_15_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_29_s0/CE"
+    },
+    {
+      "slack_ns": -3.729,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.725,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_13_s0/CE"
+    },
+    {
+      "slack_ns": -3.721,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_23_s0/CE"
+    },
+    {
+      "slack_ns": -3.721,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_31_s0/CE"
+    },
+    {
+      "slack_ns": -3.696,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_0_s0/D"
+    },
+    {
+      "slack_ns": -3.576,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_7_s0/D"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_12_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_17_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_25_s0/CE"
+    },
+    {
+      "slack_ns": -3.57,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.562,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_7_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_18_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_22_s0/CE"
+    },
+    {
+      "slack_ns": -3.541,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_26_s0/CE"
+    },
+    {
+      "slack_ns": -3.53,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_28_s0/CE"
+    },
+    {
+      "slack_ns": -3.53,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_8_s0/CE"
+    },
+    {
+      "slack_ns": -3.379,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_11_s0/CE"
+    },
+    {
+      "slack_ns": -3.375,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_0_s0/CE"
+    },
+    {
+      "slack_ns": -3.375,
+      "from": "core/state_1_s0/Q",
+      "to": "core/completed_sequence_9_s0/CE"
+    },
+    {
+      "slack_ns": -3.159,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.159,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_8_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_3_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.145,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_7_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_1_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_2_s0/CE"
+    },
+    {
+      "slack_ns": -3.136,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_5_s0/CE"
+    },
+    {
+      "slack_ns": -3.131,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_4_s0/CE"
+    },
+    {
+      "slack_ns": -3.127,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_2_s0/CE"
+    },
+    {
+      "slack_ns": -2.974,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_7_s0/CE"
+    },
+    {
+      "slack_ns": -2.949,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_8_s0/CE"
+    },
+    {
+      "slack_ns": -2.947,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_comp_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.923,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_22_s0/D"
+    },
+    {
+      "slack_ns": -2.908,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_1_s0/D"
+    },
+    {
+      "slack_ns": -2.905,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_12_s0/D"
+    },
+    {
+      "slack_ns": -2.899,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.839,
+      "from": "core/state_1_s0/Q",
+      "to": "core/color_valid_1_s0/D"
+    },
+    {
+      "slack_ns": -2.816,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_10_s0/D"
+    },
+    {
+      "slack_ns": -2.779,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_14_s0/D"
+    },
+    {
+      "slack_ns": -2.756,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_word_0_s0/CE"
+    },
+    {
+      "slack_ns": -2.712,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_21_s0/D"
+    },
+    {
+      "slack_ns": -2.709,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_1_s0/D"
+    },
+    {
+      "slack_ns": -2.703,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_11_s0/D"
+    },
+    {
+      "slack_ns": -2.657,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_6_s0/D"
+    },
+    {
+      "slack_ns": -2.656,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_4_s0/D"
+    },
+    {
+      "slack_ns": -2.63,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_20_s0/D"
+    },
+    {
+      "slack_ns": -2.59,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_3_s0/D"
+    },
+    {
+      "slack_ns": -2.551,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_17_s0/D"
+    },
+    {
+      "slack_ns": -2.514,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_5_s0/D"
+    },
+    {
+      "slack_ns": -2.48,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_15_s0/D"
+    },
+    {
+      "slack_ns": -2.47,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_9_s0/D"
+    },
+    {
+      "slack_ns": -2.469,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_4_s0/D"
+    },
+    {
+      "slack_ns": -2.457,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_2_s0/D"
+    },
+    {
+      "slack_ns": -2.442,
+      "from": "core/state_1_s0/Q",
+      "to": "core/host_cmd_pop_s0/D"
+    },
+    {
+      "slack_ns": -2.396,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_10_s0/D"
+    },
+    {
+      "slack_ns": -2.384,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_8_s0/D"
+    },
+    {
+      "slack_ns": -2.342,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_10_s0/D"
+    },
+    {
+      "slack_ns": -2.342,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_4_s0/CE"
+    },
+    {
+      "slack_ns": -2.337,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_9_s0/D"
+    },
+    {
+      "slack_ns": -2.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_10_s0/CE"
+    },
+    {
+      "slack_ns": -2.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_2_s0/CE"
+    },
+    {
+      "slack_ns": -2.292,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_8_s0/D"
+    },
+    {
+      "slack_ns": -2.277,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_3_s0/D"
+    },
+    {
+      "slack_ns": -2.268,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_5_s0/D"
+    },
+    {
+      "slack_ns": -2.24,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_21_s0/D"
+    },
+    {
+      "slack_ns": -2.24,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_11_s0/D"
+    },
+    {
+      "slack_ns": -2.233,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_17_s0/D"
+    },
+    {
+      "slack_ns": -2.233,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_22_s0/D"
+    },
+    {
+      "slack_ns": -2.197,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_9_s0/CE"
+    },
+    {
+      "slack_ns": -2.164,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_0_s0/D"
+    },
+    {
+      "slack_ns": -2.164,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_14_s0/D"
+    },
+    {
+      "slack_ns": -2.129,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.129,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.127,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_5_s0/D"
+    },
+    {
+      "slack_ns": -2.086,
+      "from": "core/state_1_s0/Q",
+      "to": "core/color_valid_0_s0/D"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_3_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_6_s0/CE"
+    },
+    {
+      "slack_ns": -2.063,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_7_s0/CE"
+    },
+    {
+      "slack_ns": -2.051,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_12_s0/D"
+    },
+    {
+      "slack_ns": -2.046,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_9_s0/D"
+    },
+    {
+      "slack_ns": -2.026,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_2_s0/D"
+    },
+    {
+      "slack_ns": -2.017,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_8_s0/D"
+    },
+    {
+      "slack_ns": -2.012,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_10_s0/CE"
+    },
+    {
+      "slack_ns": -2.012,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_1_s0/CE"
+    },
+    {
+      "slack_ns": -2.011,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_16_s0/D"
+    },
+    {
+      "slack_ns": -2.005,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_4_s0/CE"
+    },
+    {
+      "slack_ns": -2.004,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_18_s0/CE"
+    },
+    {
+      "slack_ns": -1.995,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_13_s0/D"
+    },
+    {
+      "slack_ns": -1.969,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_19_s0/D"
+    },
+    {
+      "slack_ns": -1.908,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.884,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_0_s0/D"
+    },
+    {
+      "slack_ns": -1.87,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.87,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.848,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/context_factor/bank/CEB"
+    },
+    {
+      "slack_ns": -1.843,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_7_s0/D"
+    },
+    {
+      "slack_ns": -1.838,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.838,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.834,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_16_s0/D"
+    },
+    {
+      "slack_ns": -1.834,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_19_s0/D"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_18_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.828,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.807,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_58_s0/D"
+    },
+    {
+      "slack_ns": -1.795,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_32_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_16_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_17_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_19_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_20_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_21_s0/CE"
+    },
+    {
+      "slack_ns": -1.793,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_22_s0/CE"
+    },
+    {
+      "slack_ns": -1.767,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_18_s0/D"
+    },
+    {
+      "slack_ns": -1.692,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.687,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_16_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_22_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.671,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.658,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_35_s0/D"
+    },
+    {
+      "slack_ns": -1.654,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.648,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_13_s0/D"
+    },
+    {
+      "slack_ns": -1.648,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_20_s0/D"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_21_s0/CE"
+    },
+    {
+      "slack_ns": -1.644,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.642,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.642,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_17_s0/CE"
+    },
+    {
+      "slack_ns": -1.637,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.637,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.626,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.586,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.569,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/fault_s0/CE"
+    },
+    {
+      "slack_ns": -1.55,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_58_s0/CE"
+    },
+    {
+      "slack_ns": -1.549,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_15_s0/D"
+    },
+    {
+      "slack_ns": -1.549,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_destination_row_18_s0/D"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.537,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_10_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_8_s0/CE"
+    },
+    {
+      "slack_ns": -1.536,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.533,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.533,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.508,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.504,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_slot_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_6_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_11_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_20_s0/CE"
+    },
+    {
+      "slack_ns": -1.487,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_6_s0/CE"
+    },
+    {
+      "slack_ns": -1.483,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_4_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_14_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_19_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.461,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_3_s0/CE"
+    },
+    {
+      "slack_ns": -1.451,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.404,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_58_s0/D"
+    },
+    {
+      "slack_ns": -1.403,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_36_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_13_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_0_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_12_s0/CE"
+    },
+    {
+      "slack_ns": -1.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_y_2_s0/CE"
+    },
+    {
+      "slack_ns": -1.343,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_row_number_6_s0/D"
+    },
+    {
+      "slack_ns": -1.343,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/depth_valid_s0/CE"
+    },
+    {
+      "slack_ns": -1.342,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_s0/D"
+    },
+    {
+      "slack_ns": -1.334,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_1_s0/CE"
+    },
+    {
+      "slack_ns": -1.328,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_35_s0/CE"
+    },
+    {
+      "slack_ns": -1.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_15_s0/CE"
+    },
+    {
+      "slack_ns": -1.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_7_s0/CE"
+    },
+    {
+      "slack_ns": -1.317,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_1_s0/D"
+    },
+    {
+      "slack_ns": -1.311,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_s0/CE"
+    },
+    {
+      "slack_ns": -1.311,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_53_s0/D"
+    },
+    {
+      "slack_ns": -1.3,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_58_s0/CE"
+    },
+    {
+      "slack_ns": -1.29,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_52_s0/D"
+    },
+    {
+      "slack_ns": -1.289,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.289,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/coordinate_read_x_9_s0/CE"
+    },
+    {
+      "slack_ns": -1.271,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_source_row_5_s0/CE"
+    },
+    {
+      "slack_ns": -1.218,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_50_s0/D"
+    },
+    {
+      "slack_ns": -1.16,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_52_s0/CE"
+    },
+    {
+      "slack_ns": -1.159,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_50_s0/CE"
+    },
+    {
+      "slack_ns": -1.128,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_22_s0/D"
+    },
+    {
+      "slack_ns": -1.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_37_s0/D"
+    },
+    {
+      "slack_ns": -1.094,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_4_s0/D"
+    },
+    {
+      "slack_ns": -1.053,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_47_s0/CE"
+    },
+    {
+      "slack_ns": -1.03,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_3_s0/D"
+    },
+    {
+      "slack_ns": -1.029,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_62_s0/D"
+    },
+    {
+      "slack_ns": -0.998,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_7_s0/D"
+    },
+    {
+      "slack_ns": -0.977,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_50_s0/CE"
+    },
+    {
+      "slack_ns": -0.947,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_53_s0/CE"
+    },
+    {
+      "slack_ns": -0.898,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_47_s0/D"
+    },
+    {
+      "slack_ns": -0.871,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_15_s0/D"
+    },
+    {
+      "slack_ns": -0.863,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_33_s0/CE"
+    },
+    {
+      "slack_ns": -0.831,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_50_s0/D"
+    },
+    {
+      "slack_ns": -0.818,
+      "from": "core/state_1_s0/Q",
+      "to": "core/state_1_s0/D"
+    },
+    {
+      "slack_ns": -0.794,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_60_s0/D"
+    },
+    {
+      "slack_ns": -0.794,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_61_s0/D"
+    },
+    {
+      "slack_ns": -0.789,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_35_s0/D"
+    },
+    {
+      "slack_ns": -0.785,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_41_s0/D"
+    },
+    {
+      "slack_ns": -0.784,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_36_s0/CE"
+    },
+    {
+      "slack_ns": -0.783,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_8_s0/CE"
+    },
+    {
+      "slack_ns": -0.78,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_37_s0/CE"
+    },
+    {
+      "slack_ns": -0.779,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_7_s0/D"
+    },
+    {
+      "slack_ns": -0.778,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_2_s0/CE"
+    },
+    {
+      "slack_ns": -0.772,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_63_s0/CE"
+    },
+    {
+      "slack_ns": -0.768,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_15_s0/CE"
+    },
+    {
+      "slack_ns": -0.753,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_33_s0/D"
+    },
+    {
+      "slack_ns": -0.734,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_49_s0/D"
+    },
+    {
+      "slack_ns": -0.731,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_57_s0/CE"
+    },
+    {
+      "slack_ns": -0.716,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_35_s0/CE"
+    },
+    {
+      "slack_ns": -0.71,
+      "from": "core/state_1_s0/Q",
+      "to": "core/copy_active_s0/CE"
+    },
+    {
+      "slack_ns": -0.707,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_10_s0/D"
+    },
+    {
+      "slack_ns": -0.707,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_10_s0/CE"
+    },
+    {
+      "slack_ns": -0.693,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_6_s0/D"
+    },
+    {
+      "slack_ns": -0.692,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.685,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_49_s0/CE"
+    },
+    {
+      "slack_ns": -0.684,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_5_s0/D"
+    },
+    {
+      "slack_ns": -0.684,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_1_s0/CE"
+    },
+    {
+      "slack_ns": -0.683,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_4_s0/D"
+    },
+    {
+      "slack_ns": -0.682,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_7_s0/CE"
+    },
+    {
+      "slack_ns": -0.676,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_39_s0/D"
+    },
+    {
+      "slack_ns": -0.676,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_5_s0/CE"
+    },
+    {
+      "slack_ns": -0.651,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_49_s0/D"
+    },
+    {
+      "slack_ns": -0.645,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_63_s0/D"
+    },
+    {
+      "slack_ns": -0.64,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_36_s0/D"
+    },
+    {
+      "slack_ns": -0.64,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_36_s0/D"
+    },
+    {
+      "slack_ns": -0.634,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_12_s0/CE"
+    },
+    {
+      "slack_ns": -0.622,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_high/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.615,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[6]"
+    },
+    {
+      "slack_ns": -0.601,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_8_s0/D"
+    },
+    {
+      "slack_ns": -0.589,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_14_s0/D"
+    },
+    {
+      "slack_ns": -0.582,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_52_s0/CE"
+    },
+    {
+      "slack_ns": -0.576,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_40_s0/CE"
+    },
+    {
+      "slack_ns": -0.56,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_3_s0/CE"
+    },
+    {
+      "slack_ns": -0.56,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_1_s0/D"
+    },
+    {
+      "slack_ns": -0.558,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_33_s0/CE"
+    },
+    {
+      "slack_ns": -0.545,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_50_s0/D"
+    },
+    {
+      "slack_ns": -0.543,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_23_s0/D"
+    },
+    {
+      "slack_ns": -0.542,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.54,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_53_s0/CE"
+    },
+    {
+      "slack_ns": -0.538,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "dq_registered_31_s0/D"
+    },
+    {
+      "slack_ns": -0.514,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_6_s0/CE"
+    },
+    {
+      "slack_ns": -0.511,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_37_s0/D"
+    },
+    {
+      "slack_ns": -0.501,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_even_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.501,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_31_s0/CE"
+    },
+    {
+      "slack_ns": -0.481,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_27_s0/CE"
+    },
+    {
+      "slack_ns": -0.48,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_27_s0/D"
+    },
+    {
+      "slack_ns": -0.48,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_52_s0/D"
+    },
+    {
+      "slack_ns": -0.479,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_53_s0/D"
+    },
+    {
+      "slack_ns": -0.465,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_45_s0/D"
+    },
+    {
+      "slack_ns": -0.462,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_45_s0/CE"
+    },
+    {
+      "slack_ns": -0.459,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_23_s0/D"
+    },
+    {
+      "slack_ns": -0.459,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_4_s0/CE"
+    },
+    {
+      "slack_ns": -0.456,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_26_s0/CE"
+    },
+    {
+      "slack_ns": -0.449,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_49_s0/CE"
+    },
+    {
+      "slack_ns": -0.448,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[4]"
+    },
+    {
+      "slack_ns": -0.444,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_5_s0/CE"
+    },
+    {
+      "slack_ns": -0.427,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_18_s0/CE"
+    },
+    {
+      "slack_ns": -0.42,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.42,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_38_s0/D"
+    },
+    {
+      "slack_ns": -0.418,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_33_s0/D"
+    },
+    {
+      "slack_ns": -0.418,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_34_s0/D"
+    },
+    {
+      "slack_ns": -0.403,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_39_s0/CE"
+    },
+    {
+      "slack_ns": -0.388,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_57_s0/D"
+    },
+    {
+      "slack_ns": -0.388,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_59_s0/D"
+    },
+    {
+      "slack_ns": -0.386,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_43_s0/D"
+    },
+    {
+      "slack_ns": -0.384,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_63_s0/D"
+    },
+    {
+      "slack_ns": -0.377,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_14_s0/CE"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/perspective/valid_0_s0/D"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_39_s0/D"
+    },
+    {
+      "slack_ns": -0.371,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_44_s0/D"
+    },
+    {
+      "slack_ns": -0.366,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_40_s0/CE"
+    },
+    {
+      "slack_ns": -0.355,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_3_s0/CE"
+    },
+    {
+      "slack_ns": -0.346,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_51_s0/D"
+    },
+    {
+      "slack_ns": -0.344,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.33,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_9_s0/CE"
+    },
+    {
+      "slack_ns": -0.327,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[4]"
+    },
+    {
+      "slack_ns": -0.323,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[5]"
+    },
+    {
+      "slack_ns": -0.321,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_57_s0/D"
+    },
+    {
+      "slack_ns": -0.314,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_4_s0/D"
+    },
+    {
+      "slack_ns": -0.313,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_25_s0/CE"
+    },
+    {
+      "slack_ns": -0.312,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_10_s0/D"
+    },
+    {
+      "slack_ns": -0.304,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_4_s0/CE"
+    },
+    {
+      "slack_ns": -0.299,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_5_s0/D"
+    },
+    {
+      "slack_ns": -0.291,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_53_s0/D"
+    },
+    {
+      "slack_ns": -0.291,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_54_s0/D"
+    },
+    {
+      "slack_ns": -0.282,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_18_s0/D"
+    },
+    {
+      "slack_ns": -0.278,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_26_s0/D"
+    },
+    {
+      "slack_ns": -0.265,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_57_s0/CE"
+    },
+    {
+      "slack_ns": -0.262,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_59_s0/CE"
+    },
+    {
+      "slack_ns": -0.261,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_11_s0/D"
+    },
+    {
+      "slack_ns": -0.253,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_17_s0/CE"
+    },
+    {
+      "slack_ns": -0.253,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_54_s0/CE"
+    },
+    {
+      "slack_ns": -0.248,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_11_s0/CE"
+    },
+    {
+      "slack_ns": -0.233,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_18_s0/CE"
+    },
+    {
+      "slack_ns": -0.233,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_42_s0/D"
+    },
+    {
+      "slack_ns": -0.23,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.219,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_13_s0/CE"
+    },
+    {
+      "slack_ns": -0.215,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_48_s0/D"
+    },
+    {
+      "slack_ns": -0.214,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_34_s0/CE"
+    },
+    {
+      "slack_ns": -0.193,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_39_s0/CE"
+    },
+    {
+      "slack_ns": -0.187,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_9_s0/D"
+    },
+    {
+      "slack_ns": -0.184,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.184,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_51_s0/CE"
+    },
+    {
+      "slack_ns": -0.179,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_59_s0/D"
+    },
+    {
+      "slack_ns": -0.176,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_22_s0/CE"
+    },
+    {
+      "slack_ns": -0.174,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_33_s0/D"
+    },
+    {
+      "slack_ns": -0.167,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_high/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.159,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_57_s0/D"
+    },
+    {
+      "slack_ns": -0.151,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_16_s0/D"
+    },
+    {
+      "slack_ns": -0.14,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "O_sdram_dqm_2_s2/D"
+    },
+    {
+      "slack_ns": -0.133,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_58_s0/D"
+    },
+    {
+      "slack_ns": -0.129,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[6]"
+    },
+    {
+      "slack_ns": -0.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_46_s0/D"
+    },
+    {
+      "slack_ns": -0.127,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_46_s0/CE"
+    },
+    {
+      "slack_ns": -0.123,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_59_s0/CE"
+    },
+    {
+      "slack_ns": -0.106,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_42_s0/CE"
+    },
+    {
+      "slack_ns": -0.091,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_3_s0/D"
+    },
+    {
+      "slack_ns": -0.09,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_62_s0/D"
+    },
+    {
+      "slack_ns": -0.086,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_row[6]_32_s0/D"
+    },
+    {
+      "slack_ns": -0.08,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[10]"
+    },
+    {
+      "slack_ns": -0.079,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_low/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.079,
+      "from": "core/state_2_s0/Q",
+      "to": "core/memory_service/buffer_masks/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.077,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_12_s0/CE"
+    },
+    {
+      "slack_ns": -0.077,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_36_s0/D"
+    },
+    {
+      "slack_ns": -0.076,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_2_s0/D"
+    },
+    {
+      "slack_ns": -0.076,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_2_s0/CE"
+    },
+    {
+      "slack_ns": -0.068,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_12_s0/D"
+    },
+    {
+      "slack_ns": -0.066,
+      "from": "core/copy_low_1_s0/Q",
+      "to": "core/copy_high_30_s0/CE"
+    },
+    {
+      "slack_ns": -0.064,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[9]"
+    },
+    {
+      "slack_ns": -0.058,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_32_s0/D"
+    },
+    {
+      "slack_ns": -0.056,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_even_ram/bank/ADB[11]"
+    },
+    {
+      "slack_ns": -0.052,
+      "from": "core/tile_renderer/state_1_s0/Q",
+      "to": "core/tile_renderer/plane_current[6]_63_s0/D"
+    },
+    {
+      "slack_ns": -0.051,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[8]"
+    },
+    {
+      "slack_ns": -0.047,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_39_s0/D"
+    },
+    {
+      "slack_ns": -0.045,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_14_s0/CE"
+    },
+    {
+      "slack_ns": -0.039,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_42_s0/D"
+    },
+    {
+      "slack_ns": -0.038,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_11_s0/CE"
+    },
+    {
+      "slack_ns": -0.037,
+      "from": "core/triangle_setup/op_q2_2_s0/Q",
+      "to": "core/triangle_setup/acc_52_s0/D"
+    },
+    {
+      "slack_ns": -0.036,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_47_s0/CE"
+    },
+    {
+      "slack_ns": -0.034,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/depth_odd_ram/bank/ADB[7]"
+    },
+    {
+      "slack_ns": -0.032,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_7_s0/CE"
+    },
+    {
+      "slack_ns": -0.028,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_46_s0/CE"
+    },
+    {
+      "slack_ns": -0.027,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_22_s0/CE"
+    },
+    {
+      "slack_ns": -0.021,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/ready_31_s0/D"
+    },
+    {
+      "slack_ns": -0.021,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_31_s0/CE"
+    },
+    {
+      "slack_ns": -0.017,
+      "from": "core/tile_renderer/depth_odd_ram/bank/DO[0]",
+      "to": "core/tile_renderer/fragments/rejected_22_s0/D"
+    },
+    {
+      "slack_ns": -0.015,
+      "from": "core/memory_service/read_pipe_3_s0/Q",
+      "to": "core/tile_renderer/color_ram/bank/ADB[9]"
+    },
+    {
+      "slack_ns": -0.004,
+      "from": "core/memory_service/bank_row_bank_row_RAMREG_0_G[0]_s1/Q",
+      "to": "O_sdram_dqm_0_s2/D"
+    }
+  ],
+  "violated_endpoint_counts": {
+    "setup": 389,
+    "hold": 4
+  },
+  "timing_passed": false,
+  "uncommitted_build_inputs": {
+    "scripts/build-tang20k.py": {
+      "built_sha256": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
+      "committed_sha256": "dc4026603149e84fc47354a53050d905bccbd0e121d9e03e4214b526dd80f49a",
+      "difference": "Preserved pre-existing, separately owned uncommitted builder adds 4 ns maximum input/output delays on the falling host-clock edge. It is deliberately not included in this optimization commit. Clean checkout alone does not reproduce this local qualification input set."
+    }
+  },
+  "publication_scope": "Local current 0.3 board attempt. Repository programming file belongs to an earlier published release.",
+  "gowin_executable_sha256": "9c743cad15b741301fa1ec0309111f68607db03139f8c326e45dea0ae827f298",
+  "physical_implementation_warnings": [
+    "WARN  (CT1019) : Buf('lanes[1].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[0].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[2].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[3].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (PR1014) : Generic routing resource will be used to clock signal 'clk27_d' by the specified constraint. And then it may lead to the excessive delay or skew"
+  ],
+  "physical_implementation_errors": [],
+  "required_clock_violated_endpoints": {
+    "clk27": {
+      "setup": 0,
+      "hold": 0
+    },
+    "gpu_hclk": {
+      "setup": 0,
+      "hold": 0
+    },
+    "core_div/CLKOUT.default_gen_clk": {
+      "setup": 385,
+      "hold": 0
+    },
+    "pixel_div/CLKOUT.default_gen_clk": {
+      "setup": 0,
+      "hold": 0
+    }
+  },
+  "local_host_pad_evidence": {
+    "constraints_sha256": "c7a03d77fe4fd0095dd2310988d83a0c9e99e7d37a43788e8acd415873434f9b",
+    "timing_report_sha256": "6a12182159281b85599c1d0dc01bf2f3b89fe87fd3f8ef60346759bc1e91d1a7",
+    "active_pad_constraints": [
+      "TC_INPUT_DELAY     Actived   set_input_delay -clock gpu_hclk -clock_fall -max 4.0 [get_ports {gpu_d[*] gpu_ale_n gpu_wr_n gpu_rd_n}]",
+      "TC_OUTPUT_DELAY    Actived   set_output_delay -clock gpu_hclk -clock_fall -max 4.0 [get_ports {gpu_d[*] gpu_rvalid gpu_wready}]"
+    ],
+    "host_violated_endpoints": {
+      "setup": 0,
+      "hold": 0
+    },
+    "listed_strobe_capture_paths": 0,
+    "minimum_listed_strobe_capture_setup_slack_ns": null,
+    "scope": "Gowin static timing with the existing 4 ns pad allowances. External electrical margins remain unmeasured."
+  },
+  "resource_scope": "Resource summary of an unqualified attempt.",
+  "resources": {
+    "Logic": "20263/20736  98%",
+    "Register": "7478/15915  47%",
+    "I/O Port": "26",
+    "BSRAM": "100%",
+    "DSP": "63%",
+    "PLL": "1/2(50%)",
+    "CLKDIV": "2/8(25%)"
+  }
+}

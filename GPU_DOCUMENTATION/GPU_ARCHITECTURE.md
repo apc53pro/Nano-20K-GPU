@@ -87,7 +87,7 @@ board, the open-flow GPU image's host address latch failed while the same RTL
 built by the vendor Gowin EDA worked (section 14). The published image
 uses Gowin EDA V1.9.8.11 Education under the exception in `AGENTS.md`.
 Its 2026-11-13 addendum selects the installed version with the fastest
-qualifying route. The current RTL selects V1.9.8.11 (section 12).
+qualifying route. The current RTL selects signed V1.9.11.03 (section 12).
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -1016,9 +1016,8 @@ are checked before the final chunk is submitted. Earlier chunks may already
 have reached SDRAM when malformed input faults; recovery requires reuploading
 the affected resource. No second upload engine or additional BSRAM is present.
 
-The present RTL serializes foreground upload, fetch, tile transfers and copies
-at the command level, with one exception: **tile stores are overlapped**.
-A tile's store transfers are offered back to back without waiting for each
+Foreground uploads, passes and copies execute in host command order.
+Within a pass, a tile's store transfers are offered back to back without waiting for each
 completion, and the executor moves on to the next tile once the last one has
 been accepted. A tile's LOAD waits until no store is outstanding. At the end
 of a pass, a drain state waits for every store to complete before the
@@ -1032,11 +1031,21 @@ time:
    one 512×32 native row RAM. With a one-pixel source/destination phase
    difference, a word's low half is paired with the previous word's high
    half, and odd shifted rows add one flush word.
-2. **Write.** The row is written back in bursts of up to 16 words, at one word
-   per core edge, with per-word half strobes for partial end words.
+2. **Write.** After the service accepts a burst's final payload word, COPY
+   can request the next burst while the earlier write finishes on SDRAM.
+   Up to two accepted writes share the service's existing transaction slots.
+   Each burst still carries up to 16 words, at one word per accepted core
+   edge, with halfword strobes for partial end words.
+3. **Drain.** A COPY counter tracks accepted transactions through physical
+   completion. Every write of the row must retire before COPY reuses its
+   row RAM or reads the next source row. The last row drains before the
+   executor marks the target valid or completes the command.
 
-The whole row is read before any of it is written, which preserves same-buffer
-overlap semantics; a reverse row order handles downward overlap. Before
+Reading a whole row before writing it preserves same-row overlap. Reverse
+row order preserves source pixels during downward overlap. An abort or
+fault stops new requests and prevents the interrupted copy from publishing
+a valid target or successful completion. Accepted payloads and physical
+writes still drain through the existing recovery sequence. Before
 2026-11-07, every pixel took a separate one-word read and a separate masked
 write, which made a 640×480 copy take well over 0.8 s at 6.3 MHz. A one-cycle
 setup state also registers the copy direction and starting destination row
@@ -1708,6 +1717,32 @@ The repository programming file belongs to the earlier release. Encryption
 prevents the netlist check of fixed SDRAM SiP connections. The V1.9.8.11
 toolchain provenance and external electrical margins remain unverified.
 
+### COPY write-overlap source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-copy-write-overlap-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-copy-write-overlap-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+The selected route verified all 26 package pins and passed the core,
+pixel and host-capture timing gates. Both reports retain the exact build
+inputs and show any placement or timing failures and accepted exceptions.
+The V1.9.8.11 route failed core timing at 41.817 MHz with 385 unexpected
+listed timing paths. The signed route lists the eight documented
+reset-release exceptions.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 41.817 MHz | 29.582 MHz | 20,263/20,736 | Unavailable | Fail |
+| V1.9.11.03 | 53.362 MHz | 27.562 MHz | 20,171/20,736 | 46/46 | Pass |
+
+The design runs at 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
+serialization. Both builds used the existing uncommitted 4 ns host-pad
+allowances. The selected local image has a matching checksum, frame-CRC
+check and [functional report](../docs/hardware/tang20k-copy-write-overlap-functional.json).
+The repository programming file belongs to the earlier release. The Gowin
+netlists are encrypted, so the fixed SDRAM SiP wiring check remains
+unavailable. V1.9.8.11 provenance and external electrical margins remain
+unverified.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -2252,6 +2287,37 @@ shift. The separate matched-start cases and the original two-frame SKIP
 sequences are recorded in the benchmark. These are RTL timings through
 the command fence at the operating clock.
 
+### Overlapped COPY writes (2026-11-25)
+
+In the continuous [RTL benchmark](../docs/benchmarks/rtl-copy-write-overlap.json),
+the full-screen front-to-back copy falls from 694,276 to 623,802 clocks
+(10.15%) at 50.4 MHz. Both runs stage 153,600 words in 9,600 write requests
+and execute 19,200 physical BL8 writes. The candidate grants 5,976 requests
+while a prior write is still in flight. Copy drain time falls from 90,703
+to 4,583 clocks. The request state can include waiting for the first write
+to release the command slot, so the drain reduction exceeds the net gain.
+
+| Workload | Cycle reduction at two matched starts |
+| --- | ---: |
+| Patterned full-screen front-to-back copy | 7.86–10.75% |
+| 640×464 upward scroll | 10.16–10.61% |
+| Odd-lane upward overlap | 5.34–7.88% |
+| Clipped downward overlap | 1.34–4.36% |
+| Odd-lane leftward overlap | 5.96–6.08% |
+| Clipped rightward overlap | 4.82–4.85% |
+| Pitched heap source, including first-use upload | 1.22–1.36% |
+| Skinny and short one-burst rows | Identical |
+
+All 20 matched COPY runs improve or tie. Independent SRR checks every RGB565
+and D24 word, with zero scanout underflows. The remaining matched scenes tie.
+The continuous suite takes 26,496,856 instead of 26,587,478 clocks (0.34%).
+Every cumulative fence is at least as early. The continuous workload ledger
+also retains the individual duration changes when the earlier COPY moves
+later submissions to different video and memory phases. The pointer update
+with depth discarded takes 3,216 extra clocks in that sequence. The same
+pointer update ties at both matched phases, including an identical preceding
+UI image and complete D24 attachment.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -2287,7 +2353,7 @@ make tang20k-test
 make tang20k
 ```
 
-`make tang20k` uses Gowin EDA V1.9.8.11 by default (see section 12).
+`make tang20k` uses signed Gowin EDA V1.9.11.03 by default (see section 12).
 Set `GOWIN_SH` to select another `gw_sh.exe`.
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
@@ -2344,7 +2410,7 @@ a measured silicon frequency limit or 30 FPS scenes.
 | --- | --- |
 | [`tang20k_top.sv`](../rtl/board/tang20k_top.sv) | Board clocks/reset, synchronized pixel-event handoff, shared host pads, SDRAM boundary and TMDS integration |
 | [`tang20k.cst`](../rtl/board/tang20k.cst), [`tang20k-sip.json`](../rtl/board/tang20k-sip.json) | External QN88 constraints and expected fixed embedded SDRAM terminals |
-| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule and overlapped stores, copies, overlapped presentation, recovery |
+| [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule, overlapped tile and COPY writes, overlapped presentation, recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) | Kind-4 vertex-triangle setup per tile: orientation/culling, edges, window and tile rejection, depth gradients and seed |
 | [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage with row exit and uncovered steps, interpolation and 2D walking |
