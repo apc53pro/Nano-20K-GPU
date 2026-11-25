@@ -904,9 +904,9 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with uncovered triangle stepping,
-`make tang20k` selects the qualified V1.9.11.03 route at
-53.144 MHz estimated core Fmax on the existing package pins and
+V1.9.8.11. For the current 0.3 RTL with batched tile references,
+`make tang20k` selects the qualified V1.9.8.11 route at
+59.408 MHz estimated core Fmax on the existing package pins and
 host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
@@ -985,7 +985,7 @@ sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 
 | Job | Tool (exact) | Location on the user's PC |
 | --- | --- | --- |
-| Build the current RTL (`make tang20k`) | Signed Gowin EDA **V1.9.11.03 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe` |
+| Build the current RTL (`make tang20k`) | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Build the published 0.2 release | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Program SRAM or flash | Standalone Gowin Programmer **V1.9.12.04 (64-bit)** `programmer_cli.exe`, Authenticode-signed by Gowin | `C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe` |
 
@@ -1235,6 +1235,15 @@ address zero. Nonempty lists and records are four-byte aligned heap ranges.
 Total references per pass must not exceed `1,048,576`; the supplied CPU compiler
 additionally limits its input to 16,384 primitive records.
 
+The GPU reads up to 16 contiguous little-endian reference words per request,
+with an exact tail at the list's declared end. Lists of one or two
+references use individual one-word reads through the same command path.
+References still execute and validate in their original list order. The
+first pointer in a burst goes directly to the executor, and the remaining
+pointers temporarily occupy the existing COPY row RAM. The bin format,
+packet version and physical pin assignments stay the same. Use the same
+address alignment, entry counts and ordered reference fields.
+
 Without bit 3, the load flags apply to every tile, including empty ones; the
 result is as if each tile were loaded or cleared and then stored. Only the
 work differs:
@@ -1396,8 +1405,10 @@ Internally, recovery first registers a quiescent foreground state and stops
 new foreground memory commands, including texture refills. It then waits for
 accepted work to drain before resetting the renderer and flushing the host
 stream. A command accepted on the edge that establishes quiescence is still
-tracked and drained. Quiescence remains asserted through host flush acknowledgement before
-the executor returns to idle. These internal control edges can extend recovery;
+tracked and drained. An accepted tile-reference burst drains even when
+its remaining pointers will be discarded. Recovery resumes with a new
+pass and its own list reads. Quiescence remains asserted through host flush
+acknowledgement before the executor returns to idle. These internal control edges can extend recovery;
 drivers must use the epoch/status checks above rather than a fixed delay.
 The display memory client remains active throughout soft recovery.
 

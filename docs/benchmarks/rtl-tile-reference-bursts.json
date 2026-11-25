@@ -1,0 +1,2542 @@
+{
+  "schema": "N20K-RTL-ORDERED-TILE-REFERENCE-BURSTS-1",
+  "baseline_commit": "3a468120d5a293fb845893db621c732a5d166b08",
+  "candidate": "The commit containing this evidence. The hashed source files identify its RTL independently.",
+  "scope": "Fresh Verilated 0.3 board core at 50.4 MHz with 25.2 MHz virtual host and pixel clocks. Clocks measured through the fence with identical packets, upload bytes and asset residency. Independent SRR compares both full RGB565 framebuffers and all D24 words. Physical board performance is unmeasured.",
+  "continuous": {
+    "before": 27253874,
+    "after": 26587478,
+    "cases": [
+      {
+        "case": "warm-up: empty, clear color and depth",
+        "before": 641290,
+        "after": 641290,
+        "before_cumulative": 641290,
+        "after_cumulative": 641290,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color and depth",
+        "before": 905812,
+        "after": 905812,
+        "before_cumulative": 1547102,
+        "after_cumulative": 1547102,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, clear depth",
+        "before": 621056,
+        "after": 621056,
+        "before_cumulative": 2168158,
+        "after_cumulative": 2168158,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color and depth",
+        "before": 14450,
+        "after": 14450,
+        "before_cumulative": 2182608,
+        "after_cumulative": 2182608,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "full-screen front-to-back copy",
+        "before": 694276,
+        "after": 694276,
+        "before_cumulative": 2876884,
+        "after_cumulative": 2876884,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "before": 1522226,
+        "after": 1492302,
+        "before_cumulative": 4399110,
+        "after_cumulative": 4369186,
+        "cycle_reduction_percent": 1.9658053403371123
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "before": 22764,
+        "after": 22626,
+        "before_cumulative": 4421874,
+        "after_cumulative": 4391812,
+        "cycle_reduction_percent": 0.606220347917763
+      },
+      {
+        "case": "empty pass, clear color, discard depth",
+        "before": 315528,
+        "after": 319058,
+        "before_cumulative": 4737402,
+        "after_cumulative": 4710870,
+        "cycle_reduction_percent": -1.1187596663370547
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "before": 927814,
+        "after": 908406,
+        "before_cumulative": 5665216,
+        "after_cumulative": 5619276,
+        "cycle_reduction_percent": 2.0917985716964793
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "before": 18358,
+        "after": 15718,
+        "before_cumulative": 5683574,
+        "after_cumulative": 5634994,
+        "cycle_reduction_percent": 14.380651487090102
+      },
+      {
+        "case": "empty pass, load color, discard depth",
+        "before": 14808,
+        "after": 14290,
+        "before_cumulative": 5698382,
+        "after_cumulative": 5649284,
+        "cycle_reduction_percent": 3.498109130199889
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "before": 3269606,
+        "after": 3250010,
+        "before_cumulative": 8967988,
+        "after_cumulative": 8899294,
+        "cycle_reduction_percent": 0.5993382688923354
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "before": 4397990,
+        "after": 4302330,
+        "before_cumulative": 13365978,
+        "after_cumulative": 13201624,
+        "cycle_reduction_percent": 2.1750845272499486
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "before": 436932,
+        "after": 434866,
+        "before_cumulative": 13802910,
+        "after_cumulative": 13636490,
+        "cycle_reduction_percent": 0.47284245603435027
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": 194798,
+        "after": 200972,
+        "before_cumulative": 13997708,
+        "after_cumulative": 13837462,
+        "cycle_reduction_percent": -3.169437057875335
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": 6097758,
+        "after": 5912518,
+        "before_cumulative": 20095466,
+        "after_cumulative": 19749980,
+        "cycle_reduction_percent": 3.0378378413836726
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": 5855922,
+        "after": 5550450,
+        "before_cumulative": 25951388,
+        "after_cumulative": 25300430,
+        "cycle_reduction_percent": 5.216462924198783
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "before": 425662,
+        "after": 420308,
+        "before_cumulative": 26377050,
+        "after_cumulative": 25720738,
+        "cycle_reduction_percent": 1.2578054888620516
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": 876824,
+        "after": 866740,
+        "before_cumulative": 27253874,
+        "after_cumulative": 26587478,
+        "cycle_reduction_percent": 1.1500597611379226
+      }
+    ],
+    "release_gate": "No cumulative fence delay. Retain individual increases and interpret using matched starts.",
+    "cumulative_fences_no_later": true,
+    "cycle_reduction_percent": 2.445142294266134
+  },
+  "matched": [
+    {
+      "workload": "reference-singleton-grid",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        835520,
+        835520
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+      "wire_bytes": 12700,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_singleton_tiles": 300,
+      "fixture_reference_words": 300,
+      "fixture_maximum_tile_words": 1
+    },
+    {
+      "workload": "reference-singleton-grid",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1040632,
+        1040632
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+      "wire_bytes": 12700,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_singleton_tiles": 300,
+      "fixture_reference_words": 300,
+      "fixture_maximum_tile_words": 1
+    },
+    {
+      "workload": "reference-burst-grid",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1985546,
+        1932754
+      ],
+      "cycle_reduction_percent": 2.6588152578686186,
+      "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+      "wire_bytes": 89050,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_singleton_tiles": 30,
+      "fixture_reference_words": 2460,
+      "fixture_maximum_tile_words": 17,
+      "fixture_first8_split_lists": 188
+    },
+    {
+      "workload": "reference-burst-grid",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1992694,
+        1938750
+      ],
+      "cycle_reduction_percent": 2.707088996102769,
+      "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+      "wire_bytes": 89050,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "fixture_active_tiles": 300,
+      "fixture_singleton_tiles": 30,
+      "fixture_reference_words": 2460,
+      "fixture_maximum_tile_words": 17,
+      "fixture_first8_split_lists": 188
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2157156,
+        2138268
+      ],
+      "cycle_reduction_percent": 0.8755973142415274,
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2267194,
+        2247420
+      ],
+      "cycle_reduction_percent": 0.8721794429590091,
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2027052,
+        2004500
+      ],
+      "cycle_reduction_percent": 1.112551626697289,
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2117698,
+        2096500
+      ],
+      "cycle_reduction_percent": 1.0009925872338732,
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 576,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1022598,
+        1022598
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1179594,
+        1179594
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1269569,
+        1269569
+      ],
+      "core_clocks": [
+        852052,
+        852052
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "initial_texture_bytes": 33280,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1969569,
+        1969569
+      ],
+      "core_clocks": [
+        999880,
+        999880
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "initial_texture_bytes": 33280,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        675808,
+        675808
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 128,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        928954,
+        928954
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 128,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        692238,
+        689802
+      ],
+      "cycle_reduction_percent": 0.3519020914772075,
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 348,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        941750,
+        938486
+      ],
+      "cycle_reduction_percent": 0.34658879745155247,
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 348,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        1400218,
+        1379716
+      ],
+      "cycle_reduction_percent": 1.4642005744819775,
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        1537024,
+        1511468
+      ],
+      "cycle_reduction_percent": 1.6626936209193866,
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        844706,
+        821014
+      ],
+      "cycle_reduction_percent": 2.8047628405622804,
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        931970,
+        903854
+      ],
+      "cycle_reduction_percent": 3.0168353058574793,
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2485390,
+        2454978
+      ],
+      "cycle_reduction_percent": 1.2236308989736044,
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2627012,
+        2594816
+      ],
+      "cycle_reduction_percent": 1.2255749117248027,
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        2292825,
+        2292825
+      ],
+      "core_clocks": [
+        82474,
+        82154
+      ],
+      "cycle_reduction_percent": 0.3880010670029299,
+      "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+      "wire_bytes": 654,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        2992825,
+        2992825
+      ],
+      "core_clocks": [
+        82268,
+        82214
+      ],
+      "cycle_reduction_percent": 0.06563913064617788,
+      "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+      "wire_bytes": 654,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        18412,
+        18412
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        22526,
+        22526
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        3253956,
+        3221812
+      ],
+      "cycle_reduction_percent": 0.987843720074888,
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 155648,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        3258892,
+        3237434
+      ],
+      "cycle_reduction_percent": 0.6584446492857055,
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 155648,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2790890,
+        2766290
+      ],
+      "cycle_reduction_percent": 0.8814392541447336,
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 147456,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        2797364,
+        2773694
+      ],
+      "cycle_reduction_percent": 0.8461537361601823,
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 147456,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        4394208,
+        4325282
+      ],
+      "cycle_reduction_percent": 1.5685648016661946,
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 139264,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        4393336,
+        4334054
+      ],
+      "cycle_reduction_percent": 1.3493618516771777,
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 139264,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        2884884,
+        2812630
+      ],
+      "cycle_reduction_percent": 2.504572107578673,
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        3014606,
+        2942720
+      ],
+      "cycle_reduction_percent": 2.3845902250576034,
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "copy",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        516940,
+        516940
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "copy",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        708490,
+        708490
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        321394,
+        320360
+      ],
+      "cycle_reduction_percent": 0.3217234920378065,
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        437380,
+        435528
+      ],
+      "cycle_reduction_percent": 0.4234304266312994,
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        314664,
+        311318
+      ],
+      "cycle_reduction_percent": 1.0633564691226227,
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        425504,
+        420738
+      ],
+      "cycle_reduction_percent": 1.1200834774761192,
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        809174,
+        792944
+      ],
+      "cycle_reduction_percent": 2.005749072510976,
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        877100,
+        864148
+      ],
+      "cycle_reduction_percent": 1.4766845285600239,
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        6082072,
+        5895936
+      ],
+      "cycle_reduction_percent": 3.0604044148112686,
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        6098414,
+        5909884
+      ],
+      "cycle_reduction_percent": 3.0914595171793846,
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        5836346,
+        5544030
+      ],
+      "cycle_reduction_percent": 5.008544729870367,
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        5849190,
+        5553380
+      ],
+      "cycle_reduction_percent": 5.057281435549199,
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        212270,
+        212270
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        319154,
+        319154
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        12792,
+        12792
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1077325,
+        1077325
+      ],
+      "core_clocks": [
+        12778,
+        12778
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        1777325,
+        1777325
+      ],
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        4046623,
+        4046623
+      ],
+      "core_clocks": [
+        187368,
+        185308
+      ],
+      "cycle_reduction_percent": 1.099440672900387,
+      "packet_sha256": "f8c84a55f1a72ef749180c7a6524b6e1c6d82c0eb3f02ba4ff4e52af3bfb5851",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        4746623,
+        4746623
+      ],
+      "core_clocks": [
+        203030,
+        202102
+      ],
+      "cycle_reduction_percent": 0.4570753090676227,
+      "packet_sha256": "f8c84a55f1a72ef749180c7a6524b6e1c6d82c0eb3f02ba4ff4e52af3bfb5851",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true
+    }
+  ],
+  "natural_dirty_skip": [
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 0,
+      "start_core_clocks": [
+        1398719,
+        1397685
+      ],
+      "core_clocks": [
+        169548,
+        168330
+      ],
+      "cycle_reduction_percent": 0.7183806355722244,
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "natural_sequence_clocks": [
+        490942,
+        488690
+      ],
+      "seed_core_clocks": [
+        321394,
+        320360
+      ]
+    },
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 700000,
+      "start_core_clocks": [
+        2098719,
+        2097685
+      ],
+      "core_clocks": [
+        202072,
+        201296
+      ],
+      "cycle_reduction_percent": 0.38402153687794316,
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "initial_texture_bytes": 0,
+      "timed_texture_upload_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "natural_sequence_clocks": [
+        523466,
+        521656
+      ],
+      "seed_core_clocks": [
+        321394,
+        320360
+      ]
+    }
+  ],
+  "mixed_depth_seed_reproduction": {
+    "scope": "The original seed pass benefits from burst reads. The matched comparison uses equivalent SRR-checked depth and color with at most two references per tile in each seed pass. Original two-phase seed-plus-draw timings remain recorded.",
+    "natural_history": [
+      {
+        "workload": "mixed-depth-scissor",
+        "idle_clocks": 0,
+        "start_core_clocks": [
+          1750689,
+          1748841
+        ],
+        "core_clocks": [
+          82494,
+          81814
+        ],
+        "cycle_reduction_percent": 0.8243023735059474,
+        "packet_sha256": "5747daa8ee4a337858b7dd0bfdfe8b888393a515a4e2b2311f6950303ae38404",
+        "wire_bytes": 654,
+        "initial_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "scanout_underflows": 0,
+        "full_oracle_equivalence": true,
+        "natural_sequence_clocks": [
+          755858,
+          753330
+        ],
+        "seed_core_clocks": [
+          673364,
+          671516
+        ]
+      },
+      {
+        "workload": "mixed-depth-scissor",
+        "idle_clocks": 700000,
+        "start_core_clocks": [
+          2450689,
+          2448841
+        ],
+        "core_clocks": [
+          62050,
+          62040
+        ],
+        "cycle_reduction_percent": 0.016116035455282507,
+        "packet_sha256": "5747daa8ee4a337858b7dd0bfdfe8b888393a515a4e2b2311f6950303ae38404",
+        "wire_bytes": 654,
+        "initial_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "scanout_underflows": 0,
+        "full_oracle_equivalence": true,
+        "natural_sequence_clocks": [
+          735414,
+          733556
+        ],
+        "seed_core_clocks": [
+          673364,
+          671516
+        ]
+      }
+    ],
+    "source_matched_builds": {
+      "before": {
+        "commit_at_build": "3a468120d5a293fb845893db621c732a5d166b08",
+        "driver_sha256": "5c023aaba1d95e308aedec27da03184b87570b07e8e245c34f09557b30d6c329",
+        "isolated_exe_sha256": "18af37bfd52266190db79758c71c6e7c53b5b3358767e732ed31b8f08e6a2ef2",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "1a844a396c509414308453311a19d77d3ba71d111ec332e1b714e5a20b70023a"
+        },
+        "scenes": [
+          "mixed-depth-scissor"
+        ],
+        "offsets": [
+          0,
+          700000
+        ]
+      },
+      "after": {
+        "commit_at_build": "3a468120d5a293fb845893db621c732a5d166b08",
+        "driver_sha256": "5c023aaba1d95e308aedec27da03184b87570b07e8e245c34f09557b30d6c329",
+        "isolated_exe_sha256": "769c5e04c3d6bf2a5961ae704f3e4001275d7f2f1cbb9f23e9a2a85b60fe655e",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "81165e3f4c1974f3423026f9aa7124d5e65c4c5615a57d91740d6316cc0c890c"
+        },
+        "scenes": [
+          "mixed-depth-scissor"
+        ],
+        "offsets": [
+          0,
+          700000
+        ]
+      }
+    }
+  },
+  "matched_dirty_skip_seed_scope": "Both revisions upload the attachment independently produced by SRR for original A, copy it with COPY_RECT, and reproduce A's depth-discard validity, leaving D24 at the boot value. Both full color attachments and D24 are checked against original A before B. The natural timings remain above.",
+  "reference_burst_profiles": {
+    "standard_cycles_match": true,
+    "workloads": [
+      {
+        "workload": "UI frame (148 rects), clear color and depth",
+        "before": {
+          "case": "UI frame (148 rects), clear color and depth",
+          "cycles": 1522226,
+          "reference_command_clocks": 4679,
+          "reference_data_clocks": 26661,
+          "reference_done_clocks": 1552,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1552,
+          "requested_references": 1552,
+          "record_requests": 1552,
+          "requests_by_word_count": [
+            1552,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "UI frame (148 rects), clear color and depth",
+          "cycles": 1492302,
+          "reference_command_clocks": 1821,
+          "reference_data_clocks": 8037,
+          "reference_done_clocks": 340,
+          "reference_buffer_clocks": 1212,
+          "reference_physical_reads": 494,
+          "requested_references": 1552,
+          "record_requests": 1552,
+          "requests_by_word_count": [
+            80,
+            0,
+            18,
+            49,
+            38,
+            79,
+            50,
+            26,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "pointer-sized update, load color and depth",
+        "before": {
+          "case": "pointer-sized update, load color and depth",
+          "cycles": 22764,
+          "reference_command_clocks": 10,
+          "reference_data_clocks": 22,
+          "reference_done_clocks": 1,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1,
+          "requested_references": 1,
+          "record_requests": 1,
+          "requests_by_word_count": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "pointer-sized update, load color and depth",
+          "cycles": 22626,
+          "reference_command_clocks": 1,
+          "reference_data_clocks": 18,
+          "reference_done_clocks": 1,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1,
+          "requested_references": 1,
+          "record_requests": 1,
+          "requests_by_word_count": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "UI frame (148 rects), clear color, discard depth",
+        "before": {
+          "case": "UI frame (148 rects), clear color, discard depth",
+          "cycles": 927814,
+          "reference_command_clocks": 4671,
+          "reference_data_clocks": 26980,
+          "reference_done_clocks": 1552,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1552,
+          "requested_references": 1552,
+          "record_requests": 1552,
+          "requests_by_word_count": [
+            1552,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "UI frame (148 rects), clear color, discard depth",
+          "cycles": 908406,
+          "reference_command_clocks": 1866,
+          "reference_data_clocks": 8109,
+          "reference_done_clocks": 340,
+          "reference_buffer_clocks": 1212,
+          "reference_physical_reads": 494,
+          "requested_references": 1552,
+          "record_requests": 1552,
+          "requests_by_word_count": [
+            80,
+            0,
+            18,
+            49,
+            38,
+            79,
+            50,
+            26,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "pointer-sized update, load color, discard depth",
+        "before": {
+          "case": "pointer-sized update, load color, discard depth",
+          "cycles": 18358,
+          "reference_command_clocks": 10,
+          "reference_data_clocks": 26,
+          "reference_done_clocks": 1,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1,
+          "requested_references": 1,
+          "record_requests": 1,
+          "requests_by_word_count": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "pointer-sized update, load color, discard depth",
+          "cycles": 15718,
+          "reference_command_clocks": 1,
+          "reference_data_clocks": 18,
+          "reference_done_clocks": 1,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1,
+          "requested_references": 1,
+          "record_requests": 1,
+          "requests_by_word_count": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "showcase scene frame (t=1.2)",
+        "before": {
+          "case": "showcase scene frame (t=1.2)",
+          "cycles": 3269606,
+          "reference_command_clocks": 5185,
+          "reference_data_clocks": 27396,
+          "reference_done_clocks": 1517,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1517,
+          "requested_references": 1517,
+          "record_requests": 1517,
+          "requests_by_word_count": [
+            1517,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "showcase scene frame (t=1.2)",
+          "cycles": 3250010,
+          "reference_command_clocks": 2099,
+          "reference_data_clocks": 8097,
+          "reference_done_clocks": 333,
+          "reference_buffer_clocks": 1184,
+          "reference_physical_reads": 486,
+          "requested_references": 1517,
+          "record_requests": 1517,
+          "requests_by_word_count": [
+            95,
+            0,
+            42,
+            40,
+            66,
+            16,
+            15,
+            12,
+            17,
+            7,
+            12,
+            2,
+            4,
+            1,
+            0,
+            4
+          ]
+        }
+      },
+      {
+        "workload": "overdraw scene frame (t=1.2)",
+        "before": {
+          "case": "overdraw scene frame (t=1.2)",
+          "cycles": 4397990,
+          "reference_command_clocks": 8184,
+          "reference_data_clocks": 54442,
+          "reference_done_clocks": 3126,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 3126,
+          "requested_references": 3126,
+          "record_requests": 3126,
+          "requests_by_word_count": [
+            3126,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "overdraw scene frame (t=1.2)",
+          "cycles": 4302330,
+          "reference_command_clocks": 1952,
+          "reference_data_clocks": 10729,
+          "reference_done_clocks": 399,
+          "reference_buffer_clocks": 2727,
+          "reference_physical_reads": 738,
+          "requested_references": 3126,
+          "record_requests": 3126,
+          "requests_by_word_count": [
+            114,
+            6,
+            32,
+            24,
+            10,
+            7,
+            6,
+            21,
+            15,
+            13,
+            2,
+            9,
+            30,
+            19,
+            1,
+            90
+          ]
+        }
+      },
+      {
+        "workload": "icosahedron frame, full clear (SDK flags 7)",
+        "before": {
+          "case": "icosahedron frame, full clear (SDK flags 7)",
+          "cycles": 436932,
+          "reference_command_clocks": 575,
+          "reference_data_clocks": 3098,
+          "reference_done_clocks": 170,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 170,
+          "requested_references": 170,
+          "record_requests": 170,
+          "requests_by_word_count": [
+            170,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "icosahedron frame, full clear (SDK flags 7)",
+          "cycles": 434866,
+          "reference_command_clocks": 420,
+          "reference_data_clocks": 1807,
+          "reference_done_clocks": 89,
+          "reference_buffer_clocks": 81,
+          "reference_physical_reads": 99,
+          "requested_references": 170,
+          "record_requests": 170,
+          "requests_by_word_count": [
+            55,
+            0,
+            23,
+            9,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": {
+          "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+          "cycles": 194798,
+          "reference_command_clocks": 607,
+          "reference_data_clocks": 3088,
+          "reference_done_clocks": 177,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 177,
+          "requested_references": 177,
+          "record_requests": 177,
+          "requests_by_word_count": [
+            177,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+          "cycles": 200972,
+          "reference_command_clocks": 399,
+          "reference_data_clocks": 1883,
+          "reference_done_clocks": 92,
+          "reference_buffer_clocks": 85,
+          "reference_physical_reads": 105,
+          "requested_references": 177,
+          "record_requests": 177,
+          "requests_by_word_count": [
+            58,
+            0,
+            23,
+            6,
+            4,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": {
+          "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+          "cycles": 6097758,
+          "reference_command_clocks": 28754,
+          "reference_data_clocks": 213870,
+          "reference_done_clocks": 12950,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 12950,
+          "requested_references": 12950,
+          "record_requests": 12950,
+          "requests_by_word_count": [
+            12950,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+          "cycles": 5912518,
+          "reference_command_clocks": 4056,
+          "reference_data_clocks": 31399,
+          "reference_done_clocks": 950,
+          "reference_buffer_clocks": 12000,
+          "reference_physical_reads": 2474,
+          "requested_references": 12950,
+          "record_requests": 12950,
+          "requests_by_word_count": [
+            21,
+            16,
+            16,
+            17,
+            18,
+            19,
+            23,
+            23,
+            16,
+            24,
+            21,
+            16,
+            14,
+            15,
+            23,
+            668
+          ]
+        }
+      },
+      {
+        "workload": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": {
+          "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+          "cycles": 5855922,
+          "reference_command_clocks": 61994,
+          "reference_data_clocks": 307882,
+          "reference_done_clocks": 17541,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 17541,
+          "requested_references": 17541,
+          "record_requests": 17541,
+          "requests_by_word_count": [
+            17541,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+          "cycles": 5550450,
+          "reference_command_clocks": 5328,
+          "reference_data_clocks": 40675,
+          "reference_done_clocks": 1235,
+          "reference_buffer_clocks": 16306,
+          "reference_physical_reads": 3283,
+          "requested_references": 17541,
+          "record_requests": 17541,
+          "requests_by_word_count": [
+            20,
+            19,
+            22,
+            16,
+            18,
+            13,
+            23,
+            15,
+            25,
+            7,
+            21,
+            18,
+            20,
+            20,
+            26,
+            952
+          ]
+        }
+      },
+      {
+        "workload": "icosahedron, flat kind-4 records with GPU culling",
+        "before": {
+          "case": "icosahedron, flat kind-4 records with GPU culling",
+          "cycles": 425662,
+          "reference_command_clocks": 1240,
+          "reference_data_clocks": 6194,
+          "reference_done_clocks": 340,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 340,
+          "requested_references": 340,
+          "record_requests": 340,
+          "requests_by_word_count": [
+            340,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "icosahedron, flat kind-4 records with GPU culling",
+          "cycles": 420308,
+          "reference_command_clocks": 499,
+          "reference_data_clocks": 1999,
+          "reference_done_clocks": 90,
+          "reference_buffer_clocks": 250,
+          "reference_physical_reads": 112,
+          "requested_references": 340,
+          "record_requests": 340,
+          "requests_by_word_count": [
+            38,
+            0,
+            0,
+            18,
+            0,
+            23,
+            0,
+            9,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "workload": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": {
+          "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+          "cycles": 876824,
+          "reference_command_clocks": 3313,
+          "reference_data_clocks": 20090,
+          "reference_done_clocks": 1171,
+          "reference_buffer_clocks": 0,
+          "reference_physical_reads": 1171,
+          "requested_references": 1171,
+          "record_requests": 1171,
+          "requests_by_word_count": [
+            1171,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+          "cycles": 866740,
+          "reference_command_clocks": 1306,
+          "reference_data_clocks": 6354,
+          "reference_done_clocks": 278,
+          "reference_buffer_clocks": 893,
+          "reference_physical_reads": 390,
+          "requested_references": 1171,
+          "record_requests": 1171,
+          "requests_by_word_count": [
+            111,
+            0,
+            45,
+            17,
+            11,
+            16,
+            11,
+            25,
+            12,
+            14,
+            11,
+            5,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    ],
+    "input_hashes": {
+      "before": {
+        "model_build_executable_sha256": "3a5f228170bfe5920866103540c13d24bb85413ce2c031672cc56b3d56a6dbb6",
+        "instrumentation_header_sha256": "5f837c3fbf0ac740018f18ea284f8b82e7ff18cadc8cc87047fe1204399d022d",
+        "simulator_source_sha256": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+        "generated_source_sha256": "144f27a6eda394da4e0a33ba50f113c17160bea3a353de80e1f6c56f488e5619",
+        "profiler_executable_sha256": "8eb3148275a61ba6eddf8de27eee97a3bc9af76ec4db8e60ead699d5d7abbcf0",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "1a844a396c509414308453311a19d77d3ba71d111ec332e1b714e5a20b70023a"
+        },
+        "counter_report_sha256": "616ae479f6cbd891479c04ebf9a0c7e342eb06b970172d8aad840843b8645866",
+        "benchmark_report_sha256": "bba0be6f4a6f2331ef9de7cf24eb666f6b031067e8991c2dd32f5bb0127c76ce"
+      },
+      "after": {
+        "model_build_executable_sha256": "35e477777e7dc93a0351ca4a943a2d7092d2120ef35330aaa4c38b7d48a3934b",
+        "instrumentation_header_sha256": "5f837c3fbf0ac740018f18ea284f8b82e7ff18cadc8cc87047fe1204399d022d",
+        "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+        "generated_source_sha256": "9eaf461209ea63cbc38de687ea88e693cb34963e9bbcc4aed65b42a1bb52dcb5",
+        "profiler_executable_sha256": "d22cad823f1e61ef5659e37b09f3ca74d9cac37c82a60569909b8d41468d54a1",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "81165e3f4c1974f3423026f9aa7124d5e65c4c5615a57d91740d6316cc0c890c"
+        },
+        "counter_report_sha256": "f449f213e6701c2bc6cf8df83369625f2d309fd26c804da284076896ef0e6f1a",
+        "benchmark_report_sha256": "935afe83fcc7a0119ad958a65b5fb26b6800e45d83eb399739f26254fa7207f3"
+      }
+    }
+  },
+  "rejected_variant": {
+    "core_sha256": "4023b67b621c4aaef0d36701dbb159f10014e6b38e3a1db1741896f4c76816cc",
+    "two_reference_list_cycles": {
+      "first_use_stress_idle_0": [
+        1022598,
+        1023068
+      ],
+      "resident_stress_idle_700000": [
+        999880,
+        999996
+      ]
+    },
+    "analysis": "Both passes had sixteen exactly-two-reference tiles. The shorter reference time shifted the phase of later SDRAM activity and cache stalls. The selected shared sequencer reads one word per request for lists shorter than three references."
+  },
+  "validation": {
+    "legal_list_lengths": [
+      1,
+      2,
+      7,
+      8,
+      9,
+      15,
+      16,
+      17,
+      31,
+      32,
+      513
+    ],
+    "boundary_arithmetic_cases": 3145681,
+    "maximum_supported_reference_count": 1048576,
+    "commands_log_sha256": "f4092df1b70b55aa33bace0ae393f0c97826df8a64001dd0ec069aa175d0e871",
+    "native_recovery_report_sha256": "4c008b2a69ea2b4896bbf91608d6ce952903245494bb421dd4c82756bfd8b227",
+    "recovery_assertions": 2516,
+    "reference_host_log_sha256": "31efa8d66ef17241e561c6683a10a4c894eb3220cc992e3bd67d35ea7f6e9e9e",
+    "reference_host_python_suite": {
+      "passed": true,
+      "tests": 133,
+      "skipped": 1
+    },
+    "docs_examples": "Passed",
+    "baseline_functional_sha256": "43b8e2078c22fbb9c876325b652262adb8d1d822ff7351502b65b121d25a6cc6"
+  },
+  "whole_board": {
+    "selected": "v1908",
+    "place_route_options": [
+      0,
+      2
+    ],
+    "functional": "docs/hardware/tang20k-reference-burst-functional.json",
+    "reports": [
+      "docs/hardware/tang20k-reference-burst-v1908.json",
+      "docs/hardware/tang20k-reference-burst-v1911.json"
+    ],
+    "structure_and_checksum_scope": "Retained with local Gowin images. Repository programming file belongs to the earlier release."
+  },
+  "model_builds": {
+    "before": {
+      "commit_at_build": "3a468120d5a293fb845893db621c732a5d166b08",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "3a5f228170bfe5920866103540c13d24bb85413ce2c031672cc56b3d56a6dbb6",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "8993935d29190e1a58b53644c5e7cbcfe0ff30803bdf4a146d1204151a074e78",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "328bcdb7a5ad067c1110de2bc6be833eae6618c7531aa9921f37cdd6d028a09f",
+      "isolated_exe_sha256": "9c3162b018ba131285bb1d02706cfc1d58cadca065ceceb9438efdc6439a18a4",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "1a844a396c509414308453311a19d77d3ba71d111ec332e1b714e5a20b70023a"
+      },
+      "scenes": [
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "copy",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    },
+    "after": {
+      "commit_at_build": "3a468120d5a293fb845893db621c732a5d166b08",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "35e477777e7dc93a0351ca4a943a2d7092d2120ef35330aaa4c38b7d48a3934b",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "8b57f7c21ada9d60a6f35a28a3e7d4eb170d8606e04b2908ce21f5ce64835f2e",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "328bcdb7a5ad067c1110de2bc6be833eae6618c7531aa9921f37cdd6d028a09f",
+      "isolated_exe_sha256": "c3355f6790cde170a9a0f76330a10e6c5a13e73c30ec6de0c65df07b8d95368d",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "81165e3f4c1974f3423026f9aa7124d5e65c4c5615a57d91740d6316cc0c890c"
+      },
+      "scenes": [
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "copy",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    }
+  },
+  "measurement_source_sha256": {
+    "reference-burst-matched.cpp": "328bcdb7a5ad067c1110de2bc6be833eae6618c7531aa9921f37cdd6d028a09f",
+    "run-reference-burst-matched.py": "f3dd7a0c13a901dd163d54d2194960726c93c1c059b8459f0a04fa3c68fb39a7",
+    "reference-burst-stats.hpp": "5f837c3fbf0ac740018f18ea284f8b82e7ff18cadc8cc87047fe1204399d022d",
+    "run-reference-profile.py": "b1a017bc457e2b411ddbcb3afcdbec41fa1daeb9e91d8b210901e51a7954b424",
+    "compare-reference-burst-final.py": "327d34d5159b52202b97663ad35bf2dac3dc4d61fd8592b6569d38efc19c857c",
+    "reference-burst-depth-seed.cpp": "5c023aaba1d95e308aedec27da03184b87570b07e8e245c34f09557b30d6c329",
+    "run-reference-burst-depth-seed.py": "aa0185e4cab3cdd321d94ccec7b6db55f4b5c6986450f1d495429f7280433868"
+  }
+}

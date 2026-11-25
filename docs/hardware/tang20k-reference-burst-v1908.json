@@ -1,0 +1,203 @@
+{
+  "schema": "N20K-TANG20K-BOARD-2",
+  "device": "GW2AR-LV18QN88C8/I7",
+  "top": "tang20k_top",
+  "toolchain": "Gowin EDA (gw_sh) V1.9.8.11 Education",
+  "gowin_shell": "C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe",
+  "toolchain_signature": null,
+  "source_sha256": {
+    "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+    "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_gpu_core.sv": "8b57f7c21ada9d60a6f35a28a3e7d4eb170d8606e04b2908ce21f5ce64835f2e",
+    "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+    "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+    "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+    "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+    "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+    "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+    "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+    "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+    "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+    "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+    "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+    "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+    "rtl/board/tang20k_top.sv": "5994ec8b8b662d9e48fbd0dee0f8c73244e61acefdb086cf2d78afa7c9ae4e04",
+    "rtl/board/tang20k.cst": "e7823b811c12a5b7084bc6e6ffae1a2bcd8bf345766c144d0c97947164818722",
+    "scripts/build-tang20k.py": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
+    "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
+  },
+  "place_option": 0,
+  "route_option": 2,
+  "profile": "gpu-video-50mhz",
+  "core_mhz": 50.4,
+  "pixel_mhz": 25.2,
+  "serial_mhz": 126.0,
+  "host_max_mhz": 25.2,
+  "command_player": false,
+  "hardware_tested": false,
+  "external_io_timing_measured": false,
+  "upload_ready": true,
+  "agents_exception": "AGENTS.md addenda 2026-11-07 and 2026-11-13: the SiP SDRAM connection cannot be checked from an encrypted Gowin netlist (see netlist_encrypted); the user keeps the toolchain whose image reaches the faster clock.",
+  "sip_pins_verified": false,
+  "timing_scope": "Gowin static timing on its own placement; external SDRAM/parallel-bus margins require hardware measurement",
+  "functional_report_sha256": "d063298b4f9221975652cb44634ca62f40c7edef47037a53db203daef81ad47d",
+  "gowin_returncode": 0,
+  "synthesized": true,
+  "placed": true,
+  "routed": true,
+  "netlist_encrypted": true,
+  "package_pins_checked": 26,
+  "package_pins_verified": true,
+  "pin_mismatches": [],
+  "fmax": {
+    "clk27": {
+      "constraint_mhz": 27.0,
+      "achieved_mhz": 416.623
+    },
+    "gpu_hclk": {
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 30.513
+    },
+    "core_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 50.4,
+      "achieved_mhz": 59.408
+    },
+    "pixel_div/CLKOUT.default_gen_clk": {
+      "constraint_mhz": 25.2,
+      "achieved_mhz": 183.346
+    }
+  },
+  "violations_listed": [
+    {
+      "slack_ns": -3.875,
+      "from": "poweron_6_s0/Q",
+      "to": "core_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -3.875,
+      "from": "poweron_6_s0/Q",
+      "to": "core_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -2.3,
+      "from": "poweron_6_s0/Q",
+      "to": "pixel_reset_pipe_0_s0/PRESET"
+    },
+    {
+      "slack_ns": -2.3,
+      "from": "poweron_6_s0/Q",
+      "to": "pixel_reset_pipe_1_s0/PRESET"
+    },
+    {
+      "slack_ns": -0.546,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[0].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.546,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[1].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.546,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[2].serializer/serializer/RESET"
+    },
+    {
+      "slack_ns": -0.546,
+      "from": "pixel_reset_pipe_1_s0/Q",
+      "to": "video/lanes[3].serializer/serializer/RESET"
+    }
+  ],
+  "violations_unexpected": [],
+  "violated_endpoint_counts": {
+    "setup": 4,
+    "hold": 4
+  },
+  "timing_passed": true,
+  "resources": {
+    "Logic": "19087/20736  93%",
+    "Register": "7478/15915  47%",
+    "I/O Port": "26",
+    "BSRAM": "100%",
+    "DSP": "63%",
+    "PLL": "1/2(50%)",
+    "CLKDIV": "2/8(25%)"
+  },
+  "inputs_changed": [],
+  "bitstream_generated": true,
+  "bitstream_sha256": "01a27efa120c8c28264f8d6d8487b6c08f34a967c0aae0e6fa1f4308f9685517",
+  "bitstream_bytes": 7264137,
+  "uncommitted_build_inputs": {
+    "scripts/build-tang20k.py": {
+      "built_sha256": "3afee4334287b567e0c008b7184840122b99f69f3e9c79adfe7e0a82b26aed40",
+      "committed_sha256": "dc4026603149e84fc47354a53050d905bccbd0e121d9e03e4214b526dd80f49a",
+      "difference": "Preserved pre-existing, separately owned uncommitted builder adds 4 ns maximum input/output delays on the falling host-clock edge. It is deliberately not included in this optimization commit. Clean checkout alone does not reproduce this local qualification input set."
+    }
+  },
+  "publication_scope": "Local current 0.3 board attempt. Repository programming file belongs to an earlier published release.",
+  "gowin_executable_sha256": "9c743cad15b741301fa1ec0309111f68607db03139f8c326e45dea0ae827f298",
+  "physical_implementation_warnings": [
+    "WARN  (CT1019) : Buf('lanes[0].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[1].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[2].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (CT1019) : Buf('lanes[3].output_buffer') IO type is 'LVDS25', but bank vccio is '3.3'",
+    "WARN  (PR1014) : Generic routing resource will be used to clock signal 'clk27_d' by the specified constraint. And then it may lead to the excessive delay or skew"
+  ],
+  "physical_implementation_errors": [],
+  "required_clock_violated_endpoints": {
+    "clk27": {
+      "setup": 0,
+      "hold": 0
+    },
+    "gpu_hclk": {
+      "setup": 0,
+      "hold": 0
+    },
+    "core_div/CLKOUT.default_gen_clk": {
+      "setup": 0,
+      "hold": 0
+    },
+    "pixel_div/CLKOUT.default_gen_clk": {
+      "setup": 0,
+      "hold": 0
+    }
+  },
+  "local_host_pad_evidence": {
+    "constraints_sha256": "c7a03d77fe4fd0095dd2310988d83a0c9e99e7d37a43788e8acd415873434f9b",
+    "timing_report_sha256": "77c7ec2404903ed204aabad2657160ea3f869ed70c70fc867b3d2bc7a6a56b9f",
+    "active_pad_constraints": [
+      "TC_INPUT_DELAY     Actived   set_input_delay -clock gpu_hclk -clock_fall -max 4.0 [get_ports {gpu_d[*] gpu_ale_n gpu_wr_n gpu_rd_n}]",
+      "TC_OUTPUT_DELAY    Actived   set_output_delay -clock gpu_hclk -clock_fall -max 4.0 [get_ports {gpu_d[*] gpu_rvalid gpu_wready}]"
+    ],
+    "host_violated_endpoints": {
+      "setup": 0,
+      "hold": 0
+    },
+    "listed_strobe_capture_paths": 1,
+    "minimum_listed_strobe_capture_setup_slack_ns": 3.455,
+    "scope": "Gowin static timing with the existing 4 ns pad allowances. External electrical margins remain unmeasured."
+  },
+  "bsram_blocks": {
+    "used": 46,
+    "available": 46
+  },
+  "bitstream_structure": {
+    "schema": "N20K-BITSTREAM-READCHECK-1",
+    "bitstream_sha256": "01a27efa120c8c28264f8d6d8487b6c08f34a967c0aae0e6fa1f4308f9685517",
+    "device_id": "0x0000081b",
+    "frame_crcs_verified": true,
+    "declared_frames": 2110,
+    "bitmap_rows": 2110,
+    "bitmap_columns": 3376,
+    "hardware_tested": false,
+    "generator": "Gowin EDA (gw_sh) V1.9.8.11 Education",
+    "verifier": "Apicula bslib.read_bitstream from the pinned OSS CAD Suite",
+    "scope": "Programming-file structure only"
+  }
+}

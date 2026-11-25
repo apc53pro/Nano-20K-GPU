@@ -47,7 +47,7 @@ module nano_gpu_core #(
         S_DESC_CMD=14, S_DESC_DATA=15, S_DESC_DONE=16,
         S_ENTRY_CMD=17, S_ENTRY_DATA=18, S_ENTRY_DONE=19,
         S_TILE_INIT=20, S_LOAD_CMD=21, S_LOAD_DATA=22, S_LOAD_DONE=23,
-        S_PASS_DRAIN=24,
+        S_PASS_DRAIN=24, S_REF_BUFFER=25,
         S_REF_CMD=28, S_REF_DATA=29, S_REF_DONE=30,
         S_RECORD_CMD=31, S_RECORD_DATA=32, S_RECORD_DONE=33,
         S_DRAW_START=34, S_DRAW_WAIT=35,
@@ -165,7 +165,7 @@ module nano_gpu_core #(
     reg [31:0] record_load_data;
     // Kind-4 vertex-triangle setup (nano_triangle_setup).
     reg setup_started;
-    reg last_reference;                   // registered at S_REF_DATA
+    reg last_reference;
     reg [4:0] record_followup_words;
     reg record_length_bad;
     wire record_is_line=record_load_data[7:0]==8'd2;
@@ -192,6 +192,21 @@ module nano_gpu_core #(
     reg [23:0] clear_depth;
     reg [22:0] table_address, list_address, record_address;
     reg [20:0] reference_count, reference_index, references_seen;
+    wire [20:0] next_reference_index=reference_index+21'd1;
+    wire next_reference_is_last=next_reference_index==reference_count;
+    wire reference_window_end=reference_index[3:0]==4'd15;
+    // A one- or two-reference list keeps individual reads. The small
+    // saving from a two-word window can be lost to memory contention.
+    wire batch_references=(|reference_count[20:2])||(&reference_count[1:0]);
+    // Each batched request starts on a 16-reference boundary in the list.
+    // A different upper count means at least 16 remain. Otherwise the
+    // final request is bounded by the validated count's low nibble.
+    wire [4:0] reference_words=(reference_count[20:4]!=reference_index[20:4]) ?
+        5'd16 : {1'b0,reference_count[3:0]};
+    wire reference_from_buffer=state==S_REF_BUFFER;
+    wire reference_active_word=(state==S_REF_DATA&&mem_r_valid[2]&&beat==0)||reference_from_buffer;
+    wire prefetch_reference=batch_references&&!reference_window_end&&
+        (reference_from_buffer ? !next_reference_is_last : mem_done[2]&&!last_reference);
     reg [4:0] tile_x_index;
     reg [3:0] tile_y_index;
     wire [9:0] tile_origin_x = {tile_x_index,5'b0};
@@ -462,7 +477,10 @@ module nano_gpu_core #(
                 row<=0; beat<=0; store_kind<=0; store_constant<=0;
                 xfer_color<=1; xfer_depth<=!depth_discard; state<=S_STORE_CMD;
             end
-            else begin reference_index<=reference_index+1; state<=S_REF_CMD; end
+            else begin
+                reference_index<=next_reference_index;
+                state<=batch_references&&!reference_window_end ? S_REF_BUFFER : S_REF_CMD;
+            end
         end
     endtask
     // Advance to the next enabled burst of a tile attachment transfer.
@@ -623,13 +641,25 @@ module nano_gpu_core #(
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=table_address+{11'd0,tile_index,3'b0}; mem_cmd_words[10 +:5]=2;
         end
         S_REF_CMD: begin
-            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=list_address+{reference_index,2'b0}; mem_cmd_words[10 +:5]=1;
+            mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=list_address+{reference_index,2'b0};
+            mem_cmd_words[10 +:5]=batch_references ? reference_words : 5'd1;
+        end
+        S_REF_DATA: begin
+            mem_r_ready[2]=1;
+            copy_ram_we=mem_r_valid[2]&&beat!=0&&!reset&&!fault_pending&&!abort_pending&&!foreground_quiet;
+            copy_ram_waddr={5'd0,beat}; copy_ram_wdata=mem_r_data[64 +:32];
+        end
+        S_REF_DONE,S_REF_BUFFER: begin
+            // Prefetch one held pointer for the next draw. The first was
+            // consumed on arrival, so a singleton takes the same path.
+            copy_ram_re=prefetch_reference&&!fault_pending&&!abort_pending&&!foreground_quiet;
+            copy_ram_raddr={5'd0,next_reference_index[3:0]};
         end
         S_RECORD_CMD: begin
             mem_cmd_valid[2]=1; mem_cmd_addr[46 +:23]=record_address+{14'd0,record_word,2'b0};
             mem_cmd_words[10 +:5]=record_word==0 ? 5'd16 : record_followup_words;
         end
-        S_DESC_DATA,S_ENTRY_DATA,S_REF_DATA: mem_r_ready[2]=1;
+        S_DESC_DATA,S_ENTRY_DATA: mem_r_ready[2]=1;
         S_RECORD_DATA: mem_r_ready[2]=1;
         S_TILE_INIT: begin
             tile_pix_we={clear_depth_enable,clear_color_enable};
@@ -722,6 +752,8 @@ module nano_gpu_core #(
         end
     end
 
+    wire [31:0] active_reference_pointer=reference_from_buffer ? copy_ram_rdata : mem_r_data[64 +:32];
+
     // This word stage is always drained by the idle renderer while fetching a
     // primitive. Recovery cancels its valid bit and suppresses its write port,
     // so a word accepted on the abort/fault edge cannot leak into a later draw.
@@ -784,7 +816,7 @@ module nano_gpu_core #(
             clear_back_addr<=tile_pix_raddr; clear_back_we<={clear_back_depth,clear_back_color};
             clear_back_pair<=store_kind==0;
             // Classify the first registered record word while the rest of
-            // the first burst arrives. S_REF_DATA already checks alignment
+            // the first burst arrives. Consuming the reference checks alignment
             // and the first 64 bytes, so only the upper bound remains here.
             if(record_load_valid && record_load_index==0) begin
                 record_followup_words<=record_is_line ? 5'd6 : (record_is_rect_or_sprite ? 5'd4 : 5'd16);
@@ -811,6 +843,13 @@ module nano_gpu_core #(
             if(fault_pending || (abort_pending && !tile_busy)) foreground_quiet<=1;
             if(!abort_pending && state!=S_RECOVER && !host_abort && ((|mem_error) || host_fault!=0 || tile_fault || tex_fault))
                 raise_fault(host_fault!=0 ? 8'd1 : ((|mem_error) ? 8'd8 : 8'd6));
+            if(reference_active_word&&!abort_pending&&!fault_pending&&!foreground_quiet)begin
+                // Validate the full pointer only when it becomes the next
+                // reference. An earlier draw or setup can fault before it.
+                record_address<=active_reference_pointer[22:0];
+                if(!valid_heap(active_reference_pointer,33'd64,1)) raise_fault(3);
+                last_reference<=next_reference_is_last;
+            end
             if(abort_pending && !tile_busy && foreground_quiet && pending_memory[5:1]==0) begin
                 state<=S_RECOVER; renderer_reset<=1; host_abort<=1;
                 abort_pending<=0; fault_pending<=0; fault_code<=0;
@@ -1129,16 +1168,13 @@ module nano_gpu_core #(
                     if(xfer_last) state<=S_REF_CMD;
                     else begin next_transfer(); state<=S_LOAD_CMD; end
                 end
-                S_REF_CMD: if(mem_cmd_ready[2]) state<=S_REF_DATA;
+                S_REF_CMD: if(mem_cmd_ready[2]) begin beat<=0; state<=S_REF_DATA; end
                 S_REF_DATA: if(mem_r_valid[2]) begin
-                    record_address<=mem_r_data[64 +:23];
-                    // Every record starts with a 64-byte burst. Its remaining
-                    // size is checked once the first word identifies its kind.
-                    if(!valid_heap(mem_r_data[64 +:32],33'd64,1)) raise_fault(3);
-                    last_reference<=reference_index+1==reference_count;
-                    state<=S_REF_DONE;
+                    beat<=beat+1;
+                    if(mem_r_last[2]) state<=S_REF_DONE;
                 end
                 S_REF_DONE: if(mem_done[2]) begin record_word<=0; state<=S_RECORD_CMD; end
+                S_REF_BUFFER: begin record_word<=0; state<=S_RECORD_CMD; end
                 S_RECORD_CMD: if(mem_cmd_ready[2]) begin beat<=0; state<=S_RECORD_DATA; end
                 S_RECORD_DATA: if(mem_r_valid[2]) begin beat<=beat+1; if(mem_r_last[2]) state<=S_RECORD_DONE; end
                 S_RECORD_DONE: if(mem_done[2]) begin

@@ -323,6 +323,7 @@ void self_test(Simulation& simulation) {
             hw::read_u32(caps, 80) == 640 && hw::read_u32(caps, 84) == 480, "capability reply");
     const auto status = simulation.command(hw::Opcode::GetStatus, sequence++);
     require(status.size() == 92 && hw::read_u32(status, 30) == 1, "initial coherent status epoch");
+    auto expected_epoch = hw::read_u32(status, 30);
 
     const auto upload = [&](std::uint32_t address, const std::vector<std::uint8_t>& bytes) {
         for (std::size_t cursor = 0; cursor < bytes.size(); cursor += hw::maximum_upload_decoded_bytes) {
@@ -377,6 +378,120 @@ void self_test(Simulation& simulation) {
             "encoded tail padding preserves neighboring byte guards");
 
     Renderer oracle;
+    // Exercise raw list extents independently of the normal pass compiler.
+    // The last list ends at the exact SDRAM limit and continues beyond the
+    // size of the shared row RAM. An empty tile separates two live lists.
+    {
+        const auto table_address = heap + 0x4000;
+        const auto descriptor_address = heap + 0x5000;
+        constexpr unsigned long_list_size = 513;
+        const auto last_list = hw::memory_bytes - 4 * long_list_size;
+        const std::array<unsigned, 11> lengths{1, 2, 7, 8, 9, 15, 16, 17, 31, 32, long_list_size};
+        hw::PassDescriptor descriptor;
+        descriptor.tile_table_address = table_address;
+        descriptor.clear_color = 0x24d3;
+        upload(descriptor_address, hw::encode_pass_descriptor(descriptor));
+        std::vector<std::uint8_t> table(300 * 8, 0);
+        Pass ordered;
+        ordered.clear_color = descriptor.clear_color;
+        for (unsigned group = 0; group < lengths.size(); ++group) {
+            const auto tile = group + (group != 0);
+            const auto x = static_cast<int>(tile * 32);
+            const auto list_address = group + 1 == lengths.size()
+                ? last_list : heap + 0x2000 + group * 0x100 + (group % 8) * 4;
+            const auto record_base = heap + group * 0x200;
+            std::array<Primitive, 3> records{
+                Rect{{x + 1, 1, x + 18, 5}, overlay_state({240, 15, 31}), 0x2a7},
+                Line{{x + 2, 2}, {x + 16, 2}, overlay_state({15, 220, 59}), 0x2a7},
+                Rect{{x + 8, 2, x + 22, 6}, overlay_state({29, 53, 246}), 0x3b8},
+            };
+            for (unsigned i = 0; i < records.size(); ++i) {
+                auto configure_depth = [i](auto& draw) {
+                    draw.state.depth_write = true;
+                    draw.state.depth_test = i != 0;
+                    draw.state.depth_func = i == 1 ? DepthFunc::LessEqual : DepthFunc::Less;
+                };
+                if (auto* rect = std::get_if<Rect>(&records[i])) configure_depth(*rect);
+                else configure_depth(std::get<Line>(records[i]));
+                upload(record_base + 128 * i, hw::encode_primitive(records[i]));
+            }
+            std::vector<std::uint8_t> list(lengths[group] * 4);
+            if (lengths[group] == long_list_size) {
+                // Give each entry its own visible pixel and D24 value so a
+                // lost or repeated word cannot be hidden by later overlaps.
+                const auto unique_base = heap + 0x10000;
+                std::vector<std::uint8_t> unique_records;
+                for (unsigned i = 0; i < lengths[group]; ++i) {
+                    const int px = x + static_cast<int>(i % 32), py = static_cast<int>(i / 32);
+                    auto draw = Rect{{px, py, px + 1, py + 1}, overlay_state({39, 87, 201}), 1000 + i};
+                    draw.state.depth_write = true;
+                    hw::write_u32(list, 4 * i, unique_base + static_cast<std::uint32_t>(unique_records.size()));
+                    const auto record = hw::encode_primitive(draw);
+                    unique_records.insert(unique_records.end(), record.begin(), record.end());
+                    ordered.primitives.push_back(draw);
+                }
+                upload(unique_base, unique_records);
+            } else {
+                for (unsigned i = 0; i < lengths[group]; ++i) {
+                    const auto record = i % records.size();
+                    hw::write_u32(list, 4 * i, record_base + 128 * static_cast<unsigned>(record));
+                    ordered.primitives.push_back(records[record]);
+                }
+            }
+            upload(list_address, list);
+            hw::write_u32(table, 8 * tile, list_address);
+            hw::write_u32(table, 8 * tile + 4, lengths[group]);
+        }
+        upload(table_address, table);
+        std::vector<std::uint8_t> submit(4), fence(4);
+        hw::write_u32(submit, 0, descriptor_address);
+        hw::write_u32(fence, 0, 0x6b98);
+        simulation.send(hw::encode_packet(hw::Opcode::SubmitPass, sequence++, submit));
+        const auto reply = simulation.command(hw::Opcode::Fence, sequence++, fence);
+        require(hw::read_u32(reply, 24) == 0x6b98, "ordered reference list fence");
+        oracle.render(ordered, RenderMode::Monolithic);
+        simulation.compare(oracle);
+
+        // Error categories must follow execution order, even within a burst.
+        constexpr unsigned invalid_list_length = 17;
+        const auto invalid_list_address = hw::memory_bytes - 4 * invalid_list_length;
+        std::vector<std::uint8_t> fault_table(300 * 8), list(invalid_list_length * 4);
+        hw::write_u32(fault_table, 0, invalid_list_address);
+        auto bad_record = hw::encode_primitive(ordered.primitives.front());
+        bad_record[1] = 0;
+        const auto bad_record_address = heap + 0x1800;
+        const auto expect_list_fault = [&](unsigned count, unsigned bad_position,
+                                           std::uint32_t pointer, unsigned category, bool invalid_first) {
+            for (unsigned i = 0; i < invalid_list_length; ++i)
+                hw::write_u32(list, 4 * i, heap);
+            if (invalid_first) {
+                upload(bad_record_address, bad_record);
+                hw::write_u32(list, 0, bad_record_address);
+            }
+            hw::write_u32(list, 4 * bad_position, pointer);
+            hw::write_u32(fault_table, 4, count);
+            upload(invalid_list_address, list);
+            upload(table_address, fault_table);
+            (void)simulation.command(hw::Opcode::Fence, sequence++, fence);
+            const auto writes = simulation.memory.statistics().write_commands;
+            simulation.send(hw::encode_packet(hw::Opcode::SubmitPass, sequence++, submit));
+            for (unsigned edge = 0; edge < 15000 && !simulation.dut.fault; ++edge) simulation.tick(false);
+            require(simulation.dut.fault && simulation.dut.fault_code == category, "ordered reference list fault");
+            require(simulation.memory.statistics().write_commands == writes, "faulted first tile is never stored");
+            simulation.recover();
+            sequence = 1;
+            ++expected_epoch;
+            require(hw::read_u32(simulation.command(hw::Opcode::GetCaps, sequence++), 16) == expected_epoch,
+                    "reference list fault advances the recovery epoch");
+        };
+        expect_list_fault(17, 3, heap + 2, 3, false);
+        expect_list_fault(17, 15, hw::memory_bytes + heap, 3, false);
+        expect_list_fault(17, 16, hw::memory_bytes - 60, 3, false);
+        expect_list_fault(17, 15, heap + 2, 6, true);
+        expect_list_fault(18, 16, heap, 7, false);
+        require(simulation.scanout_underflows() == 0, "reference list scanout continuity");
+        std::cout << "11 ordered reference list extents and five ordered faults passed\n";
+    }
     Pass pass; pass.clear_color = 0x18e3;
     pass.primitives.push_back(Rect{{3, 5, 31, 25}, overlay_state({241, 63, 27}), 0});
     // Give clipped/overlapping copies distinguishable source pixels, including
@@ -595,7 +710,8 @@ void self_test(Simulation& simulation) {
     simulation.send(std::vector<std::uint8_t>(partial.begin(), partial.begin() + 9));
     simulation.recover(); sequence = 1;
     const auto recovered = simulation.command(hw::Opcode::GetStatus, sequence++);
-    require(hw::read_u32(recovered, 16) == 2 && hw::read_u32(recovered, 30) == 2,
+    ++expected_epoch;
+    require(hw::read_u32(recovered, 16) == expected_epoch && hw::read_u32(recovered, 30) == expected_epoch,
             "abort increments epoch and restarts host sequencing");
     require(simulation.memory.inspect_word(hw::color_buffer_base(1) + 6 * screen_width * 2) == before,
             "abort preserves external front buffer");
@@ -606,7 +722,8 @@ void self_test(Simulation& simulation) {
     catch (const std::runtime_error&) { if (!simulation.dut.fault) throw; observed_fault = true; }
     require(observed_fault, "malformed packet faults");
     simulation.recover();
-    require(hw::read_u32(simulation.command(hw::Opcode::GetCaps, 1), 16) == 3, "fault recovery epoch");
+    ++expected_epoch;
+    require(hw::read_u32(simulation.command(hw::Opcode::GetCaps, 1), 16) == expected_epoch, "fault recovery epoch");
     pass.target = 0; pass.color_load = LoadOp::Clear; pass.depth_load = LoadOp::Clear;
     pass.clear_color = 0x7bef; pass.primitives.clear();
     program = hw::compile_pass(pass, 2);
@@ -620,7 +737,8 @@ void self_test(Simulation& simulation) {
     require(simulation.dut.busy, "active pass is in flight before abort");
     simulation.recover();
     const auto cancelled = simulation.command(hw::Opcode::GetStatus, 1);
-    if (hw::read_u32(cancelled, 16) != 4 || cancelled.at(43) != 2)
+    ++expected_epoch;
+    if (hw::read_u32(cancelled, 16) != expected_epoch || cancelled.at(43) != 2)
         throw std::runtime_error("RTL self-test: active abort epoch=" + std::to_string(hw::read_u32(cancelled, 16)) +
                                  " validity=" + std::to_string(cancelled.at(43)));
     observed_fault = false;
@@ -1096,7 +1214,7 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
         {4, "IDLE"}, {5, "CAPTURE_REQ"}, {6, "CAPTURE_WAIT"}, {8, "UPLOAD_PREP"}, {9, "UPLOAD_CMD"},
         {10, "UPLOAD_NEXT"}, {11, "UPLOAD_EMIT"}, {12, "UPLOAD_WORD"}, {13, "UPLOAD_DONE"},
         {17, "ENTRY_CMD"}, {18, "ENTRY_DATA"}, {19, "ENTRY_DONE"}, {20, "TILE_INIT"},
-        {21, "LOAD_CMD"}, {22, "LOAD_DATA"}, {23, "LOAD_DONE"}, {28, "REF_CMD"}, {29, "REF_DATA"},
+        {21, "LOAD_CMD"}, {22, "LOAD_DATA"}, {23, "LOAD_DONE"}, {25, "REF_BUFFER"}, {28, "REF_CMD"}, {29, "REF_DATA"},
         {30, "REF_DONE"}, {31, "RECORD_CMD"}, {32, "RECORD_DATA"}, {33, "RECORD_DONE"},
         {34, "DRAW_START"}, {35, "DRAW_WAIT"}, {36, "STORE_CMD"}, {37, "STORE_PREFETCH"},
         {38, "STORE_HIGH"}, {41, "STORE_WORD"}, {42, "STORE_DONE"}, {44, "REPLY"},

@@ -25,11 +25,31 @@ module nano_core_recovery_quiesce_tb;
     reg expected_record_valid=0;
     integer expected_record_index=0;
     reg [31:0] expected_record_data=0;
+    localparam [7:0] REF_CMD=28,REF_DATA=29,RECORD_CMD=31,RECORD_DATA=32,STORE_CMD=36;
+    localparam [22:0] OLD_LIST=23'h25a000,FRESH_LIST=23'h26b000;
+    localparam [31:0] OLD_RECORD=32'h0025a100,FRESH_RECORD=32'h0026b100;
+    integer reference_mode=0,reference_reads=0,reference_beats=0,quiet_reference_beats=0;
+    integer reference_writes=0,fresh_record_reads=0;
+    wire [4:0] physical_word=dut.memory_service.read_buffer_index;
+    wire [31:0] sd_dq_in=reference_mode==0 ? 32'h87654321 :
+        (dut.state==RECORD_DATA ? rectangle_word(dut.record_word+{2'b0,physical_word}) :
+         ((reference_mode==1 ? OLD_RECORD : FRESH_RECORD)+32'd128*physical_word));
+    function automatic [31:0] rectangle_word(input [6:0] word_index);
+        begin
+            case(word_index)
+            0: rectangle_word=32'h00000201; // Version 2 rectangle, no attachment writes.
+            6: rectangle_word=640;
+            7: rectangle_word=480;
+            10,11: rectangle_word=1;
+            default: rectangle_word=0;
+            endcase
+        end
+    endfunction
     nano_gpu_core #(.POWERUP_CYCLES(8),.REFRESH_INTERVAL(1575)) dut(
         .pixel_advance(1'b0), .clk(clk),.reset(reset),.host_clk(host_clk),.abort_request(abort_request),
         .host_wr_valid(1'b0),.host_wr_data(8'd0),.host_wr_ready(),
         .host_rd_req(1'b0),.host_reg_addr(7'd0),.host_rd_data(),.host_rd_valid(),
-        .sd_dq_in(32'h87654321),.sd_clk(sd_clk),.sd_cke(sd_cke),.sd_cs_n(sd_cs_n),
+        .sd_dq_in(sd_dq_in),.sd_clk(sd_clk),.sd_cke(sd_cke),.sd_cs_n(sd_cs_n),
         .sd_ras_n(sd_ras_n),.sd_cas_n(sd_cas_n),.sd_we_n(sd_we_n),
         .sd_ba(sd_ba),.sd_addr(sd_addr),.sd_dq_out(sd_dq_out),.sd_dq_oe(sd_dq_oe),.sd_dqm(sd_dqm),
         .video_rgb565(),.video_hsync(),.video_vsync(),.video_de(),.video_x(),.video_y(),.video_pixel_ce(),
@@ -166,6 +186,64 @@ module nano_core_recovery_quiesce_tb;
             $display("PASS active renderer keeps texture fetches enabled until abort quiescence");
         end
     endtask
+    task start_reference_read(input [22:0] address,input [20:0] count);
+        integer limit;
+        begin
+            @(negedge clk);
+            dut.list_address=address;dut.reference_count=count;dut.reference_index=0;dut.state=REF_CMD;
+            limit=0;
+            while(dut.state==REF_CMD)begin
+                step();limit=limit+1;
+                check(limit<5000,"SDRAM accepts reference window");
+            end
+            check(dut.state==REF_DATA&&dut.pending_memory[2],"accepted reference window remains tracked");
+        end
+    endtask
+    task reference_abort_drain;
+        integer limit,before_reads;
+        begin
+            prepare();
+            reference_mode=1;reference_reads=0;reference_beats=0;quiet_reference_beats=0;
+            reference_writes=0;fresh_record_reads=0;before_reads=physical_reads;
+            start_reference_read(OLD_LIST,21'd8);
+            limit=0;
+            while(reference_beats<2)begin
+                step();limit=limit+1;
+                check(limit<5000,"reference window begins returning useful words");
+            end
+            check(reference_writes==1,"one successor pointer is written before abort");
+            @(negedge clk);abort_request=1;
+            while(!dut.foreground_quiet)begin
+                step();limit=limit+1;
+                check(limit<5000,"list abort enters quiescence");
+            end
+            check(dut.pending_memory[2]&&reference_beats<8,"quiet begins with reference words outstanding");
+            while(dut.pending_memory[2])begin
+                check(!dut.renderer_reset&&!dut.host_abort,"accepted reference window drains before reset");
+                check(!dut.copy_ram_we&&!dut.copy_ram_re,"quiet consumes responses without enabling list RAM");
+                step();limit=limit+1;
+                check(limit<5000,"accepted reference window finishes");
+            end
+            check(reference_reads==1&&reference_beats==8&&quiet_reference_beats>0,
+                  "aborted reference transaction consumed every accepted word and no younger request");
+            check(physical_reads==before_reads+1,"SDRAM issued the accepted BL8 reference read");
+            await_soft_recovery(2);
+
+            reference_mode=2;reference_reads=0;reference_beats=0;reference_writes=0;
+            // Refill the same native RAM slots in the new epoch. All
+            // three records execute through SDRAM and the real renderer.
+            start_reference_read(FRESH_LIST,21'd3);
+            limit=0;
+            while(dut.state!=STORE_CMD)begin
+                step();limit=limit+1;
+                check(!fault&&limit<5000,"fresh reference window renders and reaches the tile store");
+            end
+            check(reference_reads==1&&reference_beats==3&&reference_writes==2&&fresh_record_reads==6,
+                  "one fresh three-word list reads and draws all exact records in order");
+            reference_mode=0;
+            $display("PASS accepted reference burst drains on abort and next epoch renders fresh pointers");
+        end
+    endtask
     task record_boundary_begin;
         begin
             prepare();
@@ -294,6 +372,38 @@ module nano_core_recovery_quiesce_tb;
                 record_words_accepted=record_words_accepted+1;
             end
         end
+        if(reference_mode!=0)begin
+            if(dut.mem_cmd_valid[2]&&dut.mem_cmd_ready[2])begin
+                if(dut.state==REF_CMD)begin
+                    check(dut.mem_cmd_addr[46+:23]==(reference_mode==1?OLD_LIST:FRESH_LIST)&&
+                          dut.mem_cmd_words[10+:5]==(reference_mode==1?5'd8:5'd3),
+                          "reference command uses the requested allocation and exact tail");
+                    reference_reads=reference_reads+1;
+                end else begin
+                    check(reference_mode==2&&dut.state==RECORD_CMD&&fresh_record_reads<6,
+                          "no record request escapes from an aborted list");
+                    check(dut.mem_cmd_addr[46+:23]==23'(FRESH_RECORD+
+                          128*(fresh_record_reads/2)+64*(fresh_record_reads%2))&&
+                          dut.mem_cmd_words[10+:5]==(fresh_record_reads%2==0?5'd16:5'd4),
+                          "fresh pointer order and kind-specific record bursts");
+                    fresh_record_reads=fresh_record_reads+1;
+                end
+            end
+            if(dut.state==REF_DATA&&dut.mem_r_valid[2])begin
+                check(dut.mem_r_ready[2],"reference data can retire under abort");
+                check(dut.mem_r_data[64+:32]==(reference_mode==1?OLD_RECORD:FRESH_RECORD)+128*reference_beats,
+                      "physical service delivers reference words in order");
+                if(dut.foreground_quiet)quiet_reference_beats=quiet_reference_beats+1;
+                if(dut.abort_pending||dut.fault_pending||dut.foreground_quiet)
+                    check(!dut.copy_ram_we&&!dut.copy_ram_re,"abort blocks retaining younger reference data");
+                else if(reference_beats!=0)begin
+                    check(dut.copy_ram_we&&dut.copy_ram_waddr==9'(reference_beats)&&
+                          dut.copy_ram_wdata==dut.mem_r_data[64+:32],"later reference fills the matching native slot");
+                    reference_writes=reference_writes+1;
+                end
+                reference_beats=reference_beats+1;
+            end
+        end
         if(dut.mem_cmd_valid[4]&&dut.mem_cmd_ready[4])texture_accepts=texture_accepts+1;
         if(dut.mem_cmd_valid[1]&&dut.mem_cmd_ready[1])upload_accepts=upload_accepts+1;
         if(dut.mem_w_valid[1]&&dut.mem_w_ready[1])begin
@@ -319,6 +429,7 @@ module nano_core_recovery_quiesce_tb;
         texture_entry_race(1);
         upload_payload_drain();
         active_renderer_abort();
+        reference_abort_drain();
         record_stream(80,0,23'h7ffec0,0);
         $display("PASS eighty record words retain one-edge latency, burst/gap order and final-word-before-launch");
         record_stream(20,1,23'h7fffb0,0);

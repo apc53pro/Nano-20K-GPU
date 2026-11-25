@@ -87,7 +87,7 @@ board, the open-flow GPU image's host address latch failed while the same RTL
 built by the vendor Gowin EDA worked (section 14). The published image
 uses Gowin EDA V1.9.8.11 Education under the exception in `AGENTS.md`.
 Its 2026-11-13 addendum selects the installed version with the fastest
-qualifying route. The current RTL selects signed V1.9.11.03 (section 12).
+qualifying route. The current RTL selects V1.9.8.11 (section 12).
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -502,8 +502,13 @@ For each tile the current executor fetches the tile entry, then:
      the clock that accepts the SDRAM response. Cleared attachments are
      written two pixels at a time (512 clocks) for the pass's
      first tile with draws; see step 4.
-  2. Fetches each reference, then the record's first 16-word burst. A kind-4
-     vertex triangle is set up for this tile from those words (section 6).
+  2. Reads the tile's ordered references in requests of up to 16 consecutive
+     words. Lists of one or two references use one word per request through
+     the same sequencer. Each burst's first reference goes directly to the
+     executor. The shared native COPY row RAM holds the remaining references
+     for sequential consumption. Each active pointer is validated before
+     fetching its record's first 16-word burst. A kind-4 vertex triangle is
+     set up for this tile from those words (section 6).
      The setup can reject a tile without starting the renderer. A prepared
      triangle fetches four more full bursts. Rectangles and sprites follow
      with four words and lines with six. The registered kind selects the
@@ -1047,6 +1052,16 @@ candidate → compare → bound-enable path. That refetch/clipping phase uses
 about **136 core setup clocks** before address walking and pixel traffic,
 while preserving signed-coordinate clipping, including `INT32_MIN`.
 
+Reference reads stop at the validated end of each tile list. The executor
+drains each accepted response before also using the command-fetch port for
+the referenced primitive record. Buffered pointers are validated only as
+their positions reach execution. For example, a malformed later pointer
+faults after its earlier references even if all arrived in a single burst.
+COPY and pass execution use the shared row RAM in separate command lifetimes.
+A fault or abort drains the accepted burst and discards staged references
+before the next pass. The tile table and lists keep their 0.3 layout, limits
+and lifetime rules.
+
 Primitive-record fetches have a one-word pipeline between the SDRAM read port
 and tile command-word decoding: 32 data bits, a seven-bit word index and valid.
 It accepts one word per clock within a burst. The existing record-completion
@@ -1179,7 +1194,7 @@ image uses all 46 of the device's banks, because the scanout FIFO is in use.
 | Shared SDRAM transaction data and byte-write masks | 3 |
 | Display FIFO | 2 |
 | Diagnostic reply staging | 1 |
-| Copy row staging | 1 |
+| COPY row and tile-reference staging | 1 |
 | Host upload chunk staging | 1 |
 | UV payload/context delay rings | 8 |
 | **Total** | **46** |
@@ -1669,6 +1684,29 @@ frame-CRC evidence are retained locally. The published image belongs to
 the earlier release. Encrypted netlists prevent the fixed SiP check.
 The V1.9.8.11 installer provenance remains unverified and external
 electrical margins remain unmeasured.
+
+### Tile reference-burst source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-reference-burst-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-reference-burst-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+The V1.9.8.11 route verified all 26 package pins and passed the core,
+pixel and host-capture timing gates with eight documented reset-release
+paths. V1.9.11.03 failed placement with 35 equivalent LUTs unplaced.
+The board reports record the timing violations and exact local inputs.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 59.408 MHz | 30.513 MHz | 19,087/20,736 | 46/46 | Pass |
+| V1.9.11.03 | Unavailable | Unavailable | 20,246/20,736 | Unavailable | Fail |
+
+The design still runs at 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
+serialization. Both builds used the existing uncommitted 4 ns host-pad
+allowances. The selected local image has a matching checksum, structural
+check and [functional evidence](../docs/hardware/tang20k-reference-burst-functional.json).
+The repository programming file belongs to the earlier release. Encryption
+prevents the netlist check of fixed SDRAM SiP connections. The V1.9.8.11
+toolchain provenance and external electrical margins remain unverified.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -2184,6 +2222,36 @@ are timed together. See the [RTL cycle evidence](../docs/benchmarks/rtl-uncovere
 for per-workload counts and the matched state. These are simulator
 submission-to-fence results at the existing operating clock.
 
+### Batched tile-reference reads (2026-11-25)
+
+The continuous [Verilated board-core benchmark](../docs/benchmarks/rtl-tile-reference-bursts.json)
+falls from 27,253,874 to 26,587,478 clocks through its fences (2.45%) at
+50.4 MHz. All cumulative fences are at least as early. In the two
+400-triangle kind-4 passes, 12,950 and 17,541 individual reads become
+950 and 1,235 logical requests. Their SDRAM BL8 read commands fall
+to 2,474 and 3,283, respectively. Both passes execute all their original
+references and take 3.04% and 5.22% fewer total clocks. The reference fetch
+states, including buffered consumption, shrink from 255,574 and 387,417
+clocks to 48,405 and 63,544.
+
+| Workload | Cycle reduction at two matched starts |
+| --- | ---: |
+| Overdraw | 1.35–1.57% |
+| Opaque | 2.38–2.50% |
+| UI with both attachment stores | 1.46–1.66% |
+| UI with discarded depth | 2.80–3.02% |
+| 2,460 ordered references across 300 tiles | 2.66–2.71% |
+| 300 singleton lists | Identical |
+
+All 54 matched starts improve or tie with independent RGB565 and full
+D24 equivalence and zero scanout underflows. The benchmark includes
+identical first-use uploads where assets are new. In the continuous run,
+the empty color clear with depth discarded and the dirty SKIP frame
+take 3,530 and 6,174 more clocks individually because their start phases
+shift. The separate matched-start cases and the original two-frame SKIP
+sequences are recorded in the benchmark. These are RTL timings through
+the command fence at the operating clock.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -2219,7 +2287,7 @@ make tang20k-test
 make tang20k
 ```
 
-`make tang20k` uses signed Gowin EDA V1.9.11.03 by default (see section 12).
+`make tang20k` uses Gowin EDA V1.9.8.11 by default (see section 12).
 Set `GOWIN_SH` to select another `gw_sh.exe`.
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
