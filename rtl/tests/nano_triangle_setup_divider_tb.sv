@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // Exercise setup through captured kind-4 records and its public word stream.
-// Signed64 division/multiplication supplies an independent arithmetic oracle;
-// no internal divider state or implementation-specific preload is inspected.
+// Signed64 arithmetic supplies an independent public output oracle. A separate
+// internal transition check counts pair clocks and verifies the terminal bit.
 module nano_triangle_setup_divider_tb;
  reg clk=0,reset=0,capture_we=0,start=0;
  reg [6:0]capture_index=0;reg [31:0]capture_data=0;
@@ -14,6 +14,59 @@ module nano_triangle_setup_divider_tb;
  reg signed [63:0]area,nx,ny,gx,gy,seed,sx,sy,wx,wy;
  integer i,e,next_vertex,steps,elapsed,case_id=0,cases=0,reset_cases=0,windings=0;
  integer below_latency,at_latency,zero_latency,reset_offset;
+ integer pair_clocks=0,pair_resets=0,tail_resets=0,traced_divisions=0;
+ reg [3:0] digit_coverage=0,terminal_coverage=0;
+ integer min_pair_clocks=22,max_pair_clocks=0;
+ // Per-edge division uses mathematical quotient and remainder. A saturated
+ // result is already outside signed42; only its schedule and public clamp
+ // are relevant to the output.
+ always @(posedge clk) begin : check_divide_cadence
+  reg [5:0] position;
+  reg [42:0] old_quotient,want_quotient;
+  reg [41:0] old_numerator,want_numerator;
+  reg [28:0] old_remainder;
+  reg [31:0] brought_down,want_remainder,want_digit;
+  if(reset)pair_clocks=0;
+  else if(dut.div_busy)begin
+   position=dut.div_count;
+   if(position>=1&&position<=43)begin
+    old_quotient=dut.quotient;old_numerator=dut.numerator;old_remainder=dut.remainder;
+    if(position==43)begin
+     brought_down=2*{3'd0,dut.remainder}+{31'd0,old_numerator[41]};
+     want_numerator=old_numerator;
+    end else begin
+     brought_down=4*{3'd0,dut.remainder}+{30'd0,old_numerator[41:40]};
+     want_numerator=old_numerator<<2;
+     pair_clocks=pair_clocks+1;
+    end
+    if(!dut.saturate)begin
+     want_digit=brought_down/{3'd0,dut.area};
+     want_remainder=brought_down%{3'd0,dut.area};
+     if(position==43)begin
+      if(want_digit>1)$fatal(1,"terminal quotient digit exceeded one bit");
+      want_quotient={old_quotient[41:0],want_digit[0]};
+      want_remainder={3'd0,old_remainder};
+      terminal_coverage[{dut.step>=36?dut.sign_y:dut.sign_x,want_digit[0]}]=1;
+     end else begin
+      if(want_digit>3)$fatal(1,"paired quotient digit exceeded two bits");
+      want_quotient={old_quotient[40:0],want_digit[1:0]};
+      digit_coverage[want_digit[1:0]]=1;
+     end
+     #1;
+     if(dut.quotient!==want_quotient||dut.remainder!==want_remainder[28:0])
+      $fatal(1,"case%0d exact quotient or remainder changed at bit%0d",case_id,position);
+    end else #1;
+    if(dut.div_count!==position+(position==43?6'd1:6'd2)||dut.numerator!==want_numerator)
+     $fatal(1,"case%0d unexpected divider cadence at bit%0d",case_id,position);
+   end else if(position==44)begin
+    if(pair_clocks!=17&&pair_clocks!=21)
+     $fatal(1,"case%0d completed with %0d paired clocks",case_id,pair_clocks);
+    if(pair_clocks<min_pair_clocks)min_pair_clocks=pair_clocks;
+    if(pair_clocks>max_pair_clocks)max_pair_clocks=pair_clocks;
+    pair_clocks=0;traced_divisions=traced_divisions+1;
+   end
+  end
+ end
  always @(posedge clk)if(!reset&&word_we)begin
   if(word_index>43||word_index>=20&&word_index<26)
    $fatal(1,"unexpected setup output word%0d",word_index);
@@ -66,6 +119,14 @@ module nano_triangle_setup_divider_tb;
      record[4]=(8<<16)|8200;
      record[6]=variant==16?3:0;
      record[7]=variant==16?2:variant-12;
+     record[8]=record[6];
+    end
+    18,19,20,21:begin
+     // Denominators 8191 and 8193 straddle exact half. Exercise just
+     // above and below the rounding threshold in either result sign.
+     record[4]=(8<<16)|(variant[0]?8201:8199);
+     record[6]=variant>=20;
+     record[7]=variant<20;
      record[8]=record[6];
     end
     default:begin
@@ -137,7 +198,7 @@ module nano_triangle_setup_divider_tb;
  end endtask
  initial begin
   reset_control();
-  for(steps=0;steps<18;steps=steps+1)begin
+  for(steps=0;steps<22;steps=steps+1)begin
    make_record(steps,0);load_record();compute_expected();launch();finish_and_compare();
    if(steps==0)zero_latency=elapsed;
    if(steps==5)below_latency=elapsed;
@@ -146,21 +207,40 @@ module nano_triangle_setup_divider_tb;
   // Same ordinary setup/word stream on both sides of a strict threshold:
   // only the obtainable depth numerator changes. A missing fast path would
   // have equal deadlines; truncating the comparison fails exact gradients.
-  if(at_latency<below_latency+8||zero_latency>below_latency)
-   $fatal(1,"ordinary setup did not save at least eight clocks below threshold: zero%0d below%0d at%0d",zero_latency,below_latency,at_latency);
-  for(steps=0;steps<18;steps=steps+1)begin
+  if(at_latency!=below_latency+5||zero_latency>below_latency)
+   $fatal(1,"radix-four high prefix condition did not save five clocks: zero%0d below%0d at%0d",zero_latency,below_latency,at_latency);
+  for(steps=0;steps<22;steps=steps+1)begin
    make_record(steps,1);load_record();compute_expected();launch();finish_and_compare();windings=windings+1;
   end
-  for(reset_offset=0;reset_offset<4;reset_offset=reset_offset+1)begin
+  for(reset_offset=0;reset_offset<5;reset_offset=reset_offset+1)begin
    make_record(11,0);load_record();launch();
-   repeat(20+reset_offset*25)tick();
+   if(reset_offset==0)repeat(20)tick();
+   else begin
+    elapsed=0;
+    // Reset before either a nonzero paired step or the final rounding bit
+    // on both gradients, independent of the surrounding setup latency.
+    while(!done&&elapsed<110&&!(dut.div_busy&&
+          dut.step==(reset_offset<=2?6'd32:6'd37)&&
+          dut.div_count==(reset_offset[0]?6'd11:6'd43)))begin
+     tick();elapsed=elapsed+1;
+    end
+    if(elapsed==110)$fatal(1,"reset test never reached divider checkpoint%0d",reset_offset);
+    if(reset_offset[0])pair_resets=pair_resets+1;
+    else tail_resets=tail_resets+1;
+   end
    if(done)$fatal(1,"reset test unexpectedly completed before interruption");
    reset_control();
    // Only recapture kind/version after reset; all other record fields remain
    // resident. Immediate reuse must not inherit stale quotient or actions.
    write_word(0);compute_expected();launch();finish_and_compare();reset_cases=reset_cases+1;
   end
+  if(digit_coverage!==4'hf||terminal_coverage!==4'hf||pair_resets!=2||tail_resets!=2||
+     min_pair_clocks!=17||max_pair_clocks!=21)
+   $fatal(1,"missing radix-four coverage digits=%h terminal=%h pairs=%0d..%0d",
+       digit_coverage,terminal_coverage,min_pair_clocks,max_pair_clocks);
   $display("PASS triangle divider: records%0d reverse%0d resets%0d zero_edges%0d below_edges%0d threshold_edges%0d",cases,windings,reset_cases,zero_latency,below_latency,at_latency);
+  $display("PASS radix-four cadence: divisions%0d digits%h terminal%h min_pairs%0d max_pairs%0d pair_resets%0d tail_resets%0d",
+      traced_divisions,digit_coverage,terminal_coverage,min_pair_clocks,max_pair_clocks,pair_resets,tail_resets);
   $finish;
  end
 endmodule

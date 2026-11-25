@@ -45,7 +45,7 @@ samples also use those paired attachment ports during rasterization
 word (section 8). Prepared-triangle offsets advance by up to four pixels
 per core clock while preserving exact plane values (section 6). Triangle
 edge initialization takes nine clocks instead of 24, and kind-4 depth setup
-avoids nine divider clocks per eligible gradient (section 6). The
+uses one exact radix-four divider for both gradients (section 6). The
 published programming image and its reports describe the earlier RTL.
 Sections 12 and 13 give the current build and performance evidence at
 the 50.4 MHz operating clock.
@@ -708,13 +708,15 @@ command words, so the tile renderer is unchanged:
 4. **Depth numerators.** Since `A0+A1+A2 = 0`, `Nx = Z0*A1 + Z1*A2 + Z2*A0` and
    `Ny = Z0*B1 + Z1*B2 + Z2*B0` need only three products each and no depth
    subtractors. The divider takes `|Nx|`; `|Ny|` waits in a register.
-5. **Gradients.** One restoring divider runs for each axis in turn. When
-   the high 26 bits of the numerator magnitude are strictly below the
-   area, the first eight quotient bits are zero. The divider loads the
-   remainder and unused dividend bits directly at that point. This skips
-   eight restore clocks and the initial saturation check. The divider
-   follows the full iteration count when the comparison fails, including
-   at equality. Each result is
+5. **Gradients.** One radix-four restoring divider runs for each axis in
+   turn. Each two-bit step brings down two dividend bits, then subtracts
+   the greatest of `0`, `|area|`, `2*|area|` and `3*|area|` that fits.
+   The full path checks saturation, emits 21 pairs and one final rounding
+   bit, then rounds and clamps the result. When the high 26 bits of the
+   numerator magnitude are strictly below `|area|`, the first eight
+   quotient bits are zero. The divider starts from the exact remainder and
+   unused dividend bits after that prefix, bypassing four two-bit steps
+   and the initial check. Equality uses the full path. Each result is
    `|N|*4096/|area|`, rounded half away from zero and saturated at `2^42-1`.
    Its sign is that of `N*area`. Between the two divisions, the X gradient
    words and the seed's X term are formed. Meanwhile the header, window,
@@ -732,11 +734,8 @@ only four sources (coordinate, depth, quotient or 1), and its second operand
 is an edge coefficient, a sample offset or a constant. Each issued step
 carries its accumulator operation down the multiplier pipeline, and a
 follow-up action reads the settled result. A depth-free triangle skips steps
-4–6. A visible depth-tested reference costs up to about 130 setup clocks,
-plus the renderer's own edge setup. Each gradient that starts with eight
-zero quotient bits saves nine clocks, up to 18 per reference. Vertex records
-replace four of the five record bursts and
-the offset walk. Vertex positions use 14/13-bit fields, so X up to 16383 and
+4–6. Vertex records replace four of the five record bursts and the offset
+walk. Vertex positions use 14/13-bit fields, so X up to 16383 and
 Y up to 8191 form a right/bottom guard band; every edge and plane value stays
 in range. An earlier draft with two parallel dividers and a wide operand
 multiplexer needed 98% of the device's logic and could not be routed; the
@@ -1779,6 +1778,27 @@ The committed programming image belongs to an earlier release. Encrypted
 netlists prevent fixed SDRAM SiP verification. V1.9.8.11 provenance and
 external electrical margins remain unverified.
 
+### Radix-four kind-4 setup source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-kind4-radix-four-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-kind4-radix-four-v1911.json)
+built the same complete-board inputs with placement/routing 0/2.
+The selected V1.9.8.11 route verified 26 package pins and passed
+the core, pixel and host-capture timing gates. Both routes passed and each report lists 8 reset-release paths under the existing exceptions.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 56.037 MHz | 32.274 MHz | 19,115/20,736 | 46/46 | Pass |
+| V1.9.11.03 | 50.487 MHz | 25.866 MHz | 20,391/20,736 | 46/46 | Pass |
+
+Operating clocks remain 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
+serialization. Both builds used the existing uncommitted 4 ns host-pad
+constraints. The local image has a matching checksum, frame-CRC check
+and [functional report](../docs/hardware/tang20k-kind4-radix-four-functional.json).
+The repository programming image describes an earlier release. Encrypted
+netlists prevent fixed SDRAM SiP verification. V1.9.8.11 provenance and
+external electrical margins remain unverified.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -2385,6 +2405,38 @@ histories verify the complete RGB565 and D24 attachments with independent SRR.
 Across 92 matched starts, every pass improves or ties. The additional
 eight-case attachment matrix varies LOAD/CLEAR and STORE/DISCARD independently
 for depth with mixed color load flags, and verifies final attachment validity.
+
+### Radix-four kind-4 gradient setup (2026-11-25)
+
+The [continuous Verilated benchmark](../docs/benchmarks/rtl-kind4-radix-four.json)
+takes 25,621,650 through-fence clocks instead of 25,946,532
+(1.25%) at 50.4 MHz. The four kind-4 cases issue
+the same gradient divides, with 367,829 divider-busy clocks compared with
+695,889 (47.14% fewer). Each setup saves exactly
+17 or 21 digit clocks per nonzero axis, depending on the existing skipped prefix.
+
+| Workload | Cycle reduction at two matched starts |
+| --- | ---: |
+| Dense kind-4 triangles, margin 0 | 2.74–2.92% |
+| Dense kind-4 triangles, margin 1 | 2.55–2.62% |
+| Flat kind-4 icosahedron | 0.93–1.18% |
+| Kind-4 close-up spheres | 3.66–3.87% |
+| Accepted winding, near-flat and extreme depth | 0.71–1.41% |
+| Randomized depth, nonuniform starting attachments | 1.47–1.56% |
+
+Independent SRR verified the two complete RGB565 buffers and all D24 words
+at both ends of 96 matched runs, with identical packets, residency and
+starting video/SDRAM phase. All 84 non-kind-4 controls tie and scanout has
+zero underflows. Every continuous cumulative fence arrives earlier or
+ties. The continuous flat kind-4 icosahedron takes 16,058
+more clocks within its own interval after earlier passes advance the
+start from near vertical blank to active scanout. The trace records
+2,202 additional SDRAM reads and the same number of physical writes.
+Controlled replays of both original video phases save 6,052 and 3,842
+clocks. Its continuous fence arrives
+291,212 clocks earlier.
+These measurements cover RTL submission through fence. Displayed FPS
+also depends on presentation timing and board measurements.
 
 ## 14. Build, verify and reach the board
 

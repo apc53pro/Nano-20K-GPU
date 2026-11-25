@@ -214,10 +214,14 @@ def main():
                       "setup_fault_and_reset_preserve_attachments": True}
             print(match[0], flush=True)
         elif top == "nano_triangle_setup_divider_tb":
-            match = re.search(r"PASS triangle divider: records(\d+) reverse(\d+) resets(\d+) zero_edges(\d+) below_edges(\d+) threshold_edges(\d+)", output)
-            if (not match or tuple(map(int, match.groups()[:3])) != (40, 18, 4) or
-                    int(match[6]) < int(match[5]) + 8 or int(match[4]) > int(match[5])):
-                raise RuntimeError("triangle divider did not preserve public signed arithmetic and threshold latency")
+            match = re.search(r"PASS triangle divider: records(\d+) reverse(\d+) resets(\d+) "
+                              r"zero_edges(\d+) below_edges(\d+) threshold_edges(\d+)", output)
+            cadence = re.search(r"PASS radix-four cadence: divisions(\d+) digits(f) terminal(f) "
+                                r"min_pairs(\d+) max_pairs(\d+) pair_resets(\d+) tail_resets(\d+)", output)
+            if (not match or tuple(map(int, match.groups()[:3])) != (49, 22, 5) or
+                    int(match[6]) != int(match[5]) + 5 or int(match[4]) > int(match[5]) or
+                    not cadence or tuple(map(int, (cadence[1], *cadence.groups()[3:]))) != (100, 17, 21, 2, 2)):
+                raise RuntimeError("triangle divider did not preserve signed arithmetic, radix-four cadence and terminal bit")
             result = {"top": top, "passed": True, "public_record_cases": int(match[1]),
                       "reverse_winding_cases": int(match[2]), "active_reset_cases": int(match[3]),
                       "zero_gradient_setup_edges": int(match[4]),
@@ -225,8 +229,14 @@ def main():
                       "reference": "Independent signed64 division, saturated half-away gradients and floored seed",
                       "exact_gradient_and_seed_words": True, "both_gradient_signs": True,
                       "strict_threshold_and_saturation_boundaries": True,
-                      "retained_record_reuse_after_reset": True}
+                      "rounding_tie_and_nearest_each_side_both_signs": True,
+                      "retained_record_reuse_after_reset": True,
+                      "radix_four": {"completed_divisions_traced": int(cadence[1]),
+                          "digits_checked": [0, 1, 2, 3], "signed_terminal_bit_pairs_checked": 4,
+                          "minimum_paired_clocks": int(cadence[4]), "maximum_paired_clocks": int(cadence[5]),
+                          "paired_step_reset_cases": int(cadence[6]), "last_rounding_bit_reset_cases": int(cadence[7])}}
             print(match[0], flush=True)
+            print(cadence[0], flush=True)
         elif top == "nano_tile_attachment_pair_tb":
             match = re.search(r"PASS paired attachments: pairs(\d+) single_color(\d+) single_depth(\d+) reads(\d+) clearback(\d+) held(\d+)", output)
             if not match or tuple(map(int, match.groups())) != (512, 1024, 1024, 3585, 512, 16):

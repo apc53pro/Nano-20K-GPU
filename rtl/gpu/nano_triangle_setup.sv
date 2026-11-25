@@ -23,7 +23,7 @@
 // largest value over the window is negative) is rejected without a draw.
 //
 // One signed 44x16 multiplier (two-clock latency), one 64-bit accumulator and
-// one restoring divider compute everything. Each issued step carries its
+// one radix-four restoring divider compute everything. Each issued step carries its
 // accumulator operation down the multiplier pipeline, and a follow-up action
 // reads the settled result, so operations apply in issue order:
 //   issue at t -> operands t+1 -> product and accumulate t+2 -> action t+3.
@@ -153,11 +153,12 @@ module nano_triangle_setup (
     wire signed [15:0] sample_y=$signed({3'b0,window_y0,4'b1000})-$signed({3'b0,vy[0]});
 
     // Divider: |N|*4096 (< 2^59) / |area| (< 2^28). One check clock for
-    // saturation, 43 quotient bits (the last rounds), then the rounded,
-    // saturated magnitude replaces the quotient.
+    // saturation, 21 pairs and a final single quotient bit (for rounding),
+    // then the rounded, saturated magnitude replaces the quotient.
     reg div_busy;
     reg [5:0] div_count;
     reg [28:0] area;
+    reg [30:0] area_times_three;
     reg [41:0] numerator;
     reg [42:0] quotient;
     reg [28:0] remainder;
@@ -324,7 +325,23 @@ module nano_triangle_setup (
     wire [28:0] high_digit_remainder={3'b0,divide_source[47:22]};
     wire skip_high_digits=high_digit_remainder<area;
     wire [43:0] rounded={1'b0,quotient}+44'd1;
-    wire take={remainder,numerator[41]}>={1'b0,area};
+    // One restoring clock brings down two bits. Subtracting the three
+    // candidate multiples in parallel yields the digit from their borrow
+    // flags and the next remainder from the greatest multiple that fits.
+    // Digit 43 is the original single rounding bit. Twice its trial
+    // differs from shifted_remainder only in the low bit, so the borrow
+    // for 2*area gives the same decision without another wide adder.
+    wire last_divide_bit=div_count==43;
+    wire [30:0] shifted_remainder={remainder,numerator[41:40]};
+    wire [31:0] minus_one={1'b0,shifted_remainder}-{3'b0,area};
+    wire [31:0] minus_two={1'b0,shifted_remainder}-{2'b0,area,1'b0};
+    wire [31:0] minus_three={1'b0,shifted_remainder}-{1'b0,area_times_three};
+    wire take_three=!minus_three[31];
+    wire take_two=!minus_two[31];
+    wire take_one=!minus_one[31];
+    wire [1:0] quotient_digit={take_two,take_three||(take_one&&!take_two)};
+    wire [28:0] digit_remainder=take_three ? minus_three[28:0] :
+        take_two ? minus_two[28:0] : take_one ? minus_one[28:0] : shifted_remainder[28:0];
     always @(posedge clk) begin
         mul_a_q<=mul_a; mul_b_q<=mul_b;
         product<=mul_a_q*mul_b_q;
@@ -356,11 +373,14 @@ module nano_triangle_setup (
                 if(div_count==0) begin
                     saturate<={1'b0,remainder}>={1'b0,area};
                     div_count<=1;
-                end else if(div_count<44) begin
-                    remainder<=take?({remainder[27:0],numerator[41]}-area):{remainder[27:0],numerator[41]};
-                    quotient<={quotient[41:0],take};
-                    numerator<={numerator[40:0],1'b0};
-                    div_count<=div_count+1;
+                end else if(last_divide_bit) begin
+                    quotient<={quotient[41:0],take_two};
+                    div_count<=44;
+                end else if(div_count<43) begin
+                    remainder<=digit_remainder;
+                    quotient<={quotient[40:0],quotient_digit};
+                    numerator<={numerator[39:0],2'b00};
+                    div_count<=div_count+6'd2;
                 end else begin
                     // (q+1)/2 rounds the 43-bit quotient; saturate or overflow clamps.
                     quotient<=(saturate||rounded[43])?43'h3ffffffffff:rounded[43:1];
@@ -376,7 +396,11 @@ module nano_triangle_setup (
                 negative<=acc[63];
                 if(acc==0||(acc[63]&&cull)) begin done<=1; draw<=0; bad<=0; state<=IDLE; end
             end
-            AC_AREA_LOAD: begin area<=acc[28:0]; orient_done<=1; end
+            AC_AREA_LOAD: begin
+                area<=acc[28:0];
+                area_times_three<={2'b0,acc[28:0]}+{1'b0,acc[28:0],1'b0};
+                orient_done<=1;
+            end
             AC_SIGN_X: sign_x<=acc[63]^negative;
             AC_SIGN_Y: sign_y<=acc[63]^negative;
             AC_HOLD_NY: hold_ny<=acc[47:0];

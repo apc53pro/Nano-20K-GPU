@@ -904,9 +904,9 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with 32-word D24 tile rows,
+V1.9.8.11. For the current 0.3 RTL with radix-four kind-4 setup,
 `make tang20k` selects the qualified V1.9.8.11 route at
-57.368 MHz estimated core Fmax on the existing package pins and
+56.037 MHz estimated core Fmax on the existing package pins and
 host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
@@ -1549,18 +1549,20 @@ For each tile reference the GPU computes, exactly as the reference function
   bounds and the viewport.
 - **Depth plane, in Q16 D24 codes.** With `Di = Zi - Z0`,
   `Nx = D1(Y2-Y0) - D2(Y1-Y0)` and `Ny = D2(X1-X0) - D1(X2-X0)`, each gradient is
-  `G = sign(N) * min(floor(|N|*4096/area + 1/2), 2^42-1)` per pixel. A pixel
+  `G = sign(N*area) * min(floor(|N|*4096/|area| + 1/2), 2^42-1)` per pixel. A pixel
   center `(x,y)` has depth
   `Z0*256 + floor((SX*Gx + SY*Gy + 8)/16)`, with `SX = 16x+8-X0` and
   `SY = 16y+8-Y0`. The value does not depend on which tile computes it.
   Only depth slopes steeper than 2^26 codes per pixel saturate; that needs
   a triangle narrower than about 1/4 pixel.
 
-The divider skips eight iterations and its initial saturation check when
-the first eight quotient bits are provably zero. Gradient and seed values
-follow the equations above for every record. Hosts use the existing fence
-and fault status to observe completion because setup time now varies with
-the depth gradients as well as the tile coverage.
+The GPU forms each gradient with one radix-four divider that produces two
+quotient bits per step, with a single final rounding bit. When the first
+eight quotient bits are provably zero, it skips four two-bit steps and the
+initial saturation check. Gradient and seed values follow the equations
+above for every record. The record format and validation rules are unchanged.
+Hosts use the existing fence and fault status to observe completion because
+setup time varies with the depth gradients and tile coverage.
 
 A tile reference whose window cannot contain a covered pixel center is
 rejected without rasterizing. List a vertex triangle in the tiles its bounds

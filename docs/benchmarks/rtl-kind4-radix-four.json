@@ -1,0 +1,4621 @@
+{
+  "schema": "N20K-RTL-KIND4-RADIX-FOUR-1",
+  "baseline_commit": "ebbb18b4781dbd70aa8e5cd5c6ec619bfe7b475f",
+  "candidate": "Commit containing this report. The model and board source hashes identify the same candidate RTL independently.",
+  "scope": "Actual source-matched Verilated board-profile GPU at 50.4 MHz, with 25.2 MHz virtual host and pixels. Timed from identical wire bytes through fence, with equal settings, first-use upload bytes and residency. Each matched test checks both complete RGB565 buffers and every D24 word with independent SRR at the start and end. No physical throughput inference.",
+  "continuous": {
+    "before": 25946532,
+    "after": 25621650,
+    "cases": [
+      {
+        "case": "warm-up: empty, clear color and depth",
+        "before": 589074,
+        "after": 589074,
+        "before_cumulative": 589074,
+        "after_cumulative": 589074,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color and depth",
+        "before": 840060,
+        "after": 840060,
+        "before_cumulative": 1429134,
+        "after_cumulative": 1429134,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, clear depth",
+        "before": 554214,
+        "after": 554214,
+        "before_cumulative": 1983348,
+        "after_cumulative": 1983348,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color and depth",
+        "before": 14366,
+        "after": 14366,
+        "before_cumulative": 1997714,
+        "after_cumulative": 1997714,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "full-screen front-to-back copy",
+        "before": 623982,
+        "after": 623982,
+        "before_cumulative": 2621696,
+        "after_cumulative": 2621696,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "before": 1425590,
+        "after": 1425590,
+        "before_cumulative": 4047286,
+        "after_cumulative": 4047286,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "before": 21894,
+        "after": 21894,
+        "before_cumulative": 4069180,
+        "after_cumulative": 4069180,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color, discard depth",
+        "before": 319054,
+        "after": 319054,
+        "before_cumulative": 4388234,
+        "after_cumulative": 4388234,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "before": 902144,
+        "after": 902144,
+        "before_cumulative": 5290378,
+        "after_cumulative": 5290378,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "before": 18616,
+        "after": 18616,
+        "before_cumulative": 5308994,
+        "after_cumulative": 5308994,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, discard depth",
+        "before": 14796,
+        "after": 14796,
+        "before_cumulative": 5323790,
+        "after_cumulative": 5323790,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "before": 3159690,
+        "after": 3159690,
+        "before_cumulative": 8483480,
+        "after_cumulative": 8483480,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "before": 4256724,
+        "after": 4256724,
+        "before_cumulative": 12740204,
+        "after_cumulative": 12740204,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "before": 419530,
+        "after": 419530,
+        "before_cumulative": 13159734,
+        "after_cumulative": 13159734,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": 196244,
+        "after": 196244,
+        "before_cumulative": 13355978,
+        "after_cumulative": 13355978,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": 5841242,
+        "after": 5676878,
+        "before_cumulative": 19197220,
+        "after_cumulative": 19032856,
+        "cycle_reduction_percent": 2.8138536290740923
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": 5487308,
+        "after": 5344402,
+        "before_cumulative": 24684528,
+        "after_cumulative": 24377258,
+        "cycle_reduction_percent": 2.6043006880605235
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "before": 400820,
+        "after": 416878,
+        "before_cumulative": 25085348,
+        "after_cumulative": 24794136,
+        "cycle_reduction_percent": -4.006287111421591
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": 861184,
+        "after": 827514,
+        "before_cumulative": 25946532,
+        "after_cumulative": 25621650,
+        "cycle_reduction_percent": 3.909733576099883
+      }
+    ],
+    "release_gate": "No cumulative fence delay. Retain individual increases and interpret using matched starts.",
+    "cumulative_fences_no_later": true,
+    "cycle_reduction_percent": 1.2521210927148196,
+    "flat_kind4_start_phase_audit": {
+      "scope": "Natural rows trace the same continuous standard case after all normal prior commands, using identical timings to the standard executables. Cross-plays start each model at the same video phase as the named natural row, modulo one frame, after an ordinary boot and at least one complete idle frame. Within each cross-play pair all attachment words, live SDRAM and FIFO phase and timed packet bytes match. Original prior DRAW and SDRAM history is retained in the natural rows and is distinct from the common boot histories in the cross-plays. Flat ico clears both tile attachments before rendering and discards depth; its measured depth scratch starts from CLEAR in both histories.",
+      "natural": {
+        "before": {
+          "cycles": 400820,
+          "start": 25761853,
+          "end": 26162673,
+          "start_h": 118,
+          "start_v": 351,
+          "end_h": 528,
+          "end_v": 76,
+          "start_refresh_age": 359,
+          "end_refresh_age": 125,
+          "start_fifo": 1012,
+          "end_fifo": 1015,
+          "read_commands": 9320,
+          "write_commands": 19418,
+          "refresh_commands": 605,
+          "setup": 16330,
+          "store_cmd": 93970,
+          "store_words": 185628,
+          "record_cmd": 944,
+          "entry_cmd": 2879,
+          "store_command_wait_clocks": 84370,
+          "store_payload_stall_clocks": 32028
+        },
+        "after": {
+          "cycles": 416878,
+          "start": 25454583,
+          "end": 25871461,
+          "start_h": 83,
+          "start_v": 159,
+          "end_h": 522,
+          "end_v": 419,
+          "start_refresh_age": 64,
+          "end_refresh_age": 397,
+          "start_fifo": 1014,
+          "end_fifo": 1018,
+          "read_commands": 11522,
+          "write_commands": 19418,
+          "refresh_commands": 628,
+          "setup": 12658,
+          "store_cmd": 106948,
+          "store_words": 191374,
+          "record_cmd": 998,
+          "entry_cmd": 2990,
+          "store_command_wait_clocks": 97348,
+          "store_payload_stall_clocks": 37774
+        }
+      },
+      "expected_color_payload": {
+        "logical_write_requests": 9600,
+        "store_words": 153600,
+        "depth_external_store": false
+      },
+      "trace_inputs": {
+        "before": {
+          "trace": "setup-divider-phase-before.json.phase.tsv",
+          "sha256": "a0b2094af418e8a0e65a680f00265b7466a3f8d456a5950348664744dc038223",
+          "inputs": {
+            "baseline_commit": "ebbb18b4781dbd70aa8e5cd5c6ec619bfe7b475f",
+            "model_build_report_sha256": "2e20eee3c363d86d713b287600c5212b206b01a2d27baa30d1723528eb23d708",
+            "model_build_executable_sha256": "09351aed8e807334bba1a933fd82eb82f1d40d4c5c2a6294a32ef77289ae9dfd",
+            "instrumentation_runner_sha256": "cf2eeb58774e65e8dadb9f0796266eb1fbc8337c1b86c23955c07535ec46c836",
+            "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+            "generated_source_sha256": "a2ed0f5198fcf3312222a5596fec9982ad60cd7a54041e29cd6874e60bf0ae6d",
+            "profiler_executable_sha256": "08f999578cedefaec0c14868e304db3d0ccfc62edb32c16d9d9a1d869f7636a4",
+            "linked_object_sha256": {
+              "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+              "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+              "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+              "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+              "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+              "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+              "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+              "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+              "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+              "obj/Vnano_gpu_core__ALL.a": "279ac8aa1623c2952d9f68e3ec3b5d530b280558b4accea4f4367e80a9942d50"
+            },
+            "trace_sha256": "a0b2094af418e8a0e65a680f00265b7466a3f8d456a5950348664744dc038223",
+            "benchmark_report_sha256": "9b705b88a3ecc49d80123d66c16a26bfa3a1124900c3b8bb8e3d623d4445e339"
+          }
+        },
+        "after": {
+          "trace": "setup-divider-phase-after.json.phase.tsv",
+          "sha256": "31335a7d1d1c8583e9adbefc0c8fdba340e1b8383da3a00df3c9c1d751dd0853",
+          "inputs": {
+            "baseline_commit": "ebbb18b4781dbd70aa8e5cd5c6ec619bfe7b475f",
+            "model_build_report_sha256": "fc1323d1a74abd10797e3004cf0e32c7b7eb4b626ecadc3c2270adb90d53a41d",
+            "model_build_executable_sha256": "b8c5407fc5ba0b4462889ffebb96363571218ad438653ce65fa721eb585524ec",
+            "instrumentation_runner_sha256": "cf2eeb58774e65e8dadb9f0796266eb1fbc8337c1b86c23955c07535ec46c836",
+            "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+            "generated_source_sha256": "a2ed0f5198fcf3312222a5596fec9982ad60cd7a54041e29cd6874e60bf0ae6d",
+            "profiler_executable_sha256": "6303e10f4f64b186163bc0cff4e50aa429c8fae9a74f2433bd2bef35bb3a7575",
+            "linked_object_sha256": {
+              "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+              "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+              "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+              "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+              "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+              "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+              "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+              "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+              "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+              "obj/Vnano_gpu_core__ALL.a": "70fb764201196cb9cc69e14402801d5e6e1d9f1839433eb74f3cc795da32270b"
+            },
+            "trace_sha256": "31335a7d1d1c8583e9adbefc0c8fdba340e1b8383da3a00df3c9c1d751dd0853",
+            "benchmark_report_sha256": "b2fa9f1ff0038d2629209cdd87e8e46bd3a8f7926ba647222434da69ca4fd697"
+          }
+        }
+      },
+      "cross_phase": {
+        "before": {
+          "before": 400936,
+          "after": 394884,
+          "saved": 6052,
+          "start_horizontal": 118,
+          "start_vertical": 351
+        },
+        "after": {
+          "before": 420720,
+          "after": 416878,
+          "saved": 3842,
+          "start_horizontal": 83,
+          "start_vertical": 159
+        }
+      },
+      "cross_phase_raw": {
+        "before_at_before": {
+          "case": "ico-flat",
+          "idle_cycles": 1164528,
+          "initial_core_cycle": 2241853,
+          "initial_video_x": 117,
+          "initial_video_y": 351,
+          "seed_cycles": 0,
+          "initial_sdram_refreshes": 3367,
+          "initial_sdram_reads": 14174,
+          "initial_sdram_writes": 76800,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 92,
+          "initial_open_banks": 4,
+          "initial_memory_slots": 0,
+          "initial_scanout_fifo": 1012,
+          "initial_scanout_reads": 0,
+          "initial_depth_valid": 1,
+          "initial_color_valid": 3,
+          "initial_front_id": 0,
+          "initial_d24_fnv1a64": "421145ac0ba9a325",
+          "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+          "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+          "seed_submitted_bytes": 0,
+          "seed_attachment_bytes": 0,
+          "load_command_clocks": 0,
+          "load_data_clocks": 0,
+          "load_completion_clocks": 0,
+          "store_command_clocks": 93747,
+          "store_prefetch_clocks": 2272,
+          "store_data_clocks": 185806,
+          "store_tile_completion_clocks": 300,
+          "pass_drain_clocks": 9,
+          "triangle_setup_clocks": 16330,
+          "submit_sdram_refreshes": 604,
+          "submit_sdram_reads": 9324,
+          "submit_sdram_writes": 19418,
+          "copy_write_command_clocks": 0,
+          "copy_write_data_clocks": 0,
+          "copy_write_completion_clocks": 0,
+          "copy_width": 0,
+          "copy_height": 0,
+          "verified_scanout_frames": 0,
+          "reference_command_clocks": 335,
+          "reference_receive_clocks": 1911,
+          "reference_completion_clocks": 90,
+          "fixture_active_tiles": 0,
+          "fixture_singleton_tiles": 0,
+          "fixture_reference_words": 0,
+          "fixture_maximum_tile_words": 0,
+          "fixture_first8_split_lists": 0,
+          "offset_x_clocks": 0,
+          "offset_y_clocks": 0,
+          "row_skip_clocks": 1058,
+          "max_requested_offset_x": 0,
+          "max_requested_offset_y": 0,
+          "offset_x_residues": 0,
+          "offset_y_residues": 0,
+          "raster_covered_cycles": 41107,
+          "raster_empty_cycles": 8039,
+          "raster_texture_stall_cycles": 0,
+          "seed_texture_bytes": 0,
+          "timed_texture_upload_bytes": 0,
+          "resident_texture_bytes": 0,
+          "submitted_bytes": 2946,
+          "core_cycles": 400936,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+          "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "model_build_report_sha256": "2e20eee3c363d86d713b287600c5212b206b01a2d27baa30d1723528eb23d708",
+          "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+          "isolated_executable_sha256": "a7c60c7d891d8268eb0d6554053bbb608b278e10f536da73c24a169e8830dc59"
+        },
+        "before_at_after": {
+          "case": "ico-flat",
+          "idle_cycles": 857258,
+          "initial_core_cycle": 1934583,
+          "initial_video_x": 82,
+          "initial_video_y": 159,
+          "seed_cycles": 0,
+          "initial_sdram_refreshes": 2901,
+          "initial_sdram_reads": 6492,
+          "initial_sdram_writes": 76800,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 635,
+          "initial_open_banks": 4,
+          "initial_memory_slots": 0,
+          "initial_scanout_fifo": 1014,
+          "initial_scanout_reads": 0,
+          "initial_depth_valid": 1,
+          "initial_color_valid": 3,
+          "initial_front_id": 0,
+          "initial_d24_fnv1a64": "421145ac0ba9a325",
+          "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+          "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+          "seed_submitted_bytes": 0,
+          "seed_attachment_bytes": 0,
+          "load_command_clocks": 0,
+          "load_data_clocks": 0,
+          "load_completion_clocks": 0,
+          "store_command_clocks": 106702,
+          "store_prefetch_clocks": 2272,
+          "store_data_clocks": 191544,
+          "store_tile_completion_clocks": 300,
+          "pass_drain_clocks": 9,
+          "triangle_setup_clocks": 16330,
+          "submit_sdram_refreshes": 635,
+          "submit_sdram_reads": 11612,
+          "submit_sdram_writes": 19418,
+          "copy_write_command_clocks": 0,
+          "copy_write_data_clocks": 0,
+          "copy_write_completion_clocks": 0,
+          "copy_width": 0,
+          "copy_height": 0,
+          "verified_scanout_frames": 0,
+          "reference_command_clocks": 396,
+          "reference_receive_clocks": 1971,
+          "reference_completion_clocks": 90,
+          "fixture_active_tiles": 0,
+          "fixture_singleton_tiles": 0,
+          "fixture_reference_words": 0,
+          "fixture_maximum_tile_words": 0,
+          "fixture_first8_split_lists": 0,
+          "offset_x_clocks": 0,
+          "offset_y_clocks": 0,
+          "row_skip_clocks": 1058,
+          "max_requested_offset_x": 0,
+          "max_requested_offset_y": 0,
+          "offset_x_residues": 0,
+          "offset_y_residues": 0,
+          "raster_covered_cycles": 41107,
+          "raster_empty_cycles": 8039,
+          "raster_texture_stall_cycles": 0,
+          "seed_texture_bytes": 0,
+          "timed_texture_upload_bytes": 0,
+          "resident_texture_bytes": 0,
+          "submitted_bytes": 2946,
+          "core_cycles": 420720,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+          "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "model_build_report_sha256": "2e20eee3c363d86d713b287600c5212b206b01a2d27baa30d1723528eb23d708",
+          "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+          "isolated_executable_sha256": "a7c60c7d891d8268eb0d6554053bbb608b278e10f536da73c24a169e8830dc59"
+        },
+        "after_at_before": {
+          "case": "ico-flat",
+          "idle_cycles": 1164528,
+          "initial_core_cycle": 2241853,
+          "initial_video_x": 117,
+          "initial_video_y": 351,
+          "seed_cycles": 0,
+          "initial_sdram_refreshes": 3367,
+          "initial_sdram_reads": 14174,
+          "initial_sdram_writes": 76800,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 92,
+          "initial_open_banks": 4,
+          "initial_memory_slots": 0,
+          "initial_scanout_fifo": 1012,
+          "initial_scanout_reads": 0,
+          "initial_depth_valid": 1,
+          "initial_color_valid": 3,
+          "initial_front_id": 0,
+          "initial_d24_fnv1a64": "421145ac0ba9a325",
+          "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+          "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+          "seed_submitted_bytes": 0,
+          "seed_attachment_bytes": 0,
+          "load_command_clocks": 0,
+          "load_data_clocks": 0,
+          "load_completion_clocks": 0,
+          "store_command_clocks": 91884,
+          "store_prefetch_clocks": 2272,
+          "store_data_clocks": 185407,
+          "store_tile_completion_clocks": 300,
+          "pass_drain_clocks": 9,
+          "triangle_setup_clocks": 12658,
+          "submit_sdram_refreshes": 595,
+          "submit_sdram_reads": 9168,
+          "submit_sdram_writes": 19418,
+          "copy_write_command_clocks": 0,
+          "copy_write_data_clocks": 0,
+          "copy_write_completion_clocks": 0,
+          "copy_width": 0,
+          "copy_height": 0,
+          "verified_scanout_frames": 0,
+          "reference_command_clocks": 328,
+          "reference_receive_clocks": 1899,
+          "reference_completion_clocks": 90,
+          "fixture_active_tiles": 0,
+          "fixture_singleton_tiles": 0,
+          "fixture_reference_words": 0,
+          "fixture_maximum_tile_words": 0,
+          "fixture_first8_split_lists": 0,
+          "offset_x_clocks": 0,
+          "offset_y_clocks": 0,
+          "row_skip_clocks": 1058,
+          "max_requested_offset_x": 0,
+          "max_requested_offset_y": 0,
+          "offset_x_residues": 0,
+          "offset_y_residues": 0,
+          "raster_covered_cycles": 41107,
+          "raster_empty_cycles": 8039,
+          "raster_texture_stall_cycles": 0,
+          "seed_texture_bytes": 0,
+          "timed_texture_upload_bytes": 0,
+          "resident_texture_bytes": 0,
+          "submitted_bytes": 2946,
+          "core_cycles": 394884,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+          "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "model_build_report_sha256": "fc1323d1a74abd10797e3004cf0e32c7b7eb4b626ecadc3c2270adb90d53a41d",
+          "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+          "isolated_executable_sha256": "ae582fa864562f90931e6cd6f5fcfb69191f8a10704b0935948eba13213d75f1"
+        },
+        "after_at_after": {
+          "case": "ico-flat",
+          "idle_cycles": 857258,
+          "initial_core_cycle": 1934583,
+          "initial_video_x": 82,
+          "initial_video_y": 159,
+          "seed_cycles": 0,
+          "initial_sdram_refreshes": 2901,
+          "initial_sdram_reads": 6492,
+          "initial_sdram_writes": 76800,
+          "initial_memory_state": 9,
+          "initial_refresh_age": 635,
+          "initial_open_banks": 4,
+          "initial_memory_slots": 0,
+          "initial_scanout_fifo": 1014,
+          "initial_scanout_reads": 0,
+          "initial_depth_valid": 1,
+          "initial_color_valid": 3,
+          "initial_front_id": 0,
+          "initial_d24_fnv1a64": "421145ac0ba9a325",
+          "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+          "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+          "seed_submitted_bytes": 0,
+          "seed_attachment_bytes": 0,
+          "load_command_clocks": 0,
+          "load_data_clocks": 0,
+          "load_completion_clocks": 0,
+          "store_command_clocks": 106914,
+          "store_prefetch_clocks": 2272,
+          "store_data_clocks": 191457,
+          "store_tile_completion_clocks": 300,
+          "pass_drain_clocks": 9,
+          "triangle_setup_clocks": 12658,
+          "submit_sdram_refreshes": 629,
+          "submit_sdram_reads": 11522,
+          "submit_sdram_writes": 19418,
+          "copy_write_command_clocks": 0,
+          "copy_write_data_clocks": 0,
+          "copy_write_completion_clocks": 0,
+          "copy_width": 0,
+          "copy_height": 0,
+          "verified_scanout_frames": 0,
+          "reference_command_clocks": 447,
+          "reference_receive_clocks": 1923,
+          "reference_completion_clocks": 90,
+          "fixture_active_tiles": 0,
+          "fixture_singleton_tiles": 0,
+          "fixture_reference_words": 0,
+          "fixture_maximum_tile_words": 0,
+          "fixture_first8_split_lists": 0,
+          "offset_x_clocks": 0,
+          "offset_y_clocks": 0,
+          "row_skip_clocks": 1058,
+          "max_requested_offset_x": 0,
+          "max_requested_offset_y": 0,
+          "offset_x_residues": 0,
+          "offset_y_residues": 0,
+          "raster_covered_cycles": 41107,
+          "raster_empty_cycles": 8039,
+          "raster_texture_stall_cycles": 0,
+          "seed_texture_bytes": 0,
+          "timed_texture_upload_bytes": 0,
+          "resident_texture_bytes": 0,
+          "submitted_bytes": 2946,
+          "core_cycles": 416878,
+          "oracle_checked": true,
+          "scanout_underflows": 0,
+          "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+          "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "model_build_report_sha256": "fc1323d1a74abd10797e3004cf0e32c7b7eb4b626ecadc3c2270adb90d53a41d",
+          "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+          "isolated_executable_sha256": "ae582fa864562f90931e6cd6f5fcfb69191f8a10704b0935948eba13213d75f1"
+        }
+      },
+      "matched_cross_phase_fields": [
+        "case",
+        "idle_cycles",
+        "submitted_bytes",
+        "packet_sha256",
+        "seed_submitted_bytes",
+        "seed_packet_sha256",
+        "initial_depth_valid",
+        "initial_color_valid",
+        "initial_front_id",
+        "initial_d24_fnv1a64",
+        "initial_color_0_fnv1a64",
+        "initial_color_1_fnv1a64",
+        "initial_core_cycle",
+        "initial_video_x",
+        "initial_video_y",
+        "seed_cycles",
+        "initial_sdram_refreshes",
+        "initial_sdram_reads",
+        "initial_sdram_writes",
+        "initial_memory_state",
+        "initial_refresh_age",
+        "initial_open_banks",
+        "initial_memory_slots",
+        "initial_scanout_fifo",
+        "initial_scanout_reads",
+        "seed_attachment_bytes",
+        "fixture_active_tiles",
+        "fixture_singleton_tiles",
+        "fixture_reference_words",
+        "fixture_maximum_tile_words",
+        "fixture_first8_split_lists",
+        "copy_width",
+        "copy_height",
+        "seed_texture_bytes",
+        "timed_texture_upload_bytes",
+        "resident_texture_bytes",
+        "max_requested_offset_x",
+        "max_requested_offset_y",
+        "offset_x_residues",
+        "offset_y_residues"
+      ],
+      "phase_audit_runner_sha256": "04d898b0a04ef55f28cae1bc024b117cf62d2ee0f5ab3c440b5d11e08b8c8e79",
+      "stock_model_phase_costs": {
+        "before": 19784,
+        "after": 21994
+      }
+    }
+  },
+  "matched_scope": "Raw kind-4 wire and the independent decoded renderer are unchanged. The suite includes accepted triangles of both signs, culled negative winding, extreme, nearly-flat and constant depth plus seeded LOAD/STORE with nonuniform prior attachments. It compares each foreground start, both full RGB565 and D24, attachment validity, render covered/missed counts and scanout underflow.",
+  "matched": {
+    "kind4": [
+      {
+        "case": "vertex-divider-windings",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "8e2935ee098bca5542ca3950c99e700a1156e6d8ed6a5c4de6c5e8670c06be5e",
+        "submitted_bytes": 5567,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 14363,
+        "raster_empty_cycles": 6709,
+        "core_clocks": [
+          721552,
+          711402
+        ],
+        "triangle_setup_clocks": [
+          24934,
+          18108
+        ],
+        "cycle_reduction_percent": 1.406690023726631
+      },
+      {
+        "case": "vertex-divider-windings",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "8e2935ee098bca5542ca3950c99e700a1156e6d8ed6a5c4de6c5e8670c06be5e",
+        "submitted_bytes": 5567,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 14363,
+        "raster_empty_cycles": 6709,
+        "core_clocks": [
+          933178,
+          926532
+        ],
+        "triangle_setup_clocks": [
+          24934,
+          18108
+        ],
+        "cycle_reduction_percent": 0.7121899573286128
+      },
+      {
+        "case": "vertex-divider-seeded",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1862545,
+        "initial_video_x": 63,
+        "initial_video_y": 114,
+        "packet_sha256": "adc3b0b7a3045bc84f05432aa5b8c215e8a2f5162c2496784ed93aaf00ab68e8",
+        "submitted_bytes": 37471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 906333,
+        "raster_empty_cycles": 136592,
+        "core_clocks": [
+          3596794,
+          3543944
+        ],
+        "triangle_setup_clocks": [
+          247908,
+          195156
+        ],
+        "cycle_reduction_percent": 1.469364105923221
+      },
+      {
+        "case": "vertex-divider-seeded",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2562545,
+        "initial_video_x": 463,
+        "initial_video_y": 26,
+        "packet_sha256": "adc3b0b7a3045bc84f05432aa5b8c215e8a2f5162c2496784ed93aaf00ab68e8",
+        "submitted_bytes": 37471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 906333,
+        "raster_empty_cycles": 136592,
+        "core_clocks": [
+          3594414,
+          3538496
+        ],
+        "triangle_setup_clocks": [
+          247908,
+          195156
+        ],
+        "cycle_reduction_percent": 1.555691692720984
+      },
+      {
+        "case": "vertex0",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+        "submitted_bytes": 76723,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2656092,
+        "raster_empty_cycles": 485022,
+        "core_clocks": [
+          5829678,
+          5659478
+        ],
+        "triangle_setup_clocks": [
+          752190,
+          592512
+        ],
+        "cycle_reduction_percent": 2.919543755246856
+      },
+      {
+        "case": "vertex0",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+        "submitted_bytes": 76723,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2656092,
+        "raster_empty_cycles": 485022,
+        "core_clocks": [
+          5843434,
+          5683444
+        ],
+        "triangle_setup_clocks": [
+          752190,
+          592512
+        ],
+        "cycle_reduction_percent": 2.737944845445328
+      },
+      {
+        "case": "vertex1",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+        "submitted_bytes": 96604,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2201124,
+        "raster_empty_cycles": 420683,
+        "core_clocks": [
+          5481252,
+          5337824
+        ],
+        "triangle_setup_clocks": [
+          668251,
+          531749
+        ],
+        "cycle_reduction_percent": 2.6167014397440624
+      },
+      {
+        "case": "vertex1",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+        "submitted_bytes": 96604,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2201124,
+        "raster_empty_cycles": 420683,
+        "core_clocks": [
+          5482354,
+          5342674
+        ],
+        "triangle_setup_clocks": [
+          668251,
+          531749
+        ],
+        "cycle_reduction_percent": 2.5478106667318423
+      },
+      {
+        "case": "ico-flat",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+        "submitted_bytes": 2946,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 41107,
+        "raster_empty_cycles": 8039,
+        "core_clocks": [
+          311318,
+          307656
+        ],
+        "triangle_setup_clocks": [
+          16330,
+          12658
+        ],
+        "cycle_reduction_percent": 1.1762891962559197
+      },
+      {
+        "case": "ico-flat",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+        "submitted_bytes": 2946,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 41107,
+        "raster_empty_cycles": 8039,
+        "core_clocks": [
+          420738,
+          416834
+        ],
+        "triangle_setup_clocks": [
+          16330,
+          12658
+        ],
+        "cycle_reduction_percent": 0.9278933683194768
+      },
+      {
+        "case": "closeup",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+        "submitted_bytes": 13097,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 231968,
+        "raster_empty_cycles": 52511,
+        "core_clocks": [
+          792944,
+          763926
+        ],
+        "triangle_setup_clocks": [
+          111015,
+          82807
+        ],
+        "cycle_reduction_percent": 3.659527028390408
+      },
+      {
+        "case": "closeup",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+        "submitted_bytes": 13097,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 231968,
+        "raster_empty_cycles": 52511,
+        "core_clocks": [
+          864148,
+          830686
+        ],
+        "triangle_setup_clocks": [
+          111015,
+          82807
+        ],
+        "cycle_reduction_percent": 3.8722533640070944
+      }
+    ],
+    "unaffected_controls": [
+      {
+        "case": "depth-clear-only",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "05c7ae54740d4ac36635dc43586c381557e6f9d380aa5852f3a9143b5c54ed0a",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          370294,
+          370294
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-clear-only",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "05c7ae54740d4ac36635dc43586c381557e6f9d380aa5852f3a9143b5c54ed0a",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          557052,
+          557052
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-color-clear-only",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "c37a031c442f7d23295f2e716c4cceefadf3855b0233669e50528f789b5f79a6",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          589082,
+          589082
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-color-clear-only",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "c37a031c442f7d23295f2e716c4cceefadf3855b0233669e50528f789b5f79a6",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          835958,
+          835958
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-clear-discard-only",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "0e8f08e61b779400242926767069953824bae7a01a8862fe4721143e397d75f9",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          12782,
+          12782
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-clear-discard-only",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "0e8f08e61b779400242926767069953824bae7a01a8862fe4721143e397d75f9",
+        "submitted_bytes": 285,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          14870,
+          14870
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-load-store",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "388524411d6c6e950ce9f8e2655a01fdd85aedba615ca77c1e7a10433ef255d4",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          283598,
+          283598
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-load-store",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "388524411d6c6e950ce9f8e2655a01fdd85aedba615ca77c1e7a10433ef255d4",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          340970,
+          340970
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-load-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "7694a1e5e88404167aaadc7d594a809dca38c67e27bc653dc46bb71e058dcbf6",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          245848,
+          245848
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-load-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "7694a1e5e88404167aaadc7d594a809dca38c67e27bc653dc46bb71e058dcbf6",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          285622,
+          285622
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-clear-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "a2bde11361f44db9dc06bcee980a573036cacf009e286d2baefde2aafe6cd1a2",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          200940,
+          200940
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-skip-clear-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "a2bde11361f44db9dc06bcee980a573036cacf009e286d2baefde2aafe6cd1a2",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          226494,
+          226494
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-seeded-load-store",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1862545,
+        "initial_video_x": 63,
+        "initial_video_y": 114,
+        "packet_sha256": "d4b6a23ec4cfaba46465cd67becf0b282c9612d4714267b75e58e8238df74eba",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          342166,
+          342166
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-seeded-load-store",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2562545,
+        "initial_video_x": 463,
+        "initial_video_y": 26,
+        "packet_sha256": "d4b6a23ec4cfaba46465cd67becf0b282c9612d4714267b75e58e8238df74eba",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          341448,
+          341448
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-seeded-load-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1862545,
+        "initial_video_x": 63,
+        "initial_video_y": 114,
+        "packet_sha256": "1ab2dedc8391da14f0f0237a0786a6d746d1449465504c2c97bcbbaa99a9579b",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          286318,
+          286318
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "depth-seeded-load-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2562545,
+        "initial_video_x": 463,
+        "initial_video_y": 26,
+        "packet_sha256": "1ab2dedc8391da14f0f0237a0786a6d746d1449465504c2c97bcbbaa99a9579b",
+        "submitted_bytes": 10471,
+        "seed_packet_sha256": "f348f5859669f7d40abaf2f1ebfd70678b9a23a4283bda4b3dd389ad63cc564c",
+        "seed_submitted_bytes": 10473,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "bfb8e5f3e0249e65",
+        "initial_d24_fnv1a64": "4d971c36398a338d",
+        "raster_covered_cycles": 29310,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          286830,
+          286830
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          451914,
+          451914
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          656956,
+          656956
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-patterned-full",
+        "idle_cycles": 0,
+        "initial_core_cycle": 6111399,
+        "initial_video_x": 490,
+        "initial_video_y": 144,
+        "packet_sha256": "345cd5319e7bee7b6475bf3e4ff75d07dbde070c497841191dc5554076110a29",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "8db8dcc45efdea7f448773cd0e7e19894c4312ff00c048a58be38196b302e86c",
+        "seed_submitted_bytes": 159539,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 1,
+        "initial_color_0_fnv1a64": "31063b2ba4301429",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "9ed3f35db01f608d",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          624260,
+          624260
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-patterned-full",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 6811399,
+        "initial_video_x": 90,
+        "initial_video_y": 57,
+        "packet_sha256": "345cd5319e7bee7b6475bf3e4ff75d07dbde070c497841191dc5554076110a29",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "8db8dcc45efdea7f448773cd0e7e19894c4312ff00c048a58be38196b302e86c",
+        "seed_submitted_bytes": 159539,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 1,
+        "initial_color_0_fnv1a64": "31063b2ba4301429",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "9ed3f35db01f608d",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          654940,
+          654940
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-console-scroll",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "4de7deb89b6b6308e615977d0a3bf10c62ec8fbf311a6bd0290954d41c70cfba",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          602228,
+          602228
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-console-scroll",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "4de7deb89b6b6308e615977d0a3bf10c62ec8fbf311a6bd0290954d41c70cfba",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          601550,
+          601550
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-up-odd",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "470757a9fd81059fb1620134d6c2033bea46cc5b69db93ebf41cf27095352a34",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          242232,
+          242232
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-up-odd",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "470757a9fd81059fb1620134d6c2033bea46cc5b69db93ebf41cf27095352a34",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          258878,
+          258878
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-down-clipped",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "7529b54b9cb18110d55cb8af81b2344b08111a2a9a9d8082b3931d4e98fd289c",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          234712,
+          234712
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-down-clipped",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "7529b54b9cb18110d55cb8af81b2344b08111a2a9a9d8082b3931d4e98fd289c",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          248080,
+          248080
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-left-odd",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "62e04cd48e5a7747e49ae589115b6b3cc43a1ccfc63879be4003a84ae91d74f4",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          38760,
+          38760
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-left-odd",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "62e04cd48e5a7747e49ae589115b6b3cc43a1ccfc63879be4003a84ae91d74f4",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          38772,
+          38772
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-right-clipped",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "c3646f4acfdd7264dac9727e3bbd88a4b87a523b2b7fc52928032311e5ff7815",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          30056,
+          30056
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-overlap-right-clipped",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "c3646f4acfdd7264dac9727e3bbd88a4b87a523b2b7fc52928032311e5ff7815",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          30206,
+          30206
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-skinny",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "9a943701d87af3b8204bbaeed04b158e57ebef1e62d812be862bd30d3df9997e",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          23396,
+          23396
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-skinny",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "9a943701d87af3b8204bbaeed04b158e57ebef1e62d812be862bd30d3df9997e",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          23544,
+          23544
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-short",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "782089f249e6d5a2657cbf720a78678e82595e01a81a8f7f9affdb78c170607d",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          674,
+          674
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-short",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "782089f249e6d5a2657cbf720a78678e82595e01a81a8f7f9affdb78c170607d",
+        "submitted_bytes": 92,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          686,
+          686
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-heap-pitched",
+        "idle_cycles": 0,
+        "initial_core_cycle": 3077559,
+        "initial_video_x": 370,
+        "initial_video_y": 348,
+        "packet_sha256": "337346100ec1202c59bc27333d945250d5819083dab368d7590ba6513a267ca7",
+        "submitted_bytes": 37680,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 34532,
+        "resident_texture_bytes": 34532,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          225514,
+          225514
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "copy-heap-pitched",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 3777559,
+        "initial_video_x": 770,
+        "initial_video_y": 260,
+        "packet_sha256": "337346100ec1202c59bc27333d945250d5819083dab368d7590ba6513a267ca7",
+        "submitted_bytes": 37680,
+        "seed_packet_sha256": "0f213e6dcbdb6049cc700354540b8f70bd6e6e9017b1955af2b7a0110007fdc7",
+        "seed_submitted_bytes": 79760,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 34532,
+        "resident_texture_bytes": 34532,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "f1f0f1361de62ab1",
+        "initial_d24_fnv1a64": "b3f85f40a51aed1e",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          232026,
+          232026
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "reference-singleton-grid",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+        "submitted_bytes": 12700,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 600,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          775190,
+          775190
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "reference-singleton-grid",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "492a8b82adf2329280f199bd84feb9c7b5d293fd2eb067205847e0ce6f851eeb",
+        "submitted_bytes": 12700,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 600,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          976008,
+          976008
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "reference-burst-grid",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+        "submitted_bytes": 89050,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 6240,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          1868272,
+          1868272
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "reference-burst-grid",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "c76c0d9da26901f607f4ad600483185419f2ccf46f237fa39dd3e82f9ad1b9c0",
+        "submitted_bytes": 89050,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 6240,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          1873730,
+          1873730
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "sparse-trapezoids",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+        "submitted_bytes": 7923,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 576,
+        "resident_texture_bytes": 576,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 17441,
+        "raster_empty_cycles": 505515,
+        "core_clocks": [
+          2078446,
+          2078446
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "sparse-trapezoids",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+        "submitted_bytes": 7923,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 576,
+        "resident_texture_bytes": 576,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 17441,
+        "raster_empty_cycles": 505515,
+        "core_clocks": [
+          2181584,
+          2181584
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "prepared-wide-offsets",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+        "submitted_bytes": 8288,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 576,
+        "resident_texture_bytes": 576,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 573137,
+        "raster_empty_cycles": 94547,
+        "core_clocks": [
+          1943212,
+          1943212
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "prepared-wide-offsets",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+        "submitted_bytes": 8288,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 576,
+        "resident_texture_bytes": 576,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 573137,
+        "raster_empty_cycles": 94547,
+        "core_clocks": [
+          2031092,
+          2031092
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-refill-stress",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+        "submitted_bytes": 36443,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 33280,
+        "resident_texture_bytes": 33280,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 2983,
+        "core_clocks": [
+          958958,
+          958958
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-refill-stress",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+        "submitted_bytes": 36443,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 33280,
+        "resident_texture_bytes": 33280,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 3023,
+        "core_clocks": [
+          1110718,
+          1110718
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-refill-resident",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1269569,
+        "initial_video_x": 375,
+        "initial_video_y": 268,
+        "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+        "submitted_bytes": 746,
+        "seed_packet_sha256": "2ba6c93b02ebbe8a204c348503984e39b1113e4a8a8d7b4740895a1d286e982d",
+        "seed_submitted_bytes": 36016,
+        "seed_texture_bytes": 33280,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 33280,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 2983,
+        "core_clocks": [
+          786508,
+          786508
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-refill-resident",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1969569,
+        "initial_video_x": 775,
+        "initial_video_y": 180,
+        "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+        "submitted_bytes": 746,
+        "seed_packet_sha256": "2ba6c93b02ebbe8a204c348503984e39b1113e4a8a8d7b4740895a1d286e982d",
+        "seed_submitted_bytes": 36016,
+        "seed_texture_bytes": 33280,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 33280,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 3023,
+        "core_clocks": [
+          929930,
+          929930
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-hit-control",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+        "submitted_bytes": 900,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 128,
+        "resident_texture_bytes": 128,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 2263,
+        "core_clocks": [
+          616312,
+          616312
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-hit-control",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+        "submitted_bytes": 900,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 128,
+        "resident_texture_bytes": 128,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 8190,
+        "raster_empty_cycles": 2263,
+        "core_clocks": [
+          860092,
+          860092
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-split-pitch",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+        "submitted_bytes": 3428,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 348,
+        "resident_texture_bytes": 348,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 299,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          630038,
+          630038
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "texture-split-pitch",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+        "submitted_bytes": 3428,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 348,
+        "resident_texture_bytes": 348,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 299,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          871244,
+          871244
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-store",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+        "submitted_bytes": 12386,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          1319638,
+          1319638
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-store",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+        "submitted_bytes": 12386,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          1447734,
+          1447734
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+        "submitted_bytes": 12386,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          821014,
+          821014
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+        "submitted_bytes": 12386,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          903854,
+          903854
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-load",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+        "submitted_bytes": 12385,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          2265914,
+          2265914
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ui-load",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+        "submitted_bytes": 12385,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 399232,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          2399172,
+          2399172
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "mixed-depth-scissor",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "c8a3bcd817d744aa98d7bc2c01b6dbacccfdcf2a8fda94efaf81f8cbef7f1a43",
+        "submitted_bytes": 1965,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2254,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          618724,
+          618724
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "mixed-depth-scissor",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "c8a3bcd817d744aa98d7bc2c01b6dbacccfdcf2a8fda94efaf81f8cbef7f1a43",
+        "submitted_bytes": 1965,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 2254,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          862582,
+          862582
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "mixed-depth-scissor-natural",
+        "idle_cycles": 0,
+        "initial_core_cycle": 2205909,
+        "initial_video_x": 545,
+        "initial_video_y": 328,
+        "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+        "submitted_bytes": 654,
+        "seed_packet_sha256": "fed332ef658516035e5638dd55cd264a381c38e4ea0d4c9007199b72b5b86681",
+        "seed_submitted_bytes": 6011,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "ae6ac22d0c9e2325",
+        "initial_d24_fnv1a64": "b6cf94bb2e76bc05",
+        "raster_covered_cycles": 782,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          75730,
+          75730
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "mixed-depth-scissor-natural",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2905909,
+        "initial_video_x": 145,
+        "initial_video_y": 241,
+        "packet_sha256": "3edb27255ec93fa3bd0d2b47de9cb76cdac446d41a8db375693622df3658c83d",
+        "submitted_bytes": 654,
+        "seed_packet_sha256": "fed332ef658516035e5638dd55cd264a381c38e4ea0d4c9007199b72b5b86681",
+        "seed_submitted_bytes": 6011,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "ae6ac22d0c9e2325",
+        "initial_d24_fnv1a64": "b6cf94bb2e76bc05",
+        "raster_covered_cycles": 782,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          75862,
+          75862
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+        "submitted_bytes": 314,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 27,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          17994,
+          17994
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+        "submitted_bytes": 314,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 27,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          21796,
+          21796
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "showcase",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+        "submitted_bytes": 193741,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 155648,
+        "resident_texture_bytes": 155648,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 300743,
+        "raster_empty_cycles": 75644,
+        "core_clocks": [
+          3152152,
+          3152152
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "showcase",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+        "submitted_bytes": 193741,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 155648,
+        "resident_texture_bytes": 155648,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 300743,
+        "raster_empty_cycles": 75728,
+        "core_clocks": [
+          3186174,
+          3186174
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "perspective",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+        "submitted_bytes": 180716,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 147456,
+        "resident_texture_bytes": 147456,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 242885,
+        "raster_empty_cycles": 67802,
+        "core_clocks": [
+          2701780,
+          2701780
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "perspective",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+        "submitted_bytes": 180716,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 147456,
+        "resident_texture_bytes": 147456,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 242885,
+        "raster_empty_cycles": 67802,
+        "core_clocks": [
+          2704012,
+          2704012
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "overdraw",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+        "submitted_bytes": 181769,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 139264,
+        "resident_texture_bytes": 139264,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 1132063,
+        "raster_empty_cycles": 324220,
+        "core_clocks": [
+          4260308,
+          4260308
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "overdraw",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+        "submitted_bytes": 181769,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 139264,
+        "resident_texture_bytes": 139264,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 1132063,
+        "raster_empty_cycles": 324196,
+        "core_clocks": [
+          4256198,
+          4256198
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "opaque",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+        "submitted_bytes": 22986,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 249293,
+        "raster_empty_cycles": 402323,
+        "core_clocks": [
+          2750950,
+          2750950
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "opaque",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+        "submitted_bytes": 22986,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 249293,
+        "raster_empty_cycles": 402323,
+        "core_clocks": [
+          2870768,
+          2870768
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ico",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+        "submitted_bytes": 2463,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 41107,
+        "raster_empty_cycles": 12039,
+        "core_clocks": [
+          320360,
+          320360
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "ico",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+        "submitted_bytes": 2463,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 41107,
+        "raster_empty_cycles": 12039,
+        "core_clocks": [
+          435528,
+          435528
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+        "submitted_bytes": 281,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          212270,
+          212270
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+        "submitted_bytes": 281,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          319154,
+          319154
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-load",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+        "submitted_bytes": 280,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          12792,
+          12792
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-load",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+        "submitted_bytes": 280,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          14870,
+          14870
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-load-discard",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1077325,
+        "initial_video_x": 253,
+        "initial_video_y": 148,
+        "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+        "submitted_bytes": 281,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          12778,
+          12778
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty-load-discard",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 1777325,
+        "initial_video_x": 653,
+        "initial_video_y": 60,
+        "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+        "submitted_bytes": 281,
+        "seed_packet_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "seed_submitted_bytes": 0,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 1,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "4f2d9f141eeda325",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 0,
+        "raster_empty_cycles": 0,
+        "core_clocks": [
+          14870,
+          14870
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "dirty-skip-matched",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1598521,
+        "initial_video_x": 51,
+        "initial_video_y": 474,
+        "packet_sha256": "c9352e5bcdd013e5bc88a8c278fad7e81e9b9dfc4e1893c3a146dcb06ac856fd",
+        "submitted_bytes": 2586,
+        "seed_packet_sha256": "9e1fad63f123f2db1ddaf4c6f03178d6a5796adae39d0a4fa88523923e655169",
+        "seed_submitted_bytes": 22558,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 0,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "e00ee7a8dce5bab0",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 40834,
+        "raster_empty_cycles": 13106,
+        "core_clocks": [
+          188358,
+          188358
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "dirty-skip-matched",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2298521,
+        "initial_video_x": 451,
+        "initial_video_y": 386,
+        "packet_sha256": "c9352e5bcdd013e5bc88a8c278fad7e81e9b9dfc4e1893c3a146dcb06ac856fd",
+        "submitted_bytes": 2586,
+        "seed_packet_sha256": "9e1fad63f123f2db1ddaf4c6f03178d6a5796adae39d0a4fa88523923e655169",
+        "seed_submitted_bytes": 22558,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 0,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "e00ee7a8dce5bab0",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 40834,
+        "raster_empty_cycles": 13106,
+        "core_clocks": [
+          191582,
+          191582
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "dirty-skip",
+        "idle_cycles": 0,
+        "initial_core_cycle": 1397685,
+        "initial_video_x": 433,
+        "initial_video_y": 348,
+        "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+        "submitted_bytes": 2586,
+        "seed_packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+        "seed_submitted_bytes": 2463,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 0,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "e00ee7a8dce5bab0",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 40834,
+        "raster_empty_cycles": 13106,
+        "core_clocks": [
+          168330,
+          168330
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "dirty-skip",
+        "idle_cycles": 700000,
+        "initial_core_cycle": 2097685,
+        "initial_video_x": 33,
+        "initial_video_y": 261,
+        "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+        "submitted_bytes": 2586,
+        "seed_packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+        "seed_submitted_bytes": 2463,
+        "seed_texture_bytes": 0,
+        "timed_texture_upload_bytes": 0,
+        "resident_texture_bytes": 0,
+        "initial_depth_valid": 0,
+        "initial_color_valid": 3,
+        "initial_front_id": 0,
+        "initial_color_0_fnv1a64": "4f2d9f141eeda325",
+        "initial_color_1_fnv1a64": "e00ee7a8dce5bab0",
+        "initial_d24_fnv1a64": "421145ac0ba9a325",
+        "raster_covered_cycles": 40834,
+        "raster_empty_cycles": 13106,
+        "core_clocks": [
+          201296,
+          201296
+        ],
+        "triangle_setup_clocks": [
+          0,
+          0
+        ],
+        "cycle_reduction_percent": 0.0
+      }
+    ],
+    "full_oracle_equivalence": true,
+    "scanout_underflows": 0
+  },
+  "setup_profile": {
+    "standard_cycles_match": true,
+    "per_kind4_workload": [
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "divider_launches": 9110,
+        "zero_numerator": 0,
+        "exact_8_available": 7908,
+        "exact_16_available": 2869,
+        "exact_24_available": 1509,
+        "skip_16_possible_saved_cycles": 22952,
+        "skip_24_possible_saved_cycles": 35024,
+        "radix_four_expected_saved_digit_clocks": 159678,
+        "cycles": [
+          5841242,
+          5676878
+        ],
+        "setup_cycles": [
+          752190,
+          592512
+        ],
+        "divider_cycles": [
+          338778,
+          179100
+        ]
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "divider_launches": 7798,
+        "zero_numerator": 0,
+        "exact_8_available": 6814,
+        "exact_16_available": 2095,
+        "exact_24_available": 992,
+        "skip_16_possible_saved_cycles": 16760,
+        "skip_24_possible_saved_cycles": 24696,
+        "radix_four_expected_saved_digit_clocks": 136502,
+        "cycles": [
+          5487308,
+          5344402
+        ],
+        "setup_cycles": [
+          668251,
+          531749
+        ],
+        "divider_cycles": [
+          289584,
+          153082
+        ]
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "divider_launches": 216,
+        "zero_numerator": 0,
+        "exact_8_available": 216,
+        "exact_16_available": 206,
+        "exact_24_available": 9,
+        "skip_16_possible_saved_cycles": 1648,
+        "skip_24_possible_saved_cycles": 1720,
+        "radix_four_expected_saved_digit_clocks": 3672,
+        "cycles": [
+          400820,
+          416878
+        ],
+        "setup_cycles": [
+          16330,
+          12658
+        ],
+        "divider_cycles": [
+          7776,
+          4104
+        ]
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "divider_launches": 1652,
+        "zero_numerator": 173,
+        "exact_8_available": 1621,
+        "exact_16_available": 173,
+        "exact_24_available": 173,
+        "skip_16_possible_saved_cycles": 1384,
+        "skip_24_possible_saved_cycles": 2768,
+        "radix_four_expected_saved_digit_clocks": 28208,
+        "cycles": [
+          861184,
+          827514
+        ],
+        "setup_cycles": [
+          111015,
+          82807
+        ],
+        "divider_cycles": [
+          59751,
+          31543
+        ]
+      }
+    ],
+    "input_hashes": {
+      "before": {
+        "model_build_executable_sha256": "09351aed8e807334bba1a933fd82eb82f1d40d4c5c2a6294a32ef77289ae9dfd",
+        "instrumentation_header_sha256": "54c1af38c794749f2effe85ed1e05835fcc98c81b7023998244f6132830f6b23",
+        "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+        "generated_source_sha256": "a71f17e7b92dcfe6bb8ee9b3ae6d3daf8d05115bbdaedf0e6c0abb3128b8edc3",
+        "profiler_executable_sha256": "9d383aed11e74fec213ba3c66f8f470957f7d340bb1be10eb4e3d234077bc534",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "279ac8aa1623c2952d9f68e3ec3b5d530b280558b4accea4f4367e80a9942d50"
+        },
+        "counter_report_sha256": "d5849568781571442f1b817d43b7d1ed7c429306c5f26cc8931f6206fd974858",
+        "benchmark_report_sha256": "9b705b88a3ecc49d80123d66c16a26bfa3a1124900c3b8bb8e3d623d4445e339"
+      },
+      "after": {
+        "model_build_executable_sha256": "b8c5407fc5ba0b4462889ffebb96363571218ad438653ce65fa721eb585524ec",
+        "instrumentation_header_sha256": "54c1af38c794749f2effe85ed1e05835fcc98c81b7023998244f6132830f6b23",
+        "simulator_source_sha256": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+        "generated_source_sha256": "a71f17e7b92dcfe6bb8ee9b3ae6d3daf8d05115bbdaedf0e6c0abb3128b8edc3",
+        "profiler_executable_sha256": "7315f76696e0a48d8148fb844acafe9521048d4eaaac6f5675335a1f5e321e3d",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "70fb764201196cb9cc69e14402801d5e6e1d9f1839433eb74f3cc795da32270b"
+        },
+        "counter_report_sha256": "30a69f93bc1ee1b3f613406d4222693798723c84d6f5e91d389f68de326dc419",
+        "benchmark_report_sha256": "b2fa9f1ff0038d2629209cdd87e8e46bd3a8f7926ba647222434da69ca4fd697"
+      }
+    },
+    "scope": "Pre-edge RTL counters. The unchanged guard, launches and arithmetic yield exactly the expected divider-clock and setup-clock reductions. Alternative wider leading-zero skips are hypothetical upper bounds."
+  },
+  "record_fetch_investigation": {
+    "scope": "Baseline record wait measurement uses real RTL. Cache figures are offline trace estimates at one replay word per clock. No cache was added.",
+    "analysis_sha256": "fff3721441fceefc7b41740a395f0b8c93c1987f99d893f2e5c57d47fbc10cda",
+    "trace_sha256": "f9236c2bb9a796d253879c131bb8cf645607d862effed5d89a95f44019b07519",
+    "cases": [
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "record_fetch_count": 1552,
+        "record_logical_reads": 3104,
+        "record_physical_bl8_reads": 5130,
+        "record_fetch_total_clocks": 88694,
+        "record_fetch_share_percent": 6.221564404913053,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 295,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.6996401489909441,
+            "estimated_percent_with_one_cycle_miss_cost": 0.6114661298129196
+          },
+          "direct_folded": {
+            "hits": 425,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.0341683092614287,
+            "estimated_percent_with_one_cycle_miss_cost": 0.9551133215019746
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 1387,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 3.405116478089773,
+            "estimated_percent_with_one_cycle_miss_cost": 3.3935423228277415
+          },
+          "direct_folded": {
+            "hits": 1051,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 2.583772332858676,
+            "estimated_percent_with_one_cycle_miss_cost": 2.5486289886994156
+          }
+        }
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "record_fetch_count": 1,
+        "record_logical_reads": 2,
+        "record_physical_bl8_reads": 3,
+        "record_fetch_total_clocks": 57,
+        "record_fetch_share_percent": 0.2603453000822143,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.004567461404951128
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.004567461404951128
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.004567461404951128
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.004567461404951128
+          }
+        }
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "record_fetch_count": 1552,
+        "record_logical_reads": 3104,
+        "record_physical_bl8_reads": 5130,
+        "record_fetch_total_clocks": 89846,
+        "record_fetch_share_percent": 9.95916394721907,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 295,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.2899271069807037,
+            "estimated_percent_with_one_cycle_miss_cost": 1.150592366628831
+          },
+          "direct_folded": {
+            "hits": 425,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.698065940692395,
+            "estimated_percent_with_one_cycle_miss_cost": 1.5731413166855845
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 1387,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 5.560642203461975,
+            "estimated_percent_with_one_cycle_miss_cost": 5.542352440408626
+          },
+          "direct_folded": {
+            "hits": 1051,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 4.268276461407491,
+            "estimated_percent_with_one_cycle_miss_cost": 4.212742089954597
+          }
+        }
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "record_fetch_count": 1,
+        "record_logical_reads": 2,
+        "record_physical_bl8_reads": 3,
+        "record_fetch_total_clocks": 59,
+        "record_fetch_share_percent": 0.31693167168027503,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.0053717232488182205
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.0053717232488182205
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.0053717232488182205
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.0053717232488182205
+          }
+        }
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "record_fetch_count": 1517,
+        "record_logical_reads": 4846,
+        "record_physical_bl8_reads": 12385,
+        "record_fetch_total_clocks": 179557,
+        "record_fetch_share_percent": 5.682741028392026,
+        "by_kind_consecutive_repeats": {
+          "rectangle": 25,
+          "sprite": 4
+        },
+        "four_mixed": {
+          "lru": {
+            "hits": 295,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.594931781282341,
+            "estimated_percent_with_one_cycle_miss_cost": 0.5562571011713174
+          },
+          "direct_folded": {
+            "hits": 309,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.8004266241308483,
+            "estimated_percent_with_one_cycle_miss_cost": 0.7621950254613585
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 457,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.6097433608993287,
+            "estimated_percent_with_one_cycle_miss_cost": 0.5761957660403394
+          },
+          "direct_folded": {
+            "hits": 428,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.5682835974415211,
+            "estimated_percent_with_one_cycle_miss_cost": 0.5338181910250689
+          }
+        }
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "record_fetch_count": 3126,
+        "record_logical_reads": 13467,
+        "record_physical_bl8_reads": 38561,
+        "record_fetch_total_clocks": 533577,
+        "record_fetch_share_percent": 12.534921221108064,
+        "by_kind_consecutive_repeats": {
+          "rectangle": 85,
+          "sprite": 4
+        },
+        "four_mixed": {
+          "lru": {
+            "hits": 188,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.20823525321350408,
+            "estimated_percent_with_one_cycle_miss_cost": 0.139215039546844
+          },
+          "direct_folded": {
+            "hits": 176,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.19385799971997245,
+            "estimated_percent_with_one_cycle_miss_cost": 0.12455587912206664
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 448,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.4142152509770424,
+            "estimated_percent_with_one_cycle_miss_cost": 0.35130302082070625
+          },
+          "direct_folded": {
+            "hits": 436,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.40272754352877943,
+            "estimated_percent_with_one_cycle_miss_cost": 0.3395334064411975
+          }
+        }
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "record_fetch_count": 170,
+        "record_logical_reads": 850,
+        "record_physical_bl8_reads": 1700,
+        "record_fetch_total_clocks": 29689,
+        "record_fetch_share_percent": 7.076728720234549,
+        "by_kind_consecutive_repeats": {
+          "prepared": 16
+        },
+        "four_mixed": {
+          "lru": {
+            "hits": 131,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 2.8543846685576715,
+            "estimated_percent_with_one_cycle_miss_cost": 2.845088551474269
+          },
+          "direct_folded": {
+            "hits": 112,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 2.4365361237575383,
+            "estimated_percent_with_one_cycle_miss_cost": 2.4227111291206826
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.04052153600457655
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.04052153600457655
+          }
+        }
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "record_fetch_count": 177,
+        "record_logical_reads": 885,
+        "record_physical_bl8_reads": 1770,
+        "record_fetch_total_clocks": 29772,
+        "record_fetch_share_percent": 15.170909683862947,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 130,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 5.703613868449481,
+            "estimated_percent_with_one_cycle_miss_cost": 5.679664091641018
+          },
+          "direct_folded": {
+            "hits": 87,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 3.958337579747661,
+            "estimated_percent_with_one_cycle_miss_cost": 3.912476305008051
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.09019384032123275
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.09019384032123275
+          }
+        }
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "record_fetch_count": 12950,
+        "record_logical_reads": 12950,
+        "record_physical_bl8_reads": 25900,
+        "record_fetch_total_clocks": 432574,
+        "record_fetch_share_percent": 7.405514101281885,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.22169942625215663
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.22169942625215663
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.22169942625215663
+          },
+          "direct_folded": {
+            "hits": 904,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.2365421600406215,
+            "estimated_percent_with_one_cycle_miss_cost": 0.03031889450907872
+          }
+        }
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "record_fetch_count": 17541,
+        "record_logical_reads": 17541,
+        "record_physical_bl8_reads": 35082,
+        "record_fetch_total_clocks": 590602,
+        "record_fetch_share_percent": 10.763055399842692,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.31966494317432154
+          },
+          "direct_folded": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.31966494317432154
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 0,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.0,
+            "estimated_percent_with_one_cycle_miss_cost": -0.31966494317432154
+          },
+          "direct_folded": {
+            "hits": 457,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.12878810520568557,
+            "estimated_percent_with_one_cycle_miss_cost": -0.18254852834942015
+          }
+        }
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "record_fetch_count": 340,
+        "record_logical_reads": 340,
+        "record_physical_bl8_reads": 680,
+        "record_fetch_total_clocks": 10584,
+        "record_fetch_share_percent": 2.640586797066015,
+        "by_kind_consecutive_repeats": {},
+        "four_mixed": {
+          "lru": {
+            "hits": 84,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.2799261513896512,
+            "estimated_percent_with_one_cycle_miss_cost": 0.21605708297989124
+          },
+          "direct_folded": {
+            "hits": 128,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.4236315553116112,
+            "estimated_percent_with_one_cycle_miss_cost": 0.37073998303477873
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 322,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.051843720373235,
+            "estimated_percent_with_one_cycle_miss_cost": 1.0473529265006736
+          },
+          "direct_folded": {
+            "hits": 314,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.0204081632653061,
+            "estimated_percent_with_one_cycle_miss_cost": 1.0139214610049399
+          }
+        }
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "record_fetch_count": 1171,
+        "record_logical_reads": 1171,
+        "record_physical_bl8_reads": 2342,
+        "record_fetch_total_clocks": 37934,
+        "record_fetch_share_percent": 4.404865859096314,
+        "by_kind_consecutive_repeats": {
+          "vertex": 2
+        },
+        "four_mixed": {
+          "lru": {
+            "hits": 289,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.5286907327586207,
+            "estimated_percent_with_one_cycle_miss_cost": 0.4262735954221165
+          },
+          "direct_folded": {
+            "hits": 264,
+            "payload_storage_bytes_at_fixed_stride": 1280,
+            "estimated_percent_with_zero_cycle_miss_cost": 0.4897907996432818,
+            "estimated_percent_with_one_cycle_miss_cost": 0.3844706822235434
+          }
+        },
+        "sixteen_short": {
+          "lru": {
+            "hits": 796,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.348608427467301,
+            "estimated_percent_with_one_cycle_miss_cost": 1.3050637262187872
+          },
+          "direct_folded": {
+            "hits": 691,
+            "payload_storage_bytes_at_fixed_stride": 1536,
+            "estimated_percent_with_zero_cycle_miss_cost": 1.1823257282996433,
+            "estimated_percent_with_one_cycle_miss_cost": 1.1265885107015459
+          }
+        }
+      }
+    ]
+  },
+  "validation": {
+    "native_renderer_report_sha256": "d39fc445c580c6f4a31a28b7a8e57cb757ac954238c6ec2c22976d7478d1cff0",
+    "native_divider": {
+      "top": "nano_triangle_setup_divider_tb",
+      "passed": true,
+      "public_record_cases": 49,
+      "reverse_winding_cases": 22,
+      "active_reset_cases": 5,
+      "zero_gradient_setup_edges": 89,
+      "below_threshold_setup_edges": 89,
+      "at_threshold_setup_edges": 94,
+      "reference": "Independent signed64 division, saturated half-away gradients and floored seed",
+      "exact_gradient_and_seed_words": true,
+      "both_gradient_signs": true,
+      "strict_threshold_and_saturation_boundaries": true,
+      "rounding_tie_and_nearest_each_side_both_signs": true,
+      "retained_record_reuse_after_reset": true,
+      "radix_four": {
+        "completed_divisions_traced": 100,
+        "digits_checked": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "signed_terminal_bit_pairs_checked": 4,
+        "minimum_paired_clocks": 17,
+        "maximum_paired_clocks": 21,
+        "paired_step_reset_cases": 2,
+        "last_rounding_bit_reset_cases": 2
+      }
+    },
+    "native_block_log_sha256": "1e4f690621631c534add6d857fd40c95db6464cfd908aec4d3f6b735876671c5",
+    "native_full_recovery_assertions": 4217,
+    "integer_gradient_vectors": 236748,
+    "arithmetic_log_sha256": "81a9ec959400b990ef7b8ae8f9fc30b3e928a9bf797c09dd9d174dd3605d8ff7",
+    "baseline_functional_sha256": "5f6670bba3932caa226b05a84e6909202ebfc74a6d8f00b9339fa242752498d1",
+    "reference_host_python_suite": {
+      "tests": 133,
+      "skipped": 1,
+      "log_sha256": "3f3b3bd9485690834916685fadbe7422352ddccc79b1de116f895bfac9efd372"
+    },
+    "docs_examples": "Passed"
+  },
+  "whole_board": {
+    "selected": "v1908",
+    "place_route_options": [
+      0,
+      2
+    ],
+    "baseline_boards": {
+      "v1908": {
+        "path": "docs/hardware/tang20k-depth-row-v1908.json",
+        "sha256": "8fba263129e786167cd3245db8a25612cb078090303b30c6c4c36e5100a8bd09",
+        "qualified": true,
+        "core_fmax_mhz": 57.368,
+        "resources": {
+          "Logic": "18856/20736  91%",
+          "Register": "7485/15915  48%",
+          "I/O Port": "26",
+          "BSRAM": "100%",
+          "DSP": "63%",
+          "PLL": "1/2(50%)",
+          "CLKDIV": "2/8(25%)"
+        }
+      },
+      "v1911": {
+        "path": "docs/hardware/tang20k-depth-row-v1911.json",
+        "sha256": "994674e61a1951111754f70567ddd0847919e1b3e56778e827117fc524727f8c",
+        "qualified": true,
+        "core_fmax_mhz": 55.424,
+        "resources": {
+          "Logic": "18787/20736                         |  91%",
+          "Register": "7409/15915                          |  47%",
+          "I/O Port": "26/66                               |  40%",
+          "BSRAM": "46/46                               | 100%",
+          "DSP": "15/24                               | 63%",
+          "CLKDIV": "2/8           | 25%"
+        }
+      }
+    },
+    "functional": "docs/hardware/tang20k-kind4-radix-four-functional.json",
+    "reports": [
+      "docs/hardware/tang20k-kind4-radix-four-v1908.json",
+      "docs/hardware/tang20k-kind4-radix-four-v1911.json"
+    ],
+    "image_scope": "Local images with matching checksums. The repository release programming image is historical."
+  },
+  "model_builds": {
+    "before": {
+      "commit_at_build": "ebbb18b4781dbd70aa8e5cd5c6ec619bfe7b475f",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "09351aed8e807334bba1a933fd82eb82f1d40d4c5c2a6294a32ef77289ae9dfd",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "3853f60c293fcee3e50b149b73c60fc0b1f6f65a1f6d550c1099d9eff9200f52",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "19bc91fe67797301d89adf5246b11273add9f1fc859b246df5fe738b3165ceff",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+      "isolated_exe_sha256": "a7c60c7d891d8268eb0d6554053bbb608b278e10f536da73c24a169e8830dc59",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "279ac8aa1623c2952d9f68e3ec3b5d530b280558b4accea4f4367e80a9942d50"
+      },
+      "scenes": [
+        "vertex-divider-windings",
+        "vertex-divider-seeded",
+        "vertex0",
+        "vertex1",
+        "ico-flat",
+        "closeup",
+        "depth-clear-only",
+        "depth-color-clear-only",
+        "depth-clear-discard-only",
+        "depth-skip-load-store",
+        "depth-skip-load-discard",
+        "depth-skip-clear-discard",
+        "depth-seeded-load-store",
+        "depth-seeded-load-discard",
+        "copy",
+        "copy-patterned-full",
+        "copy-console-scroll",
+        "copy-overlap-up-odd",
+        "copy-overlap-down-clipped",
+        "copy-overlap-left-odd",
+        "copy-overlap-right-clipped",
+        "copy-skinny",
+        "copy-short",
+        "copy-heap-pitched",
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "mixed-depth-scissor-natural",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "ico",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    },
+    "after": {
+      "commit_at_build": "ebbb18b4781dbd70aa8e5cd5c6ec619bfe7b475f",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "b8c5407fc5ba0b4462889ffebb96363571218ad438653ce65fa721eb585524ec",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "3853f60c293fcee3e50b149b73c60fc0b1f6f65a1f6d550c1099d9eff9200f52",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "19bc91fe67797301d89adf5246b11273add9f1fc859b246df5fe738b3165ceff",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "4ad2b2e48a64b2a9cf517d52f390f1d552d09ec4735e97bbdd5a1df0f66b6d84",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "8b026994d5703f4113d2ed13e2c9305c34280ff2803630ea9c342feefb511e4b",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+      "isolated_exe_sha256": "ae582fa864562f90931e6cd6f5fcfb69191f8a10704b0935948eba13213d75f1",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "70fb764201196cb9cc69e14402801d5e6e1d9f1839433eb74f3cc795da32270b"
+      },
+      "scenes": [
+        "vertex-divider-windings",
+        "vertex-divider-seeded",
+        "vertex0",
+        "vertex1",
+        "ico-flat",
+        "closeup",
+        "depth-clear-only",
+        "depth-color-clear-only",
+        "depth-clear-discard-only",
+        "depth-skip-load-store",
+        "depth-skip-load-discard",
+        "depth-skip-clear-discard",
+        "depth-seeded-load-store",
+        "depth-seeded-load-discard",
+        "copy",
+        "copy-patterned-full",
+        "copy-console-scroll",
+        "copy-overlap-up-odd",
+        "copy-overlap-down-clipped",
+        "copy-overlap-left-odd",
+        "copy-overlap-right-clipped",
+        "copy-skinny",
+        "copy-short",
+        "copy-heap-pitched",
+        "reference-singleton-grid",
+        "reference-burst-grid",
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "mixed-depth-scissor-natural",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "ico",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    }
+  },
+  "measurement_source_sha256": {
+    "setup-divider-matched.cpp": "2dd4975e008fed63cb585e4d0d44ddb5b0472fa581630d0113c9bedb8313ca99",
+    "run-setup-divider-matched.py": "f7c143fe73ab28f405e42824c5c23b14849d73d76be9866365ee2c0708783a80",
+    "setup-divider-stats.hpp": "54c1af38c794749f2effe85ed1e05835fcc98c81b7023998244f6132830f6b23",
+    "run-divider-profile.py": "8c6a2e546052d546deb68f3196103fcec9734e2ddebae83bba9974398dc72258",
+    "check-radix4.py": "70f391be7a06658afa7224387addded69e2e374ca20c191523357fc6337d07af",
+    "run-setup-divider-phase.py": "cf2eeb58774e65e8dadb9f0796266eb1fbc8337c1b86c23955c07535ec46c836",
+    "run-setup-divider-phase-audit.py": "04d898b0a04ef55f28cae1bc024b117cf62d2ee0f5ab3c440b5d11e08b8c8e79"
+  }
+}
