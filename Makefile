@@ -47,9 +47,9 @@ tang20k-test:
 	$(PYTHON) scripts/check-tang20k.py --build-dir "$(BUILD_DIR)/tang20k"
 
 # Board image: Gowin EDA (see AGENTS.md). GOWIN_SH overrides the gw_sh path.
-# COPY write overlap built at placement/routing 0/2.
-# Selected V1.9.11.03 at 53.362 MHz estimated core Fmax.
-GOWIN_SH ?= C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/gw_sh.exe
+# Aligned D24 tile rows built at placement/routing 0/2.
+# Selected V1.9.8.11 at 57.368 MHz estimated core Fmax.
+GOWIN_SH ?= C:/Gowin/Gowin_V1.9.8.11_Education/IDE/bin/gw_sh.exe
 # Placement/routing options of the published image (a build choice, not a
 # hardware mode). Option 2/1 left the current design over its timing budget.
 TANG20K_PLACE ?= 0

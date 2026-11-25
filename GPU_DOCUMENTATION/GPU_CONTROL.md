@@ -904,9 +904,9 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with overlapped COPY writes,
-`make tang20k` selects the qualified V1.9.11.03 route at
-53.362 MHz estimated core Fmax on the existing package pins and
+V1.9.8.11. For the current 0.3 RTL with 32-word D24 tile rows,
+`make tang20k` selects the qualified V1.9.8.11 route at
+57.368 MHz estimated core Fmax on the existing package pins and
 host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
@@ -985,7 +985,7 @@ sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 
 | Job | Tool (exact) | Location on the user's PC |
 | --- | --- | --- |
-| Build the current RTL (`make tang20k`) | Signed Gowin EDA **V1.9.11.03 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe` |
+| Build the current RTL (`make tang20k`) | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Build the published 0.2 release | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Program SRAM or flash | Standalone Gowin Programmer **V1.9.12.04 (64-bit)** `programmer_cli.exe`, Authenticode-signed by Gowin | `C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe` |
 
@@ -1187,9 +1187,16 @@ clear value, while LEQUAL accepts equality.
 The tile executor loads and stores two adjacent RGB565 pixels per accepted
 SDRAM word. The even pixel occupies the low halfword, matching the external
 buffer layout. Internally, two parity banks hold full D24 pixels and can
-clear a pair on one clock. A pass still retires after its required stores
-complete. Hosts use the existing ownership and fence rules for LOAD,
-CLEAR, STORE and DISCARD.
+clear a pair on one clock. The executor uses one 16-word request per color
+tile row and one 32-word request per D24 tile row. Constant writes for clears
+of empty tiles use the same row sizes. The GPU validates the private D24
+request for a 128-byte-aligned row within the depth attachment. It uses four
+physical SDRAM BL8 commands in one of the two existing payload slots.
+The next memory grant can occur after the row's final column command when a
+slot is free. Scanout keeps its bounded priority at that grant.
+The attachment layout, packet fields and flags are unchanged. A pass retires
+after its required stores complete. Hosts use the existing ownership and
+fence rules for LOAD, CLEAR, STORE and DISCARD.
 `WRITE_HEAP` cannot write attachments. Heap allocation, nonoverlap and resource
 lifetime belong to the CPU driver. Check sums with at least 64-bit arithmetic.
 

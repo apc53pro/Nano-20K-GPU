@@ -224,11 +224,11 @@ module nano_gpu_core #(
     reg [6:0] record_word;
     reg [4:0] beat;
     reg [4:0] row;
-    // Tile attachment transfers walk rows; each row moves one 16-word color
-    // burst (kind 0) and two 16-word depth bursts (kinds 1, 2) as enabled.
+    // Tile attachment transfers walk rows; each row moves one 16-word
+    // color request and one aligned 32-word depth request as enabled.
     // A constant store writes clear values for a tile without draws and
     // never reads tile RAM. A color word moves both RGB565 pixels together.
-    reg [1:0] store_kind;
+    reg transfer_depth;
     reg xfer_color, xfer_depth, store_constant;
     // The tile write port is idle during STORE: each color pair or depth pixel
     // read for a store can be rewritten with its clear value on the next edge. After
@@ -239,9 +239,11 @@ module nano_gpu_core #(
     reg tile_ram_clear, clear_back_valid, clear_back_pair;
     reg [1:0] clear_back_we;
     reg [9:0] clear_back_addr;
-    wire clear_back_color = store_kind==0 && clear_color_enable;
-    wire clear_back_depth = clear_depth_enable && (store_kind!=0 || depth_discard);
-    wire xfer_last = row==31 && (store_kind==2 || (store_kind==0 && !xfer_depth));
+    wire clear_back_color = !transfer_depth && clear_color_enable;
+    wire clear_back_depth = clear_depth_enable && (transfer_depth || depth_discard);
+    wire xfer_last = row==31 && (transfer_depth || !xfer_depth);
+    wire row_word_last = beat=={transfer_depth,4'hf};
+    wire row_depth_request = transfer_depth && (state==S_LOAD_CMD || state==S_STORE_CMD);
     reg [31:0] packed_word;
     reg [22:0] boot_address;
 
@@ -482,7 +484,7 @@ module nano_gpu_core #(
     task automatic finish_reference;
         begin
             if(last_reference) begin
-                row<=0; beat<=0; store_kind<=0; store_constant<=0;
+                row<=0; beat<=0; transfer_depth<=0; store_constant<=0;
                 xfer_color<=1; xfer_depth<=!depth_discard; state<=S_STORE_CMD;
             end
             else begin
@@ -494,9 +496,8 @@ module nano_gpu_core #(
     // Advance to the next enabled burst of a tile attachment transfer.
     task automatic next_transfer;
         begin
-            if(store_kind==1) store_kind<=2;
-            else if(store_kind==0 && xfer_depth) store_kind<=1;
-            else begin row<=row+1; store_kind<=xfer_color ? 2'd0 : 2'd1; end
+            if(!transfer_depth && xfer_depth) transfer_depth<=1;
+            else begin row<=row+1; transfer_depth<=!xfer_color; end
         end
     endtask
     // After a COPY clip step: check an axis, finish setup or fetch the next word.
@@ -561,10 +562,9 @@ module nano_gpu_core #(
     end
 
     wire [22:0] current_row_pixel = global_pixel(tile_origin_x,tile_origin_y+{4'd0,row});
-    wire [22:0] store_address = store_kind==0 ? color_base(target_id)+(current_row_pixel<<1) :
-        DEPTH_BASE+(current_row_pixel<<2)+(store_kind==2 ? 23'd64 : 23'd0);
-    wire [9:0] store_pixel_address = {row,5'd0}+
-        (store_kind==0 ? {4'd0,beat,1'b0} : (store_kind==2 ? 10'd16 : 10'd0)+{5'd0,beat});
+    wire [22:0] store_address = transfer_depth ? DEPTH_BASE+(current_row_pixel<<2) :
+        color_base(target_id)+(current_row_pixel<<1);
+    wire [9:0] store_pixel_address = {row,transfer_depth ? beat : {beat[3:0],1'b0}};
 
     always @* begin
         mem_cmd_valid=0; mem_cmd_write=0; mem_cmd_addr=0; mem_cmd_words=0;
@@ -681,11 +681,11 @@ module nano_gpu_core #(
         end
         S_LOAD_DATA: begin
             mem_r_ready[3]=1;
-            tile_pix_write_pair=store_kind==0;
+            tile_pix_write_pair=!transfer_depth;
             tile_pix_color=mem_r_data[96 +:32];
             tile_pix_depth=mem_r_data[96 +:24];
             tile_pix_addr=store_pixel_address;
-            if(mem_r_valid[3]) tile_pix_we=store_kind==0 ? 2'b01 : 2'b10;
+            if(mem_r_valid[3]) tile_pix_we=transfer_depth ? 2'b10 : 2'b01;
         end
         S_DRAW_START: tile_cmd_valid=1;
         S_STORE_CMD: begin
@@ -698,11 +698,11 @@ module nano_gpu_core #(
         S_STORE_PREFETCH: tile_pix_re=1;
         S_STORE_WORD: begin
             mem_w_valid[3]=1; mem_w_strb[12 +:4]=15;
-            if(store_constant) mem_w_data[96 +:32]=store_kind==0 ? {clear_color,clear_color} : {8'd0,clear_depth};
-            else mem_w_data[96 +:32]=store_kind==0 ? tile_pix_rcolor : {8'd0,tile_pix_rdepth};
-            if(!store_constant && mem_w_ready[3] && beat!=15) begin
+            if(store_constant) mem_w_data[96 +:32]=transfer_depth ? {8'd0,clear_depth} : {clear_color,clear_color};
+            else mem_w_data[96 +:32]=transfer_depth ? {8'd0,tile_pix_rdepth} : tile_pix_rcolor;
+            if(!store_constant && mem_w_ready[3] && !row_word_last) begin
                 tile_pix_re=1;
-                tile_pix_raddr=store_pixel_address+(store_kind==0 ? 10'd2 : 10'd1);
+                tile_pix_raddr=store_pixel_address+(transfer_depth ? 10'd1 : 10'd2);
             end
         end
         S_REPLY: begin
@@ -795,7 +795,7 @@ module nano_gpu_core #(
             descriptor_invalid<=0; setup_started<=0; last_reference<=0;
             record_followup_words<=16; record_length_bad<=0;
             table_address<=0; list_address<=0; record_address<=0; reference_count<=0; reference_index<=0; references_seen<=0;
-            tile_x_index<=0; tile_y_index<=0; tile_index<=0; clear_pair_index<=0; record_word<=0; beat<=0; row<=0; store_kind<=0;
+            tile_x_index<=0; tile_y_index<=0; tile_index<=0; clear_pair_index<=0; record_word<=0; beat<=0; row<=0; transfer_depth<=0;
             packed_word<=0; packed_mask<=0; boot_address<=0;
             upload_address<=0; upload_length<=0; upload_cursor<=0; upload_chunk<=0; upload_fill<=0; upload_prefix<=0; upload_words<=0;
             upload_descriptor<=0;
@@ -822,7 +822,7 @@ module nano_gpu_core #(
             renderer_reset<=0; host_abort<=0; host_cmd_pop<=0; tex_flush<=0;
             clear_back_valid<=tile_pix_re && !store_constant && (clear_back_color || clear_back_depth);
             clear_back_addr<=tile_pix_raddr; clear_back_we<={clear_back_depth,clear_back_color};
-            clear_back_pair<=store_kind==0;
+            clear_back_pair<=!transfer_depth;
             // Classify the first registered record word while the rest of
             // the first burst arrives. Consuming the reference checks alignment
             // and the first 64 bytes, so only the upper bound remains here.
@@ -1149,7 +1149,7 @@ module nano_gpu_core #(
                             // constants, without touching tile RAM.
                             store_constant<=1; xfer_color<=clear_color_enable;
                             xfer_depth<=clear_depth_enable && !depth_discard;
-                            store_kind<=clear_color_enable ? 2'd0 : 2'd1;
+                            transfer_depth<=!clear_color_enable;
                             if(clear_color_enable || (clear_depth_enable && !depth_discard)) state<=S_STORE_CMD;
                             else next_tile();
                         end else begin
@@ -1157,7 +1157,7 @@ module nano_gpu_core #(
                             // TILE_INIT only until a store has cleared them.
                             store_constant<=0;
                             xfer_color<=!clear_color_enable; xfer_depth<=!clear_depth_enable;
-                            store_kind<=clear_color_enable ? 2'd1 : 2'd0;
+                            transfer_depth<=clear_color_enable;
                             if((clear_color_enable || clear_depth_enable) && !tile_ram_clear) state<=S_TILE_INIT;
                             else if(clear_color_enable && clear_depth_enable) state<=S_REF_CMD;
                             else state<=S_LOAD_CMD;
@@ -1215,7 +1215,7 @@ module nano_gpu_core #(
                 // The next burst is requested as soon as this one is staged: its
                 // completion arrives later (mem3_outstanding).
                 S_STORE_WORD: if(mem_w_ready[3]) begin
-                    if(beat==15) begin
+                    if(row_word_last) begin
                         if(xfer_last) state<=S_STORE_DONE;
                         else begin next_transfer(); state<=S_STORE_CMD; end
                     end else beat<=beat+1;
@@ -1417,6 +1417,7 @@ module nano_gpu_core #(
         .READ_TO_WRITE(SDRAM_READ_TO_WRITE),.WRITE_TO_READ(SDRAM_WRITE_TO_READ)) memory_service (
         .clk(clk),.reset(reset),.initialized(memory_initialized),
         .cmd_valid(mem_cmd_valid),.cmd_ready(mem_cmd_ready),.cmd_write(mem_cmd_write),.cmd_addr(mem_cmd_addr),.cmd_words(mem_cmd_words),
+        .cmd_depth_row32(row_depth_request),
         .w_valid(mem_w_valid),.w_ready(mem_w_ready),.w_data(mem_w_data),.w_strb(mem_w_strb),
         .r_valid(mem_r_valid),.r_ready(mem_r_ready),.r_data(mem_r_data),.r_last(mem_r_last),.done(mem_done),.error(mem_error),
         .sd_clk(sd_clk),.sd_cke(sd_cke),.sd_cs_n(sd_cs_n),.sd_ras_n(sd_ras_n),.sd_cas_n(sd_cas_n),.sd_we_n(sd_we_n),

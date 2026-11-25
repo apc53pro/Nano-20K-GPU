@@ -87,7 +87,7 @@ board, the open-flow GPU image's host address latch failed while the same RTL
 built by the vendor Gowin EDA worked (section 14). The published image
 uses Gowin EDA V1.9.8.11 Education under the exception in `AGENTS.md`.
 Its 2026-11-13 addendum selects the installed version with the fastest
-qualifying route. The current RTL selects signed V1.9.11.03 (section 12).
+qualifying route. The current RTL selects V1.9.8.11 (section 12).
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -492,13 +492,13 @@ For each tile the current executor fetches the tile entry, then:
 
 - **Tile without draws.** With `SKIP`, nothing is read or written. Otherwise,
   loaded attachments are already correct in SDRAM, so nothing is read or
-  written for them. A cleared color, and a cleared depth
-  that is stored, are written as constant 16-word bursts without touching tile
-  RAM. A pass that loads color and discards or loads depth skips the tile
-  entirely, so an update costs only the tiles it draws in.
+  written for them. A cleared color and a cleared depth that is stored use
+  constant row writes without touching tile RAM. Each color row is 16 words
+  and each D24 row is 32 words. A pass that loads color and discards or loads
+  depth skips the tile entirely, so an update costs only the tiles it draws in.
 - **Tile with draws.**
-  1. Burst-loads the loaded attachments: one 16-word color burst and two
-     16-word depth bursts per tile row. A color word fills both pixels on
+  1. Loads each tile row in one 16-word color request and one 32-word D24
+     request for the attachments using LOAD. A color word fills both pixels on
      the clock that accepts the SDRAM response. Cleared attachments are
      written two pixels at a time (512 clocks) for the pass's
      first tile with draws; see step 4.
@@ -517,8 +517,9 @@ For each tile the current executor fetches the tile entry, then:
      triangle coefficients and edges are irrelevant to a following 2D draw.
   3. Runs the primitive in the tile and drains its fragment work before
      changing draw state.
-  4. Streams color, and depth unless discarded, back to SDRAM in 16-word
-     bursts. Each accepted clock supplies one RGB565 pair or one depth word.
+  4. Streams each tile row back to SDRAM in one 16-word color request and,
+     unless depth is discarded, one 32-word D24 request. Each accepted clock
+     supplies one RGB565 pair or one depth word.
      The tile RAM holds its output while the SDRAM payload slot is not ready.
      The next clock can clear the previous read address while fetching a
      different one. Color clears in pairs. Depth clears during its own store,
@@ -917,19 +918,23 @@ All accesses share one service with six logical clients:
 | 4 | Texture-cache refills |
 | 5 | Color copies |
 
-The service accepts bounded 1–16-word transactions and maps them onto physical
-sequential BL8 SDRAM commands. Two native RAM banks hold its 32-bit payload
-in **two 16-word slots**; a third stores the four byte-write masks with the
-same synchronous read schedule and slot addressing. The second slot uses
-words of those banks that were previously unused, so it adds no BSRAM. Masked padding preserves bytes outside a short write. The controller
-implements initialization, bank/row timing, read/write turnaround, refresh and
-response backpressure. Its selected physical mode is CAS latency 3 and BL8.
+The service maps ordinary 1–16-word transactions and private 32-word D24
+tile row transactions onto physical sequential BL8 SDRAM commands. Two native
+RAM banks hold its 32-bit payload in **two slots of 32 native word addresses
+each**. A third bank holds the four byte-write masks with the same synchronous
+read schedule and slot addressing. A D24 row uses the existing addresses
+16–31 of its slot. The service still supports two transactions in progress
+with the same RAM banks. Masked padding preserves bytes outside a short
+write. The controller implements initialization, bank/row timing,
+read/write turnaround, refresh and response backpressure. Its selected
+physical mode is CAS latency 3 and BL8.
 Client 0 has bounded priority; other clients rotate fairly.
 
 A transaction is split into BL8 segments, each one 32-byte-aligned column
 block. **Column commands are pipelined**: the next segment's READ or WRITE
 issues eight edges after the previous one whenever its row is open, so a
-16-word read returns data on consecutive edges and writes stream back to back.
+read returns data on consecutive edges and writes stream back to back. Each
+aligned 32-word D24 row uses four physical BL8 commands.
 The next segment's PRECHARGE or ACTIVE may issue during the current burst,
 except that no PRECHARGE truncates an in-flight read. A WRITE segment issues
 as soon as its own words are staged and its first word is in the RAM output
@@ -982,14 +987,22 @@ The arbiter computes foreground eligibility from the round-robin cursor in
 parallel, choosing the first request at or after the cursor or wrapping to the
 first earlier request. Its one-hot grant drives `cmd_ready` directly; binary
 owner encoding is used for the selected payload and retained transaction.
-The bounded scanout preference and foreground order are preserved, without
-adding an arbitration cycle.
+The bounded scanout preference and foreground order apply at each grant.
+A D24 tile row holds the command slot through its fourth BL8 column command.
+The next eligible scanout or foreground request can then be granted when a
+payload slot is free. Refresh can still run between the row's physical segments.
 
-An aligned 1–16-word transaction spans at most 64 bytes. Only the final
+An ordinary 1–16-word transaction spans at most 64 bytes. Only the final
 64-byte line of SDRAM can cross the 8 MiB limit, so its extent check uses a
 six-bit word-offset-plus-count sum there instead of a full byte-address carry
 chain. Raw alignment and count checks remain, and an extent ending exactly
-at 8 MiB is valid. Accepted transactions retain their original range semantics.
+at 8 MiB is valid. The private row flag applies only to the granted tile
+attachment client, client 3. Its retained request must carry the 16-word
+token and a 128-byte-aligned address in the D24 region
+`[0x12c000, 0x258000)`. Those aligned region bounds keep the entire row
+inside the D24 attachment. Validation converts the token to a 32-word
+transaction. Boot initialization and other memory clients use the ordinary
+transaction path. The host packet formats and SDRAM layout are unchanged.
 
 The acceptance edge captures owner, address, count and direction. A registered
 `CHECK_REQUEST` stage validates those retained fields before collecting write
@@ -1743,6 +1756,29 @@ netlists are encrypted, so the fixed SDRAM SiP wiring check remains
 unavailable. V1.9.8.11 provenance and external electrical margins remain
 unverified.
 
+### Aligned D24 row source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-depth-row-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-depth-row-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+The selected route verified 26 package pins and passed the core, pixel,
+and host-capture timing gates. Each report lists the timing paths under
+the existing exceptions and records any failed gates.
+Both routes passed and listed eight reset-release exceptions.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 57.368 MHz | 35.266 MHz | 18,856/20,736 | 46/46 | Pass |
+| V1.9.11.03 | 55.424 MHz | 27.253 MHz | 18,787/20,736 | 46/46 | Pass |
+
+Operating clocks stay at 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz
+serialization. Both builds retained the existing uncommitted 4 ns host
+pad constraints. The local selected image has a matching checksum,
+frame-CRC check and [functional report](../docs/hardware/tang20k-depth-row-functional.json).
+The committed programming image belongs to an earlier release. Encrypted
+netlists prevent fixed SDRAM SiP verification. V1.9.8.11 provenance and
+external electrical margins remain unverified.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -2318,6 +2354,38 @@ with depth discarded takes 3,216 extra clocks in that sequence. The same
 pointer update ties at both matched phases, including an identical preceding
 UI image and complete D24 attachment.
 
+### Aligned D24 transfers (2026-11-25)
+
+The [continuous Verilated benchmark](../docs/benchmarks/rtl-d24-row-transfers.json)
+takes 25,946,532 instead of 26,496,856 clocks through its fences (2.08%)
+at 50.4 MHz. Every cumulative fence is earlier or equal. The empty pass
+that clears depth while loading color takes 554,214 instead of 621,056
+clocks (10.76%). Its logical D24 writes fall from 19,200 to 9,600. All
+307,200 D24 words and 38,400 physical BL8 writes are preserved. In the
+pointer LOAD/STORE pass, both depth reads and writes fall from 64
+requests to 32 with unchanged payload and physical burst counts.
+
+| Workload | Cycle reduction at two matched starts |
+| --- | ---: |
+| Full-frame depth-only CLEAR | 9.49–10.38% |
+| Full-frame color and depth CLEAR | 7.55–8.17% |
+| Sparse D24 LOAD and STORE | 4.26–5.84% |
+| Sparse D24 LOAD and DISCARD | 3.53–4.84% |
+| UI with both attachments stored | 4.22–4.35% |
+| UI with depth discarded | Identical |
+
+The continuous suite retained zero underflows, a 96-clock maximum scanout
+offer-to-grant wait, a 45-clock maximum grant-to-first-word delay and a
+986-word minimum active-refill FIFO occupancy. That minimum excludes the
+intentional end-of-frame drain after all requests have been issued. These
+are measured bounds for these traces at the existing operating clock.
+The workload ledger includes individually longer continuous passes caused
+by shifted start phases. The matched starts and the natural seed-plus-pass
+histories verify the complete RGB565 and D24 attachments with independent SRR.
+Across 92 matched starts, every pass improves or ties. The additional
+eight-case attachment matrix varies LOAD/CLEAR and STORE/DISCARD independently
+for depth with mixed color load flags, and verifies final attachment validity.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -2353,7 +2421,7 @@ make tang20k-test
 make tang20k
 ```
 
-`make tang20k` uses signed Gowin EDA V1.9.11.03 by default (see section 12).
+`make tang20k` uses Gowin EDA V1.9.8.11 by default (see section 12).
 Set `GOWIN_SH` to select another `gw_sh.exe`.
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,

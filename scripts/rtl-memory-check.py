@@ -104,6 +104,10 @@ def main():
     if not match:
         raise RuntimeError("SDRAM regression did not emit its completion marker; see sdram-test.log")
     requests, reads, writes, refresh_gap = map(int, match.groups())
+    depth = re.search(r"PASS depth rows: physical(\d+) bl8_read(\d+) bl8_write(\d+) "
+                      r"invalid(\d+) ordinary(\d+) mixed(\d+) refresh(\d+)", service_output)
+    if not depth or tuple(map(int, depth.groups())) != (2, 8, 8, 16, 6, 1, 1):
+        raise RuntimeError("Private depth-row pin checks incomplete; see sdram-test.log")
     print(service_output.strip(), flush=True)
 
     texture_binary = build / "texture-cache.vvp"
@@ -164,6 +168,12 @@ def main():
              "external_memory_model": "reference/rtl/sdram_model.cpp; old pins sampled at rising edge, DQ established after edge",
              "requests": requests, "physical_reads": reads, "physical_writes": writes,
              "max_refresh_gap_cycles": refresh_gap, "runtime_write_reset_phases": 8,
+             "private_depth_rows": {"valid_boundary_rows": int(depth[1]),
+                 "physical_read_bl8s": int(depth[2]), "physical_write_bl8s": int(depth[3]),
+                 "invalid_requests_before_pin_activity": int(depth[4]),
+                 "ordinary_requests_with_flag_set": int(depth[5]),
+                 "mixed_slot_cases": int(depth[6]), "mixed_slot_refresh_cases": int(depth[7]),
+                 "neighbor_guards_and_masks_checked": True},
              "coverage": ["all eight BL8 prefixes and 1..16-word request lengths", "byte masks and unchanged burst padding",
                           "bank, row and allocation boundaries", "producer/consumer stalls across refresh",
                           "held read responses under backpressure", "invalid commands", "six-client arbitration fairness",

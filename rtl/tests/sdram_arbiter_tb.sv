@@ -11,7 +11,7 @@ module sdram_arbiter_tb;
     wire [5:0] cmd_ready;
     nano_sdram_service dut (
         .clk(clk), .reset(reset), .cmd_valid(cmd_valid), .cmd_ready(cmd_ready),
-        .cmd_write(cmd_write), .cmd_addr(cmd_addr), .cmd_words(cmd_words),
+        .cmd_write(cmd_write), .cmd_addr(cmd_addr),.cmd_depth_row32(1'b0), .cmd_words(cmd_words),
         .w_valid(6'd0), .w_data(192'd0), .w_strb(24'd0), .r_ready(6'd0),
         .sd_dq_in(32'd0)
     );

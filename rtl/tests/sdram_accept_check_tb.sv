@@ -19,7 +19,7 @@ module nano_sdram_accept_check_tb;
     integer checks=0, cases=0, edges=0;
     nano_sdram_service #(.POWERUP_CYCLES(1)) dut(
         .clk(clk),.reset(reset),.cmd_valid(cmd_valid),.cmd_ready(cmd_ready),.cmd_write(cmd_write),
-        .cmd_addr(cmd_addr),.cmd_words(cmd_words),.w_valid(w_valid),.w_ready(w_ready),
+        .cmd_addr(cmd_addr),.cmd_depth_row32(1'b0),.cmd_words(cmd_words),.w_valid(w_valid),.w_ready(w_ready),
         .w_data(w_data),.w_strb(w_strb),.r_valid(r_valid),.r_ready(r_ready),.r_data(r_data),
         .r_last(r_last),.done(done),.error(error),.initialized(initialized),.sd_clk(sd_clk),
         .sd_cke(sd_cke),.sd_cs_n(sd_cs_n),.sd_ras_n(sd_ras_n),.sd_cas_n(sd_cas_n),.sd_we_n(sd_we_n),
