@@ -36,7 +36,7 @@ module nano_tile_renderer (
     localparam [4:0] IDLE=0, START=1, CONFIG=2, EDGE_SETUP=3,
         OFFSET_Y=6, OFFSET_X=7, RASTER=8,
         SEED_CAPTURE=9, CLIP_SCISSOR=10, CLIP_TILE=11, PREPARE=12,
-        ROW_SKIP=13, DRAIN=17, FAILED=18;
+        ROW_SKIP=13, RASTER_SKIP4=14, DRAIN=17, FAILED=18;
     reg [4:0] state /*verilator public_flat_rd*/;
     reg sticky_fault;
     // Individual sticky arithmetic flags terminate the wide-adder paths.
@@ -92,6 +92,7 @@ module nano_tile_renderer (
         (words[0][17]||words[0][18])};
     reg [3:0] edge_step;
     reg signed [35:0] edge_a_product;
+    reg signed [18:0] skip_edge_threshold [0:2];
 
     // Explicit bit predicates avoid carry chains for constant viewport and
     // small-enum validation. Keep all high raw bits in these checks: a field
@@ -397,6 +398,15 @@ module nano_tile_renderer (
         default:current_edge_c=words[36];
         endcase
     end
+    // Four X updates add 64*A to each Q4 edge value. Capture -A
+    // during the X multiplier launches, before the lookup can be used.
+    wire signed [18:0] next_skip_threshold=-$signed({coefficient[17],coefficient[17:0]});
+    for(genvar e=0;e<3;e=e+1) begin:skip_thresholds
+        localparam [1:0] EDGE=e;
+        always @(posedge clk)
+            if(edge_launch&&!edge_step[0]&&edge_step[2:1]==EDGE)
+                skip_edge_threshold[e]<=next_skip_threshold;
+    end
     wire signed [31:0] center=(edge_step[0])?(y0<<<4)+32'sd8:(x0<<<4)+32'sd8;
     wire signed [35:0] edge_product;
     wire signed [37:0] edge_sum={{2{edge_a_product[35]}},edge_a_product}+
@@ -506,11 +516,31 @@ module nano_tile_renderer (
     // retained sum, rather than a second hidden function-local addition.
     wire raster_step_x=|remaining_x;
     wire raster_step_y=|remaining_y;
-    wire step_from_row=(state!=RASTER)||!raster_step_x;
+    wire raster_skip4=state==RASTER_SKIP4;
+    wire step_from_row=(!raster_skip4&&state!=RASTER)||!raster_step_x;
     wire step_in_y=(state==OFFSET_Y)||(state==ROW_SKIP)||((state==RASTER)&&!raster_step_x);
+    wire [2:0] passes_after_four;
+    for(genvar e=0;e<3;e=e+1) begin:skip_lookahead
+        // floor(E/64) >= -A proves a nonnegative result. When equal,
+        // strict edges require a nonzero remainder. Keeping this check
+        // separate from the step adders also handles exact out-of-range
+        // endpoints without wrapping them into a different coverage result.
+        wire zero_passes=(|edge_current[e][5:0])||words[29+4*e][0];
+        assign passes_after_four[e]=
+            $signed({edge_current[e][31:6],zero_passes})>=
+            $signed({{7{skip_edge_threshold[e][18]}},skip_edge_threshold[e],1'b1});
+    end
+    // The first uncovered sample still steps normally. One rising edge
+    // failing four ahead proves all five samples uncovered. Every other
+    // non-rising edge must pass there to preserve the original ROW_SKIP,
+    // which would discard its speculative final X addition.
+    wire uncovered_batch=(state==RASTER)&&(kind==0)&&!inside_sample&&
+        (remaining_x>=5'd5)&&!pending&&!fragment_busy&&bulk_allowed_x&&
+        (|(~passes_after_four&~edge_never_rises))&&
+        !(|(~passes_after_four&edge_never_rises));
     wire bulk_offset_x=(state==OFFSET_X)&&bulk_allowed_x&&(offset_x>=11'sd4);
     wire bulk_offset_y=(state==OFFSET_Y)&&bulk_allowed_y&&(offset_y>=10'sd4);
-    wire bulk_offset=bulk_offset_x||bulk_offset_y;
+    wire bulk_step=bulk_offset_x||bulk_offset_y||raster_skip4;
     wire offset_last_x=(offset_x==11'sd1)||(bulk_offset_x&&offset_x==11'sd4);
     wire offset_last_y=(offset_y==10'sd1)||(bulk_offset_y&&offset_y==10'sd4);
     wire signed [63:0] plane_next [0:6];
@@ -528,15 +558,17 @@ module nano_tile_renderer (
         // Batching is enabled only if every participating slope fits
         // signed 33 bits. Its exact shifted value fits signed 35 bits,
         // so the upper bits and signed overflow check are shared unchanged.
-        wire signed [63:0] step={b[63:35],bulk_offset?{b[32:0],2'b00}:b[34:0]};
+        wire signed [63:0] step={b[63:35],bulk_step?{b[32:0],2'b00}:b[34:0]};
         assign plane_next[p]=a+step;
         assign plane_overflow[p]=(a[63]==b[63])&&(plane_next[p][63]!=a[63]);
     end endgenerate
     generate for(genvar e=0;e<3;e=e+1) begin:edge_steppers
         wire signed [31:0] a=step_from_row?edge_row[e]:edge_current[e];
-        wire signed [31:0] b=(step_in_y?$signed(words[27+4*e]):$signed(words[26+4*e]))<<<4;
-        assign edge_next[e]=a+b;
-        assign edge_step_overflow[e]=(a[31]==b[31])&&(edge_next[e][31]!=a[31]);
+        wire signed [17:0] coefficient=step_in_y?words[27+4*e][17:0]:words[26+4*e][17:0];
+        wire signed [19:0] b=raster_skip4?{coefficient,2'b00}:{{2{coefficient[17]}},coefficient};
+        wire signed [27:0] sum=$signed(a[31:4])+{{8{b[19]}},b};
+        assign edge_next[e]={sum,a[3:0]};
+        assign edge_step_overflow[e]=(a[31]==b[19])&&(sum[27]!=a[31]);
     end endgenerate
 
     // A native RAM read completes after its active edge, so fetch the
@@ -559,6 +591,7 @@ module nano_tile_renderer (
             else if(advance_raster)
             coefficient_read_address=(raster_step_x?(remaining_x==1):first_step_y)?2:1;
         ROW_SKIP: coefficient_read_address=first_step_y?2:1;
+        RASTER_SKIP4: coefficient_read_address=(remaining_x==5'd4)?2:1;
         default: begin end
         endcase
     end
@@ -599,7 +632,7 @@ module nano_tile_renderer (
     // Neither the edge nor plane fields exist in a short 2D record. Only
     // triangle steps consume them or can record their arithmetic overflow.
     wire grid_step=(kind==0)&&((advance_raster&&!row_exit&&(raster_step_x||raster_step_y))||
-        (state==ROW_SKIP));
+        (state==ROW_SKIP)||raster_skip4);
     always @(posedge clk) begin
         if(reset) begin plane_fault<=0;edge_fault<=0;end
         else if(!fault) begin
@@ -629,6 +662,7 @@ module nano_tile_renderer (
 `endif
 
     task automatic advance_candidate(input use_pair);
+        reg [2:0] stride;
         reg signed [16:0] twice_error;
         reg signed [16:0] next_error;
         begin
@@ -647,11 +681,11 @@ module nano_tile_renderer (
                     end
                     line_error<=next_error[15:0]; state<=RASTER;
                 end
-            end else if(raster_step_x&&(!use_pair||(|remaining_x[4:1]))) begin
-                // Pair x is even, so advancing its upper bits moves by two.
-                x<=use_pair?{x[10:1]+10'd1,1'b0}:x+11'sd1;
+            end else if(state!=ROW_SKIP&&raster_step_x&&(!use_pair||(|remaining_x[4:1]))) begin
+                stride=raster_skip4?3'd4:(use_pair?3'd2:3'd1);
+                x<=x+$signed({8'd0,stride});
                 source_x<=source_x+12'sd1;
-                remaining_x<=use_pair?{remaining_x[4:1]-4'd1,remaining_x[0]}:remaining_x-5'd1;
+                remaining_x<=remaining_x-{2'd0,stride};
                 for(integer j=0;j<3;j=j+1)begin
                     edge_current[j]<=edge_next[j];
                 end
@@ -824,36 +858,20 @@ module nano_tile_renderer (
                 offset_x<=offset_x-(bulk_offset_x?11'sd4:11'sd1);
                 if(offset_last_x) state<=RASTER;
             end
-            RASTER: if(inside_sample) begin
-                if(need_texture) begin
-                    if(fragment_ready)advance_candidate(1'b0);
-                end else begin
+            RASTER, RASTER_SKIP4, ROW_SKIP: begin
+                if(advance_raster&&inside_sample&&!need_texture)begin
                     pending<=1;pending_pair<=rectangle_pair;
                     pending_addr<=sample_addr;pending_depth<=sample_depth;
-                    pending_color<=pack_color(sample_color);advance_candidate(rectangle_pair);
+                    pending_color<=pack_color(sample_color);
                 end
-            end else begin
-                // The x step still runs on a row exit, so the plane and edge
-                // register enables never depend on the edge comparisons;
-                // ROW_SKIP overwrites everything it stepped. Its overflow is
-                // not captured (grid_step excludes row_exit). The rest of this
-                // row is outside; the last row has none after it.
-                advance_candidate(1'b0);
-                if(row_exit) state<=raster_step_y ? ROW_SKIP : DRAIN;
-            end
-            ROW_SKIP: begin
-                // The row step of advance_candidate, from the saved row start.
-                x<=x0; y<=y+10'sd1; source_x<=source_start_x; source_y<=source_y+12'sd1;
-                remaining_x<=row_remaining_x;remaining_y<=remaining_y-5'd1;
-                for(i=0;i<3;i=i+1) begin
-                    edge_row[i]<=edge_next[i];
-                    edge_current[i]<=edge_next[i];
+                // Keep a single raster update for scalar, pair and skip
+                // clocks, including the line and next-row arithmetic.
+                if(advance_raster||raster_skip4||state==ROW_SKIP)begin
+                    advance_candidate(inside_sample&&!need_texture&&rectangle_pair);
+                    // A row exit discards the normal X step and its overflow.
+                    if(row_exit) state<=raster_step_y ? ROW_SKIP : DRAIN;
+                    else if(uncovered_batch) state<=RASTER_SKIP4;
                 end
-                for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
-                    plane_row[i]<=plane_next[i];
-                    plane_current[i]<=plane_next[i];
-                end
-                state<=RASTER;
             end
             DRAIN: if(!fragment_busy&&!pending)begin state<=IDLE;done<=1;end
             FAILED: begin end

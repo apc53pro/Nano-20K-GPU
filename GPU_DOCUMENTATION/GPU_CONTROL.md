@@ -904,10 +904,10 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with batched triangle offsets,
+V1.9.8.11. For the current 0.3 RTL with uncovered triangle stepping,
 `make tang20k` selects the qualified V1.9.11.03 route at
-51.164 MHz estimated core Fmax on the existing package pins
-and host-pad constraints. V1.9.8.11 failed placement on these sources.
+53.144 MHz estimated core Fmax on the existing package pins and
+host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz serialization.
@@ -985,7 +985,8 @@ sha256sum -c bitstreams/tangnano20k/SHA256SUMS
 
 | Job | Tool (exact) | Location on the user's PC |
 | --- | --- | --- |
-| Build the image (`make tang20k`) | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
+| Build the current RTL (`make tang20k`) | Signed Gowin EDA **V1.9.11.03 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\gw_sh.exe` |
+| Build the published 0.2 release | Gowin EDA **V1.9.8.11 Education** `gw_sh.exe` | `C:\Gowin\Gowin_V1.9.8.11_Education\IDE\bin\gw_sh.exe` |
 | Program SRAM or flash | Standalone Gowin Programmer **V1.9.12.04 (64-bit)** `programmer_cli.exe`, Authenticode-signed by Gowin | `C:\Gowin\Gowin_Programmer_V1.9.12.04\Programmer\bin\programmer_cli.exe` |
 
 **Never program the flash with the Education IDE's own
@@ -1544,11 +1545,11 @@ the depth gradients as well as the tile coverage.
 A tile reference whose window cannot contain a covered pixel center is
 rejected without rasterizing. List a vertex triangle in the tiles its bounds
 cover, clipped to the viewport; an exact CPU tile test is unnecessary. Use
-kinds 0..3 for Gouraud or textured triangles.
+a prepared kind-0 record for a Gouraud or textured triangle.
 
 ### Preparing triangle records
 
-For kinds 0..3, the CPU transforms, clips, projects, snaps vertices to Q4,
+For kind 0, the CPU transforms, clips, projects, snaps vertices to Q4,
 normalizes winding, computes edges/bounds and prepares the attribute planes.
 It also performs any lighting used to produce constant or vertex RGB values.
 A flat triangle can instead be a kind-4 vertex triangle (above). No
@@ -1567,9 +1568,18 @@ preserves that check because its steps move monotonically along one axis.
 An overflow during setup faults before the triangle can write an attachment.
 Keep the same prepared values and use the existing fence and fault protocol.
 
-Coverage uses unbiased edges at pixel centers and top-left inclusion. The
-maximum W ratio is 64 in the current setup profile; normalized vertex q is
-in `[1/128,1/2]`, and covered reconstructed q must be `[1/256,1]`.
+Coverage uses unbiased edges at pixel centers and top-left inclusion.
+During rasterization, the GPU can combine horizontal steps for a proven
+uncovered span when pending fragments have drained and all enabled X
+gradients fit signed 33 bits. It preserves the edge and attribute values
+at the next candidate and checks overflow for every addition the original
+walk would have consumed. The existing row exit still discards its
+speculative X step. Kind-0 and kind-4 triangles use the same raster rule.
+Send the same 0.3 packets and record fields, and use the existing fence,
+status and abort sequence to observe completion or recover from a fault.
+
+The maximum W ratio is 64 in the current setup profile. Normalized vertex q
+is in `[1/128,1/2]`, and covered reconstructed q must be `[1/256,1]`.
 
 Use the complete equations, overflow checks and RNE rules in the
 [numeric contract](../docs/spec/rasterization.md). Do not invent coefficient

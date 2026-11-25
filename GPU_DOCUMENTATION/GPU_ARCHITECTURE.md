@@ -611,11 +611,13 @@ can appear two setup edges later; completion and fault polling remain the CPU
 contract. The registered empty-window flag still permits a present texture
 descriptor to be configured and validated even when there are no pixels.
 
-One shared 64-bit adder per plane and one 32-bit adder per edge handle the
-mutually exclusive offset, horizontal-step and row-step operations. The
-overflow checks use those same sums. Quantization still implements exact
-round-to-nearest, ties-to-even and saturation while avoiding arithmetic on
-bits that cannot affect the bounded result. Full-width command and address
+One shared signed 64-bit adder per plane handles offset, horizontal and row
+steps. Each edge uses a shared signed 28-bit adder for its upper bits.
+Pixel steps add multiples of 16 to the signed 32-bit edge value, so the low
+four bits carry through unchanged. The overflow checks use those same
+sums. Quantization still implements exact round-to-nearest, ties-to-even
+and saturation while avoiding arithmetic on bits that cannot affect the
+bounded result. Full-width command and address
 validation precedes narrower retained positions and transfer counters; storage
 reduction does not authorize truncating invalid inputs into valid ones.
 
@@ -626,33 +628,50 @@ They advance only with the rasterizer and hold on stalls; the line walker
 retains its separate Bresenham behavior. Full raw bounds validation and
 viewport intersection still precede these bounded counters.
 
-**Row exit (2026-11-12).** The rasterizer still visits a triangle's window
-row by row at one sample per clock, but a row can end early. An edge whose
-X step is zero or negative never improves to the right. Once the current
-sample fails such an edge (by sign, or by zero without its tie bit), every
-later sample of the row fails it too. The row then ends: a `ROW_SKIP` clock
-reads the Y-step coefficients and takes the ordinary row step from the saved
-row start. It applies to triangles only and only when at least two samples
-remain, so it never costs a clock. Samples before the triangle's left edges
-are still walked, because skipping them would need multi-sample or leftward
-plane steps, a 64-bit multiplexer on each of the seven plane adders. In the
-benchmark, row exit removes about half of the samples walked outside
-triangles (section 13). It adds one controller state, three edge-sign tests
-and the extra coefficient read address. For timing, the exiting sample still
-takes its ordinary X step, so the plane and edge register enables never wait
-for the edge tests; `ROW_SKIP` then overwrites every register that step
-changed. Its sums are discarded and their overflow is not recorded.
+**Row exit (2026-11-12).** An edge whose X step is zero or negative never
+improves to the right. Once the current sample fails such an edge, every
+later sample of the row fails it too. When at least two candidates remain
+after the current sample, the renderer can finish the row early. The exit
+clock prefetches the Y coefficients. The `ROW_SKIP` clock takes the
+ordinary row step from the saved row start. The earlier row-exit benchmark
+removed about half of the samples walked outside triangles (section 13).
+The exiting sample still takes a speculative X step so the plane and edge
+register enables can stay independent of coverage. The row step replaces
+those values, and the discarded X sum's overflow flag is ignored.
 
-Each of the seven plane adders and three edge adders has a sticky overflow
-flag. Only consumed offset/grid additions can set it; an unused next sum at
-the final sample cannot fault a draw. Samples a row exit skips are never
-summed, so they cannot fault a draw either. The public fault asserts on the
-edge that detects a consumed arithmetic overflow, immediately lowering
-busy and suppressing pending attachment writes and new fragment acceptance.
-An offset batch detects overflow before any sample from that triangle. The private
-controller enters its failed state on the following edge. This keeps the
-public failure behavior while removing the collective overflow/state decision
-from each adder's retained path, without adding ordinary raster clocks.
+**Uncovered-sample stepping.** A triangle can advance over five uncovered
+samples in two clocks when there are at least five candidates after the
+current one in the same clipped row. The first clock takes its ordinary X
+step. The second, `RASTER_SKIP4`, takes four X steps together, leaving the
+following candidate for the ordinary coverage test. At the fifth sample
+one rising edge must still fail and every non-rising edge must pass.
+Monotonicity proves the batch is entirely uncovered and preserves every
+existing row-exit decision. The renderer enters the batch only with its
+pending pixel and textured fragments drained and with every enabled X
+slope in signed 33-bit range. Prepared triangles and triangles from GPU
+vertex setup use the same rule. The batch reuses the offset adder's
+shifted plane operands and prefetches the Y coefficient if it lands on
+the final candidate of a row. Scalar steps, paired rectangle steps,
+uncovered batches and row exits share the same coordinate and attachment
+advance.
+
+Existing edge setup also captures each X threshold `-A`. At four pixels
+ahead the edge equation is `E + 64*A`. Comparing the signed quotient
+`floor(E/64)` with the threshold identifies the sign. At equality the
+remaining six bits and the top-left tie flag decide coverage exactly.
+The batch updates the full edge and plane values. It issues no fragment,
+depth read or attachment write for the five uncovered samples.
+
+Each plane and edge adder has a sticky overflow flag. The renderer checks
+only consumed additions. An exact endpoint within range proves that
+every intermediate same-axis addition fits, even when an uncovered
+sample still requires those additions. A row exit retains its original
+discarded X step behavior. The public fault asserts on the edge that
+detects overflow, lowers busy and suppresses later attachment writes and
+fragment acceptance. A batched offset can fault before rasterization.
+An uncovered batch can fault after earlier fragments have retired and
+before any subsequent sample is accepted. The controller enters its
+failed state on the following edge.
 
 The current setup domain limits a triangle's W ratio to 64 and vertex UVs to
 `[-1024,1024]` texels. Out-of-domain geometry needs CPU refinement or rejection.
@@ -1628,6 +1647,29 @@ The published image belongs to the earlier release. Encrypted netlists
 prevent the fixed SiP check, the V1.9.8.11 installation provenance remains
 unverified, and external electrical margins remain unmeasured.
 
+### Uncovered triangle-span source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-uncovered-batch-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-uncovered-batch-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+The selected route passed the core, pixel and host-capture timing gates
+with 26 verified package pins. The reports list any accepted timing
+exceptions and failures.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 51.438 MHz | 29.881 MHz | 20,336/20,736 | 46/46 | Pass |
+| V1.9.11.03 | 53.144 MHz | 28.095 MHz | 20,121/20,736 | 46/46 | Pass |
+
+The current design operates at 50.4 MHz core/SDRAM, 25.2 MHz pixels and
+126 MHz serialization. The routes retain the uncommitted 4 ns host-pad
+constraint input. The matching [functional report](../docs/hardware/tang20k-uncovered-batch-functional.json)
+covers the wrapper and board-clock RTL. The selected image, checksum and
+frame-CRC evidence are retained locally. The published image belongs to
+the earlier release. Encrypted netlists prevent the fixed SiP check.
+The V1.9.8.11 installer provenance remains unverified and external
+electrical margins remain unmeasured.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -2111,6 +2153,37 @@ wide signed-boundary cancellation, masked planes, axis ordering, and
 actual RGB565, D24 and texture coordinates. It also checks that overflow
 on either axis faults before any attachment write.
 
+### Uncovered triangle spans (2026-11-25)
+
+The continuous board-core RTL suite runs in 27,253,874 clocks at 50.4 MHz,
+down from 28,353,194 clocks (3.88%). All cumulative fences are at least as
+early. Overdraw falls from 4,796,164 to 4,397,990 clocks (8.30%). Its
+130,161 five-sample groups eliminate 390,483 raster clocks, with all
+ordinary row exits and covered samples preserved. The two 400-triangle
+kind-4 passes use 4.87% and 4.62% fewer clocks. In the continuous run two
+icosahedron passes start at different video and memory phases and take
+4,548 and 2,572 more clocks individually. Both improve at matched starts.
+
+| Workload | Cycle reduction at two matched starts |
+| --- | ---: |
+| Opaque | 19.38–20.21% |
+| Overdraw | 7.96–8.22% |
+| Showcase | 1.64–1.79% |
+| Perspective | 2.16–2.27% |
+| Kind-4 close-up spheres | 5.85–6.47% |
+| Prepared icosahedron with SKIP and identical prior attachments | 7.06–9.73% |
+| Sparse textured triangles with bounded D24 slopes | 14.55–16.90% |
+
+All 50 main matched starts and two focused sparse starts improve or tie,
+with pixel-exact RGB565 and full D24 equivalence to the independent SRR
+and zero scanout underflows. The sparse tests include 576 bytes of
+first-use texture uploads. The original wide-slope sparse control ties
+because its active depth coefficients keep it on the normal scalar walk.
+Both natural SKIP sequences also improve when the first and second frame
+are timed together. See the [RTL cycle evidence](../docs/benchmarks/rtl-uncovered-triangle-batch.json)
+for per-workload counts and the matched state. These are simulator
+submission-to-fence results at the existing operating clock.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -2206,7 +2279,7 @@ a measured silicon frequency limit or 30 FPS scenes.
 | [`nano_gpu_core.sv`](../rtl/gpu/nano_gpu_core.sv) | Command execution, heap fetch, tile schedule and overlapped stores, copies, overlapped presentation, recovery |
 | [`nano_host_link.sv`](../rtl/gpu/nano_host_link.sv) | Host clock crossing, bounded native FIFOs, parser and packet leases |
 | [`nano_triangle_setup.sv`](../rtl/gpu/nano_triangle_setup.sv) | Kind-4 vertex-triangle setup per tile: orientation/culling, edges, window and tile rejection, depth gradients and seed |
-| [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage with row exit, interpolation and 2D walking |
+| [`nano_tile_renderer.sv`](../rtl/gpu/nano_tile_renderer.sv) | Native tile attachments, coverage with row exit and uncovered steps, interpolation and 2D walking |
 | [`nano_fragment_pipeline.sv`](../rtl/gpu/nano_fragment_pipeline.sv) | Textured contexts, ordered depth/key/shading commits |
 | [`uv_pipeline.v`](../rtl/uv_pipeline.v), [`uv_mult.v`](../rtl/uv_mult.v) | Selected exact integer-texel path, separate generic Q16 path, native delay RAMs and multipliers |
 | [`nano_texture_cache.sv`](../rtl/gpu/nano_texture_cache.sv) | Pitched texture addressing, cache hits and refills |

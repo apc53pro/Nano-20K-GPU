@@ -48,7 +48,7 @@ def main():
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
         "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv",
         "tile_attachment_pair_tb.sv", "tile_short_record_tb.sv", "tile_rectangle_pair_tb.sv",
-        "tile_offset_batch_tb.sv")]
+        "tile_offset_batch_tb.sv", "tile_uncovered_batch_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -90,6 +90,7 @@ def main():
         ("nano_tile_short_record_tb", tests[15], []),
         ("nano_tile_rectangle_pair_tb", tests[16], []),
         ("nano_tile_offset_batch_tb", tests[17], []),
+        ("nano_tile_uncovered_batch_tb", tests[18], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -272,6 +273,20 @@ def main():
                       "signed33_inclusive_boundary_cases": int(match[8]),
                       "nearest_wider_slope_serial_cases": int(match[9]),
                       "inactive_planes_and_failed_setup_write_suppression_checked": True}
+            print(match[0], flush=True)
+        elif top == "nano_tile_uncovered_batch_tb":
+            match = re.search(r"PASS uncovered batches: cases(\d+) pixels(\d+) stages(\d+) faults(\d+) "
+                              r"row_exits(\d+) pending(\d+) fragments(\d+) textures(\d+)", output)
+            if not match or tuple(map(int, match.groups())) != (19, 19456, 14, 4, 4, 9, 3, 17):
+                raise RuntimeError("uncovered-sample batching changed exact coverage, attachments or scalar fault behavior")
+            result = {"top": top, "passed": True, "raster_cases": int(match[1]),
+                      "checked_attachment_pixels": int(match[2]), "staged_skips": int(match[3]),
+                      "overflow_cases": int(match[4]), "row_exits": int(match[5]),
+                      "pending_pixel_blocks": int(match[6]), "pending_fragment_blocks": int(match[7]),
+                      "retired_texture_samples": int(match[8]),
+                      "reference": "Independent signed64 edge and signed80 plane scalar rasterization",
+                      "exclusive_and_inclusive_edge_ties_checked": True,
+                      "no_access_by_staged_uncovered_samples": True}
             print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)

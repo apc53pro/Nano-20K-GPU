@@ -1,0 +1,2303 @@
+{
+  "schema": "N20K-RTL-UNCOVERED-TRIANGLE-BATCH-1",
+  "baseline_commit": "0ce2aab7e549ae974419a0bdd2baf2a9838d650a",
+  "candidate": "The commit containing this evidence. The source hashes identify the candidate independently of its commit.",
+  "scope": "Verilated 0.3 board core at 50.4 MHz with 25.2 MHz virtual host and pixel clock. Latencies are core clocks through each fence, including submitted bytes and timed first-use uploads. The independent SRR checks both full RGB565 buffers and the complete D24 attachment in isolated workloads.",
+  "continuous": {
+    "before": 28353194,
+    "after": 27253874,
+    "cases": [
+      {
+        "case": "warm-up: empty, clear color and depth",
+        "before": 641290,
+        "after": 641290,
+        "before_cumulative": 641290,
+        "after_cumulative": 641290,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color and depth",
+        "before": 905812,
+        "after": 905812,
+        "before_cumulative": 1547102,
+        "after_cumulative": 1547102,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, clear depth",
+        "before": 621056,
+        "after": 621056,
+        "before_cumulative": 2168158,
+        "after_cumulative": 2168158,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color and depth",
+        "before": 14450,
+        "after": 14450,
+        "before_cumulative": 2182608,
+        "after_cumulative": 2182608,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "full-screen front-to-back copy",
+        "before": 694276,
+        "after": 694276,
+        "before_cumulative": 2876884,
+        "after_cumulative": 2876884,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "UI frame (148 rects), clear color and depth",
+        "before": 1522226,
+        "after": 1522226,
+        "before_cumulative": 4399110,
+        "after_cumulative": 4399110,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer-sized update, load color and depth",
+        "before": 22764,
+        "after": 22764,
+        "before_cumulative": 4421874,
+        "after_cumulative": 4421874,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, clear color, discard depth",
+        "before": 315528,
+        "after": 315528,
+        "before_cumulative": 4737402,
+        "after_cumulative": 4737402,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "UI frame (148 rects), clear color, discard depth",
+        "before": 927814,
+        "after": 927814,
+        "before_cumulative": 5665216,
+        "after_cumulative": 5665216,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "pointer-sized update, load color, discard depth",
+        "before": 18358,
+        "after": 18358,
+        "before_cumulative": 5683574,
+        "after_cumulative": 5683574,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "empty pass, load color, discard depth",
+        "before": 14808,
+        "after": 14808,
+        "before_cumulative": 5698382,
+        "after_cumulative": 5698382,
+        "cycle_reduction_percent": 0.0
+      },
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "before": 3311102,
+        "after": 3269606,
+        "before_cumulative": 9009484,
+        "after_cumulative": 8967988,
+        "cycle_reduction_percent": 1.2532383478370601
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "before": 4796164,
+        "after": 4397990,
+        "before_cumulative": 13805648,
+        "after_cumulative": 13365978,
+        "cycle_reduction_percent": 8.301926289426298
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "before": 432384,
+        "after": 436932,
+        "before_cumulative": 14238032,
+        "after_cumulative": 13802910,
+        "cycle_reduction_percent": -1.0518428063943208
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "before": 220224,
+        "after": 194798,
+        "before_cumulative": 14458256,
+        "after_cumulative": 13997708,
+        "cycle_reduction_percent": 11.54551729148503
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "before": 6410104,
+        "after": 6097758,
+        "before_cumulative": 20868360,
+        "after_cumulative": 20095466,
+        "cycle_reduction_percent": 4.872713453635069
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "before": 6139484,
+        "after": 5855922,
+        "before_cumulative": 27007844,
+        "after_cumulative": 25951388,
+        "cycle_reduction_percent": 4.618661763757348
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "before": 423090,
+        "after": 425662,
+        "before_cumulative": 27430934,
+        "after_cumulative": 26377050,
+        "cycle_reduction_percent": -0.6079084828287229
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "before": 922260,
+        "after": 876824,
+        "before_cumulative": 28353194,
+        "after_cumulative": 27253874,
+        "cycle_reduction_percent": 4.926593368464427
+      }
+    ],
+    "release_gate": "No cumulative fence delay. Retain individual increases and interpret using matched starts.",
+    "cumulative_fences_no_later": true,
+    "cycle_reduction_percent": 3.877235136189594,
+    "phase_investigation": {
+      "prepared_full_clear_icosahedron": {
+        "store_command_and_word_share_percent_rounded": [
+          64.9,
+          67.8
+        ],
+        "active_sdram_share_percent_rounded": [
+          67.5,
+          71.7
+        ],
+        "matched_cases": "ico"
+      },
+      "kind4_icosahedron": {
+        "store_command_and_word_share_percent_rounded": [
+          67.5,
+          70.1
+        ],
+        "active_sdram_share_percent_rounded": [
+          69.3,
+          71.3
+        ],
+        "matched_cases": "ico-flat"
+      },
+      "conclusion": "The two individual longer passes start at different video and memory phases. The raster saves clocks in both and each workload improves at both identical starting phases."
+    }
+  },
+  "matched": [
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 0,
+      "core_clocks": [
+        2157156,
+        2157156
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        505515,
+        505515
+      ],
+      "covered_samples": 17441,
+      "ordinary_row_skip_clocks": [
+        16036,
+        16036
+      ],
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        2267194,
+        2267194
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        505515,
+        505515
+      ],
+      "covered_samples": 17441,
+      "ordinary_row_skip_clocks": [
+        16036,
+        16036
+      ],
+      "packet_sha256": "20588248c37df695639787ef7774fd96e8c33099a863912574d5efa0515cf8a6",
+      "wire_bytes": 7923,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 0,
+      "core_clocks": [
+        2181142,
+        2027052
+      ],
+      "cycle_reduction_percent": 7.06464778542617,
+      "scalar_empty_raster_clocks": [
+        294111,
+        94547
+      ],
+      "covered_samples": 573137,
+      "ordinary_row_skip_clocks": [
+        10521,
+        10521
+      ],
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "prepared-wide-offsets",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        2269930,
+        2117698
+      ],
+      "cycle_reduction_percent": 6.706462313815842,
+      "scalar_empty_raster_clocks": [
+        294111,
+        94547
+      ],
+      "covered_samples": 573137,
+      "ordinary_row_skip_clocks": [
+        10521,
+        10521
+      ],
+      "packet_sha256": "e1a662930836c2a27fd83f199d22016402ec556c999c65cee93349ed84cd8020",
+      "wire_bytes": 8288,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 0,
+      "core_clocks": [
+        1023440,
+        1022598
+      ],
+      "cycle_reduction_percent": 0.08227155475650783,
+      "scalar_empty_raster_clocks": [
+        4115,
+        3003
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "timed_texture_upload_bytes": 33280,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "texture-refill-stress",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        1181068,
+        1179594
+      ],
+      "cycle_reduction_percent": 0.12480229758150552,
+      "scalar_empty_raster_clocks": [
+        4115,
+        3023
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "b2cb46f5df2fc8503639e7dc928ecb37fc6666e295067ed4f6f0eda7183e3148",
+      "wire_bytes": 36443,
+      "timed_texture_upload_bytes": 33280,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 0,
+      "core_clocks": [
+        852104,
+        852052
+      ],
+      "cycle_reduction_percent": 0.006102541473806955,
+      "scalar_empty_raster_clocks": [
+        4115,
+        2979
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1269569
+    },
+    {
+      "workload": "texture-refill-resident",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        1000182,
+        999880
+      ],
+      "cycle_reduction_percent": 0.03019450460016726,
+      "scalar_empty_raster_clocks": [
+        4115,
+        3023
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "c5b26e2314031d707b1570c7f803f5635f818cf283a8664f4905b4c8181f1766",
+      "wire_bytes": 746,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 33280,
+      "resident_texture_bytes": 33280,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1969569
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 0,
+      "core_clocks": [
+        677846,
+        675808
+      ],
+      "cycle_reduction_percent": 0.30065826161104203,
+      "scalar_empty_raster_clocks": [
+        4115,
+        2263
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "timed_texture_upload_bytes": 128,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "texture-hit-control",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        930224,
+        928954
+      ],
+      "cycle_reduction_percent": 0.1365262560415581,
+      "scalar_empty_raster_clocks": [
+        4115,
+        2263
+      ],
+      "covered_samples": 8190,
+      "ordinary_row_skip_clocks": [
+        181,
+        181
+      ],
+      "packet_sha256": "aa86a1baccae0f63d6a4ff12a2e8525951a5796b58f5a643a4d8bf9db16aa7c2",
+      "wire_bytes": 900,
+      "timed_texture_upload_bytes": 128,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 128,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 0,
+      "core_clocks": [
+        692238,
+        692238
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 299,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "timed_texture_upload_bytes": 348,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "texture-split-pitch",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        941750,
+        941750
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 299,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "b76b69ca89519529a18140921b4b44a153ff04d69ebfcf8b9857bc1d5151ce43",
+      "wire_bytes": 3428,
+      "timed_texture_upload_bytes": 348,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 348,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 0,
+      "core_clocks": [
+        1400218,
+        1400218
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "ui-store",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        1537024,
+        1537024
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "e56b1b73ba1e93c0ec56905ecc0acb35eb5b5ddf1b1a17386b0ecd47b9356a64",
+      "wire_bytes": 12386,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 0,
+      "core_clocks": [
+        844706,
+        844706
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "ui-discard",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        931970,
+        931970
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "98d11ac41f7afe01af086a89bdb30ee612af9820e3da52c3a6ae905616f5177e",
+      "wire_bytes": 12386,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 0,
+      "core_clocks": [
+        2485390,
+        2485390
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "ui-load",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        2627012,
+        2627012
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 399232,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "a69a707fbe4fe76fa6a8c32bfc6ec2d24c144516d795200a35eb0e0319c31c74",
+      "wire_bytes": 12385,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 0,
+      "core_clocks": [
+        82494,
+        82494
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 782,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "5747daa8ee4a337858b7dd0bfdfe8b888393a515a4e2b2311f6950303ae38404",
+      "wire_bytes": 654,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1750689
+    },
+    {
+      "workload": "mixed-depth-scissor",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        62050,
+        62050
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 782,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "5747daa8ee4a337858b7dd0bfdfe8b888393a515a4e2b2311f6950303ae38404",
+      "wire_bytes": 654,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 2450689
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 0,
+      "core_clocks": [
+        18412,
+        18412
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 27,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "pointer",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        22526,
+        22526
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 27,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "77ed811378fa067a4de9816e588c78cac55505d07dc4382f84f4d0d1d1eca014",
+      "wire_bytes": 314,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 0,
+      "core_clocks": [
+        3313158,
+        3253956
+      ],
+      "cycle_reduction_percent": 1.7868752410841848,
+      "scalar_empty_raster_clocks": [
+        143780,
+        75692
+      ],
+      "covered_samples": 300743,
+      "ordinary_row_skip_clocks": [
+        6436,
+        6436
+      ],
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "timed_texture_upload_bytes": 155648,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "showcase",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        3313272,
+        3258892
+      ],
+      "cycle_reduction_percent": 1.6412778667130312,
+      "scalar_empty_raster_clocks": [
+        143780,
+        75652
+      ],
+      "covered_samples": 300743,
+      "ordinary_row_skip_clocks": [
+        6436,
+        6436
+      ],
+      "packet_sha256": "3df4d0337804e3a94847c059e4a20e5141d5d163eaa72466bb4579c71ca6ba0d",
+      "wire_bytes": 193741,
+      "timed_texture_upload_bytes": 155648,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 155648,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 0,
+      "core_clocks": [
+        2852510,
+        2790890
+      ],
+      "cycle_reduction_percent": 2.1602027687895875,
+      "scalar_empty_raster_clocks": [
+        150698,
+        67806
+      ],
+      "covered_samples": 242885,
+      "ordinary_row_skip_clocks": [
+        4209,
+        4209
+      ],
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "timed_texture_upload_bytes": 147456,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "perspective",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        2862332,
+        2797364
+      ],
+      "cycle_reduction_percent": 2.2697576661267815,
+      "scalar_empty_raster_clocks": [
+        150698,
+        67802
+      ],
+      "covered_samples": 242885,
+      "ordinary_row_skip_clocks": [
+        4209,
+        4209
+      ],
+      "packet_sha256": "209be10bb065d3df910278b5be32dfdfc058813b27e0ec2d00ee0c5633e6f369",
+      "wire_bytes": 180716,
+      "timed_texture_upload_bytes": 147456,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 147456,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 0,
+      "core_clocks": [
+        4774252,
+        4394208
+      ],
+      "cycle_reduction_percent": 7.960283621392417,
+      "scalar_empty_raster_clocks": [
+        844876,
+        324140
+      ],
+      "covered_samples": 1132063,
+      "ordinary_row_skip_clocks": [
+        10155,
+        10155
+      ],
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "timed_texture_upload_bytes": 139264,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "overdraw",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        4786676,
+        4393336
+      ],
+      "cycle_reduction_percent": 8.21739344797935,
+      "scalar_empty_raster_clocks": [
+        844876,
+        324148
+      ],
+      "covered_samples": 1132063,
+      "ordinary_row_skip_clocks": [
+        10155,
+        10155
+      ],
+      "packet_sha256": "d675075e13ba818b27a15d36f2f8c500d8410d1d79d8f11afa6f78db79f235af",
+      "wire_bytes": 181769,
+      "timed_texture_upload_bytes": 139264,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 139264,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 0,
+      "core_clocks": [
+        3615704,
+        2884884
+      ],
+      "cycle_reduction_percent": 20.21238464210566,
+      "scalar_empty_raster_clocks": [
+        1358187,
+        402323
+      ],
+      "covered_samples": 249293,
+      "ordinary_row_skip_clocks": [
+        45767,
+        45767
+      ],
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "opaque",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        3739070,
+        3014606
+      ],
+      "cycle_reduction_percent": 19.3755131623639,
+      "scalar_empty_raster_clocks": [
+        1358187,
+        402323
+      ],
+      "covered_samples": 249293,
+      "ordinary_row_skip_clocks": [
+        45767,
+        45767
+      ],
+      "packet_sha256": "f11da549a1f28d52aa30d9835023b23de1fdfcd6001a346cdfc455c2fddc4489",
+      "wire_bytes": 22986,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "copy",
+      "idle_clocks": 0,
+      "core_clocks": [
+        516940,
+        516940
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "copy",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        708490,
+        708490
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "1488108f781c54dc43daee5d9a266b0d84a8a9f7466a2e859773d7b59106459b",
+      "wire_bytes": 92,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 0,
+      "core_clocks": [
+        336842,
+        321394
+      ],
+      "cycle_reduction_percent": 4.586126433164505,
+      "scalar_empty_raster_clocks": [
+        32451,
+        12039
+      ],
+      "covered_samples": 41107,
+      "ordinary_row_skip_clocks": [
+        1682,
+        1682
+      ],
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "ico",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        453206,
+        437380
+      ],
+      "cycle_reduction_percent": 3.4920102558218535,
+      "scalar_empty_raster_clocks": [
+        32451,
+        12039
+      ],
+      "covered_samples": 41107,
+      "ordinary_row_skip_clocks": [
+        1682,
+        1682
+      ],
+      "packet_sha256": "e259dd01a90942db837bd92a488dc0cc15444c86713a711d5a9ea9087445b3ed",
+      "wire_bytes": 2463,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 0,
+      "core_clocks": [
+        325018,
+        314664
+      ],
+      "cycle_reduction_percent": 3.185669716754147,
+      "scalar_empty_raster_clocks": [
+        21907,
+        8039
+      ],
+      "covered_samples": 41107,
+      "ordinary_row_skip_clocks": [
+        1058,
+        1058
+      ],
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "ico-flat",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        435064,
+        425504
+      ],
+      "cycle_reduction_percent": 2.1973778570509195,
+      "scalar_empty_raster_clocks": [
+        21907,
+        8039
+      ],
+      "covered_samples": 41107,
+      "ordinary_row_skip_clocks": [
+        1058,
+        1058
+      ],
+      "packet_sha256": "20cf09de02df3d2c2c262e2d1aa90f269777f5631445b43c9d010e554d4b1c2b",
+      "wire_bytes": 2946,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 0,
+      "core_clocks": [
+        865150,
+        809174
+      ],
+      "cycle_reduction_percent": 6.470091891579499,
+      "scalar_empty_raster_clocks": [
+        120563,
+        52511
+      ],
+      "covered_samples": 231968,
+      "ordinary_row_skip_clocks": [
+        7121,
+        7121
+      ],
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "closeup",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        931608,
+        877100
+      ],
+      "cycle_reduction_percent": 5.850958772359194,
+      "scalar_empty_raster_clocks": [
+        120563,
+        52511
+      ],
+      "covered_samples": 231968,
+      "ordinary_row_skip_clocks": [
+        7121,
+        7121
+      ],
+      "packet_sha256": "a133c8ad085224f3f2c8cbb6ab70b1e84c6ecdc8d801f8f743b23b78b29d3861",
+      "wire_bytes": 13097,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 0,
+      "core_clocks": [
+        6405784,
+        6082072
+      ],
+      "cycle_reduction_percent": 5.053432959962434,
+      "scalar_empty_raster_clocks": [
+        902470,
+        485022
+      ],
+      "covered_samples": 2656092,
+      "ordinary_row_skip_clocks": [
+        37003,
+        37003
+      ],
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "vertex0",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        6406906,
+        6098414
+      ],
+      "cycle_reduction_percent": 4.814991822886117,
+      "scalar_empty_raster_clocks": [
+        902470,
+        485022
+      ],
+      "covered_samples": 2656092,
+      "ordinary_row_skip_clocks": [
+        37003,
+        37003
+      ],
+      "packet_sha256": "ec6faf5b7aac4b8063628a1b717cc1a9ea05886a5209fdf02e6a6ef7962552dc",
+      "wire_bytes": 76723,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 0,
+      "core_clocks": [
+        6134348,
+        5836346
+      ],
+      "cycle_reduction_percent": 4.857924591170892,
+      "scalar_empty_raster_clocks": [
+        805595,
+        420683
+      ],
+      "covered_samples": 2201124,
+      "ordinary_row_skip_clocks": [
+        31515,
+        31515
+      ],
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "vertex1",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        6141440,
+        5849190
+      ],
+      "cycle_reduction_percent": 4.758655950395996,
+      "scalar_empty_raster_clocks": [
+        805595,
+        420683
+      ],
+      "covered_samples": 2201124,
+      "ordinary_row_skip_clocks": [
+        31515,
+        31515
+      ],
+      "packet_sha256": "252616eb594ad0b302a9521981c4f31c82e9ea7d60c53b1aa9c70ef1e6df97e4",
+      "wire_bytes": 96604,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 0,
+      "core_clocks": [
+        212270,
+        212270
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "empty-discard",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        319154,
+        319154
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "2318f3d1162ddcb4fe1c9ecccb5bdc592a02f7950fa9e5b067f287f098988e60",
+      "wire_bytes": 281,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 0,
+      "core_clocks": [
+        12792,
+        12792
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "empty-load",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "3bc08c02f0050fcd9ae2909061b06baac4ee000a95535245befe9876da8ab7bf",
+      "wire_bytes": 280,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 0,
+      "core_clocks": [
+        12778,
+        12778
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "empty-load-discard",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        14870,
+        14870
+      ],
+      "cycle_reduction_percent": 0.0,
+      "scalar_empty_raster_clocks": [
+        0,
+        0
+      ],
+      "covered_samples": 0,
+      "ordinary_row_skip_clocks": [
+        0,
+        0
+      ],
+      "packet_sha256": "d624a201878626589c376b80b7d8b064b8b33765ee2111864ca3aa5fb40b7c1a",
+      "wire_bytes": 281,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 0,
+      "core_clocks": [
+        207558,
+        187368
+      ],
+      "cycle_reduction_percent": 9.72740149741277,
+      "scalar_empty_raster_clocks": [
+        36218,
+        13106
+      ],
+      "covered_samples": 40834,
+      "ordinary_row_skip_clocks": [
+        1829,
+        1829
+      ],
+      "packet_sha256": "f8c84a55f1a72ef749180c7a6524b6e1c6d82c0eb3f02ba4ff4e52af3bfb5851",
+      "wire_bytes": 2586,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 4046623
+    },
+    {
+      "workload": "dirty-skip-matched",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        218464,
+        203030
+      ],
+      "cycle_reduction_percent": 7.064779551779699,
+      "scalar_empty_raster_clocks": [
+        36218,
+        13106
+      ],
+      "covered_samples": 40834,
+      "ordinary_row_skip_clocks": [
+        1829,
+        1829
+      ],
+      "packet_sha256": "f8c84a55f1a72ef749180c7a6524b6e1c6d82c0eb3f02ba4ff4e52af3bfb5851",
+      "wire_bytes": 2586,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 4746623
+    }
+  ],
+  "natural_dirty_skip": [
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 0,
+      "core_clocks": [
+        186954,
+        169548
+      ],
+      "cycle_reduction_percent": 9.310311627459155,
+      "scalar_empty_raster_clocks": [
+        36218,
+        13106
+      ],
+      "covered_samples": 40834,
+      "ordinary_row_skip_clocks": [
+        1829,
+        1829
+      ],
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "natural_sequence_clocks": [
+        523796,
+        490942
+      ],
+      "start_core_clocks": [
+        1414167,
+        1398719
+      ]
+    },
+    {
+      "workload": "dirty-skip",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        220068,
+        202072
+      ],
+      "cycle_reduction_percent": 8.177472417616372,
+      "scalar_empty_raster_clocks": [
+        36218,
+        13106
+      ],
+      "covered_samples": 40834,
+      "ordinary_row_skip_clocks": [
+        1829,
+        1829
+      ],
+      "packet_sha256": "95a17ae989a7a3fcc55071dabee307e9a5af1469a209b46ef16e51b2a8bd47c6",
+      "wire_bytes": 2586,
+      "timed_texture_upload_bytes": 0,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 0,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "natural_sequence_clocks": [
+        556910,
+        523466
+      ],
+      "start_core_clocks": [
+        2114167,
+        2098719
+      ]
+    }
+  ],
+  "matched_dirty_skip_seed_scope": "Both revisions upload the attachment independently produced by SRR for original A. The full RGB565 image is copied through ordinary heap packets and COPY_RECT, while an empty depth-DISCARD pass reproduces A's validity. A discards depth, so all external D24 remains at the boot value. The independent original-A oracle checks both full color buffers and all full D24 words before B. B uses an identical starting phase and timed packet stream. The matched test times B separately. The two unmodified natural A+B runs and their seed and B timings are retained above, since A itself can accelerate and move B's start.",
+  "narrow_depth_gradient_sparse": [
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 0,
+      "core_clocks": [
+        1732254,
+        1439538
+      ],
+      "cycle_reduction_percent": 16.89798378297871,
+      "scalar_empty_raster_clocks": [
+        505515,
+        160539
+      ],
+      "covered_samples": 17441,
+      "ordinary_row_skip_clocks": [
+        16036,
+        16036
+      ],
+      "packet_sha256": "a0ebc59bade786a81829b7ee2fd21f58c171038c903dadac2b95b8bf8418a0ca",
+      "wire_bytes": 7913,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1077325
+    },
+    {
+      "workload": "sparse-trapezoids",
+      "idle_clocks": 700000,
+      "core_clocks": [
+        1862614,
+        1591676
+      ],
+      "cycle_reduction_percent": 14.5461163719375,
+      "scalar_empty_raster_clocks": [
+        505515,
+        160539
+      ],
+      "covered_samples": 17441,
+      "ordinary_row_skip_clocks": [
+        16036,
+        16036
+      ],
+      "packet_sha256": "a0ebc59bade786a81829b7ee2fd21f58c171038c903dadac2b95b8bf8418a0ca",
+      "wire_bytes": 7913,
+      "timed_texture_upload_bytes": 576,
+      "initial_resident_texture_bytes": 0,
+      "resident_texture_bytes": 576,
+      "scanout_underflows": 0,
+      "full_oracle_equivalence": true,
+      "start_core_clock": 1777325
+    }
+  ],
+  "raster_progress": {
+    "matched_standard_cycles": true,
+    "profiles": [
+      {
+        "case": "showcase scene frame (t=1.2)",
+        "cycles": 3269606,
+        "scalar_uncovered_triangle_samples": 43336,
+        "covered_triangle_samples": 146132,
+        "existing_row_exits": 6720,
+        "batches": 17024,
+        "omitted_scalar_samples": 68096,
+        "net_raster_clocks_saved": 51072,
+        "baseline": {
+          "case": "showcase scene frame (t=1.2)",
+          "cycles": 3311102,
+          "uncovered_triangle_samples": 111432,
+          "existing_row_exits": 6720,
+          "lookahead_candidates": 88544,
+          "rising_witness_starts": 83826,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 83826,
+          "blocked_by_pending_or_fragments": 7869,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 18982,
+            "baseline_samples": 94910,
+            "validated_suppressed_edges": 75928,
+            "estimated_saved_clocks": 56946
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 17026,
+            "baseline_samples": 85130,
+            "validated_suppressed_edges": 68104,
+            "estimated_saved_clocks": 51078
+          },
+          "blocked_by_wide_slopes": 0,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 17026,
+            "baseline_samples": 85130,
+            "validated_suppressed_edges": 68104,
+            "estimated_saved_clocks": 51078
+          }
+        }
+      },
+      {
+        "case": "overdraw scene frame (t=1.2)",
+        "cycles": 4397990,
+        "scalar_uncovered_triangle_samples": 301432,
+        "covered_triangle_samples": 980996,
+        "existing_row_exits": 10486,
+        "batches": 130161,
+        "omitted_scalar_samples": 520644,
+        "net_raster_clocks_saved": 390483,
+        "baseline": {
+          "case": "overdraw scene frame (t=1.2)",
+          "cycles": 4796164,
+          "uncovered_triangle_samples": 822076,
+          "existing_row_exits": 10486,
+          "lookahead_candidates": 683283,
+          "rising_witness_starts": 659687,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 659687,
+          "blocked_by_pending_or_fragments": 76790,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 148001,
+            "baseline_samples": 740005,
+            "validated_suppressed_edges": 592004,
+            "estimated_saved_clocks": 444003
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 130169,
+            "baseline_samples": 650845,
+            "validated_suppressed_edges": 520676,
+            "estimated_saved_clocks": 390507
+          },
+          "blocked_by_wide_slopes": 0,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 130169,
+            "baseline_samples": 650845,
+            "validated_suppressed_edges": 520676,
+            "estimated_saved_clocks": 390507
+          }
+        }
+      },
+      {
+        "case": "icosahedron frame, full clear (SDK flags 7)",
+        "cycles": 436932,
+        "scalar_uncovered_triangle_samples": 12039,
+        "covered_triangle_samples": 41107,
+        "existing_row_exits": 1751,
+        "batches": 5103,
+        "omitted_scalar_samples": 20412,
+        "net_raster_clocks_saved": 15309,
+        "baseline": {
+          "case": "icosahedron frame, full clear (SDK flags 7)",
+          "cycles": 432384,
+          "uncovered_triangle_samples": 32451,
+          "existing_row_exits": 1751,
+          "lookahead_candidates": 25626,
+          "rising_witness_starts": 22559,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 22559,
+          "blocked_by_pending_or_fragments": 439,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 5195,
+            "baseline_samples": 25975,
+            "validated_suppressed_edges": 20780,
+            "estimated_saved_clocks": 15585
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 5103,
+            "baseline_samples": 25515,
+            "validated_suppressed_edges": 20412,
+            "estimated_saved_clocks": 15309
+          },
+          "blocked_by_wide_slopes": 0,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 5103,
+            "baseline_samples": 25515,
+            "validated_suppressed_edges": 20412,
+            "estimated_saved_clocks": 15309
+          }
+        }
+      },
+      {
+        "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+        "cycles": 194798,
+        "scalar_uncovered_triangle_samples": 13106,
+        "covered_triangle_samples": 40834,
+        "existing_row_exits": 1904,
+        "batches": 5778,
+        "omitted_scalar_samples": 23112,
+        "net_raster_clocks_saved": 17334,
+        "baseline": {
+          "case": "icosahedron next frame, SKIP + dirty tiles (flags 15)",
+          "cycles": 220224,
+          "uncovered_triangle_samples": 36218,
+          "existing_row_exits": 1904,
+          "lookahead_candidates": 29287,
+          "rising_witness_starts": 25983,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 25983,
+          "blocked_by_pending_or_fragments": 574,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 5907,
+            "baseline_samples": 29535,
+            "validated_suppressed_edges": 23628,
+            "estimated_saved_clocks": 17721
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 5778,
+            "baseline_samples": 28890,
+            "validated_suppressed_edges": 23112,
+            "estimated_saved_clocks": 17334
+          },
+          "blocked_by_wide_slopes": 0,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 5778,
+            "baseline_samples": 28890,
+            "validated_suppressed_edges": 23112,
+            "estimated_saved_clocks": 17334
+          }
+        }
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+        "cycles": 6097758,
+        "scalar_uncovered_triangle_samples": 485022,
+        "covered_triangle_samples": 2656092,
+        "existing_row_exits": 38432,
+        "batches": 104362,
+        "omitted_scalar_samples": 417448,
+        "net_raster_clocks_saved": 313086,
+        "baseline": {
+          "case": "400 vertex triangles (GPU setup), 12950 refs, margin 0",
+          "cycles": 6410104,
+          "uncovered_triangle_samples": 902470,
+          "existing_row_exits": 38432,
+          "lookahead_candidates": 771520,
+          "rising_witness_starts": 679390,
+          "rejected_by_nonincreasing_edge": 381,
+          "geometric_starts_including_overlaps": 679009,
+          "blocked_by_pending_or_fragments": 11868,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 154196,
+            "baseline_samples": 770980,
+            "validated_suppressed_edges": 616784,
+            "estimated_saved_clocks": 462588
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 151598,
+            "baseline_samples": 757990,
+            "validated_suppressed_edges": 606392,
+            "estimated_saved_clocks": 454794
+          },
+          "blocked_by_wide_slopes": 206975,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 104362,
+            "baseline_samples": 521810,
+            "validated_suppressed_edges": 417448,
+            "estimated_saved_clocks": 313086
+          }
+        }
+      },
+      {
+        "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+        "cycles": 5855922,
+        "scalar_uncovered_triangle_samples": 420683,
+        "covered_triangle_samples": 2201124,
+        "existing_row_exits": 32579,
+        "batches": 96228,
+        "omitted_scalar_samples": 384912,
+        "net_raster_clocks_saved": 288684,
+        "baseline": {
+          "case": "400 vertex triangles (GPU setup), 17541 refs, margin 1",
+          "cycles": 6139484,
+          "uncovered_triangle_samples": 805595,
+          "existing_row_exits": 32579,
+          "lookahead_candidates": 692396,
+          "rising_witness_starts": 610405,
+          "rejected_by_nonincreasing_edge": 708,
+          "geometric_starts_including_overlaps": 609697,
+          "blocked_by_pending_or_fragments": 11945,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 138324,
+            "baseline_samples": 691620,
+            "validated_suppressed_edges": 553296,
+            "estimated_saved_clocks": 414972
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 135761,
+            "baseline_samples": 678805,
+            "validated_suppressed_edges": 543044,
+            "estimated_saved_clocks": 407283
+          },
+          "blocked_by_wide_slopes": 173470,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 96228,
+            "baseline_samples": 481140,
+            "validated_suppressed_edges": 384912,
+            "estimated_saved_clocks": 288684
+          }
+        }
+      },
+      {
+        "case": "icosahedron, flat kind-4 records with GPU culling",
+        "cycles": 425662,
+        "scalar_uncovered_triangle_samples": 8039,
+        "covered_triangle_samples": 41107,
+        "existing_row_exits": 1095,
+        "batches": 3467,
+        "omitted_scalar_samples": 13868,
+        "net_raster_clocks_saved": 10401,
+        "baseline": {
+          "case": "icosahedron, flat kind-4 records with GPU culling",
+          "cycles": 423090,
+          "uncovered_triangle_samples": 21907,
+          "existing_row_exits": 1095,
+          "lookahead_candidates": 18412,
+          "rising_witness_starts": 15345,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 15345,
+          "blocked_by_pending_or_fragments": 439,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 3559,
+            "baseline_samples": 17795,
+            "validated_suppressed_edges": 14236,
+            "estimated_saved_clocks": 10677
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 3467,
+            "baseline_samples": 17335,
+            "validated_suppressed_edges": 13868,
+            "estimated_saved_clocks": 10401
+          },
+          "blocked_by_wide_slopes": 0,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 3467,
+            "baseline_samples": 17335,
+            "validated_suppressed_edges": 13868,
+            "estimated_saved_clocks": 10401
+          }
+        }
+      },
+      {
+        "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+        "cycles": 876824,
+        "scalar_uncovered_triangle_samples": 52511,
+        "covered_triangle_samples": 231968,
+        "existing_row_exits": 7465,
+        "batches": 17013,
+        "omitted_scalar_samples": 68052,
+        "net_raster_clocks_saved": 51039,
+        "baseline": {
+          "case": "close-up spheres, 144 kind-4 records, 1171 refs",
+          "cycles": 922260,
+          "uncovered_triangle_samples": 120563,
+          "existing_row_exits": 7465,
+          "lookahead_candidates": 97594,
+          "rising_witness_starts": 77890,
+          "rejected_by_nonincreasing_edge": 0,
+          "geometric_starts_including_overlaps": 77890,
+          "blocked_by_pending_or_fragments": 2856,
+          "geometric_nonoverlapping_schedule": {
+            "batches": 18596,
+            "baseline_samples": 92980,
+            "validated_suppressed_edges": 74384,
+            "estimated_saved_clocks": 55788
+          },
+          "drained_nonoverlapping_schedule": {
+            "batches": 17935,
+            "baseline_samples": 89675,
+            "validated_suppressed_edges": 71740,
+            "estimated_saved_clocks": 53805
+          },
+          "blocked_by_wide_slopes": 3560,
+          "width_checked_nonoverlapping_schedule": {
+            "batches": 17013,
+            "baseline_samples": 85065,
+            "validated_suppressed_edges": 68052,
+            "estimated_saved_clocks": 51039
+          }
+        }
+      }
+    ],
+    "input_hashes": {
+      "before": {
+        "model_build_executable_sha256": "5c3ba7c3ac5c7379f80129ce5348c42e3824ae35760bc9d55d40298c90804264",
+        "instrumentation_header_sha256": "dc962f7e4dcb5d25f780c08c11de853cf4da6bda93c8df9feec9aa7ac97c7954",
+        "simulator_source_sha256": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+        "generated_source_sha256": "c71b44e5969c6e907cbf2c033ecfc5e3933efa146f8906cfd707ace0db27fa96",
+        "profiler_executable_sha256": "5a8992bccdf08efb8cd4bddf7099841fcabd025a0315f686b9adb0aefe8026f6",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "60dc47ae6b35af4df36c94d5a8782ccd5000556504a7da190d0d4d8c6518ba82"
+        },
+        "counter_report_sha256": "46ad9da5df43a9fef9f1d4f85260f67818922bcc7642d1a128f7ac858bdd1d27",
+        "benchmark_report_sha256": "21ee108b73580b18e1202b5a9fd7e188ed186f6c201b6c902db6e2186fc088da"
+      },
+      "after": {
+        "model_build_executable_sha256": "7f0434bcaa81a8f1f7881207eedeafb6924ef03c8bc7608f9d3d4cad524aed8b",
+        "instrumentation_header_sha256": "e965e0860dc5193a34522c7679522d5242a3606a1212d4b1b807ebaf6f356cc0",
+        "simulator_source_sha256": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+        "generated_source_sha256": "8fc0ec8f6f1738f8a0d9f2c022b69e6d1f04baf7cd0297b829b235fcc617c26d",
+        "profiler_executable_sha256": "6c4794684007494c11220c84b644f8857e9101b32e5fc8271045fe9af5b9e3e7",
+        "linked_object_sha256": {
+          "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+          "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+          "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+          "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+          "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+          "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+          "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+          "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+          "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+          "obj/Vnano_gpu_core__ALL.a": "6f1dd401b84b75951af651f7d13f0924ad98dc51572ec1a0a9856ad661ab2b70"
+        },
+        "counter_report_sha256": "dc8d2cb83c5d3b3507b1a1e48156c83db30cb4dc429456b2b5d6a130265ef764",
+        "benchmark_report_sha256": "bba0be6f4a6f2331ef9de7cf24eb666f6b031067e8991c2dd32f5bb0127c76ce"
+      }
+    }
+  },
+  "validation": {
+    "native_fixture": {
+      "top": "nano_tile_uncovered_batch_tb",
+      "passed": true,
+      "raster_cases": 19,
+      "checked_attachment_pixels": 19456,
+      "staged_skips": 14,
+      "overflow_cases": 4,
+      "row_exits": 4,
+      "pending_pixel_blocks": 9,
+      "pending_fragment_blocks": 3,
+      "retired_texture_samples": 17,
+      "reference": "Independent signed64 edge and signed80 plane scalar rasterization",
+      "exclusive_and_inclusive_edge_ties_checked": true,
+      "no_access_by_staged_uncovered_samples": true
+    },
+    "native_notes": "make rtl-block-test with OPT_GLOBAL=-O2 on the UCRT64 Verilator runtime.",
+    "recovery_assertions": 2131,
+    "reference_host_log_sha256": "72846225f58f3a0b45123ec219aa4a545d5cc102159d7677fb8a1ab9f125418e",
+    "reference_host_python_suite": {
+      "passed": true,
+      "tests": 133,
+      "skipped": 1
+    },
+    "docs_examples": "Passed",
+    "baseline_functional_sha256": "c7f05d83b9c0aea232ee2700f6e7d2194ea90a99b8f1a47de27f50995e3ff894"
+  },
+  "unqualified_initial_prototype": {
+    "renderer_sha256": "18044b21dc2a1068bd0f56e353d8f78dfae0a00cf75c19f425a3326569697727",
+    "cycle_comparison_sha256": "0a5d32f389b28e57c4cda77debd7902aac4bb7ef5bfc93a2ee64fa4b15b8008b",
+    "logic_limit": 20736,
+    "synthesis_logic_units": {
+      "v1908": 21876,
+      "v1911": 21505
+    },
+    "disposition": "Both Gowin versions rejected synthesis for excess logic. Shared raster and row update in the qualified implementation."
+  },
+  "whole_board": {
+    "selected": "v1911",
+    "place_route_options": [
+      0,
+      2
+    ],
+    "functional": "docs/hardware/tang20k-uncovered-batch-functional.json",
+    "reports": [
+      "docs/hardware/tang20k-uncovered-batch-v1908.json",
+      "docs/hardware/tang20k-uncovered-batch-v1911.json"
+    ],
+    "structure_and_checksum_scope": "Retained with the local Gowin image. Repository programming image unchanged."
+  },
+  "model_builds": {
+    "before": {
+      "commit_at_build": "0ce2aab7e549ae974419a0bdd2baf2a9838d650a",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "5c3ba7c3ac5c7379f80129ce5348c42e3824ae35760bc9d55d40298c90804264",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "8993935d29190e1a58b53644c5e7cbcfe0ff30803bdf4a146d1204151a074e78",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "128fb25589f0ab54c684762950b024746977e0a172d219d361049093b4351ff4",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "fe68506842041e9b289d3e81f3c78e435c672167e76890651e759a753aeed21f",
+      "isolated_exe_sha256": "f4c8256d3630ab2598a0175be34b8adabd5c888a351872006de54880888bbcf2",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "60dc47ae6b35af4df36c94d5a8782ccd5000556504a7da190d0d4d8c6518ba82"
+      },
+      "scenes": [
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "copy",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    },
+    "after": {
+      "commit_at_build": "0ce2aab7e549ae974419a0bdd2baf2a9838d650a",
+      "build": {
+        "schema": "N20K-GPU-RTL-BUILD-1",
+        "top": "nano_gpu_core",
+        "device": "GW2AR-LV18QN88C8/I7",
+        "family": "GW2A-18C",
+        "simulation_backend": "verilator",
+        "sdl_enabled": false,
+        "board_core_profile": true,
+        "board_core_profile_scope": "50.4 MHz core/SDRAM with external 25.2 MHz pixel ticks and a 25.2 MHz virtual host; TMDS serializers and board pins are outside this core simulation",
+        "cpp_device_backends_linked": false,
+        "scope": "Functional command-to-pixel core; production clocking, TMDS wrapper and board pins are not integrated",
+        "whole_gpu_fit_qualified": false,
+        "verilator_version": "Verilator 5.053 devel rev v5.052-567-g0041d207c (mod)",
+        "executable_sha256": "7f0434bcaa81a8f1f7881207eedeafb6924ef03c8bc7608f9d3d4cad524aed8b",
+        "cpp_translation_units": [
+          "reference/src/setup.cpp",
+          "reference/src/renderer.cpp",
+          "reference/src/demo.cpp",
+          "reference/src/hw_protocol.cpp",
+          "reference/rtl/main.cpp",
+          "reference/rtl/sdram_model.cpp"
+        ],
+        "source_sha256": {
+          "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+          "build/tang20k-core-sim/seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+          "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+          "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+          "rtl/gpu/nano_gpu_core.sv": "8993935d29190e1a58b53644c5e7cbcfe0ff30803bdf4a146d1204151a074e78",
+          "rtl/gpu/nano_host_link.sv": "a0fca00ff4b5aefcaf066cd492a63fb6796f5c26dfb069ee45e0d1914daafd5e",
+          "rtl/gpu/nano_scanout.sv": "ba8f6e7857f9d1d634cc7a1549ba0ceb74f69b25060c1ac799a27f600562ccb0",
+          "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+          "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+          "rtl/gpu/nano_sdp32_masked.sv": "5444625ae7ce24a2da62b6141ad7e3766e12bd16e2a785d35b5ac17cbddb731c",
+          "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+          "rtl/gpu/nano_sdp8.sv": "5662dd1989ea86fec591284f5111b5da60f310493036b3c44c74800cb14e4bc9",
+          "rtl/gpu/nano_sdram_service.sv": "99193682e5b7581bb59e6f5c0e49df7511be1074f53d6c47ef0d777d73c928fe",
+          "rtl/gpu/nano_texture_cache.sv": "6dc5ca41e7a6cee547952c47cd392379d730cc6fc82d6543acad45f473575fce",
+          "rtl/gpu/nano_tile_renderer.sv": "df9e9e80e44bfa949eff13e7b1459a04c48f57b589b66defc8bc3d3d703d5ad8",
+          "rtl/gpu/nano_tmds.sv": "bb3386174270cb28e696a20e722495ba48e6eff231591aaa69793f664ede038e",
+          "rtl/gpu/nano_triangle_setup.sv": "111bc4ac87136133217000526c4be27eac94d35a26743afd00d6f083b85309ac",
+          "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+          "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+          "reference/src/demo.cpp": "b61e61711067d0803785a5bcae61b7eea352594a768dfb2a60e427a1956c1c11",
+          "reference/src/hw_protocol.cpp": "61e7c9c5fc740ad5a3ef757ac064b9249d782a26e19a302fa3d74a479eba666c",
+          "reference/rtl/main.cpp": "1eea390604f402d89d1de961d0ca416c7018826b7d2da21866c2261afd76b8bd",
+          "reference/rtl/sdram_model.cpp": "9b2d4af659ebed05bcaf9d19ba4a535688746e1d529ea717c4691bb37cd493bf",
+          "reference/rtl/sdram_model.hpp": "5ca09ce3565dd80fba1794ad7bbbf4031f189ab8135f66e73dbd488bfa21d80a",
+          "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+          "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+          "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+          "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+          "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+          "reference/include/nano_gpu/hw/host_link.hpp": "d78c767a56cb1fe955a308bd91a15fd48651345241ae4e4d00d4f863892cc07c",
+          "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+          "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+          "reference/include/nano_gpu/hw/protocol.hpp": "068c9a926110ab7563a8d4e2c147acc005ba17ed1461464f876170ecc42015d7",
+          "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+          "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+          "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+          "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+          "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+          "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+          "reference/include/nano_gpu/hw/system.hpp": "5fcc66fb46026b8f60608f50f041c46f69a328f80965bdadeeefcb53e1201bc2",
+          "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+          "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+          "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+          "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+          "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+          "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+          "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+          "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+          "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+          "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d",
+          "scripts/gpu-rtl.py": "0978433167896f45b4455bb82ec4f1d0216d867348a2169f23511fc9edec2487",
+          "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+          "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66"
+        }
+      },
+      "driver_sha256": "fe68506842041e9b289d3e81f3c78e435c672167e76890651e759a753aeed21f",
+      "isolated_exe_sha256": "5f6e09d16d7f3dff567c52466a3412c62be4462c08b45c1a6ec22e1e5781ba6f",
+      "linked_object_sha256": {
+        "obj/setup.o": "9c467f9f0adeb8be022ebe4fa4b4e74adecebf0690a3f9d3b1ea31a7026cd248",
+        "obj/renderer.o": "b6ca4ade6eccd8ca3a34e60c73a7e768a6c79c09641bf93ba51018cc04baf670",
+        "obj/demo.o": "10e40260bb9e9e1ed9a68d2c60391d8d6869834cb014eee2b9cacfb8a04c2e5f",
+        "obj/hw_protocol.o": "0944fe3ff254eff83563417cee7ef3c535584c532a9217093e4e47debfa08710",
+        "obj/sdram_model.o": "5e040faedc681156f9d81ff90ac981611377a5bc9c71bf3ff9be9752f8f43cd6",
+        "obj/verilated.o": "26121a640033fc2ed25718fa93d6ac00cbf81f3128eb1f24aee4d32d3b7e60c9",
+        "obj/verilated_dpi.o": "2e10c264df7a4fc2208580648e7fb931772ad57965f821abb2df9b7314fb4378",
+        "obj/verilated_vcd_c.o": "0fc961935a4223420336a191afbf03b2a5d8ccc8ecc54973eff2832a504510c9",
+        "obj/verilated_threads.o": "2d6d74453700697f2166e78b202b87fecd81bbb712cb6e7a423366da9e73420f",
+        "obj/Vnano_gpu_core__ALL.a": "6f1dd401b84b75951af651f7d13f0924ad98dc51572ec1a0a9856ad661ab2b70"
+      },
+      "scenes": [
+        "sparse-trapezoids",
+        "prepared-wide-offsets",
+        "texture-refill-stress",
+        "texture-refill-resident",
+        "texture-hit-control",
+        "texture-split-pitch",
+        "ui-store",
+        "ui-discard",
+        "ui-load",
+        "mixed-depth-scissor",
+        "pointer",
+        "showcase",
+        "perspective",
+        "overdraw",
+        "opaque",
+        "copy",
+        "ico",
+        "ico-flat",
+        "closeup",
+        "vertex0",
+        "vertex1",
+        "empty-discard",
+        "empty-load",
+        "empty-load-discard",
+        "dirty-skip-matched",
+        "dirty-skip"
+      ],
+      "offsets": [
+        0,
+        700000
+      ]
+    }
+  },
+  "measurement_source_sha256": {
+    "uncovered-matched.cpp": "fe68506842041e9b289d3e81f3c78e435c672167e76890651e759a753aeed21f",
+    "uncovered-sparse-narrow.cpp": "a47996db26ebf741211e36b983df0a84e24e689fb02b9befe5edc0ca8f24ddcd",
+    "run-uncovered-matched.py": "3f36e331acc8510ded1b000da4f9395e132c11f6bb7e15cf78d70410e9278cdb",
+    "run-uncovered-sparse-narrow.py": "fd186cf0d01bc925ceb759a552333db4477914cf7be619c59c27f9c0901bd561",
+    "triangle-uncovered-stats.hpp": "dc962f7e4dcb5d25f780c08c11de853cf4da6bda93c8df9feec9aa7ac97c7954",
+    "triangle-uncovered-actual.hpp": "e965e0860dc5193a34522c7679522d5242a3606a1212d4b1b807ebaf6f356cc0",
+    "run-uncovered-profile.py": "af01a0e89cd4230ff6376a6ac75bbd96c30a904dc7c42afaecf9b1d3a7ebf9e5",
+    "run-uncovered-actual.py": "dcca79c7fb7324d59da08bbe01dcf8ffe040892a84970a336a0ca13f0d823998",
+    "check-uncovered-lookahead.py": "9120a01832f82def22b5705393cfeb75530ab2913b63e8cb7f3c0abc5257f81b"
+  }
+}
