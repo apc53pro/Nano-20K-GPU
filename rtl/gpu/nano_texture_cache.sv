@@ -71,7 +71,7 @@ module nano_texture_cache (
     reg lookup_valid;
     reg [9:0] lookup_address;
     reg [5:0] lookup_tag;
-    reg read_pending;
+    reg read_pending, read_texel_odd;
     reg [5:0] read_tag;
 
     reg [21:0] miss_line;
@@ -79,10 +79,7 @@ module nano_texture_cache (
     reg [11:0] miss_tag;
     reg [3:0] read_words;
     reg [3:0] received_words;
-    reg [4:0] refill_texel;
-    reg hold_valid;
-    reg [31:0] hold_word;
-    reg high_half;
+    reg [3:0] refill_word_index;
     reg done_seen;
 
     wire output_advance = !rsp_valid || rsp_ready;
@@ -174,17 +171,20 @@ module nano_texture_cache (
     wire [32:0] address_sum = {6'd0,low_product[26:0]} +
         {1'b0,high_product[14:0],17'd0} + {23'd0,multiply_x[2]};
 
+    // Pair each even/odd texel in one native word. A refill response writes
+    // both halves on its acceptance edge. Short final lines still zero-fill
+    // their remaining words without reading beyond the declared allocation.
+    assign mem_r_ready = state == REFILL && received_words < read_words;
+    wire accepting_word = mem_r_valid && mem_r_ready;
+    wire refill_padding = state == REFILL && received_words == read_words;
+    wire cache_write_enable = (accepting_word || refill_padding) && !reset && !mem_error;
+    wire [31:0] cache_write_data = accepting_word ? mem_r_data : 32'd0;
     wire cache_read_enable = state == RUN && output_advance && lookup_valid;
-    wire refill_has_word = state == REFILL && hold_valid;
-    wire refill_padding = state == REFILL && !hold_valid && received_words == read_words;
-    wire cache_write_enable = (refill_has_word || refill_padding) && refill_texel < 16;
-    wire [15:0] cache_write_data = refill_has_word ?
-        (high_half ? hold_word[31:16] : hold_word[15:0]) : 16'd0;
-    wire [15:0] cache_data;
-    nano_sdp16 cache_ram (
+    wire [31:0] cache_data;
+    nano_sdp32 cache_ram (
         .wclk(clk), .wce(1'b1), .we(cache_write_enable),
-        .waddr({miss_slot,refill_texel[3:0]}), .wdata(cache_write_data),
-        .rclk(clk), .rce(1'b1), .re(cache_read_enable), .raddr(lookup_address),
+        .waddr({miss_slot,refill_word_index[2:0]}), .wdata(cache_write_data),
+        .rclk(clk), .rce(1'b1), .re(cache_read_enable), .raddr(lookup_address[9:1]),
         .reset_output(reset), .rdata(cache_data));
 
     wire [23:0] miss_byte_offset = {1'b0,miss_line,1'b0};
@@ -197,12 +197,15 @@ module nano_texture_cache (
     assign mem_w_valid = 1'b0;
     assign mem_w_data = 32'd0;
     assign mem_w_strb = 4'd0;
-    assign mem_r_ready = state == REFILL && received_words < read_words &&
-        (!hold_valid || high_half);
-    wire accepting_word = mem_r_valid && mem_r_ready;
-    wire last_cache_write = cache_write_enable && refill_texel == 15;
-    wire publish_tag = ((state == REFILL && last_cache_write) || state == WAIT_DONE) &&
-        (done_seen || mem_done) && !reset && !flush && !mem_error;
+    wire received_all = received_words + (accepting_word ? 4'd1 : 4'd0) == read_words;
+    wire wrong_last = accepting_word && mem_r_last != received_all;
+    wire early_done = (state == REFILL || state == WAIT_DONE) && mem_done && !received_all;
+    wire last_cache_write = cache_write_enable && refill_word_index == 7;
+    wire refill_complete = (last_cache_write || state == WAIT_DONE) && (done_seen || mem_done);
+    // Accept an on-edge completion only when that handshake completes the
+    // expected payload; a failed refill must not make its line visible.
+    wire publish_tag = refill_complete && !reset && !flush && !mem_error &&
+        !fault && !wrong_last && !early_done;
     nano_sdp16 tag_ram (
         .wclk(clk), .wce(1'b1), .we(publish_tag),
         .waddr({4'b0,miss_slot}), .wdata({4'b0,miss_tag}),
@@ -216,17 +219,18 @@ module nano_texture_cache (
             cfg_phase <= CFG_IDLE; cfg_extent_words <= 0;
             cfg_fields_ok <= 0; cfg_range_ok <= 0; cfg_changed <= 0;
             line_valid <= 0; refill_forward <= 0; multiply_valid <= 0; linear_valid <= 0;
-            lookup_valid <= 0; read_pending <= 0; rsp_valid <= 0;
+            lookup_valid <= 0; read_pending <= 0; read_texel_odd <= 0; rsp_valid <= 0;
             rsp_texel <= 0; rsp_tag <= 0; fault <= 0;
             linear_address <= 0; linear_tag <= 0; lookup_address <= 0; lookup_tag <= 0;
             read_tag <= 0; miss_line <= 0; miss_slot <= 0; miss_tag <= 0;
-            read_words <= 0; received_words <= 0; refill_texel <= 0;
-            hold_valid <= 0; hold_word <= 0; high_half <= 0; done_seen <= 0;
+            read_words <= 0; received_words <= 0; refill_word_index <= 0; done_seen <= 0;
             for (i=0;i<3;i=i+1) begin multiply_x[i] <= 0; multiply_tag[i] <= 0; end
         end else begin
             if (rsp_valid && rsp_ready) rsp_valid <= 0;
             if (output_advance && read_pending) begin
-                rsp_valid <= 1; rsp_texel <= cache_data; rsp_tag <= read_tag;
+                rsp_valid <= 1;
+                rsp_texel <= read_texel_odd ? cache_data[31:16] : cache_data[15:0];
+                rsp_tag <= read_tag;
                 read_pending <= 0;
             end
             if (flush) begin
@@ -265,7 +269,8 @@ module nano_texture_cache (
             end
             if (state == RUN && output_advance) begin
                 if (lookup_valid) begin
-                    read_pending <= 1; read_tag <= lookup_tag; lookup_valid <= 0;
+                    read_pending <= 1; read_texel_odd <= lookup_address[0];
+                    read_tag <= lookup_tag; lookup_valid <= 0;
                 end
                 if (linear_valid) begin
                     if (line_hit) begin
@@ -275,8 +280,7 @@ module nano_texture_cache (
                         miss_line <= {linear_address[21:4],4'd0};
                         miss_slot <= linear_slot; miss_tag <= linear_line_tag;
                         line_valid[linear_slot] <= 0;
-                        refill_texel <= 0; received_words <= 0;
-                        hold_valid <= 0; high_half <= 0; done_seen <= 0;
+                        refill_word_index <= 0; received_words <= 0; done_seen <= 0;
                         state <= MISS_COMMAND;
                     end
                 end
@@ -303,41 +307,24 @@ module nano_texture_cache (
                 read_words <= bounded_read_words;
                 state <= REFILL;
             end
-            if (state == REFILL || state == WAIT_DONE) begin
-                if (mem_done) begin
-                    done_seen <= 1;
-                    if (received_words + (accepting_word ? 4'd1 : 4'd0) != read_words)
-                        fault <= 1;
-                end
-            end
-            if (state == REFILL) begin
-                if (cache_write_enable) refill_texel <= refill_texel + 5'd1;
-                if (hold_valid) begin
-                    if (!high_half) high_half <= 1;
-                    else begin hold_valid <= 0; high_half <= 0; end
-                end
-                if (accepting_word) begin
-                    hold_word <= mem_r_data; hold_valid <= 1; high_half <= 0;
-                    received_words <= received_words + 4'd1;
-                    if (mem_r_last != (received_words + 4'd1 == read_words)) fault <= 1;
-                end
-                if (last_cache_write) begin
-                    if (done_seen || mem_done) begin
-                        refill_forward <= 1; line_valid[miss_slot] <= 1;
-                        state <= RUN;
-                    end else state <= WAIT_DONE;
-                end
-            end
-            if (state == WAIT_DONE && (done_seen || mem_done)) begin
-                refill_forward <= 1; line_valid[miss_slot] <= 1;
+            if ((state == REFILL || state == WAIT_DONE) && mem_done) done_seen <= 1;
+            if (cache_write_enable) refill_word_index <= refill_word_index + 4'd1;
+            if (accepting_word) received_words <= received_words + 4'd1;
+            if (wrong_last || early_done) fault <= 1;
+            if (last_cache_write && !refill_complete) state <= WAIT_DONE;
+            if (refill_complete) begin
                 state <= RUN;
+                if (publish_tag) begin
+                    refill_forward <= 1;
+                    line_valid[miss_slot] <= 1;
+                end else linear_valid <= 0;
             end
             if (mem_error && state != RUN) begin
                 // The service's error completes/abandons this transaction.
                 // Preserve the sticky error rather than inventing texels.
                 fault <= 1; state <= RUN; line_valid <= 0;
                 multiply_valid <= 0; linear_valid <= 0; lookup_valid <= 0;
-                read_pending <= 0; rsp_valid <= 0; hold_valid <= 0;
+                read_pending <= 0; rsp_valid <= 0;
             end
         end
     end

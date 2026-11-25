@@ -41,8 +41,8 @@ def main():
     arbiter_test = ROOT / "rtl/tests/sdram_arbiter_tb.sv"
     accept_check_test = ROOT / "rtl/tests/sdram_accept_check_tb.sv"
     texture_rtl = [ROOT / name for name in (
-        "rtl/uv_mult.v", "rtl/gpu/nano_sdp16.sv", "rtl/gpu/nano_texture_cache.sv",
-        "rtl/tests/texture_cache_tb.sv")]
+        "rtl/uv_mult.v", "rtl/gpu/nano_sdp16.sv", "rtl/gpu/nano_sdp32.sv",
+        "rtl/gpu/nano_texture_cache.sv", "rtl/tests/texture_cache_tb.sv")]
     inputs = service_rtl + service_cpp + texture_rtl + [arbiter_test, accept_check_test] + [ROOT / name for name in (
         "reference/rtl/sdram_model.hpp", "scripts/rtl-check.py", "scripts/rtl-memory-check.py")]
     source_hashes = fingerprints(inputs)
@@ -123,6 +123,10 @@ def main():
     if not match or int(match[1]) < 16:
         raise RuntimeError("Staged texture configuration cases did not complete; see texture-test.log")
     configuration_cases, configurations = map(int, match.groups())
+    refill = re.search(r"PASS word refills: cases(\d+) full(\d+) bubbled(\d+) padding(\d+) faults(\d+) resets(\d+)",
+                       texture_output)
+    if not refill or tuple(map(int, refill.groups())) != (64, 32, 32, 224, 4, 2):
+        raise RuntimeError("Direct texture refill cases did not complete; see texture-test.log")
     print(texture_output.strip(), flush=True)
 
     if fingerprints(inputs) != source_hashes:
@@ -171,6 +175,15 @@ def main():
              "consecutive_warm_outputs": 1024, "warm_hit_handshake_latency_cycles": 7,
              "configuration_preparation_cycles": 2, "configuration_cases": configuration_cases,
              "accepted_configurations": configurations,
+             "direct_refill": {
+                 "matrix_cases": int(refill[1]), "full_rate_cases": int(refill[2]), "bubbled_cases": int(refill[3]),
+                 "zero_padding_words_checked": int(refill[4]), "fault_cases": int(refill[5]),
+                 "inflight_reset_cases": int(refill[6]), "words_per_final_line": list(range(1, 9)),
+                 "base_byte_offsets_modulo_32": list(range(0, 32, 4)), "write_bits": 32,
+                 "each_response_written_on_acceptance": True,
+                 "completion_checked_on_final_beat_next_cycle_and_delayed": True,
+                 "retry_same_allocation_after_cancel": True,
+             },
              "coverage": ["warm-hit acceptance/output interval of one cycle", "stable responses and commands under backpressure",
                           "bounded refill addresses", "repeat and clamp coordinates", "row conflicts and large pitches",
                           "flush invalidation", "invalid texture configuration", "memory-error cancellation and reset recovery",

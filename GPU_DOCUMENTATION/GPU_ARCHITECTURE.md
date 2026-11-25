@@ -41,7 +41,8 @@ RP2350.
 The current RTL transfers two RGB565 pixels per accepted SDRAM word and
 clears two tile pixels per core clock (section 5). Aligned rectangle
 samples also use those paired attachment ports during rasterization
-(section 6). Triangle edge
+(section 6). Texture refills write two RGB565 texels per accepted SDRAM
+word (section 8). Triangle edge
 initialization takes nine clocks instead of 24, and kind-4 depth setup
 avoids nine divider clocks per eligible gradient (section 6). The
 published programming image and its reports describe the earlier RTL.
@@ -82,10 +83,10 @@ The target board is the **Sipeed Tang Nano 20K**, fitted with the Gowin
 **`GW2AR-LV18QN88C8/I7`**. The open-source implementation tools select the
 **`GW2A-18C`** device database and that exact package/part. On the received
 board, the open-flow GPU image's host address latch failed while the same RTL
-built by the vendor Gowin EDA worked (section 14). Board images now use Gowin
-EDA V1.9.8.11 Education under the exception in `AGENTS.md`. Its 2026-11-13
-addendum keeps whichever installed version reaches the faster clock
-(section 12).
+built by the vendor Gowin EDA worked (section 14). The published image
+uses Gowin EDA V1.9.8.11 Education under the exception in `AGENTS.md`.
+Its 2026-11-13 addendum selects the installed version with the fastest
+qualifying route. The current RTL selects signed V1.9.11.03 (section 12).
 
 | Physical resource | Device limit |
 | --- | ---: |
@@ -805,22 +806,31 @@ supported draw configuration.
 
 ## 8. Texture and fragment pipelines
 
-The texture cache is direct mapped with **64 lines of 16 RGB565 texels**. Data
-uses one native RAM bank and the 12-bit line tags use a second native bank.
-Tags are read alongside the address pipeline. Refill-tag forwarding avoids a
-same-address RAM collision or a replay bubble for the retained miss.
-Two registered 18×18 multipliers form pitched texture
-addresses. A hit has a seven-edge pipeline and initiation interval one when the
-consumer is ready. One bounded miss transaction is retained at a time; younger
-work stalls while a missing line is refilled through the shared SDRAM service.
+The texture cache is direct mapped with **64 lines of 16 RGB565 texels**.
+One native 512×32 data bank holds eight little-endian texel pairs per
+line. The second native bank holds the 12-bit tags. The read edge latches
+the texel's parity alongside its response tag, so either halfword can use
+the same seven-edge hit pipeline with initiation interval one. Two
+registered 18×18 multipliers form pitched texture addresses.
+
+One bounded miss is retained at a time. Each accepted SDRAM response word
+writes two texels directly to the data bank on that edge. A full line
+uses eight writes. A short final line fills its remaining words with
+zero without extending the SDRAM request past the allocation. The line
+becomes valid only
+after all writes and successful completion of the declared response.
+Refill-tag forwarding avoids a same-address RAM collision or replay
+bubble for the retained demand. Younger work waits while the shared SDRAM
+service refills the line.
 
 Texture configuration has two preparation edges before the final ready/valid
 acceptance: allocation/field classification, then the bounded allocation-end
 check. The producer holds its descriptor through that handshake. Active
 descriptor fields and cache validity change only after a successful final
 acceptance; withdrawing an unaccepted configuration keeps the old descriptor
-and tags. An explicit flush still invalidates tags. Hit latency, initiation
-interval and refill scheduling are unchanged by configuration preparation.
+and tags. An explicit flush still invalidates tags. Configuration
+preparation leaves hit latency, hit initiation interval and bounded
+refill scheduling intact.
 
 The textured fragment path retains up to **64 contexts**, using three native
 RAM banks: a 512×36 `SDPX9B` bank holds the 34-bit attachment address/depth
@@ -1555,6 +1565,30 @@ The published image remains the earlier release. External electrical
 margins and physical speed are unmeasured, encrypted netlists prevent the
 fixed SiP check, and V1.9.8.11 installation provenance remains unverified.
 
+### Direct texture-refill source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-direct-texture-refill-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-direct-texture-refill-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+Both routes verified all 26 package pins and passed the required
+clock and host-capture gates. Each reports the eight documented
+reset-release violations.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | 51.386 MHz | 30.651 MHz | 20,477/20,736 | 46/46 | Pass |
+| V1.9.11.03 | 52.030 MHz | 26.309 MHz | 20,069/20,736 | 46/46 | Pass |
+
+The selected V1.9.11.03 route leaves 667 mapped logic units
+and uses all 46 BSRAM banks. The operating clocks stay at 50.4 MHz
+core/SDRAM, 25.2 MHz pixel and 126 MHz serialization. Both reports
+preserve the uncommitted host-pad constraint input. Each qualifying
+local image has a matching checksum, device and frame-CRC check, and
+[functional report](../docs/hardware/tang20k-direct-texture-refill-functional.json).
+The published image belongs to the earlier release. Encrypted netlists
+prevent the fixed SiP check, the V1.9.8.11 installation provenance remains
+unverified, and external electrical margins remain unmeasured.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -1958,6 +1992,46 @@ for the two lanes. They also check viewport edges, final row retirement,
 reset and fault suppression. The exact per-sample coordinate and overflow
 traces still cover the triangle walker.
 
+### Direct texture-word refills (2026-11-25)
+
+The [direct-refill benchmark](../docs/benchmarks/rtl-direct-texture-refills.json)
+uses the same N20K-SYS-0.3 packets and 50.4 MHz board-core clock. Both
+complete RGB565 buffers and every D24 word match the independent SRR,
+and scanout reports zero underflows.
+
+Showcase keeps the same 26,949 demand refills and 215,592 accepted SDRAM
+words. The data bank uses 215,592 write clocks instead of 431,184. On
+this workload the mean first-to-last response span falls from 14 to 7
+clocks, and the mean last-response-to-tag interval falls from 2 to 1.
+The texture input now accepts every available response word, removing
+188,643 response clocks where the cache previously asserted backpressure.
+Raster texture stalls fall from 851,456 to 620,735 clocks.
+
+The continuous showcase pass takes 3,409,962 instead of 3,671,750 clocks
+(7.13% fewer). Overdraw takes 5,258,854 instead of 5,293,356 clocks
+(0.65% fewer). The continuous suite falls from 29,215,610 to 28,962,680
+clocks (0.87%). Every cumulative fence is at least as early. Four later
+untextured pass durations rise in the continuous sequence as earlier
+completions shift scanout and SDRAM phase. The benchmark records these
+durations and the matched-start controls. All 46 matched starts improve or
+tie. Showcase uses 6.73–7.02% fewer clocks, perspective 4.70–4.96% fewer,
+and overdraw 0.697–0.701% fewer. Untextured controls have the same cycle
+count at matched starts.
+
+The refill-heavy repeat sampler uses 33,280 texture upload bytes. Its
+matched end-to-end time falls by 1.97–3.24% while those first-use bytes
+remain part of the measurement. With the same asset seeded and resident,
+the pass uses 2.46–3.70% fewer clocks. The seed is measured separately and
+is identical before and after. Warm-hit and pitched keyed-sprite controls
+also improve or tie. The pitched case exercises bases offset from a
+32-byte burst boundary and one-, two- and four-word final lines.
+
+Focused checks cover all eight word counts for a short final line, all
+eight four-byte base offsets within an SDRAM burst, consecutive and
+bubbled responses, exact padding, malformed completion and reset.
+Warm hits retain seven-edge latency and 1,024 consecutive outputs at
+one output per clock.
+
 ## 14. Build, verify and reach the board
 
 For a Windows MSYS2 UCRT64 checkout, first complete the package upgrade described
@@ -1993,8 +2067,8 @@ make tang20k-test
 make tang20k
 ```
 
-`make tang20k` uses Gowin EDA V1.9.8.11 by default (see section 12);
-`GOWIN_SH=...` selects another `gw_sh.exe`.
+`make tang20k` uses signed Gowin EDA V1.9.11.03 by default (see section 12).
+Set `GOWIN_SH` to select another `gw_sh.exe`.
 
 `make tang20k-test` checks wrapper clock ratios, SDRAM output phase/registers,
 address/data bus behavior and the real core at the board profile. Wrapper

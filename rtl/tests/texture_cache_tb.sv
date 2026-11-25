@@ -11,7 +11,12 @@ module texture_cache_tb;
     wire [15:0] rsp_texel;
     wire [5:0] rsp_tag;
     wire mem_cmd_valid,mem_cmd_write,mem_w_valid,mem_r_ready;
-    reg mem_cmd_ready=1,mem_w_ready=0,mem_r_valid=0,mem_r_last=0,mem_done=0,mem_error=0;
+    localparam [1:0] DONE_NEXT=0, DONE_FINAL=1, DONE_DELAYED=2, DONE_EARLY=3;
+    localparam [1:0] LAST_CORRECT=0, LAST_EARLY=1, LAST_MISSING=2;
+    reg mem_cmd_ready=1,mem_w_ready=0,mem_r_valid=0,mem_r_last=0,mem_error=0;
+    reg completion_pulse=0;
+    reg [1:0] completion_mode=DONE_NEXT, last_mode=LAST_CORRECT;
+    reg bubble_words=0;
     wire [22:0] mem_cmd_addr;
     wire [4:0] mem_cmd_words;
     wire [31:0] mem_w_data;
@@ -34,7 +39,24 @@ module texture_cache_tb;
     integer config_accepts=0,config_checks=0;
     reg active=0;
     reg [22:0] request_base=0;
-    integer request_words=0,request_index=0,delay_cycles=0;
+    integer request_words=0,request_index=0,delay_cycles=0,completion_delay=0;
+    wire mem_done=completion_pulse||
+        (mem_r_valid&&((completion_mode==DONE_FINAL&&request_index+1==request_words)||
+                      (completion_mode==DONE_EARLY&&request_index==0)));
+    reg watch_refill=0,watch_failed_refill=0,refill_completed=0;
+    reg [22:0] expected_refill_base=0;
+    integer expected_refill_words=0,refill_beats=0,refill_writes=0,padded_writes=0;
+    integer matrix_cases=0,full_rate_cases=0,bubbled_cases=0,refill_fault_cases=0,refill_reset_cases=0;
+    integer last_refill_cycle=0;
+    reg [31:0] expected_write_word;
+    function expected_last;
+        input integer index,count;
+        begin
+            if(last_mode==LAST_EARLY) expected_last=index==0;
+            else if(last_mode==LAST_MISSING) expected_last=0;
+            else expected_last=index+1==count;
+        end
+    endfunction
     nano_texture_cache dut(.*);
     function [15:0] texel;
         input [22:0] byte_address;
@@ -110,40 +132,89 @@ module texture_cache_tb;
             model_base=0;model_pitch=0;model_width=0;model_height=0;
             model_repeat_u=0;model_repeat_v=0;
         end
-        mem_done<=0;
+        completion_pulse<=0;
         mem_error<=0;
-        if(reset)begin active<=0;mem_r_valid<=0;mem_r_last<=0;end
+        if(reset)begin
+            active<=0;mem_r_valid<=0;mem_r_last<=0;completion_delay<=0;
+        end
         else begin
             if(mem_cmd_valid&&mem_cmd_ready)begin
                 if(active||mem_cmd_write||mem_cmd_words==0||mem_cmd_words>8||mem_cmd_addr[1:0]!=0)
                     $fatal(1,"invalid or overlapping cache refill command");
                 if(mem_cmd_addr<model_base||mem_cmd_addr+4*mem_cmd_words>model_base+model_pitch*model_height)
                     $fatal(1,"cache refill read outside declared allocation");
+                if(watch_refill&&(mem_cmd_addr!==expected_refill_base||mem_cmd_words!=expected_refill_words))
+                    $fatal(1,"incorrect bounded refill: got %h + %0d words, wanted %h + %0d",
+                        mem_cmd_addr,mem_cmd_words,expected_refill_base,expected_refill_words);
                 active<=1;request_base<=mem_cmd_addr;request_words<=mem_cmd_words;
                 request_index<=0;delay_cycles<=3;transactions=transactions+1;
             end
             if(active&&!mem_r_valid)begin
                 if(delay_cycles!=0)delay_cycles<=delay_cycles-1;
                 else begin
-                    mem_r_valid<=1;mem_r_last<=request_index+1==request_words;
+                    mem_r_valid<=1;mem_r_last<=expected_last(request_index,request_words);
                     mem_r_data<={texel(request_base+4*request_index+2),texel(request_base+4*request_index)};
                 end
             end
             if(mem_r_valid&&mem_r_ready)begin
                 if(request_index+1==request_words)begin
-                    active<=0;mem_r_valid<=0;mem_r_last<=0;mem_done<=1;
+                    active<=0;mem_r_valid<=0;mem_r_last<=0;
+                    if(completion_mode==DONE_NEXT)completion_pulse<=1;
+                    else if(completion_mode==DONE_DELAYED)completion_delay<=5;
                 end else begin
                     request_index<=request_index+1;
-                    mem_r_last<=request_index+2==request_words;
-                    mem_r_data<={texel(request_base+4*(request_index+1)+2),
-                                  texel(request_base+4*(request_index+1))};
+                    if(bubble_words)begin
+                        mem_r_valid<=0;mem_r_last<=0;delay_cycles<=1+(request_index%2);
+                    end else begin
+                        mem_r_last<=expected_last(request_index+1,request_words);
+                        mem_r_data<={texel(request_base+4*(request_index+1)+2),
+                                      texel(request_base+4*(request_index+1))};
+                    end
                 end
+            end
+            if(completion_delay!=0)begin
+                completion_delay<=completion_delay-1;
+                if(completion_delay==1)completion_pulse<=1;
             end
             if(active&&inject_error)begin
                 mem_error<=1;active<=0;mem_r_valid<=0;mem_r_last<=0;
             end
         end
         if(cycle>200000)$fatal(1,"texture cache test timed out");
+    end
+    always @(posedge clk) if(!reset)begin
+        if(watch_failed_refill&&(rsp_valid||dut.publish_tag||(|dut.line_valid)))
+            $fatal(1,"failed or cancelled refill exposed a texture result or valid tag");
+        if(watch_refill)begin
+            if(mem_done)refill_completed=1;
+            if(mem_r_valid)begin
+                if(!mem_r_ready||!dut.cache_ram.we)
+                    $fatal(1,"cache failed to accept and store one SDRAM word on its response edge");
+                if(refill_beats!=0&&
+                    ((!bubble_words&&cycle!=last_refill_cycle+1)||(bubble_words&&cycle<=last_refill_cycle+1)))
+                    $fatal(1,"unexpected refill cadence in case %0d beat %0d",matrix_cases,refill_beats);
+                last_refill_cycle=cycle;
+                refill_beats=refill_beats+1;
+            end
+            if(dut.cache_ram.we)begin
+                expected_write_word=0;
+                if(refill_writes<expected_refill_words)begin
+                    if(!mem_r_valid||!mem_r_ready)
+                        $fatal(1,"cache wrote a payload word without the corresponding SDRAM beat");
+                    expected_write_word={
+                        texel(expected_refill_base+4*refill_writes+2),
+                        texel(expected_refill_base+4*refill_writes)};
+                end else padded_writes=padded_writes+1;
+                if(dut.cache_ram.wdata!==expected_write_word||dut.cache_ram.waddr!==refill_writes[8:0]||
+                    refill_writes>=8)
+                    $fatal(1,"refill store %0d address/data mismatch: %0d/%h wanted %h",
+                        refill_writes,dut.cache_ram.waddr,dut.cache_ram.wdata,expected_write_word);
+                refill_writes=refill_writes+1;
+            end
+            if((dut.publish_tag||rsp_valid)&&
+                (!refill_completed||refill_writes!=8||refill_beats!=expected_refill_words))
+                $fatal(1,"refill published before the complete word writes and memory completion");
+        end
     end
     task configure;
         input [22:0] address,stride;
@@ -187,6 +258,90 @@ module texture_cache_tb;
             @(negedge clk);req_valid=1;req_x=x;req_y=y;req_tag=tag;
             while(!req_ready)@(negedge clk);
             @(posedge clk);
+        end
+    endtask
+    task exercise_refill_matrix;
+        integer base_phase,words,columns,x,old_transactions;
+        begin
+            for(base_phase=0;base_phase<8;base_phase=base_phase+1)
+                for(words=1;words<=8;words=words+1)begin
+                    // One row with aligned padding reaches every final-line
+                    // length while its sample width stays a power of two.
+                    if(words==8)columns=16;
+                    else if(words>=4)columns=8;
+                    else if(words>=2)columns=4;
+                    else columns=2;
+                    expected_refill_base=23'h268000+4*base_phase;
+                    expected_refill_words=words;
+                    configure(expected_refill_base,4*words,columns,1,0,0);
+                    bubble_words=(base_phase+words)%2;
+                    completion_mode=(base_phase+2*words)%3;
+                    stall_outputs=1;refill_completed=0;refill_beats=0;refill_writes=0;
+                    old_transactions=transactions;watch_refill=1;
+                    for(x=0;x<columns;x=x+1)send_one(x,0,x+base_phase);
+                    drain();
+                    watch_refill=0;
+                    if(transactions-old_transactions!=1||refill_beats!=words||refill_writes!=8||!refill_completed)
+                        $fatal(1,"offset %0d word count %0d did not use one complete refill",4*base_phase,words);
+                    matrix_cases=matrix_cases+1;
+                    if(bubble_words)bubbled_cases=bubbled_cases+1;
+                    else full_rate_cases=full_rate_cases+1;
+                end
+            bubble_words=0;stall_outputs=0;completion_mode=DONE_NEXT;
+        end
+    endtask
+    task retire_cancelled_request;
+        begin
+            if(sent-returned!=1)$fatal(1,"refill did not cancel exactly one outstanding request");
+            cancelled=cancelled+1;returned=sent;
+            reset=1;repeat(3)@(negedge clk);reset=0;
+            expected_fault=0;watch_failed_refill=0;inject_error=0;
+            last_mode=LAST_CORRECT;completion_mode=DONE_NEXT;bubble_words=0;
+            if(fault||req_ready||rsp_valid||mem_cmd_valid)$fatal(1,"cancelled refill survived reset");
+            memory_version=memory_version^16'ha51e;
+            configure(23'h268018,32,16,1,0,0);
+            send_one(14,0,62);send_one(15,0,63);drain();
+            // The same allocation must refill with the new contents. Drop
+            // those now-verified tags for the next cancellation case.
+            @(negedge clk);flush=1;
+            @(negedge clk);flush=0;
+        end
+    endtask
+    task exercise_refill_cancellation;
+        integer phase;
+        begin
+            for(phase=0;phase<4;phase=phase+1)begin
+                configure(23'h268018,32,16,1,0,0);
+                expected_fault=1;watch_failed_refill=1;
+                if(phase==0)begin completion_mode=DONE_EARLY;bubble_words=1;end
+                else if(phase==1)last_mode=LAST_EARLY;
+                else if(phase==2)begin last_mode=LAST_MISSING;completion_mode=DONE_FINAL;end
+                else bubble_words=1;
+                send_one(15,0,50+phase);
+                @(negedge clk);req_valid=0;
+                if(phase==3)begin
+                    while(request_index<2)@(negedge clk);
+                    inject_error=1;
+                end
+                while(!fault)@(negedge clk);
+                // Even a malformed beat can be followed by further service
+                // responses. No partial or malformed line becomes visible.
+                repeat(24)@(negedge clk);
+                if(!fault)$fatal(1,"refill error was not sticky");
+                retire_cancelled_request();
+                refill_fault_cases=refill_fault_cases+1;
+            end
+            for(phase=0;phase<2;phase=phase+1)begin
+                configure(23'h268018,32,16,1,0,0);
+                watch_failed_refill=1;bubble_words=1;completion_mode=DONE_DELAYED;
+                send_one(15,0,60+phase);
+                @(negedge clk);req_valid=0;
+                if(phase==0)while(request_index<2)@(negedge clk);
+                else while(completion_delay==0)@(negedge clk);
+                if(fault)$fatal(1,"legal refill faulted before reset");
+                retire_cancelled_request();
+                refill_reset_cases=refill_reset_cases+1;
+            end
         end
     endtask
     integer k,before_transactions,before_configs,cancel_phase;
@@ -318,6 +473,10 @@ module texture_cache_tb;
         reset=1;repeat(3)@(negedge clk);reset=0;expected_fault=0;
         configure(23'h258000,23'd32,11'd16,11'd64,0,0);
         send_one(7,9,3);drain();
+        exercise_refill_matrix();
+        exercise_refill_cancellation();
+        $display("PASS word refills: cases%0d full%0d bubbled%0d padding%0d faults%0d resets%0d",
+            matrix_cases,full_rate_cases,bubbled_cases,padded_writes,refill_fault_cases,refill_reset_cases);
         $display("PASS configuration: %0d cancellation/drain/reset/allocation cases, %0d accepted configurations",
             config_checks,config_accepts);
         $display("PASS: %0d accepted (%0d returned, %0d cancelled), %0d bounded refills, 1024 consecutive warm outputs",

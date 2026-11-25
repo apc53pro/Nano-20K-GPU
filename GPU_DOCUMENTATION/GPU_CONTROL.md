@@ -904,11 +904,11 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with paired rectangle rasterization,
-the complete-board routes estimate 60.095 MHz core Fmax for V1.9.8.11
-and 50.494 MHz for V1.9.11.03. Both meet the selected clock gates on the
-existing package pins and host-pad constraints, so `make tang20k` selects
-V1.9.8.11.
+V1.9.8.11. For the current 0.3 RTL with direct texture refills, the
+complete-board routes estimate 51.386 MHz core Fmax for
+V1.9.8.11 and 52.030 MHz for V1.9.11.03. `make tang20k` selects
+the qualified V1.9.11.03 route with the faster core on the existing
+package pins and host-pad constraints.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz serialization.
@@ -1279,6 +1279,13 @@ pass remain immutable until that pass finishes. Ordered updates after a fence
 can reuse them. Textures must live in the heap; sampling a framebuffer or the
 active target as a texture is unsupported. The RTL invalidates texture cache
 state at pass submission, so ordered heap updates are visible to the next pass.
+
+The cache writes each accepted 32-bit SDRAM refill word as a pair of RGB565
+texels. Its final partial line stays within the descriptor's allocated
+pitch-by-height range. Refill completion and data validation precede
+visibility of the line. Texture descriptor fields, heap alignment,
+sampling rules and upload ordering stay the same. Keep unchanged textures
+at their stable heap addresses across frames.
 
 ## 5. Status, capabilities and faults
 
