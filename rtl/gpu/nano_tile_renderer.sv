@@ -493,6 +493,12 @@ module nano_tile_renderer (
             (|sprite_source_end_y[33:11])||sprite_source_end_y[10:0]>words[14][10:0];
 `endif
     end
+    // A slope's high word alone establishes whether the full coefficient
+    // fits signed 33 bits. The flags follow writes to those exact RAM words.
+    wire coefficient_high_fits=cmd_word_data==32'd0||(&cmd_word_data);
+    wire [6:0] x_step_fits,y_step_fits;
+    reg bulk_allowed_x,bulk_allowed_y;
+
     // All attachment equations advance in lockstep. OFFSET_X, OFFSET_Y,
     // horizontal raster steps and row transitions are mutually exclusive;
     // route their operands through one adder per plane instead of replicating
@@ -502,6 +508,11 @@ module nano_tile_renderer (
     wire raster_step_y=|remaining_y;
     wire step_from_row=(state!=RASTER)||!raster_step_x;
     wire step_in_y=(state==OFFSET_Y)||(state==ROW_SKIP)||((state==RASTER)&&!raster_step_x);
+    wire bulk_offset_x=(state==OFFSET_X)&&bulk_allowed_x&&(offset_x>=11'sd4);
+    wire bulk_offset_y=(state==OFFSET_Y)&&bulk_allowed_y&&(offset_y>=10'sd4);
+    wire bulk_offset=bulk_offset_x||bulk_offset_y;
+    wire offset_last_x=(offset_x==11'sd1)||(bulk_offset_x&&offset_x==11'sd4);
+    wire offset_last_y=(offset_y==10'sd1)||(bulk_offset_y&&offset_y==10'sd4);
     wire signed [63:0] plane_next [0:6];
     wire [6:0] plane_overflow;
     wire signed [31:0] edge_next [0:2];
@@ -510,7 +521,15 @@ module nano_tile_renderer (
         wire signed [63:0] a=(state==SEED_CAPTURE)?64'sd0:
             (step_from_row?plane_row[p]:plane_current[p]);
         wire signed [63:0] b=coefficient_data[p];
-        assign plane_next[p]=a+b;
+        // Within one axis a constant signed step is monotonic. Starting from
+        // a valid value, checking the exact endpoint also checks every
+        // intermediate step. Finish Y before X so cancellation across axes
+        // cannot hide a Y overflow.
+        // Batching is enabled only if every participating slope fits
+        // signed 33 bits. Its exact shifted value fits signed 35 bits,
+        // so the upper bits and signed overflow check are shared unchanged.
+        wire signed [63:0] step={b[63:35],bulk_offset?{b[32:0],2'b00}:b[34:0]};
+        assign plane_next[p]=a+step;
         assign plane_overflow[p]=(a[63]==b[63])&&(plane_next[p][63]!=a[63]);
     end endgenerate
     generate for(genvar e=0;e<3;e=e+1) begin:edge_steppers
@@ -533,9 +552,9 @@ module nano_tile_renderer (
         START,CLIP_SCISSOR,CLIP_TILE,PREPARE: coefficient_read_address=0;
         SEED_CAPTURE,CONFIG,EDGE_SETUP:
             coefficient_read_address=(offset_y!=0)?2:((offset_x!=0)?1:(first_step_y?2:1));
-        OFFSET_Y: if(offset_y==1)
+        OFFSET_Y: if(offset_last_y)
             coefficient_read_address=(offset_x!=0)?1:(first_step_y?2:1);
-        OFFSET_X: if(offset_x==1) coefficient_read_address=first_step_y?2:1;
+        OFFSET_X: if(offset_last_x) coefficient_read_address=first_step_y?2:1;
         RASTER: if(row_exit) coefficient_read_address=2;
             else if(advance_raster)
             coefficient_read_address=(raster_step_x?(remaining_x==1):first_step_y)?2:1;
@@ -549,6 +568,16 @@ module nano_tile_renderer (
         wire write_ok=cmd_word_we&&(state==IDLE)&&!fault&&!reset;
         wire write_lo=write_ok&&(cmd_word_index==SEED_LO||cmd_word_index==DX_LO||cmd_word_index==DY_LO);
         wire write_hi=write_ok&&(cmd_word_index==SEED_HI||cmd_word_index==DX_HI||cmd_word_index==DY_HI);
+        reg dx_fits,dy_fits;
+        always @(posedge clk) begin
+            if(reset) begin dx_fits<=0;dy_fits<=0;end
+            else begin
+                if(write_hi&&cmd_word_index==DX_HI) dx_fits<=coefficient_high_fits;
+                if(write_hi&&cmd_word_index==DY_HI) dy_fits<=coefficient_high_fits;
+            end
+        end
+        assign x_step_fits[c]=dx_fits;
+        assign y_step_fits[c]=dy_fits;
         wire [1:0] wa=(cmd_word_index==DY_LO||cmd_word_index==DY_HI)?2:
             ((cmd_word_index==DX_LO||cmd_word_index==DX_HI)?1:0);
         wire [31:0] data_lo,data_hi;
@@ -651,6 +680,7 @@ module nano_tile_renderer (
             state<=IDLE; done<=0; sticky_fault<=0; pending<=0; pix_rvalid<=0;
             origin_x<=0; origin_y<=0;
             x<=0;y<=0;x0<=0;y0<=0;x1<=0;y1<=0;offset_x<=0;offset_y<=0;
+            bulk_allowed_x<=0;bulk_allowed_y<=0;
             remaining_x<=0;remaining_y<=0;row_remaining_x<=0;
             window_empty<=1;setup_bad<=0;sprite_nonempty<=0;sprite_wide<=0;
             sprite_span_x<=0;sprite_span_y<=0;
@@ -716,6 +746,8 @@ module nano_tile_renderer (
                 end
             end
             PREPARE: begin
+                bulk_allowed_x<=&(x_step_fits|~plane_enable);
+                bulk_allowed_y<=&(y_step_fits|~plane_enable);
                 window_empty<=(x0>=x1)||(y0>=y1);
                 remaining_x<=x1-x0-11'sd1;
                 row_remaining_x<=x1-x0-11'sd1;
@@ -779,8 +811,8 @@ module nano_tile_renderer (
                 for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
                     plane_row[i]<=plane_next[i];plane_current[i]<=plane_next[i];
                 end
-                offset_y<=offset_y-1;
-                if(offset_y==1) begin
+                offset_y<=offset_y-(bulk_offset_y?10'sd4:10'sd1);
+                if(offset_last_y) begin
                     if(offset_x!=0) state<=OFFSET_X;
                     else state<=RASTER;
                 end
@@ -789,8 +821,8 @@ module nano_tile_renderer (
                 for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
                     plane_row[i]<=plane_next[i];plane_current[i]<=plane_next[i];
                 end
-                offset_x<=offset_x-1;
-                if(offset_x==1) state<=RASTER;
+                offset_x<=offset_x-(bulk_offset_x?11'sd4:11'sd1);
+                if(offset_last_x) state<=RASTER;
             end
             RASTER: if(inside_sample) begin
                 if(need_texture) begin

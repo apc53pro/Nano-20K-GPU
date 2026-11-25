@@ -47,7 +47,8 @@ def main():
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
         "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv", "nano_triangle_setup_divider_tb.sv",
-        "tile_attachment_pair_tb.sv", "tile_short_record_tb.sv", "tile_rectangle_pair_tb.sv")]
+        "tile_attachment_pair_tb.sv", "tile_short_record_tb.sv", "tile_rectangle_pair_tb.sv",
+        "tile_offset_batch_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -88,6 +89,7 @@ def main():
         ("nano_tile_attachment_pair_tb", tests[14], []),
         ("nano_tile_short_record_tb", tests[15], []),
         ("nano_tile_rectangle_pair_tb", tests[16], []),
+        ("nano_tile_offset_batch_tb", tests[17], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -255,6 +257,21 @@ def main():
                       "all_clipped_widths_for_both_start_parities": True,
                       "independent_d24_tests_and_write_enables": True,
                       "pending_pair_reset_and_malformed_record_checked": True}
+            print(match[0], flush=True)
+        elif top == "nano_tile_offset_batch_tb":
+            match = re.search(r"PASS batched offsets: cases(\d+) Yfaults(\d+) Xfaults(\d+) pixels(\d+) "
+                              r"textured(\d+) offset_edges(\d+) serial_edges(\d+) narrow(\d+) wide(\d+)", output)
+            if not match or tuple(map(int, match.groups())) != (100, 4, 4, 100, 1, 1538, 4976, 16, 16):
+                raise RuntimeError("batched offsets changed signed setup, attachments or expected offset-edge count")
+            result = {"top": top, "passed": True, "offset_cases": int(match[1]),
+                      "y_overflow_cases": int(match[2]), "x_overflow_cases": int(match[3]),
+                      "checked_attachment_pixels": int(match[4]), "textured_cases": int(match[5]),
+                      "offset_edges": int(match[6]), "scalar_reference_edges": int(match[7]),
+                      "reference": "Independent signed80 scalar accumulation in Y-then-X order",
+                      "all_residues_and_large_offsets": True, "wider_slope_cancellation_checked": True,
+                      "signed33_inclusive_boundary_cases": int(match[8]),
+                      "nearest_wider_slope_serial_cases": int(match[9]),
+                      "inactive_planes_and_failed_setup_write_suppression_checked": True}
             print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)

@@ -42,8 +42,9 @@ The current RTL transfers two RGB565 pixels per accepted SDRAM word and
 clears two tile pixels per core clock (section 5). Aligned rectangle
 samples also use those paired attachment ports during rasterization
 (section 6). Texture refills write two RGB565 texels per accepted SDRAM
-word (section 8). Triangle edge
-initialization takes nine clocks instead of 24, and kind-4 depth setup
+word (section 8). Prepared-triangle offsets advance by up to four pixels
+per core clock while preserving exact plane values (section 6). Triangle
+edge initialization takes nine clocks instead of 24, and kind-4 depth setup
 avoids nine divider clocks per eligible gradient (section 6). The
 published programming image and its reports describe the earlier RTL.
 Sections 12 and 13 give the current build and performance evidence at
@@ -544,12 +545,23 @@ ownership without cracks or double coverage.
 The CPU supplies signed 64-bit `{seed, step_x, step_y}` planes. The renderer
 initializes them at each tile's clipped sample start and advances them through
 clocked additions. They retain the primitive's original anchor; there is no
-independent rounding of a new plane for every tile. Reaching that start walks
-one row or column step per clock from the primitive origin, so a large
-attributed triangle can spend up to about 1,100 setup clocks in a far tile.
-Triangle edges are evaluated at the start by multiplication, so a triangle
-with no enabled plane (flat color, no depth or texture) skips the walk.
-Rectangles, sprites and lines use constant depth and skip the plane walk.
+independent rounding of a new plane for every tile. For a prepared triangle,
+the offset walk advances first in Y, then in X. If every enabled slope on
+an axis fits signed 33 bits, it takes four steps per clock while at least
+four remain. The remainder and axes with wider slopes use single steps.
+The coefficient loader checks the high word to select the batch size.
+Shifting an eligible slope left by two fits signed 35 bits, so only the
+low 35 adder input bits select between the ordinary and shifted slope.
+All updates use the existing signed 64-bit accumulator and overflow
+check. Starting from an in-range value, equal signed steps are monotone.
+An in-range exact endpoint proves the skipped intermediate additions
+also fit. A failure on one axis stops setup before rasterization. The
+controller prefetches the next coefficient at each axis boundary.
+
+Triangle edges are evaluated at the start by multiplication. A triangle
+with no enabled plane (flat color, no depth or texture) skips the offset
+walk. Kind-4 setup supplies an already offset seed. Rectangles, sprites
+and lines use constant depth and skip the walk.
 
 The rectangle walker issues two samples on one clock when its current X
 is even and the next pixel is inside the same clipped row. Odd initial
@@ -634,9 +646,10 @@ changed. Its sums are discarded and their overflow is not recorded.
 Each of the seven plane adders and three edge adders has a sticky overflow
 flag. Only consumed offset/grid additions can set it; an unused next sum at
 the final sample cannot fault a draw. Samples a row exit skips are never
-summed, so they cannot fault a draw either. Their combined public fault asserts on
-the same arithmetic-overflow edge as before, immediately lowering busy and
-suppressing pending attachment writes and new fragment acceptance. The private
+summed, so they cannot fault a draw either. The public fault asserts on the
+edge that detects a consumed arithmetic overflow, immediately lowering
+busy and suppressing pending attachment writes and new fragment acceptance.
+An offset batch detects overflow before any sample from that triangle. The private
 controller enters its failed state on the following edge. This keeps the
 public failure behavior while removing the collective overflow/state decision
 from each adder's retained path, without adding ordinary raster clocks.
@@ -1589,6 +1602,32 @@ The published image belongs to the earlier release. Encrypted netlists
 prevent the fixed SiP check, the V1.9.8.11 installation provenance remains
 unverified, and external electrical margins remain unmeasured.
 
+### Batched triangle-offset source snapshot (2026-11-25)
+
+[Gowin V1.9.8.11](../docs/hardware/tang20k-batched-offsets-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-batched-offsets-v1911.json)
+used identical complete-board sources and placement/routing 0/2.
+The signed route verified all 26 package pins and passed the required
+clock and host-capture gates. Its timing report lists eight permitted
+reset-release paths. V1.9.8.11 failed placement with 44 equivalent LUTs
+unplaced. Its reported resource count is from that failed attempt.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | BSRAM | Board gates |
+| --- | ---: | ---: | ---: | ---: | --- |
+| V1.9.8.11 | Unavailable | Unavailable | 20,651/20,736 | Unavailable | Fail |
+| V1.9.11.03 | 51.164 MHz | 26.967 MHz | 20,291/20,736 | 46/46 | Pass |
+
+The selected V1.9.11.03 route uses 20,291 logic units and all 46 BSRAM
+banks. The preceding signed route used 20,069 logic units and estimated
+52.030 MHz core Fmax. The operating clocks stay at 50.4 MHz
+core/SDRAM, 25.2 MHz pixel and 126 MHz serialization. Both reports
+preserve the uncommitted host-pad constraint input. Each qualifying
+local image has a matching checksum, device and frame-CRC check, and
+[functional report](../docs/hardware/tang20k-batched-offsets-functional.json).
+The published image belongs to the earlier release. Encrypted netlists
+prevent the fixed SiP check, the V1.9.8.11 installation provenance remains
+unverified, and external electrical margins remain unmeasured.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -2031,6 +2070,46 @@ eight four-byte base offsets within an SDRAM burst, consecutive and
 bubbled responses, exact padding, malformed completion and reset.
 Warm hits retain seven-edge latency and 1,024 consecutive outputs at
 one output per clock.
+
+### Batched triangle offsets (2026-11-25)
+
+The [batched-offset benchmark](../docs/benchmarks/rtl-batched-triangle-offsets.json)
+compares the same 0.3 packets on Verilated board-core RTL at 50.4 MHz.
+Both complete RGB565 buffers and every D24 word match the independent
+SRR, with zero scanout underflows.
+
+In continuous overdraw, the X/Y offset walk falls from 622,711 to 160,768
+clocks. This matches the count predicted from every starting axis length,
+including the single-step tails. That pass uses 4,796,164 instead of
+5,258,854 clocks through its fence (8.80% fewer). Showcase's walk falls
+from 127,503 to 32,823 clocks and its pass improves 2.90%. The continuous
+suite falls from 28,962,680 to 28,353,194 clocks (2.10%). Every cumulative
+fence is at least as early. One kind-4 pass in the continuous sequence
+takes 150 additional clocks as its start phase changes. Its matched-start
+duration stays identical.
+
+| Workload | Cycle reduction at matched starts |
+| --- | ---: |
+| Opaque | 16.40–16.80% |
+| Overdraw | 8.92–8.98% |
+| Showcase and perspective | 2.65–2.85% |
+| Prepared full-clear icosahedron | 2.19–3.24% |
+| Prepared icosahedron with SKIP and identical prior attachments | 5.07–6.43% |
+
+All 48 matched starts improve or tie. Timing for the original two-frame
+SKIP sequence is reported separately because the first frame also
+changes duration. The controlled SKIP run recreates the first frame's
+full attachments with exact tile-local seeds and matches the second
+frame's starting phase.
+
+The prepared wide-triangle workload includes the same 576 first-use
+texture bytes and the same covered raster samples. It uses 16.56–17.37%
+fewer clocks at the two matched starts. The focused RTL regression
+checks positive and negative slopes, the signed 33-bit batching limits
+and adjacent wider values, clipping at every low five-bit axis residue,
+wide signed-boundary cancellation, masked planes, axis ordering, and
+actual RGB565, D24 and texture coordinates. It also checks that overflow
+on either axis faults before any attachment write.
 
 ## 14. Build, verify and reach the board
 

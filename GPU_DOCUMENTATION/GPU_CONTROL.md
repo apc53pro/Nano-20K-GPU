@@ -904,11 +904,10 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the current 0.3 RTL with direct texture refills, the
-complete-board routes estimate 51.386 MHz core Fmax for
-V1.9.8.11 and 52.030 MHz for V1.9.11.03. `make tang20k` selects
-the qualified V1.9.11.03 route with the faster core on the existing
-package pins and host-pad constraints.
+V1.9.8.11. For the current 0.3 RTL with batched triangle offsets,
+`make tang20k` selects the qualified V1.9.11.03 route at
+51.164 MHz estimated core Fmax on the existing package pins
+and host-pad constraints. V1.9.8.11 failed placement on these sources.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz serialization.
@@ -1559,6 +1558,15 @@ For sample anchor `(x0,y0)` from the triangle's clipped bounds, each plane is
 `seed + (x-x0)*step_x + (y-y0)*step_y`. Depth is D24-code units with 16 fractional
 bits; RGB channel planes have 16 fractional bits; q has scale `2^37`; U=u*q and
 V=v*q have scale `2^27`. All stored values are signed 64-bit two's complement.
+The GPU advances enabled prepared planes from their original anchor in Y,
+then X. It can apply four same-axis steps in one clock when all enabled
+gradients for that axis fit signed 33 bits. Wider gradients keep their
+full signed 64-bit range and advance one step at a time. The GPU checks
+that the exact result at every consumed step fits signed 64 bits. A batch
+preserves that check because its steps move monotonically along one axis.
+An overflow during setup faults before the triangle can write an attachment.
+Keep the same prepared values and use the existing fence and fault protocol.
+
 Coverage uses unbiased edges at pixel centers and top-left inclusion. The
 maximum W ratio is 64 in the current setup profile; normalized vertex q is
 in `[1/128,1/2]`, and covered reconstructed q must be `[1/256,1]`.
