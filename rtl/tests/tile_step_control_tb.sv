@@ -16,7 +16,7 @@ module nano_tile_step_control_tb;
  nano_tile_renderer dut(.*);
 
  reg [31:0] record[0:79];
- integer i,p,axis,neg,steps,candidates,writes,cases=0,mode=0,span=0,height=0;
+ integer i,p,axis,neg,steps,candidates,writes,cases=0,mode=0,span=0,height=0,row_exits=0;
  integer expected_addr,first_addr,second_addr,start_x,start_y;
  reg active=0;
  reg [15:0] expected_color;
@@ -93,11 +93,21 @@ module nano_tile_step_control_tb;
    base();if(axis)begin record[10]=1;record[11]=3;end
    record[26+4*p+axis]=neg?-32'sd1:32'sd1;
    record[28+4*p]=neg?32'sh80000027:32'sh7fffffd8;
-   mode=0;launch();expect_fault();
-   if(dut.edge_fault!==(3'b1<<p)||dut.plane_fault!==0)
-    $fatal(1,"edge overflow flag lost identity case%0d",cases);
-   expected_color=neg?16'hbeef:16'h3102;
-   expected_depth=neg?24'h654321:0;
+   mode=0;launch();
+   if(neg&&!axis)begin
+    // The initial negative edge cannot improve to the right. Row exit
+    // skips the later samples, so their hypothetical underflow is unused.
+    steps=0;while(!fault&&!done&&steps<1000)begin tick();steps=steps+1;end
+    if(fault||!done||candidates!=1||writes!=0||dut.edge_fault!==0||dut.plane_fault!==0)
+     $fatal(1,"row exit consumed a skipped negative-X edge sum case%0d",cases);
+    expected_color=16'hbeef;expected_depth=24'h654321;row_exits=row_exits+1;
+   end else begin
+    expect_fault();
+    if(dut.edge_fault!==(3'b1<<p)||dut.plane_fault!==0)
+     $fatal(1,"edge overflow flag lost identity case%0d",cases);
+    expected_color=neg?16'hbeef:16'h3102;
+    expected_depth=neg?24'h654321:0;
+   end
    inspect();cases=cases+1;
   end
   // The mathematically overflowing next sum is not consumed at the last
@@ -125,6 +135,7 @@ module nano_tile_step_control_tb;
     $fatal(1,"clipped span%0d incomplete candidates%0d writes%0d",span,candidates,writes);
   end
   $display("PASS %0d signed plane/edge overflow timing cases and 32 clipped span traces",cases);
+  $display("PASS %0d row-exit skipped edge-underflow cases",row_exits);
   $finish;
  end
 endmodule

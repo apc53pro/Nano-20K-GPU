@@ -1108,7 +1108,7 @@ void benchmark(Simulation& simulation, const std::string& stats, bool profile) {
         {9, "IDLE"}, {10, "ACTIVE"}, {18, "REFRESH_WAIT"},
         {19, "REFRESH_PRE_WAIT"}, {20, "REFRESH_COMMAND"}, {21, "REFRESH_RECOVERY"}, {22, "CHECK_REQUEST"}};
     const std::map<unsigned, const char*> tile_names{
-        {0, "IDLE"}, {1, "START"}, {2, "CONFIG"}, {3, "EDGE_LAUNCH"}, {4, "EDGE_WAIT"}, {5, "EDGE_CAPTURE"},
+        {0, "IDLE"}, {1, "START"}, {2, "CONFIG"}, {3, "EDGE_SETUP"},
         {6, "OFFSET_Y"}, {7, "OFFSET_X"}, {8, "RASTER"}, {9, "SEED_CAPTURE"}, {10, "CLIP_SCISSOR"},
         {11, "CLIP_TILE"}, {12, "PREPARE"}, {13, "ROW_SKIP"}, {17, "DRAIN"}};
     const auto begin_case = [&] {

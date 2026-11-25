@@ -67,10 +67,10 @@ image adds **row exit**, which halves the empty samples walked around
 triangles, and **overlapped PRESENT**, which lets the next frame's uploads run
 while the swap waits for vertical blank.
 
-The image is built with **Gowin EDA V1.9.8.11** by `make tang20k`. The
+The retained image was built with **Gowin EDA V1.9.8.11**. The
 open-source flow's image failed the host address latch on the board, and
 `AGENTS.md` records this exception and the gate it cannot meet. The signed
-V1.9.11.03 is also installed; on the current RTL it reached a slower core
+V1.9.11.03 is also installed; on the 2026-11-13 RTL it reached a slower core
 clock (56.45 against 60.36 MHz), and the user keeps the faster one. The
 [board report](docs/hardware/tang20k-board.json) verifies every
 package pin and meets every required clock: the core reaches 60.36 MHz Fmax
@@ -78,7 +78,15 @@ against 50.4 MHz (placement option 0, routing option 2). The only
 negative-slack paths are listed reset-release paths. The build used
 uncommitted host-pad timing constraints in `scripts/build-tang20k.py`; the
 report records both script hashes.
-It uses **19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**,
+
+The current RTL additionally pipelines triangle edge initialization through
+the existing multiplier, reducing setup from 24 to nine clocks. Fresh routes
+of those sources favor the signed V1.9.11.03 (58.251 MHz core against
+57.699 MHz), so `make tang20k` now selects it; operating clocks remain
+unchanged. [Both guides](GPU_DOCUMENTATION/) describe the experiment and its
+phase-dependent performance results. This source change leaves the published
+image/checksum/report bundle below unchanged and does not program the board.
+The retained image uses **19,841/20,736 logic (Gowin count, 96%)**, **7,496 registers**,
 **46/46 BSRAM** and 63% DSP, so little logic is left for new features.
 
 The matching image is **7,264,137 bytes**, SHA-256

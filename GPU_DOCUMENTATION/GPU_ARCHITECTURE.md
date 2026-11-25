@@ -38,6 +38,17 @@ Section 12 notes one uncommitted build-script input. The current image was
 written to the board on 2026-11-13; it has not yet been tested with the
 RP2350.
 
+The current RTL additionally pipelines triangle edge initialization through
+the existing multiplier: six products launch consecutively and all three
+edges settle in nine core clocks instead of 24 (section 6). The retained
+programming image described above predates this change. Its image, checksum
+and release reports remain a matched bundle for that earlier RTL; they do
+not qualify the optimized sources. The new source-matched experiments and
+their timing/provenance limits are described in sections 12 and 13.
+For these sources the signed Gowin EDA V1.9.11.03 reaches a faster core
+than V1.9.8.11, so it becomes the `make tang20k` default. Operating clocks
+remain unchanged; higher estimated Fmax is not counted as a speedup.
+
 Version 0.2 replaces raw heap uploads with one lossless encoded upload engine.
 It shares the existing packet-word register, counters, 64-byte staging RAM and
 SDRAM-write backend; its only additional decoder storage is an eight-bit group
@@ -531,6 +542,16 @@ attributed triangle can spend up to about 1,100 setup clocks in a far tile.
 Triangle edges are evaluated at the start by multiplication, so a triangle
 with no enabled plane (flat color, no depth or texture) skips the walk.
 Rectangles, sprites and lines do not use it.
+
+Edge initialization uses one signed 18-by-18 multiplier with its existing
+three registered stages. It accepts the six `A*X` and `B*Y` products for
+the three edges on consecutive clocks, while the earlier results drain.
+The controller combines each pair with that edge's `C`, using the existing
+signed 38-bit sum and signed 32-bit overflow rejection before rasterization.
+This takes nine clocks rather than the previous six serial four-clock
+operations. It changes neither coverage nor record validation, and adds no
+multiplier or RAM. The same path handles prepared triangles and the prepared
+words generated from kind-4 records; the separate kind-4 setup unit is unchanged.
 
 | Quantity | Stored plane scale |
 | --- | --- |
@@ -1225,17 +1246,18 @@ size (5,565 and 5,469 LUTs). The rise is therefore Gowin's mapping of the
 changed netlist, not hardware added by the fixes. V1.9.11.03 counts
 the same sources at 19,158. Either way, little logic is left for new features.
 
-### Current board implementation (Gowin EDA)
+### Retained programming-image implementation (2026-11-13)
 
-The [current complete-board report](../docs/hardware/tang20k-board.json) is
+The [published-image complete-board report](../docs/hardware/tang20k-board.json) is
 matched to the 50.4 MHz GPU-video profile described above, with one
 exception: it was built with a working-tree `scripts/build-tang20k.py` that
 adds host-pad timing constraints from separate, uncommitted work. The report
 records both script hashes and the difference
 (`uncommitted_build_inputs`). Those constraints add `set_input_delay` and
 `set_output_delay` of 4 ns on the falling host-clock edge for the bus pads.
-The RTL and every other input match the committed sources. It is built
-by `make tang20k` with Gowin EDA V1.9.8.11 Education (the Makefile default),
+The RTL and every other input matched the sources at that release; this
+report does not qualify the later pipelined edge initialization. It was built
+by `make tang20k` with Gowin EDA V1.9.8.11 Education (that release's default),
 using placement option 0 and routing option 2 (Makefile
 `TANG20K_PLACE`/`TANG20K_ROUTE`). The previous comparison shows the other
 options; these are build choices, not hardware modes. The full `tang20k_top` is implemented: PLL, two CLKDIVs,
@@ -1375,6 +1397,38 @@ firmware stack overflow, not a GPU fault; the control guide records it.
   failed on the board, as recorded in the control guide.
 
 Their reports remain in git history and do not qualify the current sources.
+
+### Pipelined-edge source snapshot (2026-11-24)
+
+The [V1.9.8.11 experiment](../docs/hardware/tang20k-edge-pipeline-v1908.json)
+and [signed V1.9.11.03 experiment](../docs/hardware/tang20k-edge-pipeline-v1911.json)
+implement the same full `tang20k_top` sources, package and 0/2 placement/routing
+options. Both pass the required 50.4 MHz core, 25.2 MHz host and pixel timing
+gates and all 26 package-pin checks. The core estimates are 57.699 and
+58.251 MHz respectively, so the signed tool becomes the Makefile default
+under the existing faster-core selection policy. These are internal static
+timing estimates; the GPU still operates at 50.4 MHz.
+
+The signed build uses 19,606/20,736 logic and 7,421 registers; the older tool
+reports 19,903 logic and 7,495 registers for the same sources. Both use all
+46 BSRAM and 63% DSP. These complete-board tool counts are scoped to their
+respective local snapshots and must not be conflated with a core-only probe
+or an architectural resource saving across different toolchains.
+
+Both reports retain every listed negative-slack reset-release path under
+the existing exception: two core-reset, two pixel-reset and four serializer
+reset paths. No other listed violation is accepted. The unchanged encrypted
+netlists prevent the fixed SiP check; external electrical margins and physical
+qualification remain incomplete. V1.9.8.11 provenance remains unverified;
+the V1.9.11.03 executable's Authenticode signature was separately checked.
+
+The reports fingerprint the same uncommitted 4 ns falling-HCLK pad constraints
+already identified for the retained image. That separately owned builder is
+not included in this change, so a clean checkout alone is not the qualified
+input set. The Makefile passes the chosen tool explicitly; direct builder
+invocations must supply `--gowin` to reproduce these toolchain comparisons.
+The matching candidate image/checksum bundles remain local experiments;
+the published 2026-11-13 image and its reports are retained unchanged.
 
 ## 13. Simulator, reference and performance evidence
 
@@ -1573,7 +1627,7 @@ copy; it is the wait row. Rendering is therefore about 28.0 ms, down from
 Large facets cross many tiles, so each tile holds about 13 references, each
 walking its window. These are user-reported on-screen timings.
 
-### Row exit, CPU culling and the close-up case (current RTL)
+### Row exit, CPU culling and the close-up case (before pipelined edge setup)
 
 A close-up case added to the benchmark draws a coarse sphere that fills most
 of the screen, in front of a finer one that it partly hides. Both are
@@ -1623,6 +1677,35 @@ hardware bring-up target, not a claim that complete scenes reach 30 FPS.
 Warm resident-tile one-fragment-per-clock cadence remains verified separately.
 The early read-response streaming change is required for zero scanout
 underflow at this two-core-clocks-per-pixel profile.
+
+### Pipelined edge initialization (2026-11-24)
+
+[The new experiment](../docs/benchmarks/rtl-edge-setup-pipeline.json) records
+fresh before/after board-core RTL simulations at the unchanged 50.4 MHz core
+and 25.2 MHz virtual host/pixel clocks. Every case checks both complete RGB565
+buffers and every depth word against the SRR; scanout underflows remain zero.
+The clear, rectangle, pointer and copy cases are cycle-identical. Every fence
+in the continuous benchmark sequence completes no later than before, but
+individual pass durations are sensitive to the changed scanout/SDRAM phase:
+full-clear icosahedron increases from 503,830 to 515,676 clocks and close-up
+spheres from 1,110,726 to 1,112,108. These results remain in the report.
+
+To separate those changed arrival phases from the work itself, additional
+measurements start each workload as the first submission of a freshly booted
+simulation, at identical idle offsets, with normal packet uploads and fences.
+For the four tested offsets, full-clear icosahedron takes 0.58–0.63% fewer
+clocks and close-up spheres 1.18–1.38% fewer. This is scoped simulation
+evidence, not a guarantee that every arrival phase improves, and not physical
+board FPS. The report includes the measurement driver and input hashes.
+Across all 20 matched-start pairs (eight workloads), clock counts decrease
+by 0.16–1.38%; the full continuous sequence uses 0.65% fewer clocks.
+
+The supporting whole-board reports identify the exact local build inputs,
+including the same separately owned, uncommitted host-pad constraints as the
+retained image. A clean checkout alone therefore does not reproduce those
+routes. The local candidate images stay beside their checksums and reports;
+the published programming-image bundle is unchanged. Neither image was
+programmed or measured on hardware by this experiment.
 
 ## 14. Build, verify and reach the board
 

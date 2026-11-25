@@ -1,0 +1,236 @@
+{
+  "schema": "N20K-RENDERER-RTL-TESTS-1",
+  "scope": "Native renderer unit regressions; not whole-GPU timing or fit proof",
+  "oracle": "Canonical SRR RenderMode::Monolithic; software hardware-block renderer excluded",
+  "texture_boundary": "Ready/valid test responders; cache and SDRAM require separate integration tests",
+  "tests": [
+    {
+      "top": "nano_tile_testbench",
+      "passed": true,
+      "tile_cases": 83,
+      "attachment_samples_compared": 84992
+    },
+    {
+      "top": "nano_tile_fault_tb",
+      "passed": true,
+      "rejected_records": 28,
+      "fault_write_suppression": true,
+      "reset_preserves_attachments": true
+    },
+    {
+      "top": "nano_fragment_throughput_tb",
+      "passed": true,
+      "fragment_streams": [
+        {
+          "kind": "sprite",
+          "accepted_consecutively": 1024,
+          "retired_consecutively": 1024,
+          "elapsed_edges": 1039
+        },
+        {
+          "kind": "triangle",
+          "accepted_consecutively": 1024,
+          "retired_consecutively": 1024,
+          "elapsed_edges": 1058
+        }
+      ]
+    },
+    {
+      "top": "nano_tile_quantize_tb",
+      "passed": true,
+      "quantizer_vectors": 1320722,
+      "converters": [
+        "RGB8",
+        "D24"
+      ],
+      "reference": "Full-width signed saturation and ties-to-even rounding"
+    },
+    {
+      "top": "nano_sdp32_tb",
+      "passed": true,
+      "native_mode": "SDPB512x32",
+      "independent_clocks": true,
+      "reset_preserves_memory": true
+    },
+    {
+      "top": "nano_tile_coefficient_throughput_tb",
+      "passed": true,
+      "coefficient_streams": [
+        {
+          "kind": "sprite",
+          "accepted_consecutively": 1024,
+          "retired_consecutively": 1024,
+          "elapsed_edges": 1046
+        },
+        {
+          "kind": "triangle",
+          "accepted_consecutively": 1024,
+          "retired_consecutively": 1024,
+          "elapsed_edges": 1074
+        },
+        {
+          "kind": "minseed",
+          "accepted_consecutively": 1024,
+          "retired_consecutively": 1024,
+          "elapsed_edges": 1074
+        }
+      ],
+      "reverse_command_loading": true,
+      "last_seed_write_with_command_launch": true
+    },
+    {
+      "top": "nano_tile_record_compact_tb",
+      "passed": true,
+      "raw_record_vectors": 143360,
+      "staged_setup_checkpoints": 1478,
+      "no_side_effects_before_validation": true,
+      "full_width_acceptance_reference": true,
+      "arbitrary_word_order": true,
+      "error_sentinel_rewrites": true,
+      "viewport_intersections": true
+    },
+    {
+      "top": "nano_fragment_coordinate_skid_tb",
+      "passed": true,
+      "coordinate_contracts": [
+        {
+          "bits": 32,
+          "ordered_requests_and_commits": 1088
+        },
+        {
+          "bits": 16,
+          "ordered_requests_and_commits": 1088
+        }
+      ],
+      "registered_upstream_credit": true,
+      "signed_endpoints": true,
+      "held_request_identity": true,
+      "factor_tag_order": true,
+      "reset_cancels_full_skid": true
+    },
+    {
+      "top": "nano_tile_step_control_tb",
+      "passed": true,
+      "overflow_and_final_sample_cases": 44,
+      "clipped_span_traces": 32,
+      "exact_fault_edge": true,
+      "same_edge_busy_clear": true,
+      "pending_sample_write_suppression": true,
+      "unconsumed_final_overflow_ignored": true,
+      "row_exit_skipped_edge_underflow_cases": 3,
+      "all_plane_edge_sign_and_direction_combinations": true,
+      "clipped_origin": [
+        608,
+        448
+      ],
+      "height_per_span": 32
+    },
+    {
+      "top": "nano_tile_setup_tb",
+      "passed": true,
+      "empty_descriptor_cases": 4,
+      "held_configuration_edges": 20,
+      "signed_raw_bounds": true,
+      "cache_rejection_after_empty_configuration": true,
+      "no_attachment_or_texture_requests": true
+    },
+    {
+      "top": "nano_fragment_conservative_ready_tb",
+      "passed": true,
+      "coordinate_contracts": [
+        {
+          "bits": 32,
+          "cases": 9,
+          "safe_occupied_stage_acceptance_checks": 638,
+          "compare_isolation_checks": 10,
+          "blocked_payload_hold_checks": 10,
+          "blocked_head_order_checks": 80
+        },
+        {
+          "bits": 16,
+          "cases": 9,
+          "safe_occupied_stage_acceptance_checks": 638,
+          "compare_isolation_checks": 10,
+          "blocked_payload_hold_checks": 10,
+          "blocked_head_order_checks": 80
+        }
+      ],
+      "warm_consecutive_accepts_and_retirements_per_stream": 128,
+      "passing_and_rejecting_sprites_and_triangles": true,
+      "texture_requests_may_reorder_by_tag": true,
+      "retirement_is_ordered": true,
+      "blocked_rejection_cannot_overwrite_depth_stage": true
+    },
+    {
+      "top": "nano_tile_edge_setup_tb",
+      "passed": true,
+      "signed64_edge_equation_cases": 36,
+      "setup_reset_positions": 9,
+      "signed32_overflow_cases": 6,
+      "retained_record_reuse_cases": 3,
+      "maximum_setup_edges": 9,
+      "clipped_start_and_signed18_endpoints": true,
+      "all_three_edges_checked_before_raster": true,
+      "setup_fault_and_reset_preserve_attachments": true
+    }
+  ],
+  "source_sha256": {
+    "rtl/gpu/nano_sdp16.sv": "2e7b56e811c74e19f8467ddbb0ccc7b0b785169287baed617f89181ad3b22fd4",
+    "rtl/uv_mult.v": "6b30e0fa2cbb16b10deeb0b0e005fcbb3b04a0f15f6b8b5307a155f02c3243c0",
+    "rtl/uv_pipeline.v": "172ffb5be03d727f0af240da434123d8ae10636b2fc382df613663486e6a0d30",
+    "rtl/gpu/nano_fragment_pipeline.sv": "d35ba4e1bec3d7f5be6e12c152ea0e0f2e6d60eff89d04a0db3f900cf476e164",
+    "rtl/gpu/nano_tile_renderer.sv": "e5487ee4a5e33428a7641594ff2f7d8ac8661a3e2d89f8bd19e11db50f2e6a46",
+    "rtl/gpu/nano_sdp32.sv": "eaffbf55730bffdc9f7e2796ab3d65389c97233d7f4a265800ceb203fa0b5769",
+    "rtl/gpu/nano_sdp36.sv": "3c93271a20fe7250037ff5a48842fae201de910027f36b1614ba57f746a72bc5",
+    "rtl/tests/generate_tile_vectors.cpp": "32eee43cf67b4d9bf26ef35df9e240a5fea3c6668607e7e4fe0f74b24067fa2f",
+    "rtl/tests/tile_renderer_tb.sv": "f9d552f8f1163d6614197610151d9c4e2dffaaa18732978f1898af88d5c7c3e9",
+    "rtl/tests/tile_renderer_fault_tb.sv": "91112c5a23b54f2027b13a70c2062123145e72730fd4ac1e9b2016e8845dfa7f",
+    "rtl/tests/fragment_throughput_tb.sv": "8ee999a22bc299624bb9e78ef249bc996fc6aedbb148a56211fed34a918eb32b",
+    "rtl/tests/tile_quantize_tb.sv": "3567477af864837e27bdff98379748c8dd6dfcacab63f12b66b2ebee26f0a47e",
+    "rtl/tests/sdp32_tb.sv": "38b03d9b1f37c1d12a85ba74fda01feecad4f40b0e28a8163bdf667ad44a6a07",
+    "rtl/tests/tile_coefficient_throughput_tb.sv": "d00d8f2ad1eb831312c7879fd3ff9f75c5cfcd4dfc6df8fd97305fb9fdeb84f3",
+    "rtl/tests/tile_record_compact_tb.sv": "443de3100028b0790b517a0ed3faffd3e76dd4c2c98ff229f2b4c8c4cc9105f8",
+    "rtl/tests/fragment_coordinate_skid_tb.sv": "a06ae7a57c0bd07ecad1ae239e13d9c935fb5d38bdda291441c61e4633dc8436",
+    "rtl/tests/tile_step_control_tb.sv": "668eb4b013c1fa4d4b55b062c73bd0ebce671b9edfadf52bc639ff11f2d6d85b",
+    "rtl/tests/tile_setup_tb.sv": "5b3a4fbf990433a2c022ff5bc32f15a2df05fd634b96130784f0cde73d4371ff",
+    "rtl/tests/fragment_conservative_ready_tb.sv": "276f2a945ec24b68f0c78ffb98464fd1ad88607bdeb1f1b65a17d61a1db5917f",
+    "rtl/tests/tile_edge_setup_tb.sv": "e749f998196210ab7bdf297ad325326d1a86a3030e8d7e5e21be38501c1d1bc6",
+    "reference/src/setup.cpp": "9bfe5776e1d2545d1428744dc3ddaf0045264a4fe388b2735892690db1bd233e",
+    "reference/src/renderer.cpp": "dca6fd9814bfb7a3e7f99cc24cba37ec1759ef2609304c90c595f5d6ad9f122c",
+    "reference/src/hw_protocol.cpp": "273afd232a3be49376ce23dcd06bcd42a80fce61c446d279f93fbba6ca775001",
+    "reference/src/hw_walker2d.cpp": "f25b2d7b2f367459eb025fd57b359c9590d9076ef3adfd35bb0b6f5a8ae96ac1",
+    "scripts/rtl-renderer-check.py": "2f7058390b450e59bb5bf232c398338eeb1ec73e7ab2121ea278ded9be00a012",
+    "scripts/rtl-check.py": "f361c0c42c366421b70e02b4e2e5b7151ac447989f7d36a3d0be464d4d871e66",
+    "scripts/rtl-generate-rom.py": "f831c78a56368a6946b58758a46bc6c4092a9eff73b8cd4dbfa232e66c60e4c9",
+    "reference/include/nano_gpu/demo.hpp": "01b8398b985592952a78182029d7dfc0b02193aa59606bdb3a299130aca40ac0",
+    "reference/include/nano_gpu/hw/blit.hpp": "4a5974bfbc4476d7646e0fc412d257d9f19459c77a007ed774430a105b7bca21",
+    "reference/include/nano_gpu/hw/bsram.hpp": "f736f3ac6cf92307a72af1879309723ad823169140cd642307a6791c2af260f3",
+    "reference/include/nano_gpu/hw/device.hpp": "ec92feaa8875e6be204d30019908b2ce0e040c2aa47eb529cc7df1d642cb4168",
+    "reference/include/nano_gpu/hw/fragment_pipeline.hpp": "fe11748ccb735abf99823f854078ff95cf1859afc02f9b0927b83055bfcded83",
+    "reference/include/nano_gpu/hw/host_link.hpp": "d9f7f0529098dfeea758380dd27ef4b8b97d18ba6c2749d5798874c36a605350",
+    "reference/include/nano_gpu/hw/mult18x18.hpp": "6afae010260383e2dbdd7633820a945ed083f80ee6d7470d60ad30994961d95c",
+    "reference/include/nano_gpu/hw/perspective.hpp": "d4a1169d38cfe30bf12ffb2acfbc53604a29485ebee38c95a20d2f007d624e91",
+    "reference/include/nano_gpu/hw/protocol.hpp": "38fe66050c58e06a12550d3143e570044cc8050d41392c6502b2037c15e93463",
+    "reference/include/nano_gpu/hw/reciprocal.hpp": "4d184cd22ad7f3fb9ca53bef152993e24566c14b7aec0fc1ebfe5ffca4237cbd",
+    "reference/include/nano_gpu/hw/reciprocal_seed.hpp": "f4a7394f13fbdb047d7f3297208f632c05e580bb2b16f0ec46dd8c68b9dab51b",
+    "reference/include/nano_gpu/hw/resources.hpp": "09b7a809d25384de92806515dcd44ce2647c19408378ab05f7a16b483a1356bf",
+    "reference/include/nano_gpu/hw/scanout.hpp": "9f1ac4f10d48c67cbb9c582b99b61d74b66e5653f4f6452c7906265c676f2423",
+    "reference/include/nano_gpu/hw/sdram.hpp": "ea2eee0a7a2d5f1c0cebd769d67c45d39fea852bd0322928c48cb51cf577201b",
+    "reference/include/nano_gpu/hw/storage_map.hpp": "7694a4d31ed1574daf025608e0da7096207ad59d1a8ebb0e4846ab5edc463d3e",
+    "reference/include/nano_gpu/hw/system.hpp": "50632391fa358f070fa39265bc1bcce91ed3ea5f3ee7ba361ed9a83191013d24",
+    "reference/include/nano_gpu/hw/system_copy.hpp": "5c55d5c19c495d1e49445b3e3c353d4e26d9f5a4d7c7b9c1a7b2a5928aee87f5",
+    "reference/include/nano_gpu/hw/texture.hpp": "df5bf4c3f6afd2c403228d1e4b0ed71da4794b03ee4e3587ef31c3ded5549c5a",
+    "reference/include/nano_gpu/hw/throughput.hpp": "02d8a932d375d057e4327d48b286231b53905e0b05d8cb97e2594c4e9faef91d",
+    "reference/include/nano_gpu/hw/tile_pipeline.hpp": "0dc7d1b5bb4718264dbb63c57460140490658ff066b04c65ee2bdc647bb11509",
+    "reference/include/nano_gpu/hw/walker2d.hpp": "5fe750bb09cd0197b99816ba30d88633f217404245fb2dc667849dadfbd4041c",
+    "reference/include/nano_gpu/reference.hpp": "506a5413c5e381bb13539b8b1db78925331385a7749b08ea37f18edf1c57174b",
+    "rtl/generated/reciprocal_seed_0.hex": "52f40c1d437b38e31f1799edbd6e4da061fed245d88e4a55d4c83af38ff06966",
+    "rtl/generated/reciprocal_seed_1.hex": "3f1c63ecc2bb800474155b0c7732349f3efec9144ead6797db1d237b3b2dbaa3",
+    "rtl/generated/reciprocal_seed_2.hex": "0a0bc726e1396b677b80af871ee5bbd7a5e9343e6d751e04fb6633b09a4e51e0",
+    "rtl/generated/reciprocal_seed_3.hex": "8b50a7c9d7594324338be91ad48728bb48eff3fcd273733e8832eb06313da50d"
+  },
+  "generated_sha256": {
+    "seed_rom.v": "100867d4b5b14cfd94c2be090677efffa154123e3b9be5b790bdba7d5df85dc2",
+    "tile-vectors.txt": "0d1190d68213efaa34f5c2da9c1cb8dd7bfb5e2c5ab6095f0c964813e67b24ed"
+  }
+}

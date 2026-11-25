@@ -45,7 +45,7 @@ def main():
         "tile_renderer_fault_tb.sv", "fragment_throughput_tb.sv",
         "tile_quantize_tb.sv", "sdp32_tb.sv", "tile_coefficient_throughput_tb.sv",
         "tile_record_compact_tb.sv", "fragment_coordinate_skid_tb.sv", "tile_step_control_tb.sv", "tile_setup_tb.sv",
-        "fragment_conservative_ready_tb.sv")]
+        "fragment_conservative_ready_tb.sv", "tile_edge_setup_tb.sv")]
     oracle = [ROOT / "reference/src" / name for name in (
         "setup.cpp", "renderer.cpp", "hw_protocol.cpp", "hw_walker2d.cpp")]
     inputs = rtl + tests + oracle + [ROOT / "scripts" / name for name in (
@@ -81,6 +81,7 @@ def main():
         ("nano_tile_step_control_tb", tests[9], []),
         ("nano_tile_setup_tb", tests[10], []),
         ("nano_fragment_conservative_ready_tb", tests[11], []),
+        ("nano_tile_edge_setup_tb", tests[12], []),
     ):
         binary = build / (top + ".vvp")
         HDL["run"](HDL["tool"]("iverilog") + ["-g2012", "-s", top, "-o", str(binary)] +
@@ -165,10 +166,13 @@ def main():
             match = re.search(r"PASS (\d+) signed plane/edge overflow timing cases and (\d+) clipped span traces", output)
             if not match or int(match[1]) != 44 or int(match[2]) != 32:
                 raise RuntimeError("tile step control did not preserve overflow edges and every clipped width")
+            if "PASS 3 row-exit skipped edge-underflow cases" not in output:
+                raise RuntimeError("tile step control consumed an edge sum skipped by row exit")
             result = {"top": top, "passed": True, "overflow_and_final_sample_cases": int(match[1]),
                       "clipped_span_traces": int(match[2]), "exact_fault_edge": True,
                       "same_edge_busy_clear": True, "pending_sample_write_suppression": True,
                       "unconsumed_final_overflow_ignored": True,
+                      "row_exit_skipped_edge_underflow_cases": 3,
                       "all_plane_edge_sign_and_direction_combinations": True,
                       "clipped_origin": [608, 448], "height_per_span": 32}
             print(match[0], flush=True)
@@ -188,6 +192,18 @@ def main():
                       "texture_requests_may_reorder_by_tag": True, "retirement_is_ordered": True,
                       "blocked_rejection_cannot_overwrite_depth_stage": True}
             print("Conservative readiness: full32/tile16 warm II1, blocked holds and ordered rejection cases passed", flush=True)
+        elif top == "nano_tile_edge_setup_tb":
+            match = re.search(r"PASS edge setup: equations(\d+) resets(\d+) overflows(\d+) reuse(\d+) max_edges(\d+)", output)
+            if (not match or tuple(map(int, match.groups()[:4])) != (36, 9, 6, 3) or
+                    not 1 <= int(match[5]) <= 9):
+                raise RuntimeError("pipelined edge setup did not preserve signed equations, reset and overflow rejection")
+            result = {"top": top, "passed": True, "signed64_edge_equation_cases": int(match[1]),
+                      "setup_reset_positions": int(match[2]), "signed32_overflow_cases": int(match[3]),
+                      "retained_record_reuse_cases": int(match[4]), "maximum_setup_edges": int(match[5]),
+                      "clipped_start_and_signed18_endpoints": True,
+                      "all_three_edges_checked_before_raster": True,
+                      "setup_fault_and_reset_preserve_attachments": True}
+            print(match[0], flush=True)
         else:
             match = re.search(r"PASS (\d+) empty-descriptor setup cases, (\d+) held configuration edges", output)
             if not match or int(match[1]) != 4 or int(match[2]) != 20:

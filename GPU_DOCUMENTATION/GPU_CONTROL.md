@@ -889,12 +889,17 @@ The exception in `AGENTS.md` records the unverified Gowin EDA installer and
 the encrypted synthesis netlist, which prevents checking the fixed SiP SDRAM
 connection. Font upload, copies and scanout exercise the SDRAM on the board.
 A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
-encrypted too. On the current RTL it reached a 56.45 MHz core against
+encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
-faster clock (`AGENTS.md` addendum 2026-11-13), so `make tang20k` still uses
-V1.9.8.11. The architecture guide's section 12 has the comparison.
+faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
+V1.9.8.11. On the current pipelined-edge RTL, fresh full-board routes reach
+57.699 MHz with V1.9.8.11 and 58.251 MHz with the signed V1.9.11.03, so
+`make tang20k` now defaults to V1.9.11.03. Operating clocks remain 50.4 MHz
+core/SDRAM, 25.2 MHz pixels and 126 MHz serialization. The architecture
+guide's section 12 links both exact-input reports, including all remaining
+reset-release violations and the separately checked signature.
 
-The current image is **7,264,137 bytes**, SHA-256
+The retained published image is **7,264,137 bytes**, SHA-256
 `39fc7dd67bec606d59837a5c23e6240df5203548889db74bc1dd1098ff131730`. It adds
 row exit and overlapped PRESENT, with no packet or capability change.
 Firmware that sends `PRESENT` and then uploads before reading the reply now
@@ -933,6 +938,21 @@ The [programming-file check](../docs/hardware/tang20k-bitstream-check.json)
 verifies device ID, declared frame count and frame CRCs against that hash. The
 [functional report](../docs/hardware/tang20k-functional.json) separately scopes
 wrapper-model and real-core simulation; neither is a physical-board test.
+
+The current RTL also pipelines triangle edge initialization through its
+existing multiplier (nine core clocks instead of 24). Packet bytes,
+capabilities, numeric validation, coverage, resource residency and completion
+ordering are unchanged; drivers continue to honor readiness and fences and
+do not insert delays based on this private setup latency. Both prepared
+triangles and kind-4 triangles use it after their record preparation.
+The published image and release reports above retain the previous scheduler.
+[The source-matched experiment](../docs/benchmarks/rtl-edge-setup-pipeline.json)
+separates RTL cycle measurements, including phase-dependent pass-duration
+increases, from whole-board static timing. Its local candidate builds retain
+the explicitly hashed, separately owned uncommitted host-pad constraints;
+they do not establish physical electrical margins or hardware FPS, and a
+clean checkout alone does not reproduce their routes. This change does not
+publish or program a replacement image.
 
 Check the release checksum from the repository root with:
 

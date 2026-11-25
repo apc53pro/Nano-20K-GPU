@@ -28,8 +28,8 @@ module nano_tile_renderer (
     input wire [15:0] tex_rsp_texel, input wire [5:0] tex_rsp_tag,
     input wire tex_fault
 );
-    localparam [4:0] IDLE=0, START=1, CONFIG=2, EDGE_LAUNCH=3,
-        EDGE_WAIT=4, EDGE_CAPTURE=5, OFFSET_Y=6, OFFSET_X=7, RASTER=8,
+    localparam [4:0] IDLE=0, START=1, CONFIG=2, EDGE_SETUP=3,
+        OFFSET_Y=6, OFFSET_X=7, RASTER=8,
         SEED_CAPTURE=9, CLIP_SCISSOR=10, CLIP_TILE=11, PREPARE=12,
         ROW_SKIP=13, DRAIN=17, FAILED=18;
     reg [4:0] state /*verilator public_flat_rd*/;
@@ -86,8 +86,7 @@ module nano_tile_renderer (
         {3{words[0][7:0]==0&&(|words[1][7:1])&&(words[0][16]||words[0][19])}},
         {3{words[0][16]&&(words[1][7:0]==1||words[1][7:0]==4)}},
         (words[0][17]||words[0][18])};
-    reg [2:0] edge_term;
-    reg [1:0] wait_count;
+    reg [3:0] edge_step;
     reg signed [35:0] edge_a_product;
 
     // Explicit bit predicates avoid carry chains for constant viewport and
@@ -343,12 +342,16 @@ module nano_tile_renderer (
     assign busy=(state!=IDLE)&&(state!=FAILED)&&!fault;
     assign cmd_ready=(state==IDLE)&&!fault;
 
-    wire [1:0] edge_index=edge_term[2:1];
+    // Six products enter the existing three-stage multiplier consecutively.
+    // Steps 3..8 consume terms 0..5 while steps 0..5 launch new operands.
+    wire [2:0] edge_result=edge_step[2:0]-3'd3;
+    wire [1:0] edge_index=edge_result[2:1];
+    wire edge_launch=(state==EDGE_SETUP)&&(edge_step<6);
     // This six-way selection is the actual setup datapath, rather than a
     // variable read port across all eighty command registers.
     reg signed [31:0] coefficient,current_edge_c;
     always @* begin
-        case(edge_term)
+        case(edge_step[2:0])
         0:coefficient=words[26];1:coefficient=words[27];
         2:coefficient=words[30];3:coefficient=words[31];
         4:coefficient=words[34];default:coefficient=words[35];
@@ -358,13 +361,13 @@ module nano_tile_renderer (
         default:current_edge_c=words[36];
         endcase
     end
-    wire signed [31:0] center=(edge_term[0])?(y0<<<4)+32'sd8:(x0<<<4)+32'sd8;
+    wire signed [31:0] center=(edge_step[0])?(y0<<<4)+32'sd8:(x0<<<4)+32'sd8;
     wire signed [35:0] edge_product;
     wire signed [37:0] edge_sum={{2{edge_a_product[35]}},edge_a_product}+
         {{2{edge_product[35]}},edge_product}+{{6{current_edge_c[31]}},current_edge_c};
     nano_mult18 edge_multiplier(.clk(clk),.ce(1'b1),.reset(reset),
-        .a((state==EDGE_LAUNCH)?coefficient[17:0]:18'sd0),
-        .b((state==EDGE_LAUNCH)?center[17:0]:18'sd0),.product(edge_product));
+        .a(edge_launch?coefficient[17:0]:18'sd0),
+        .b(edge_launch?center[17:0]:18'sd0),.product(edge_product));
 
     assign tex_cfg_valid=(state==CONFIG)&&!fault&&!reset;
     assign tex_cfg_base=words[12][22:0];
@@ -499,7 +502,7 @@ module nano_tile_renderer (
         coefficient_read_address=step_in_y?2:1;
         case(state)
         START,CLIP_SCISSOR,CLIP_TILE,PREPARE: coefficient_read_address=0;
-        SEED_CAPTURE,CONFIG,EDGE_LAUNCH,EDGE_WAIT,EDGE_CAPTURE:
+        SEED_CAPTURE,CONFIG,EDGE_SETUP:
             coefficient_read_address=(offset_y!=0)?2:((offset_x!=0)?1:(first_step_y?2:1));
         OFFSET_Y: if(offset_y==1)
             coefficient_read_address=(offset_x!=0)?1:(first_step_y?2:1);
@@ -620,7 +623,7 @@ module nano_tile_renderer (
             sprite_span_x<=0;sprite_span_y<=0;
             source_x<=0;source_y<=0;source_start_x<=0;
             line_end_x<=0;line_end_y<=0;line_dx<=0;line_dy<=0;line_sx<=0;line_sy<=0;line_error<=0;
-            edge_term<=0;wait_count<=0;edge_a_product<=0;
+            edge_step<=0;edge_a_product<=0;
             pending_addr<=0;pending_depth<=0;pending_color<=0;
             for(i=0;i<3;i=i+1) begin edge_row[i]<=0;edge_current[i]<=0;end
             for(i=0;i<7;i=i+1) begin plane_row[i]<=0;plane_current[i]<=0;end
@@ -694,7 +697,7 @@ module nano_tile_renderer (
                     offset_y<=y0-$signed(words[9][9:0]);
                 end
                 line_error<=line_dx+line_dy;
-                edge_term<=0;
+                edge_step<=0;
                 if(((x0>=x1)||(y0>=y1))&&!words[1][18])state<=DRAIN;
                 else state<=SEED_CAPTURE;
             end
@@ -711,30 +714,30 @@ module nano_tile_renderer (
                 // The cache validates every present descriptor, even for
                 // empty tiles or state whose color path does not sample it.
                 if(words[1][18]) state<=CONFIG;
-                else if(words[0][7:0]==0) state<=EDGE_LAUNCH;
+                else if(words[0][7:0]==0) state<=EDGE_SETUP;
                 else state<=RASTER;
             end
             CONFIG: if(tex_cfg_ready) begin
                 if(window_empty)state<=DRAIN;
-                else state<=kind==0?EDGE_LAUNCH:RASTER;
+                else state<=kind==0?EDGE_SETUP:RASTER;
             end
-            EDGE_LAUNCH: begin wait_count<=2;state<=EDGE_WAIT;end
-            EDGE_WAIT: if(wait_count==1) state<=EDGE_CAPTURE;else wait_count<=wait_count-1;
-            EDGE_CAPTURE: begin
-                if(!edge_term[0]) edge_a_product<=edge_product;
-                else begin
-                    edge_row[edge_index]<=edge_sum[31:0];
-                    edge_current[edge_index]<=edge_sum[31:0];
+            EDGE_SETUP: begin
+                if(edge_step>=3) begin
+                    if(!edge_result[0]) edge_a_product<=edge_product;
+                    else begin
+                        edge_row[edge_index]<=edge_sum[31:0];
+                        edge_current[edge_index]<=edge_sum[31:0];
+                    end
                 end
-                if(edge_term==5) begin
+                if(edge_step==8) begin
                     // Edges are evaluated at the clipped start by multiply.
                     // Only enabled attribute planes need the offset walk.
                     if(!(|plane_enable)) state<=RASTER;
                     else if(offset_y!=0) state<=OFFSET_Y;
                     else if(offset_x!=0) state<=OFFSET_X;
                     else state<=RASTER;
-                end else begin edge_term<=edge_term+1;state<=EDGE_LAUNCH;end
-                if(edge_term[0]&&edge_sum[37:31]!={7{edge_sum[31]}})begin sticky_fault<=1;state<=FAILED;end
+                end else edge_step<=edge_step+1'b1;
+                if(edge_step>=3&&edge_result[0]&&edge_sum[37:31]!={7{edge_sum[31]}})begin sticky_fault<=1;state<=FAILED;end
             end
             OFFSET_Y: begin
                 for(i=0;i<7;i=i+1) if(plane_enable[i]) begin
