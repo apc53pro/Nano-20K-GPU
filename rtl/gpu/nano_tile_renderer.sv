@@ -1,6 +1,6 @@
-// Functional tiled rasterizer. The command format is N20K-SYS-0.1 (80 words).
+// Functional tiled rasterizer for N20K-SYS-0.3 records.
 // All attachment state uses native Gowin-compatible synchronous RAM ports.
-// The untextured path accepts one covered sample per edge after setup.
+// An aligned rectangle can accept two covered samples per edge after setup.
 // Textured fragments use a 64-context native-RAM pipeline with ordered
 // retirement. The RTL simulator supplies the authoritative cycle count.
 module nano_tile_renderer (
@@ -306,6 +306,9 @@ module nano_tile_renderer (
         words[26][31]||words[26]==0};
     wire row_exit /*verilator public_flat_rd*/=(state==RASTER)&&(kind==0)&&(|remaining_x[4:1])&&
         (|(edge_fails&edge_never_rises));
+    // Valid tile origins are aligned to 32 pixels. An even x and a nonzero
+    // lookahead count guarantee the second sample is in the same clipped row.
+    wire rectangle_pair=(kind==1)&&!x[0]&&(|remaining_x);
     wire [9:0] sample_addr={y[4:0],x[4:0]};
     wire [23:0] sample_depth=(kind==0)?quantize_depth(plane_current[0]):constant_depth;
     wire use_rgb_planes=(kind==0)&&color_write&&(shade==1||shade==4);
@@ -314,7 +317,7 @@ module nano_tile_renderer (
     wire [7:0] sample_b=quantize_color(plane_current[3]);
     wire [23:0] sample_color=use_rgb_planes?{sample_b,sample_g,sample_r}:constant_color;
 
-    reg pending;
+    reg pending,pending_pair;
     reg [9:0] pending_addr;
     reg [23:0] pending_depth;
     reg [15:0] pending_color;
@@ -327,9 +330,15 @@ module nano_tile_renderer (
     reg depth_read_odd;
     wire [23:0] stored_depth=depth_read_odd?ram_depth_odd[23:0]:ram_depth_even[23:0];
     wire fast_commit=pending&&(!depth_test||depth_pass(pending_depth,stored_depth))&&!fault&&!reset;
+    wire pair_odd_commit=pending&&pending_pair&&
+        (!depth_test||depth_pass(pending_depth,ram_depth_odd[23:0]))&&!fault&&!reset;
     wire ext_write=(state==IDLE)&&(|pix_we)&&!fault&&!reset;
-    wire color_we=(ext_write&&pix_we[0])||(fast_commit&&color_write)||(fragment_color_write&&!fault&&!reset);
-    wire depth_we=(ext_write&&pix_we[1])||(fast_commit&&depth_write)||(fragment_depth_write&&!fault&&!reset);
+    wire color_primary_we=(ext_write&&pix_we[0])||(fast_commit&&color_write)||(fragment_color_write&&!fault&&!reset);
+    wire depth_primary_we=(ext_write&&pix_we[1])||(fast_commit&&depth_write)||(fragment_depth_write&&!fault&&!reset);
+    wire color_odd_extra=pair_odd_commit&&color_write;
+    wire depth_odd_extra=pair_odd_commit&&depth_write;
+    wire color_we=color_primary_we||color_odd_extra;
+    wire depth_we=depth_primary_we||depth_odd_extra;
     wire [9:0] write_addr=ext_write?pix_addr:(fragment_retired?fragment_address:pending_addr);
     wire [15:0] write_color=ext_write?pix_color[15:0]:(fragment_retired?fragment_color:pending_color);
     wire [23:0] write_depth=ext_write?pix_depth:(fragment_retired?fragment_depth:pending_depth);
@@ -337,7 +346,13 @@ module nano_tile_renderer (
     wire external_re=(state==IDLE)&&pix_re&&!fault&&!reset;
     wire [9:0] read_addr=external_re?pix_raddr:sample_addr;
     wire pair_write=ext_write&&pix_write_pair;
-    wire [3:0] color_lanes=pair_write?4'b1111:(write_addr[0]?4'b1100:4'b0011);
+    wire write_even=pair_write||!write_addr[0];
+    wire write_odd=pair_write||write_addr[0];
+    // The paired rectangle shares the primary address and constant values.
+    // Each lane's depth outcome independently enables its attachment bytes.
+    wire color_even_lane=color_primary_we&&write_even;
+    wire color_odd_lane=(color_primary_we&&write_odd)||color_odd_extra;
+    wire [3:0] color_lanes={{2{color_odd_lane}},{2{color_even_lane}}};
     wire [31:0] color_write_word=pair_write?pix_color:{write_color,write_color};
     wire depth_re=external_re||sample_re;
     always @(posedge clk)
@@ -349,14 +364,14 @@ module nano_tile_renderer (
     // Each depth bank owns one pixel parity. Thus reading the next pixel
     // while committing the preceding one never introduces a same-word
     // collision: equal bank/address still means the same original pixel.
-    // Pair clearing can use the independent write ports together.
-    nano_sdp32_masked depth_even_ram(.wclk(clk),.wce(1'b1),.we(depth_we&&(pair_write||!write_addr[0])),
+    // Pair clearing and paired rectangles can use both ports together.
+    nano_sdp32_masked depth_even_ram(.wclk(clk),.wce(1'b1),.we(depth_primary_we&&write_even),
         .wstrb(4'b1111),.waddr(write_addr[9:1]),.wdata({8'b0,write_depth}),
         .rclk(clk),.rce(1'b1),.re(depth_re&&!read_addr[0]),.raddr(read_addr[9:1]),
         .reset_output(reset),.rdata(ram_depth_even));
-    nano_sdp32_masked depth_odd_ram(.wclk(clk),.wce(1'b1),.we(depth_we&&(pair_write||write_addr[0])),
+    nano_sdp32_masked depth_odd_ram(.wclk(clk),.wce(1'b1),.we((depth_primary_we&&write_odd)||depth_odd_extra),
         .wstrb(4'b1111),.waddr(write_addr[9:1]),.wdata({8'b0,write_depth}),
-        .rclk(clk),.rce(1'b1),.re(depth_re&&read_addr[0]),.raddr(read_addr[9:1]),
+        .rclk(clk),.rce(1'b1),.re((depth_re&&read_addr[0])||(sample_re&&rectangle_pair)),.raddr(read_addr[9:1]),
         .reset_output(reset),.rdata(ram_depth_odd));
     assign pix_rcolor=ram_color;
     assign pix_rdepth=stored_depth;
@@ -584,7 +599,7 @@ module nano_tile_renderer (
     end
 `endif
 
-    task automatic advance_candidate;
+    task automatic advance_candidate(input use_pair);
         reg signed [16:0] twice_error;
         reg signed [16:0] next_error;
         begin
@@ -603,9 +618,11 @@ module nano_tile_renderer (
                     end
                     line_error<=next_error[15:0]; state<=RASTER;
                 end
-            end else if(raster_step_x) begin
-                x<=x+11'sd1; source_x<=source_x+12'sd1;
-                remaining_x<=remaining_x-5'd1;
+            end else if(raster_step_x&&(!use_pair||(|remaining_x[4:1]))) begin
+                // Pair x is even, so advancing its upper bits moves by two.
+                x<=use_pair?{x[10:1]+10'd1,1'b0}:x+11'sd1;
+                source_x<=source_x+12'sd1;
+                remaining_x<=use_pair?{remaining_x[4:1]-4'd1,remaining_x[0]}:remaining_x-5'd1;
                 for(integer j=0;j<3;j=j+1)begin
                     edge_current[j]<=edge_next[j];
                 end
@@ -640,7 +657,7 @@ module nano_tile_renderer (
             source_x<=0;source_y<=0;source_start_x<=0;
             line_end_x<=0;line_end_y<=0;line_dx<=0;line_dy<=0;line_sx<=0;line_sy<=0;line_error<=0;
             edge_step<=0;edge_a_product<=0;
-            pending_addr<=0;pending_depth<=0;pending_color<=0;
+            pending_pair<=0;pending_addr<=0;pending_depth<=0;pending_color<=0;
             for(i=0;i<3;i=i+1) begin edge_row[i]<=0;edge_current[i]<=0;end
             for(i=0;i<7;i=i+1) begin plane_row[i]<=0;plane_current[i]<=0;end
         end else begin
@@ -777,10 +794,11 @@ module nano_tile_renderer (
             end
             RASTER: if(inside_sample) begin
                 if(need_texture) begin
-                    if(fragment_ready)advance_candidate();
+                    if(fragment_ready)advance_candidate(1'b0);
                 end else begin
-                    pending<=1;pending_addr<=sample_addr;pending_depth<=sample_depth;
-                    pending_color<=pack_color(sample_color);advance_candidate();
+                    pending<=1;pending_pair<=rectangle_pair;
+                    pending_addr<=sample_addr;pending_depth<=sample_depth;
+                    pending_color<=pack_color(sample_color);advance_candidate(rectangle_pair);
                 end
             end else begin
                 // The x step still runs on a row exit, so the plane and edge
@@ -788,7 +806,7 @@ module nano_tile_renderer (
                 // ROW_SKIP overwrites everything it stepped. Its overflow is
                 // not captured (grid_step excludes row_exit). The rest of this
                 // row is outside; the last row has none after it.
-                advance_candidate();
+                advance_candidate(1'b0);
                 if(row_exit) state<=raster_step_y ? ROW_SKIP : DRAIN;
             end
             ROW_SKIP: begin

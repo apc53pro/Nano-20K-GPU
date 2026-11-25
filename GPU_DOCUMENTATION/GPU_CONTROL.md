@@ -904,10 +904,11 @@ A signed Gowin EDA V1.9.11.03 Education is also installed. Its netlist is
 encrypted too. On the 2026-11-13 RTL it reached a 56.45 MHz core against
 60.36 MHz for V1.9.8.11. The user keeps the version whose image reaches the
 faster clock (`AGENTS.md` addendum 2026-11-13), so that release used
-V1.9.8.11. For the short-record 0.3 RTL, the complete-board routes
-estimate 58.664 MHz core Fmax for V1.9.8.11 and 54.193 MHz for
-V1.9.11.03. Both meet the selected clock gates on the existing package
-pins and host-pad constraints, so `make tang20k` selects V1.9.8.11.
+V1.9.8.11. For the current 0.3 RTL with paired rectangle rasterization,
+the complete-board routes estimate 60.095 MHz core Fmax for V1.9.8.11
+and 50.494 MHz for V1.9.11.03. Both meet the selected clock gates on the
+existing package pins and host-pad constraints, so `make tang20k` selects
+V1.9.8.11.
 The architecture guide's section 12 links the source hashes, checked image
 metadata and all remaining reset-release violations. The design runs at
 50.4 MHz core/SDRAM, 25.2 MHz pixels and 126 MHz serialization.
@@ -1458,6 +1459,13 @@ accepted as a raw sprite alias, but new drivers should use mode 2. Sprites have
 no scaling, flipping, rotation or Gouraud/modulated shading. Copies are a
 different command, not shaded primitives. Color/depth writes and depth testing
 are independently enabled. Key rejection suppresses **both** attachment writes.
+
+Aligned rectangle pixels in the same clipped row can execute as a pair.
+Each pixel still applies its own exact D24 comparison and independently
+enables its color and depth writes. A passing pixel leaves its failing
+neighbor intact. The GPU retires the complete draw before the next list
+entry. Hosts keep the same rectangle records, scissor rules and fence
+sequence regardless of start parity or width.
 
 For triangles, only textured modes may enable color keying. The CPU setup/encoder rejects
 untextured keying; the current raw RTL validator has a known gap and can ignore

@@ -20,23 +20,46 @@ module nano_tile_step_control_tb;
 
  reg [31:0] record[0:79];
  integer i,p,axis,neg,steps,candidates,writes,cases=0,mode=0,span=0,height=0,row_exits=0;
- integer expected_addr,first_addr,second_addr,start_x,start_y;
+ integer expected_addr,start_x,start_y,lane;
+ reg [1:0] lanes;
+ reg expected_pair;
  reg active=0;
  reg [15:0] expected_color;
  reg [23:0] expected_depth;
  reg signed [63:0] seed,delta;
  task tick;begin #5;clk=1;#5;clk=0;end endtask
  always @(posedge clk) if(!reset&&active)begin
-  if(dut.state==8&&dut.advance_raster&&!fault)candidates=candidates+1;
-  if(dut.color_we)begin
+  if(dut.state==8&&dut.advance_raster&&!fault)begin
    if(mode==1)begin
-    expected_addr=(start_y-448)*32+(start_x-608)+(writes/span)*32+(writes%span);
-    if(dut.write_addr!==expected_addr[9:0]||dut.write_color!==16'h3102||
-       !dut.depth_we||dut.write_depth!==24'h123456)
-     $fatal(1,"span%0d height%0d write%0d addr%0d expected%0d",span,height,writes,dut.write_addr,expected_addr);
-   end
-   writes=writes+1;
+    expected_addr=(start_y-448)*32+(start_x-608)+(candidates/span)*32+(candidates%span);
+    expected_pair=!expected_addr[0]&&(candidates%span+1<span);
+    if(dut.sample_addr!==expected_addr[9:0]||dut.rectangle_pair!==expected_pair)
+     $fatal(1,"span%0d sample%0d addr%0d expected%0d pair%0d expected%0d",
+      span,candidates,dut.sample_addr,expected_addr,dut.rectangle_pair,expected_pair);
+    candidates=candidates+(expected_pair?2:1);
+   end else candidates=candidates+1;
   end
+  if(mode==1)begin
+   // Decode native writes, preserving order within each adjacent RGB565 word.
+   // Color and D24 must write the same lanes for this command.
+   lanes={dut.color_ram.wstrb[3],dut.color_ram.wstrb[1]}&{2{dut.color_ram.we}};
+   if(lanes!=={dut.depth_odd_ram.we,dut.depth_even_ram.we})
+    $fatal(1,"span%0d color/depth write lanes disagree at write%0d",span,writes);
+   if((|lanes)&&(dut.color_ram.wstrb!=={{2{lanes[1]}},{2{lanes[0]}}}))
+    $fatal(1,"span%0d narrow color byte mask at write%0d",span,writes);
+   for(lane=0;lane<2;lane=lane+1)if(lanes[lane])begin
+    expected_addr=(start_y-448)*32+(start_x-608)+(writes/span)*32+(writes%span);
+    if(dut.color_ram.waddr!==expected_addr[9:1]||
+       dut.color_ram.wdata[16*lane +:16]!==16'h3102||lane[0]!==expected_addr[0]||
+       (lane==0&&(dut.depth_even_ram.waddr!==expected_addr[9:1]||
+                  dut.depth_even_ram.wdata!==32'h00123456))||
+       (lane==1&&(dut.depth_odd_ram.waddr!==expected_addr[9:1]||
+                  dut.depth_odd_ram.wdata!==32'h00123456)))
+     $fatal(1,"span%0d height%0d write%0d word%0d lane%0d expected pixel%0d",
+      span,height,writes,dut.color_ram.waddr,lane,expected_addr);
+    writes=writes+1;
+   end
+  end else if(dut.color_we)writes=writes+1;
  end
  task base;begin
   for(i=0;i<80;i=i+1)record[i]=0;

@@ -39,7 +39,9 @@ written to the board on 2026-11-13; it has not yet been tested with the
 RP2350.
 
 The current RTL transfers two RGB565 pixels per accepted SDRAM word and
-clears two tile pixels per core clock (section 5). Triangle edge
+clears two tile pixels per core clock (section 5). Aligned rectangle
+samples also use those paired attachment ports during rasterization
+(section 6). Triangle edge
 initialization takes nine clocks instead of 24, and kind-4 depth setup
 avoids nine divider clocks per eligible gradient (section 6). The
 published programming image and its reports describe the earlier RTL.
@@ -518,12 +520,13 @@ For each tile the current executor fetches the tile entry, then:
 
 The GPU has **one resident tile attachment set** of 1,024 RGB565 and 1,024
 D24 pixels in three native 512×32 RAMs. The color bank stores consecutive
-pixels in the low and high halfwords. A fragment writes only its halfword
-through the native byte enables. Each depth bank holds whole D24 pixels of
-one parity, so concurrent access to neighboring pixels uses separate banks.
-The read edge registers the parity that selects
-the depth value. Both depth banks can write the same clear value in parallel.
-Full framebuffers remain in SDRAM.
+pixels in the low and high halfwords. A fragment writes its halfword
+through the native byte enables. A paired rectangle writes either or both
+halfwords according to the two depth results. Each depth bank holds whole
+D24 pixels of one parity. A single-pixel read registers the requested parity
+to select the depth value, and an aligned rectangle pair can read both banks
+for two independent comparisons. Both banks can write the same clear or
+rectangle depth value in parallel. Full framebuffers remain in SDRAM.
 
 List order defines visible overlap/depth behavior. Different primitives in one
 pass may carry different supported states; changing state does not require a
@@ -545,7 +548,18 @@ one row or column step per clock from the primitive origin, so a large
 attributed triangle can spend up to about 1,100 setup clocks in a far tile.
 Triangle edges are evaluated at the start by multiplication, so a triangle
 with no enabled plane (flat color, no depth or texture) skips the walk.
-Rectangles, sprites and lines do not use it.
+Rectangles, sprites and lines use constant depth and skip the plane walk.
+
+The rectangle walker issues two samples on one clock when its current X
+is even and the next pixel is inside the same clipped row. Odd initial
+pixels and single-pixel tails use one issue. An aligned pair shares the
+constant RGB565 and D24 values. With depth testing enabled, it reads both
+parity banks at the same local word address and compares each stored D24
+value independently. An accepted lane writes only its enabled attachments.
+The existing pending sample stage retires both lanes before the next
+primitive. Clip boundaries, row transitions, reset and fault suppression
+follow the same rules for single samples and pairs. This uses the existing
+three attachment RAMs.
 
 Edge initialization uses one signed 18-by-18 multiplier with its existing
 three registered stages. It accepts the six `A*X` and `B*Y` products for
@@ -1515,6 +1529,32 @@ the published image. Encrypted netlists prevent a fixed SiP check, the
 V1.9.8.11 installer provenance remains unverified, and external electrical
 margins still require measurement.
 
+### Paired-rectangle source snapshot (2026-11-25)
+
+Both [Gowin V1.9.8.11](../docs/hardware/tang20k-paired-rectangles-v1908.json)
+and [signed V1.9.11.03](../docs/hardware/tang20k-paired-rectangles-v1911.json)
+routed the same complete board sources at placement/routing 0/2, verified
+all 26 package pins, and passed the required board and host-capture timing
+gates.
+
+| Gowin version | Core Fmax | Host Fmax | Logic | Registers | BSRAM |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| V1.9.8.11 | 60.095 MHz | 30.224 MHz | 20,167/20,736 | 7,437 | 46/46 |
+| V1.9.11.03 | 50.494 MHz | 25.818 MHz | 20,093/20,736 | 7,359 | 46/46 |
+
+V1.9.8.11 remains selected and leaves 569 of 20,736 logic units in this
+route. It uses 1,726 more mapped logic units than the preceding version's
+same-tool route. The selected profile stays at 50.4 MHz core/SDRAM,
+25.2 MHz pixel and 126 MHz serializer clocks. The two reports list the
+eight permitted reset-release paths per route and preserve the same
+uncommitted host-pad timing input. Each local image is paired with its
+checksum, device and frame-CRC check, and
+[functional evidence](../docs/hardware/tang20k-paired-rectangles-functional.json).
+
+The published image remains the earlier release. External electrical
+margins and physical speed are unmeasured, encrypted netlists prevent the
+fixed SiP check, and V1.9.8.11 installation provenance remains unverified.
+
 ## 13. Simulator, reference and performance evidence
 
 | Implementation | Role |
@@ -1881,6 +1921,42 @@ faults before an out-of-bounds tail request, and cancellation of staged
 record words. They also draw using short rectangle, line and keyed sprite
 records after a prepared triangle and reset, checking complete tile RGB565
 and D24 contents and preventing stale coefficients from affecting 2D draws.
+
+### Paired rectangle rasterization (2026-11-25)
+
+The [paired-rectangle benchmark](../docs/benchmarks/rtl-paired-rectangles.json)
+compares the same 0.3 packet bytes through the fence on Verilated board-core
+RTL at 50.4 MHz, with a 25.2 MHz virtual host. Both RGB565 buffers and every
+D24 word match the independent SRR, with zero scanout underflows.
+
+| Workload | Cycle reduction at matched starts |
+| --- | ---: |
+| UI, storing depth | 20.35–23.55% |
+| UI, discarding depth | 30.21–33.91% |
+| UI, loading color and depth | 13.65–14.95% |
+| Mixed depth and odd scissor boundaries | 0.88–1.15% |
+| Showcase and perspective | 3.39–4.16% |
+| Overdraw | 2.24–2.86% |
+| Opaque, full-screen copy, empty passes and triangle-only controls | 0% |
+
+Each 148-rectangle UI submission covers 797,440 pixels. The aligned pairs
+cut occupied raster clocks from 797,440 to 399,232, including 1,024
+singleton pixels. Each matched submission used the same packet bytes,
+including first-use resource uploads in textured scenes. The continuous
+suite uses 29,215,610 clocks instead of 30,295,388, a **3.56% reduction**.
+Every cumulative fence is at least as early. Four individual pass durations
+increase in the continuous sequence as earlier completions shift scanout
+and SDRAM phase. The two pointer updates reproduce those increases at
+their original start times. Their occupied raster clocks still fall from
+54 to 27. Four controlled pointer starts with identical attachments and
+the same packet bytes within each pair tie or improve. All 38 other
+matched-start cases also tie or improve.
+
+Focused regressions check both start parities and clipped widths, every
+D24 comparison and both attachment masks, including different outcomes
+for the two lanes. They also check viewport edges, final row retirement,
+reset and fault suppression. The exact per-sample coordinate and overflow
+traces still cover the triangle walker.
 
 ## 14. Build, verify and reach the board
 
